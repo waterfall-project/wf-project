@@ -290,6 +290,9 @@ def after_commit(session: Session, action: Callable[[], None]) -> None:
     It runs once the root transaction has ended, its connection given back to the pool: what it
     asks of Keycloak holds no connection of the database (#977), where the event ``after_commit``
     fires before SQLAlchemy gives it back. It runs once: the root ends once.
+
+    A session with no transaction begun has no end to wait for: the action would never run, so it
+    is refused (``RuntimeError``) rather than dropped in silence.
     """
     context = get_contextvars()
     registered = session.get_nested_transaction() or session.get_transaction()
@@ -297,7 +300,10 @@ def after_commit(session: Session, action: Callable[[], None]) -> None:
     while registered is not None:
         within.append(registered)
         registered = registered.parent
-    root = within[-1] if within else None
+    if not within:
+        message = "after_commit is registered in a session with no transaction begun"
+        raise RuntimeError(message)
+    root = within[-1]
     undone = False
     committed = False
 

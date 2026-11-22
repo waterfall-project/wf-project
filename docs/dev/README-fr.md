@@ -5586,6 +5586,19 @@ ses paramètres, jamais une phrase.
   tout paramètre en texte est un `Text`, que le code et le statut sont ceux du contrat pour
   l'opération, la revue, puis la validation des réponses des tests d'API contre le contrat.
 
+- **Un verrou refusé est un 503, sur toute route** — le gestionnaire d'`OperationalError` de
+  `backend/src/waterfall/api/problems.py` répond 503 `COMPONENT_UNAVAILABLE` (`params.component`
+  = `database`) à tout verrou que PostgreSQL refuse (`LockNotAvailable`) dans le délai qu'une
+  transaction s'est donné par `lock_timeout` : ce n'est pas une erreur interne, la base ne laisse
+  pas passer l'opération, qui n'a rien écrit. La règle vaut pour toute route, celles qui posent
+  leur propre borne (`bound_lock_waits`, `platform/database.py`) comme les autres ; toute autre
+  erreur de la base reste le 500 du middleware. Une route d'administration qui prend le verrou de
+  la règle des administrateurs ouvre sa transaction par `bounded_transaction`
+  (`api/authentication.py`, #924) ; l'inventaire de `test_users_under_load.py` échoue sur une
+  opération d'écriture de `/users` ou de `/access-roles` qui n'y est pas.
+
+  _Contrôles_ : `make test-back` (`test_users_under_load.py`, `test_api_problems.py`).
+
 - **Journaux et réponses des tests d'API** — un test d'API passe par `ContractClient`
   (`backend/tests/support.py`), qui valide chaque réponse contre le contrat avec openapi-core :
   une réponse hors schéma fait échouer le test. Les journaux sont ceux de structlog en JSON

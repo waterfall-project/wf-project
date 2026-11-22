@@ -5472,6 +5472,20 @@ its parameters, never a sentence.
   operation, the review, then the validation of the responses of the API tests against the
   contract.
 
+- **A lock refused is a 503, on every route** — the handler of `OperationalError` in
+  `backend/src/waterfall/api/problems.py` answers 503 `COMPONENT_UNAVAILABLE`
+  (`params.component` = `database`) to any lock PostgreSQL refuses (`LockNotAvailable`) within
+  the delay a transaction gave itself through `lock_timeout`: it is not an internal error, the
+  database does not let the operation through, and nothing was written. The rule holds for every
+  route, those that set their own bound (`bound_lock_waits`, `platform/database.py`) as the
+  others; any other error of the database stays the 500 of the middleware. A route of the
+  administration that takes the lock of the rule of the administrators opens its transaction with
+  `bounded_transaction` (`api/authentication.py`, #924); the inventory of
+  `test_users_under_load.py` fails on a write operation of `/users` or `/access-roles` that is not
+  in it.
+
+  _Checks_: `make test-back` (`test_users_under_load.py`, `test_api_problems.py`).
+
 - **Logs and responses of the API tests** — an API test goes through `ContractClient`
   (`backend/tests/support.py`), which validates every response against the contract with
   openapi-core: a response outside the schema fails the test. The logs are those of structlog in

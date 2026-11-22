@@ -23,6 +23,7 @@ from access_rows import account, role
 from fastapi.testclient import TestClient
 from realm import KEY, TestRealm
 from sqlalchemy import QueuePool, event, func, select, update
+from sqlalchemy.orm import Session
 from support import ContractClient, Logs, Watching, bearer, nowhere
 from task_handlers import deposit, task
 
@@ -51,7 +52,6 @@ from waterfall.worker.runner import Worker
 
 if TYPE_CHECKING:
     from openapi_core import OpenAPI
-    from sqlalchemy.orm import Session
 
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.settings import ServiceSettings
@@ -504,3 +504,13 @@ def test_what_waits_for_the_commit_runs_with_no_connection_of_the_database_lent(
     assert Worker(database, queue, {"identity_sync": reading}, "worker").run_task(task_id)
     assert task(database, task_id).status == "succeeded"
     assert lent == [0, 0]
+
+
+@pytest.mark.story("US-3020")
+def test_what_is_registered_in_a_session_with_no_transaction_begun_is_refused(
+    database: Database,
+) -> None:
+    # #977: a session that has begun nothing has no end to wait for; the action would never run, and
+    # is refused rather than dropped in silence.
+    with Session(database.engine) as session, pytest.raises(RuntimeError, match="no transaction"):
+        after_commit(session, lambda: None)

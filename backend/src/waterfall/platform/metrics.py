@@ -36,6 +36,7 @@ from collections.abc import Callable, Generator, Iterator, Mapping
 from concurrent.futures import Future, wait
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import timedelta
 from socketserver import ThreadingMixIn
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, get_args, override
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
@@ -47,7 +48,7 @@ from prometheus_client.multiprocess import MultiProcessCollector
 from sqlalchemy import Boolean, Text, column, func, select, table, true
 from sqlalchemy.exc import SQLAlchemyError
 
-from waterfall.platform.database import OBSERVATION_SECONDS, utc_now
+from waterfall.platform.database import OBSERVATION_SECONDS, bound_lock_waits, utc_now
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.keycloak import expect
 from waterfall.platform.logs import get_logger
@@ -99,7 +100,7 @@ TASK_BUCKETS = (0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1800.
 # How long a collection waits for the probes, in seconds: one that has not answered is down.
 PROBE_SECONDS = float(OBSERVATION_SECONDS)
 # How long a reading of the database waits for a statement or a lock, at a collection.
-READING_TIMEOUT = "2s"
+READING_WAIT = timedelta(seconds=2)
 
 # The catalogue of the databases of the server, read for their size.
 PG_DATABASE = table(
@@ -384,8 +385,9 @@ def probes_of(
 
 def bound_waiting(session: Session) -> None:
     """Bound how long the statements of a transaction wait, and the locks they take."""
-    for setting in ("statement_timeout", "lock_timeout"):
-        session.execute(select(func.set_config(setting, READING_TIMEOUT, true())))
+    statement = f"{round(READING_WAIT.total_seconds() * 1000)}ms"
+    session.execute(select(func.set_config("statement_timeout", statement, true())))
+    bound_lock_waits(session, READING_WAIT)
 
 
 # What reads the latest outcome of one such operation in the database; ``None`` if none has ended.

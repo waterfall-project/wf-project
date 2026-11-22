@@ -45,7 +45,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from waterfall.api.actors import actor_ref
-from waterfall.api.authentication import Caller, Services, ServicesOf, Transaction
+from waterfall.api.authentication import (
+    Caller,
+    Services,
+    ServicesOf,
+    Transaction,
+    bounded_transaction,
+)
 from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import (
     PaginationMeta,
@@ -72,7 +78,6 @@ from waterfall.api.queries import (
 from waterfall.core.access_roles.interface import (
     Actor,
     HeldRole,
-    bound_administration_waits,
     guard_deactivation,
     holding_none,
     holding_one_of,
@@ -159,17 +164,6 @@ type UserColumn = Literal[
     "updated_at",
     "updated_by",
 ]
-
-
-@contextmanager
-def bounded_transaction(services: Services) -> Generator[Session]:
-    """Open a transaction of a route of the administration whose waits for a lock are bounded.
-
-    Before anything else, the lock of the rule included (#924).
-    """
-    with services.database.transaction() as session:
-        bound_administration_waits(session)
-        yield session
 
 
 @contextmanager
