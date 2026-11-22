@@ -187,7 +187,9 @@ the service role reads and the owner alone writes (`waterfall.platform.maintenan
 `0035`): a backup dumps only `public`, and a restore replaces only it, so emptying Redis during a
 restore does not lift the maintenance (EP-13, US-2830, #956). Every request of the API thus reads
 the maintenance in the database, one more read per request (the liveness probe reads it to say it),
-bounded by `CONNECT_TIMEOUT`; a database that does not answer or whose pool is spent says "no
+bounded by `CONNECT_TIMEOUT` for the
+connection to the database — the one the address declares by `?connect_timeout=` wins — and by `POOL_TIMEOUT` for the
+pool (#4189, #4190); a database that does not answer or whose pool is spent says "no
 maintenance" and the probe answers. A maintenance held whose state is missing stays held, as an
 abandoned restore. Scheduled
 tasks are deposited by `waterfall-worker schedule`, the one command the planners call: it writes
@@ -5374,6 +5376,15 @@ the computation epics (EP-06 to EP-11).
 
 The envelope is fixed by the contract (`docs/api/README.md`, WF-ARC-0110): a machine code and
 its parameters, never a sentence.
+
+- **A component down, on the back side** — a database that does not answer a request, because the
+  connection fails or is lost, the server stops or starts, or the pool stays taken past
+  `POOL_TIMEOUT`, is refused by the 503 `COMPONENT_UNAVAILABLE` that names `database`, not by a 500
+  (`is_unreachable` of `waterfall.platform.database`, read by the correlation middleware,
+  US-2860); a statement the server judged — a lock refused, a deadlock — stays what it was. The
+  other components are named where they are reached (`platform/storage.py`,
+  `platform/keycloak.py`); the trials of one component stopped at a time, behind a gate the test
+  closes and opens again (`backend/tests/degraded_platform.py`), are in `test_degraded_mode.py`.
 
 - **Adding a code on the front side** — a new code is first a change to the contract
   (`ErrorCode`, `docs/api/components/common.yaml`), followed by `make generate-client`. The

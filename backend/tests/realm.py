@@ -57,6 +57,9 @@ class TestRealm:
         # What the realm answers to the synchronisation of its one directory: until a test sets it,
         # the realm answers none of the calls of the administration API.
         self.synchronization: bytes | None = None
+        # The accounts of the realm, by subject, which the realm lends and takes back as the
+        # administration API does (the language of an account): until a test gives them, none.
+        self.accounts: dict[str, dict[str, Any]] | None = None
         self._stopping = threading.Event()
         self._encryption = new_key()
         realm = self
@@ -69,18 +72,35 @@ class TestRealm:
                 self.end_headers()
                 self.wfile.write(body)
 
+            def do_PUT(self) -> None:
+                held = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+                subject = self.path.removeprefix(f"{ADMIN_PATH}/users/")
+                if realm.accounts is None or subject not in realm.accounts:
+                    self.send_error(501)
+                    return
+                realm.accounts[subject] = json.loads(held)
+                self.send_response(204)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
             def do_POST(self) -> None:
                 self.rfile.read(int(self.headers.get("Content-Length", 0)))
-                if realm.synchronization is None:
+                if realm.synchronization is None and realm.accounts is None:
                     self.send_error(501)
                 elif self.path == TOKEN_PATH:
                     self._answer(b'{"access_token": "service", "expires_in": 300}')
-                elif self.path.startswith(f"{ADMIN_PATH}/user-storage/{DIRECTORY_ID}/sync"):
+                elif realm.synchronization is not None and self.path.startswith(
+                    f"{ADMIN_PATH}/user-storage/{DIRECTORY_ID}/sync"
+                ):
                     self._answer(realm.synchronization)
                 else:
                     self.send_error(404)
 
             def do_GET(self) -> None:
+                subject = self.path.removeprefix(f"{ADMIN_PATH}/users/")
+                if realm.accounts is not None and subject in realm.accounts:
+                    self._answer(json.dumps(realm.accounts[subject]).encode())
+                    return
                 if realm.synchronization is not None and self.path.startswith(
                     f"{ADMIN_PATH}/components"
                 ):
