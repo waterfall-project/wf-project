@@ -8,6 +8,7 @@ reads it —, then applied, and the structure read back. The tests of the corpus
 database, are in ``test_msproject_corpus.py``.
 """
 
+import itertools
 import time
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -558,11 +559,13 @@ def test_a_file_that_defines_the_field_of_the_lineages_never_matches_a_row_by_it
     opened(api, stage)
     imported(api, stage, worker, planning(task(1, "A"), task(2, "B")))
     lineage = by_label(stage)["A"][0].lineage_id
-    declared = (
-        "<ExtendedAttributes><ExtendedAttribute><FieldID>188743731</FieldID>"
-        "<FieldName>Text1</FieldName><Alias>Waterfall.lineage</Alias></ExtendedAttribute>"
-        "</ExtendedAttributes>"
-    )
+
+    def declared(alias: str) -> str:
+        return (
+            "<ExtendedAttributes><ExtendedAttribute><FieldID>188743731</FieldID>"
+            f"<FieldName>Text1</FieldName><Alias>{alias}</Alias></ExtendedAttribute>"
+            "</ExtendedAttributes>"
+        )
 
     def carrying(value: object) -> str:
         return (
@@ -571,9 +574,12 @@ def test_a_file_that_defines_the_field_of_the_lineages_never_matches_a_row_by_it
         )
 
     unknown, known = carrying(uuid4()), carrying(lineage)
-    for besides in ("", unknown):
+    # The alias the user renamed in MS Project still declares the field, by its identifier.
+    for alias, besides in itertools.product(("Waterfall.lineage", "Mine"), ("", unknown)):
         reworked = planning(
-            task(1, "A", besides=known), task(2, "B revue", besides=besides), besides=declared
+            task(1, "A", besides=known),
+            task(2, "B revue", besides=besides),
+            besides=declared(alias),
         )
         named = [
             (each["change"], each["label"])

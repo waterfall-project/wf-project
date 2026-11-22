@@ -15,7 +15,7 @@ The dates are naive on purpose: MSPDI writes the wall clock of the project, in n
 a planning instant is a day and its hours, never a timestamp.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
@@ -197,7 +197,7 @@ class MsProject:
     days_per_month: int | None = None
     calendars: tuple[MsCalendar, ...] = ()
     tasks: tuple[MsTask, ...] = ()
-    lineage_declared: bool = field(default=False, compare=False)
+    lineage_declared: bool = False
 
     def parents(self) -> dict[int, int | None]:
         """Return the parent of each task by its unique identifier, ``None`` for a root.

@@ -87,13 +87,15 @@ def test_a_task_added_in_ms_project_with_the_uid_of_another_is_added_not_matched
 ) -> None:
     # « Un planning exporté, retravaillé dans MS Project puis réimporté conserve les lignes de
     # devis et les lignées de ses tâches, et ses tâches démarrées. » The scenario of #3337: a
-    # structure of UID 1, 2, 3, 5, 8, 9 and 12, lines under T5, its export, a task of UID 8 without
-    # lineage inserted after the row 2, the reimport.
+    # structure of UID 1, 2, 3, 5, 8, 9 and 12, T1 to T7 by rank, lines under T5 (the task of UID
+    # 8, the one the inserted UID collides with), its export, a task of UID 8 without lineage
+    # inserted after the row 2, the reimport.
     revision = opened(api, stage)
-    names = {1: "T1", 2: "T2", 3: "T3", 5: "T5", 8: "T8", 9: "T9", 12: "T12"}
+    names = {1: "T1", 2: "T2", 3: "T3", 5: "T4", 8: "T5", 9: "T6", 12: "T7"}
     imported(api, stage, worker, planning(*(task(uid, name) for uid, name in names.items())))
     found = by_label(stage)
     five = str(found["T5"][0].id)
+    assert found["T5"][1].external_id == "8"
     package, _ = work_breakdown(stage)
     put_facts(stage, five, work_package_id=package)
     set_progress(stage, five, "started", date(2026, 11, 2))
@@ -132,3 +134,47 @@ def test_a_task_added_in_ms_project_with_the_uid_of_another_is_added_not_matched
         None,
     )
     assert kept_lines() == lines_before
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+def test_a_lineage_twice_in_the_file_matches_the_first_row_and_adds_the_second(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # [US-3170] A task copied and pasted in MS Project carries its lineage twice: the first row in
+    # the order of the file is the task, the second is one the file creates.
+    opened(api, stage)
+    imported(api, stage, worker, planning(task(1, "A"), task(2, "B")))
+    lineage = by_label(stage)["A"][0].lineage_id
+    field = (
+        f"<ExtendedAttribute><FieldID>188743731</FieldID><Value>{lineage}</Value>"
+        "</ExtendedAttribute>"
+    )
+    declared = (
+        "<ExtendedAttributes><ExtendedAttribute><FieldID>188743731</FieldID>"
+        "<Alias>Waterfall.lineage</Alias></ExtendedAttribute></ExtendedAttributes>"
+    )
+    reworked = planning(
+        task(1, "A", besides=field), task(2, "A copie", besides=field), besides=declared
+    )
+    named = [
+        (each["change"], each["label"])
+        for each in analysed(api, stage, worker, reworked)["report"]["differences"]
+    ]
+    assert sorted(named) == [("added", "A copie"), ("removed", "B")]
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+def test_an_external_id_twice_in_the_structure_is_matched_by_the_first_task_only(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # [US-3170] Two tasks of the structure that keep the same identifier of MS Project: a row of
+    # that UID takes the first in the order of the plan, never both.
+    opened(api, stage)
+    imported(api, stage, worker, planning(task(1, "A"), task(2, "B")))
+    put_facts(stage, str(by_label(stage)["B"][0].id), external_id="1")
+    reworked = planning(task(1, "A revue"))
+    named = [
+        (each["change"], each["label"])
+        for each in analysed(api, stage, worker, reworked)["report"]["differences"]
+    ]
+    assert sorted(named) == [("removed", "B"), ("updated", "A revue")]

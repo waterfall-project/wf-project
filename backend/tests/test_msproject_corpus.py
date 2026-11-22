@@ -18,6 +18,7 @@ file of the manifest.
 
 import json
 import os
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -136,6 +137,11 @@ MISSING: dict[str, str] = {}
 # automatic and signals it (``SUMMARY_TASK_DERIVED``, WF-INTF-0040). Not compared with the dates of
 # the file, they are affirmed apart; no other task is left out of the comparison.
 DERIVED: dict[str, tuple[str, ...]] = {"06-manual-tasks.xml": ("Manuelle 4",)}
+
+
+def _carrying_lineages(project: MsProject) -> MsProject:
+    """Give the planning as the reader gives it back once written, its lineages declared."""
+    return replace(project, lineage_declared=any(task.lineage for task in project.tasks))
 
 
 def _ids(project: MsProject) -> dict[int, UUID]:
@@ -378,4 +384,4 @@ def test_each_planning_of_the_corpus_read_then_written_is_valid_against_the_sche
     written = write_project(project)
 
     assert schema.validate(etree.fromstring(written, hardened_parser())), schema.error_log
-    assert read_project(written).project == project
+    assert read_project(written).project == _carrying_lineages(project)

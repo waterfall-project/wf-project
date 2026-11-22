@@ -75,7 +75,7 @@ def read_project(content: bytes) -> ReadProject:
         days_per_month=_integer(root, "DaysPerMonth"),
         calendars=tuple(_calendar(element) for element in _every(root, "Calendars", "Calendar")),
         tasks=tasks,
-        lineage_declared=lineage_field is not None,
+        lineage_declared=_lineage_declared(root),
     )
     return ReadProject(project, _ignored(root, project))
 
@@ -224,6 +224,19 @@ def _lineage_field(root: Tag) -> str | None:
         if _value(definition, "Alias") == LINEAGE_ALIAS:
             return _value(definition, "FieldID")
     return None
+
+
+def _lineage_declared(root: Tag) -> bool:
+    """Tell whether the file defines the field of the lineages, by its alias or by its identifier.
+
+    The identifier is read as ``_lineage`` reads it, so that an alias the user renamed in MS Project
+    does not make an export of Waterfall look like a file of another tool.
+    """
+    return any(
+        _value(definition, "Alias") == LINEAGE_ALIAS
+        or _value(definition, "FieldID") == LINEAGE_FIELD_ID
+        for definition in _every(root, "ExtendedAttributes", "ExtendedAttribute")
+    )
 
 
 def _lineage(element: Tag, lineage_field: str | None) -> UUID | None:
