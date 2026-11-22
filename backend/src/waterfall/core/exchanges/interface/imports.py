@@ -136,10 +136,10 @@ class Format[Prepared, Parsed](Protocol):
     format it knows — a head it does not recognise, a file damaged or beyond the bounds — are kept
     in what it gives, ``Parsed``, never raised, as is what the second step needs of the head; a
     defect it does not know still raises. ``Parsed`` is typed inside each format only: the registry
-    holds ``Format[Any, Any]``, and erases it. ``judge_header`` judges that under the lock, at the place the
-    contract gives the refusal in the order of ``openImport``, raising it then by a typed exception
-    (422 ``FILE_FORMAT_UNREADABLE``, ``expected_format``, ``expected_version``) — and judging what
-    depends on the database, the mapping of the actual costs. ``judge`` refuses an
+    holds ``Format[Any, Any]``, and erases it. ``judge_header`` judges that under the lock, at the
+    place the contract gives the refusal in the order of ``openImport``, raising it then by a typed
+    exception (422 ``FILE_FORMAT_UNREADABLE``, ``expected_format``, ``expected_version``) — and
+    judging what depends on the database, the mapping of the actual costs. ``judge`` refuses an
     import of the kind on the state of the project or of the structure aimed at, by the condition
     the contract names after those of the exchanges (409 ``project_before_in_progress`` for an
     estimate of the main structure, ``actual_cost_mapping_complete`` for the actual costs), or

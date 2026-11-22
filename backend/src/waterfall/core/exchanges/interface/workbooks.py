@@ -25,8 +25,9 @@ The cost, accepted: the check inflates once each deflated member, which openpyxl
 if it reads it, and it is replayed at each judgment of a file (the header, the analysis, the
 application), so a workbook at the bound, 200 MiB declared, inflates up to 200 MiB per judgment, a
 step of a mebibyte at a time and never held (a member of spaces, which inflates fast, costs a
-fraction of a second, as ``tests/workbook_bombs.py`` builds them; #4740). The bound is a worst case, which a
-user may reach only by depositing a file that is refused anyway, and no bound could be had without inflating.
+fraction of a second, as ``tests/workbook_bombs.py`` builds them; #4740). The bound is a worst
+case, which a user may reach only by depositing a file that is refused anyway, and no bound could
+be had without inflating.
 
 A reader then materialises the tabs its format reads, and those alone, by ``bounded_rows``: a tab
 of more than ``MOST_ROWS`` rows or ``MOST_COLUMNS`` columns, as openpyxl gives them, is refused.

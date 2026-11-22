@@ -26,6 +26,14 @@ if TYPE_CHECKING:
     from waterfall.platform.database import Database
 
 
+@pytest.fixture
+def installed(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Database:
+    """Give the database of a platform installed, its actual cost mapping declared."""
+    make_scene(api, owner, database, realm)
+    declare(database)
+    return database
+
+
 @pytest.mark.story("US-3190")
 @pytest.mark.parametrize(
     ("form", "expected_format"),
@@ -37,19 +45,12 @@ if TYPE_CHECKING:
     ],
 )
 def test_the_four_formats_keep_the_refusal_of_a_head_they_parse_and_raise_it_when_they_judge(
-    form: Any,
-    expected_format: str,
-    api: ContractClient,
-    owner: Engine,
-    database: Database,
-    realm: TestRealm,
+    form: Any, expected_format: str, installed: Database
 ) -> None:
-    make_scene(api, owner, database, realm)
-    declare(database)
     parsed = form.parse_header(b"neither a workbook nor a planning")
     assert isinstance(parsed, UnprocessableError)
     assert parsed.__traceback__ is None
-    with database.transaction() as session, pytest.raises(UnprocessableError) as raised:
+    with installed.transaction() as session, pytest.raises(UnprocessableError) as raised:
         form.judge_header(session, parsed)
     assert raised.value.code == "FILE_FORMAT_UNREADABLE"
     assert raised.value.params["expected_format"] == expected_format
