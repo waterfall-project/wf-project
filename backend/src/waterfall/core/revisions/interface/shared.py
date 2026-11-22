@@ -4,7 +4,9 @@
 
 The opening, the abandonment and the marking of a revision each lock the revision, judge it, and
 inscribe what they did in the journal; this module holds the one lock, the one refusal and the one
-inscription, so that they cannot drift apart.
+inscription, so that they cannot drift apart. It holds likewise the one rule by which a differential
+or an own estimate is up to date (``bears_main_counter``), and the counter of the main structure it
+is judged against (``main_counter``).
 
 The current revision of a project is held, besides, before its project is locked (US-1500/L2,
 ``hold_current_revision``). A write that holds the lock of a project and then writes in its current
@@ -27,12 +29,13 @@ transaction and needs an opening committed in it; it is not closed here, closing
 refusal (a new code) the contract does not have.
 """
 
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
 from waterfall.core.projects.interface import project_code, project_facts, project_label
-from waterfall.core.revisions.tables import STRUCTURE_KINDS, Revision
+from waterfall.core.revisions.tables import STRUCTURE_KINDS, CostStructure, Revision
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import (
     AuditObject,
@@ -49,6 +52,7 @@ from waterfall.platform.errors import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -61,6 +65,53 @@ if TYPE_CHECKING:
 # package that cannot import ``structures``, which imports them (#4003); the kinds all derive from
 # ``STRUCTURE_KINDS``, the list the table constrains, so that no declaration can drift (#4033).
 MAIN, AMENDMENT, RISK, BASE = STRUCTURE_KINDS
+# The key of the session telling that the writes of the main structure under way are those of a
+# provision line (``provision_written``).
+_PROVISION_WRITTEN = "waterfall.revisions.provision_written"
+
+
+@contextmanager
+def provision_written(session: Session) -> Generator[None]:
+    """Tell the counters of the main structure that what is written is a provision line (EP-30).
+
+    Each time the counter of the main structure advances within, the own estimates of the risks of
+    its revision that were up to date retain the new counter, in the same statement's transaction:
+    the provision line does not change the project the severity is computed on, and the update of a
+    risk, which writes its provision again, would otherwise put every other out of date (EP-30, "La
+    recomposition, la mise à jour et l'élagage"). Only the write of a provision line is so framed:
+    the planning writes its node, the estimate its figures.
+    """
+    held = session.info.get(_PROVISION_WRITTEN, False)
+    session.info[_PROVISION_WRITTEN] = True
+    try:
+        yield
+    finally:
+        session.info[_PROVISION_WRITTEN] = held
+
+
+def writing_provision(session: Session) -> bool:
+    """Tell whether what is written of the main structure now is a provision line."""
+    return bool(session.info.get(_PROVISION_WRITTEN, False))
+
+
+def bears_main_counter(row: CostStructure, counter: int | None) -> bool:
+    """Tell whether a differential or an own estimate is up to date: the one rule, every reading's.
+
+    Up to date while the main structure of its revision, whose counter is ``counter``, bears
+    the counter it retained (``main_lock_version``; US-3050, EP-30).
+    """
+    return row.main_lock_version == counter
+
+
+def main_counter(session: Session, project_id: UUID, revision_id: UUID) -> int | None:
+    """Give the counter of the main structure of a revision."""
+    return session.scalar(
+        select(CostStructure.lock_version).where(
+            CostStructure.project_id == project_id,
+            CostStructure.revision_id == revision_id,
+            CostStructure.kind == MAIN,
+        )
+    )
 
 
 def refuse(condition: str) -> ConflictError:

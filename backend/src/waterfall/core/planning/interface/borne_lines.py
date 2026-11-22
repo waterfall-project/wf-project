@@ -14,6 +14,8 @@ US-2590/L2), and which brings a line back under its identifier. Its facet is wri
 of its kind, which the module that asks addresses (``FacetCreation.entry``). It moves the line
 under another task (``move_borne_line``) the same way, and tells which module owns the lines a
 deletion or an import moves under another task (``register_provision_owners``, US-2580/L1).
+Each of these writes is a provision line's (``provision_written``): the own estimates up to date
+stay so (EP-30).
 
 Filled by US-2570/L1; completed by US-2580/L1.
 """
@@ -34,6 +36,7 @@ from waterfall.core.planning.shaping import place as place_nodes
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.planning.tree import LINE, TASK
 from waterfall.core.planning.writing import Writer, writing
+from waterfall.core.revisions.interface import provision_written
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.identifiers import new_id
 
@@ -156,7 +159,10 @@ def recreate_borne_line(
     """
     task_id, node_id = borne
     unrecorded = Writer(writer.act, None, writer.running)
-    with writing(session, place, unrecorded, ("node_create", (node_id,))) as write:
+    with (
+        provision_written(session),
+        writing(session, place, unrecorded, ("node_create", (node_id,))) as write,
+    ):
         tree = write.tree
         creation = NodeCreation(task_id, None, after_given=False, kind=LINE, facet=entry)
         judged = judge_line_creation(tree, creation, node_id)
@@ -179,7 +185,10 @@ def move_borne_line(
     is. No entry of the history is kept: the module that asks keeps its own.
     """
     unrecorded = Writer(writer.act, None, writer.running)
-    with writing(session, place, unrecorded, ("node_move", (line_id,))) as write:
+    with (
+        provision_written(session),
+        writing(session, place, unrecorded, ("node_move", (line_id,))) as write,
+    ):
         tree = write.tree
         node = tree.nodes.get(line_id)
         if node is None or node.kind != LINE:
@@ -206,7 +215,10 @@ def delete_borne_line(session: Session, place: Place, line_id: UUID, writer: Wri
     history is kept.
     """
     unrecorded = Writer(writer.act, None, writer.running)
-    with writing(session, place, unrecorded, ("node_delete", (line_id,))) as write:
+    with (
+        provision_written(session),
+        writing(session, place, unrecorded, ("node_delete", (line_id,))) as write,
+    ):
         tree = write.tree
         node = tree.nodes.get(line_id)
         if node is None or node.kind != LINE:

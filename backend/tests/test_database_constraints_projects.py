@@ -281,13 +281,17 @@ REFUSALS: list[Refusal] = [
     (Revision, {"id": SELF, "source_revision_id": SELF}, "ck_revision_source_not_self"),
     (CostStructure, {"kind": "baseline"}, "ck_cost_structure_kind_known"),
     # The risk of an own estimate, there for that kind alone, and known with its project (EP-08).
-    (CostStructure, {"kind": "risk"}, "ck_cost_structure_risk_of_its_kind"),
+    (CostStructure, {"kind": "risk", "main_lock_version": 1}, "ck_cost_structure_risk_of_its_kind"),
     (
         CostStructure,
         {"kind": "amendment", "main_lock_version": 1, "risk_id": uuid4()},
         "ck_cost_structure_risk_of_its_kind",
     ),
-    (CostStructure, {"kind": "risk", "risk_id": uuid4()}, "fk_cost_structure_project_id_risk"),
+    (
+        CostStructure,
+        {"kind": "risk", "risk_id": uuid4(), "main_lock_version": 1},
+        "fk_cost_structure_project_id_risk",
+    ),
     # The differential of a base, there for that kind alone, of its revision; the counter of the
     # main structure a differential's base was taken at, for that kind alone (US-3050).
     (CostStructure, {"kind": "base"}, "ck_cost_structure_differential_of_its_kind"),
@@ -299,6 +303,14 @@ REFUSALS: list[Refusal] = [
     ),
     (CostStructure, {"kind": "amendment"}, "ck_cost_structure_main_counter_of_its_kind"),
     (CostStructure, {"main_lock_version": 1}, "ck_cost_structure_main_counter_of_its_kind"),
+    # The own estimate of a risk keeps it too, and names the marked revision it is pruned against,
+    # for that kind alone, a revision of its project (EP-30).
+    (
+        CostStructure,
+        {"kind": "risk", "risk_id": uuid4()},
+        "ck_cost_structure_main_counter_of_its_kind",
+    ),
+    (CostStructure, {"pruned_revision_id": uuid4()}, "ck_cost_structure_pruned_of_its_kind"),
     (
         CostStructure,
         {"kind": "amendment", "main_lock_version": -1},
@@ -311,8 +323,10 @@ REFUSALS: list[Refusal] = [
 # estimate of a risk tried twice in a revision.
 MAIN = "uq_cost_structure_main"
 RISK = "uq_cost_structure_risk"
-# A second base of a differential (US-3050).
+# A second base of a differential (US-3050); the revision an own estimate pruned names, of another
+# project (EP-30).
 BASE = "uq_cost_structure_base"
+PRUNED = "fk_cost_structure_pruned_revision_id_revision"
 
 
 def held(table: type[Base], parents: Parents) -> Executable | None:
@@ -393,9 +407,12 @@ def test_the_database_refuses_a_second_own_estimate_of_a_risk_in_a_revision(
         connection.execute(
             insert(Risk), [risk_row(parents.project, id=each) for each in (risk, other)]
         )
-        connection.execute(row(CostStructure, parents, kind="risk", risk_id=risk))
-        connection.execute(row(CostStructure, parents, kind="risk", risk_id=other))
-    refused = refusal(database.engine, row(CostStructure, parents, kind="risk", risk_id=risk))
+        for each in (risk, other):
+            connection.execute(
+                row(CostStructure, parents, kind="risk", risk_id=each, main_lock_version=1)
+            )
+    second = row(CostStructure, parents, kind="risk", risk_id=risk, main_lock_version=1)
+    refused = refusal(database.engine, second)
     with database.engine.connect() as connection:
         parent = connection.execute(
             text(
@@ -405,6 +422,24 @@ def test_the_database_refuses_a_second_own_estimate_of_a_risk_in_a_revision(
             {"index": refused},
         ).scalar_one()
     assert parent == RISK
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+def test_the_database_refuses_an_own_estimate_pruned_against_a_revision_of_another_project(
+    database: Database, parents: Parents
+) -> None:
+    # The marked revision an own estimate pruned names is one of its project, with which the key
+    # names it (EP-30): the revision of the second project is refused, one of its own admitted.
+    risk = uuid4()
+    with database.engine.begin() as connection:
+        connection.execute(insert(Risk).values(**risk_row(parents.project, id=risk)))
+    pruned = {"kind": "risk", "risk_id": risk, "main_lock_version": 1}
+    refused = row(CostStructure, parents, **pruned, pruned_revision_id=parents.other_revision)
+    assert refusal(database.engine, refused) == PRUNED
+    with database.engine.begin() as connection:
+        connection.execute(
+            row(CostStructure, parents, **pruned, pruned_revision_id=parents.revision)
+        )
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")
@@ -446,7 +481,9 @@ def test_every_named_constraint_of_the_projects_and_revisions_has_its_refusal_tr
         for constraint in table.constraints
         if constraint.name is not None and not str(constraint.name).startswith("pk_")
     } | {str(index.name) for table in tables for index in table.indexes if index.unique}
-    tried = {MAIN, RISK, BASE} | {constraint for _, _, constraint in (*REFUSALS, *audit_refusals())}
+    tried = {MAIN, RISK, BASE, PRUNED} | {
+        constraint for _, _, constraint in (*REFUSALS, *audit_refusals())
+    }
     named_by_a_key = {
         "uq_revision_project_id",
         "uq_cost_structure_project_id",
@@ -515,6 +552,8 @@ def test_every_row_refers_to_a_project_and_to_a_revision_by_its_identifier_never
         ("project", ("id",)),
         ("revision", ("id",)),
         ("revision", ("project_id", "id")),
+        # The revision an own estimate pruned names, before its project (EP-30).
+        ("revision", ("id", "project_id")),
     }
     assert {table for table, _, _ in targets} >= {
         "project_state_transition",

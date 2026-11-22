@@ -13,10 +13,11 @@ revision with its project:
 - ``risk_evaluation``, one row by risk and by revision that bears it: its probability, its state,
   its own structure, its provision line (null out of the state identified), the category, the
   subproject and the lineage of the task its provision designates — kept when it is dismissed, for
-  its return —, its cost at occurrence (null out of the state occurred). The copy of a revision
+  its return —, its cost at occurrence (null out of the state occurred), signed, its severity
+  recorded, signed, and what an occurrence froze (EP-30). The copy of a revision
   takes it up, the abandonment deletes it with the revision;
 - ``risk_review``, one row by review, of the revision it was made in, never copied: its day, the
-  probability, the severity and the state it retained;
+  probability, the severity, signed, and the state it retained;
 - ``risk_reference_share``, one row by risk and by reference revision: the provision the risk bears
   in that reference, written when the revision becomes the reference, deleted when a designation is
   corrected. The reserve is their sum (M-01).
@@ -170,7 +171,17 @@ class RiskEvaluation(Stamped):
         CheckConstraint(
             "(occurrence_cost IS NOT NULL) = (state = 'occurred')", name="cost_when_occurred"
         ),
-        CheckConstraint("occurrence_cost >= 0", name="occurrence_cost_not_negative"),
+        # The cost at occurrence is signed, an opportunity realized costing less than nothing
+        # (EP-30); so are the severity and the earned value an occurrence brought. The two figures
+        # an occurrence freezes are null out of that state.
+        CheckConstraint(
+            "state = 'occurred' OR occurrence_frozen_cost IS NULL",
+            name="frozen_cost_when_occurred",
+        ),
+        CheckConstraint(
+            "state = 'occurred' OR occurrence_earned_value IS NULL",
+            name="earned_value_when_occurred",
+        ),
         # The own estimate of one risk, and the provision line of one risk, in a revision.
         UniqueConstraint("structure_id", "project_id"),
         UniqueConstraint("provision_node_id", "project_id"),
@@ -200,6 +211,18 @@ class RiskEvaluation(Stamped):
     # of the first level bears it (#786).
     provision_task_lineage_id: Mapped[UUID | None]
     occurrence_cost: Mapped[Decimal | None] = mapped_column(Numeric(AMOUNT_PRECISION, AMOUNT_SCALE))
+    # The severity recorded, signed: the gap of the re-estimated totals of the own estimate and of
+    # its base, written at each write of the own estimate and at each update, never computed at a
+    # reading (EP-30, "La gravité et la provision"); null until the story that writes it.
+    severity: Mapped[Decimal | None] = mapped_column(Numeric(AMOUNT_PRECISION, AMOUNT_SCALE))
+    # What an occurrence froze (EP-30, "La survenance"): the share of the cost at occurrence that
+    # does not hold to the lines it added, and the earned value it brought, signed.
+    occurrence_frozen_cost: Mapped[Decimal | None] = mapped_column(
+        Numeric(AMOUNT_PRECISION, AMOUNT_SCALE)
+    )
+    occurrence_earned_value: Mapped[Decimal | None] = mapped_column(
+        Numeric(AMOUNT_PRECISION, AMOUNT_SCALE)
+    )
 
 
 class RiskReview(Created):
@@ -214,7 +237,7 @@ class RiskReview(Created):
         _of_revision(),
         _of_risk(),
         _probability(),
-        CheckConstraint("severity >= 0", name="severity_not_negative"),
+        # The severity retained is signed: an opportunity's is negative (EP-30).
         CheckConstraint(_in("state", STATES), name="state_known"),
         Index(None, "risk_id"),
         Index(None, "revision_id"),

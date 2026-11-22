@@ -25,6 +25,8 @@ import pytest
 
 from waterfall.core.revisions.interface import (
     CLOSING_STAGES,
+    COMPOSE_STAGES,
+    PRUNE_STAGES,
 )
 
 # Each entry point, by the module that holds it.
@@ -63,13 +65,20 @@ for name in sys.argv[1:]:
 held = {name: [named(entry) for entry in entries] for name, entries in registries().items()}
 print(json.dumps(held))
 """
-# The registry whose order of registration does not count across its stages (#2470).
+# The registry whose order of registration does not count across its stages (#2470); those of the
+# recomposition and of the pruning of an own estimate, likewise (EP-30).
 CLOSING = "revisions.closing"
+STAGED: dict[str, tuple[str, ...]] = {
+    CLOSING: CLOSING_STAGES,
+    "revisions.compose": COMPOSE_STAGES,
+    "revisions.prune": PRUNE_STAGES,
+}
 # The registries whose order of registration does not count at all: a format and an exporter are
 # found by their kind, which has one at most — the actual costs, which the planning neither imports
 # nor is imported by, register theirs before or after the planning's, as a process imports them.
 BY_KIND = {"exchanges.formats", "exchanges.exporters"}
-# Every registry of the core and of the witness EP-04, EP-06, EP-07, EP-08, EP-09 and EP-10 declare.
+# Every registry of the core and of the witness EP-04, EP-06, EP-07, EP-08, EP-09, EP-10 and EP-30
+# declare.
 DECLARED = {
     "revisions.copy",
     "revisions.tasks_and_lines",
@@ -106,6 +115,11 @@ DECLARED = {
     "revisions.rebase",
     "revisions.rebase_end",
     "projects.risk_designations",
+    # EP-30 (US-3070/L1): the recomposition and the pruning of an own estimate, under their stages,
+    # and what is done before a marking or a merge writes.
+    "revisions.compose",
+    "revisions.prune",
+    "revisions.before_marking",
 }
 PLANNING = "waterfall.core.planning.interface"
 # What EP-06 registers (US-1380/L1, US-1390/L2), the copy of the nodes after the structures', and
@@ -262,14 +276,15 @@ def as_run(name: str, entries: list[str]) -> list[str]:
 
     The closings run stage by stage whatever the order of the imports (``closers``), each stage in
     the order of its registrations: a process that imports the planning before the history holds
-    the same closings, which run in the same order. The formats and the exporters are found by
-    their kind, in any order.
+    the same closings, which run in the same order; so do the parts of a recomposition and of a
+    pruning (EP-30). The formats and the exporters are found by their kind, in any order.
     """
     if name in BY_KIND:
         return sorted(entries)
-    if name != CLOSING:
+    stages = STAGED.get(name)
+    if stages is None:
         return entries
-    return sorted(entries, key=lambda entry: CLOSING_STAGES.index(entry.split(":")[0]))
+    return sorted(entries, key=lambda entry: stages.index(entry.split(":")[0]))
 
 
 def registered_in(*modules: str) -> dict[str, list[str]]:

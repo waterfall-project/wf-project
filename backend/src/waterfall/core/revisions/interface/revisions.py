@@ -56,6 +56,7 @@ from waterfall.core.resource_settings.interface import share_reference
 from waterfall.core.revisions.commands import NO_CURRENT_REVISION, REVISION_DRAFT, revision_commands
 from waterfall.core.revisions.interface.bases import keep_differential_states
 from waterfall.core.revisions.interface.closing import close_revision
+from waterfall.core.revisions.interface.own_estimates import copy_abandonments
 from waterfall.core.revisions.interface.reference import reference_correctable
 from waterfall.core.revisions.interface.shared import (
     found_revision,
@@ -643,8 +644,9 @@ def copy_revision(
     of the one it copies (#1759); the copies bear the stamp of the creation of ``target``, which is
     written already. Each epic adds its tables by ``register_copy``; ``apply_rate_update`` tells the
     copy of the rates whether the update is accepted (EP-07). Once every table is copied, each
-    differential taken up is given the state it had, up to date or out of date (US-3050).
-    ``imposed`` the identifiers the witness imposes on the copies, none for the service.
+    differential taken up is given the state it had, up to date or out of date (US-3050), and so is
+    each own estimate, with what it abandons (EP-30). ``imposed`` the identifiers the witness
+    imposes on the copies, none for the service.
     """
     revision = session.get_one(Revision, target)
     copy = RevisionCopy(
@@ -660,6 +662,7 @@ def copy_revision(
     )
     for copier in _COPIES.entries():
         copier(copy)
+    copy_abandonments(copy)
     keep_differential_states(copy)
 
 

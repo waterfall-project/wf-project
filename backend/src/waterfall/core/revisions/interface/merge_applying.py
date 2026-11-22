@@ -28,8 +28,11 @@ finished, the journal), and the reference designated by the way of the designati
   its lineage (#790). The differences are written by the parts of the planning and of the
   estimate, the differential marked merged (``is_merged``, its counter advanced), the merge
   inscribed in the journal (``structure_merge``), the revision marked under the name confirmed,
-  then made the reference. A reason of the report fails the task with its code and its
-  parameters, nothing written; so does any failure, no revision left opened (WF-DAT-0040).
+  then made the reference. Before the merge writes — once the revision is opened, when the task
+  opens it —, the modules registered do what they do before a marking, on the revision the merge
+  marks (``register_before_marking``: the risks update their own estimates, EP-30). A reason of
+  the report fails the task with its code and its parameters, nothing written; so does any
+  failure, no revision left opened (WF-DAT-0040).
 
 ``load_merge_at`` merges a differential of the witness at the instant it imposes, by the same
 transaction as the worker, without a report to confirm.
@@ -53,6 +56,7 @@ from waterfall.core.revisions.interface.marking import (
     mark_revision,
 )
 from waterfall.core.revisions.interface.merging import MergeJudged, merge_parts, merging_of
+from waterfall.core.revisions.interface.own_estimates import BeforeMarking, before_marking
 from waterfall.core.revisions.interface.reference import refer_after_merge
 from waterfall.core.revisions.interface.revisions import open_revision_by_task
 from waterfall.core.revisions.interface.shared import (
@@ -224,6 +228,13 @@ def _merged(session: Session, request: MergeRequest, act: Act, task_id: UUID | N
     merging = judged.merging
     if judged.creates:
         merging = _opened(session, judged, act, task_id)
+    # Before the merge writes, the modules registered do what they do before a marking: the risks
+    # update the own estimates of the revision the merge marks, or refuse (EP-30, WF-REV-0100). A
+    # merge without a current revision tells the one it has just opened, and the copy of the
+    # differential there: the own estimates to update are its copies, not those of the revision
+    # marked, which nothing writes. A refusal fails the task, the revision opened undone with it.
+    before = BeforeMarking(session, project_id, merging.revision_id, act, merging.amendment_id)
+    before_marking(before)
     merge_parts(replace(merging, applying=True))
     _consumed(session, merging, act)
     _inscribe(session, merging, request.version_name, act)

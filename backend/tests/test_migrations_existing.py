@@ -9,14 +9,15 @@ from uuid import uuid4
 import pytest
 from indicators_support import indicator_row
 from migrations_support import partition_parts
-from project_rows import AT, insert_project, insert_revision, insert_structure
+from project_rows import AT, insert_project, insert_revision, insert_structure, risk_row
 from sqlalchemy import func, insert, select, text, update
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from waterfall.core.access_roles.tables import AccessRole, AccessRolePermission, Permission
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.planning.tables import StructureReading
-from waterfall.core.revisions.tables import Revision
+from waterfall.core.revisions.tables import CostStructure, Revision
+from waterfall.core.risks.tables import Risk
 from waterfall.migrations.runner import downgrade, upgrade
 
 if TYPE_CHECKING:
@@ -244,3 +245,61 @@ def test_the_kinds_of_the_portfolio_are_admitted_and_one_kept_holds_the_descent_
         assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0042"
         kept = connection.scalars(text("SELECT kind FROM revision_indicator")).all()
     assert kept == ["portfolio_risks"]
+
+
+@pytest.mark.requirement("WF-DAT-0050-A")
+def test_the_own_estimates_as_differentials_are_refused_over_an_own_estimate_of_ep_08(
+    empty_engine: Engine,
+) -> None:
+    # EP-30, US-3070/L1: 0044 takes up no own estimate of EP-08 and refuses, saying it, while one
+    # exists, nothing applied; without one, it applies, and a project that exists receives its
+    # partition of the abandonments. The descent refuses likewise over an own estimate, saying that
+    # it is the descent that is refused.
+    upgrade(empty_engine, "0043")
+    project_id, revision_id, risk_id, own = uuid4(), uuid4(), uuid4(), uuid4()
+    with empty_engine.begin() as connection:
+        connection.execute(insert_project(id=project_id))
+        connection.execute(select(func.create_project_partitions(project_id)))
+        connection.execute(insert_revision(project_id, id=revision_id))
+        connection.execute(insert_structure(project_id, revision_id))
+        connection.execute(insert(Risk).values(**risk_row(project_id, id=risk_id)))
+        connection.execute(
+            text(
+                "INSERT INTO cost_structure (project_id, id, revision_id, kind, label, is_merged, "
+                "lineage_id, risk_id, lock_version, created_at, updated_at) VALUES (:project, "
+                ":id, :revision, 'risk', 'Retard', false, :id, :risk, 1, :at, :at)"
+            ),
+            {"project": project_id, "id": own, "revision": revision_id, "risk": risk_id, "at": AT},
+        )
+    refused = "an own estimate of a risk exists: no base that holds one"
+    with pytest.raises(DBAPIError, match=f"{refused} is migrated"):
+        upgrade(empty_engine, "0044")
+    version = text("SELECT version_num FROM alembic_version")
+    with empty_engine.begin() as connection:
+        assert connection.scalar(version) == "0043"
+        connection.execute(text("DELETE FROM cost_structure WHERE id = :id"), {"id": own})
+    upgrade(empty_engine, "0044")
+    partition = text("SELECT to_regclass(:name)")
+    with empty_engine.begin() as connection:
+        name = f"own_estimate_abandonment_p_{project_id.hex}"
+        assert connection.scalar(partition, {"name": name}) == name
+        connection.execute(
+            insert(CostStructure).values(
+                project_id=project_id,
+                id=own,
+                revision_id=revision_id,
+                kind="risk",
+                label="Retard",
+                is_merged=False,
+                lineage_id=own,
+                risk_id=risk_id,
+                main_lock_version=1,
+                lock_version=1,
+                created_at=AT,
+                updated_at=AT,
+            )
+        )
+    with pytest.raises(DBAPIError, match=f"{refused} is taken back to 0043"):
+        downgrade(empty_engine, "0043")
+    with empty_engine.connect() as connection:
+        assert connection.scalar(version) == "0044"
