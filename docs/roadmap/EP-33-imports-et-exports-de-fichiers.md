@@ -44,12 +44,16 @@ depuis.
 - l'élément d'OTP comparé en entier et le code de sous-projet libre (spécification 1.0.7), avec la
   reprise des codes déjà saisis (US-3270) ;
 - l'écran des imports : la commande « Relancer », le refus de l'application, le formulaire pendant
-  un envoi, la zone de dépôt, un long compte rendu (US-3280).
+  un envoi, la zone de dépôt, un long compte rendu (US-3280) ;
+- le devis et le reste à engager exportés, qui s'affichent justes sans recalcul du tableur, et les
+  colonnes d'heures du devis réduites aux codes comptables de ses rôles (US-3640, ajoutée le
+  2026-11-22).
 
 ## Ce qui n'en fait pas partie
 
 - le collage dans une grille — EP-34 ;
-- l'export du devis selon l'annexe B (#4399) — EP-31 ;
+- l'export du devis selon l'annexe B (#4399) — EP-31 ; US-3640 ne corrige que le classeur
+  d'aujourd'hui : ses valeurs en cache et le domaine de ses colonnes d'heures ;
 - la restauration et son dépôt, et l'écouteur `after_commit` sous point de sauvegarde qui supprime
   le fichier d'un import avant la validation de sa tâche (BEX-04, #4476) — EP-39 ;
 - la limite de mémoire du service dans le chart — EP-13 et EP-39 ;
@@ -199,6 +203,14 @@ Constats de la même revue joints à une issue ci-dessus : BRC-04 (une ligne du 
 « doublée » à cause d'une ligne d'un autre projet du même fichier) et BPR-09 (`api/subprojects.py`
 importe la borne du code de sous-projet de la table privée du module des projets), à #3966
 → US-3270.
+
+Constats d'EP-08 reçus le 2026-11-22 (décision de l'utilisateur : « l'export du devis »), relevés à
+l'essai de l'export sur `epic/EP-08` le 2026-11-20, rangés dans une US ajoutée le même jour :
+
+- #4317 — back : l'export du devis affiche ses montants et ses totaux à zéro sans recalcul du
+  tableur → US-3640 ;
+- #4319 — back : l'export du devis porte une colonne d'heures par catégorie de main-d'œuvre, non par
+  code des rôles → US-3640.
 
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
@@ -936,3 +948,49 @@ vont dans `exchanges.dom.test.tsx` et `project-start.dom.test.tsx`.
 
 **Hors périmètre.** Les messages des refus nouveaux du contrat, que leur US ajoute au catalogue
 (US-3200, US-3210, US-3240) ; la refonte des écrans (EP-37).
+
+---
+
+## US-3640 — Le devis et le reste à engager exportés s'affichent justes sans recalcul, et le devis ne porte de colonne d'heures que pour les codes de ses rôles
+
+- **statut** : à faire
+- **exigences** : `WF-INTF-0110-A`, `WF-INTF-0130-A`
+- **opérations** : `requestExport`
+- **issue** : #4730
+
+**En tant que** chef de projet, **je veux** que le classeur du devis ou du reste à engager que
+j'exporte montre ses montants et ses totaux dès son ouverture, dans un tableur qui ne recalcule pas
+ou dans un aperçu, et que l'onglet « Devis » ne porte une colonne d'heures que pour un code que l'un
+de mes rôles peut remplir, **afin de** diffuser le fichier sans qu'il se lise à zéro, et de ne pas
+chercher mes heures parmi cent cinquante colonnes vides (#4317, #4319).
+
+**Critères d'acceptation.**
+
+- propre à l'US (#4317) : relu sans recalcul (`openpyxl`, `data_only=True`), chaque cellule calculée
+  d'une ligne exportée du devis — Nature, Code comptable, Service, Taux horaire, Type, Heures
+  totales, Main-d'œuvre, Débours, Montant, Description de la tâche — porte la valeur que sa formule
+  rend, chaque « Montant » égal au « Montant Waterfall » ; une ligne préparée vide porte la valeur
+  vide que sa formule rend, non 0 ; la ligne de totaux de chaque onglet, les onglets « Devis » et
+  « Présentation » portent les leurs. Les formules restent : le classeur modifié dans un tableur se
+  recalcule.
+- propre à l'US (#4317) : le classeur du reste à engager, relu de même, porte la valeur de chacune de
+  ses cellules calculées et de ses totaux.
+- propre à l'US (#4319) : l'onglet « Devis » porte une colonne « Heures <code> » par code comptable
+  des rôles de « Paramètres », dans l'ordre des codes, et aucune pour un code qu'aucun rôle ne
+  porte : un référentiel de cinq rôles sur deux codes et de cent cinquante catégories de
+  main-d'œuvre donne deux colonnes. La « Synthèse » du reste à engager, qui ventile ses jours par
+  code comptable, suit le même domaine si elle a le même défaut.
+- écart : `WF-INTF-0110-A` — « On exporte un devis, puis on le réimporte sans modification dans la révision en cours. Le compte rendu (WF-INTF-0080) ne signale aucun écart, et les lignes obtenues sont identiques. » : constaté par EP-07 ; le test d'aller-retour
+  existant reste au vert avec les valeurs écrites et les colonnes réduites.
+- écart : `WF-INTF-0130-A` — « Même critère d'aller-retour que WF-INTF-0110. » : constaté par EP-09 ; idem.
+
+**Notes de réalisation.** Les propositions de #4317 et de #4319, retenues par l'utilisateur le
+2026-11-20, font foi : écrire avec chaque formule la valeur que Waterfall connaît déjà
+(`write_formula` avec sa valeur, `total_value` à côté de `total_function`), dans
+`core/estimate/excel/writer.py` et `core/estimate/remaining/excel/writer.py` ; prendre pour domaine
+des colonnes d'heures les codes comptables des rôles (`_summary_columns`). Écarté : forcer le
+recalcul au chargement, que LibreOffice, Excel en mode protégé et les aperçus ignorent.
+
+**Hors périmètre.** La refonte de l'export selon l'annexe B de la spécification 1.0.8 — « Devis »
+allégé, onglet « Heures », heures dans « Présentation » (#4399, EP-31), sous laquelle le même domaine
+des rôles fonde les lignes de l'onglet « Heures ».
