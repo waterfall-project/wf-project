@@ -4905,11 +4905,15 @@ she creates and takes In progress, she declares a risk, prices its own estimate 
 reviews it, declares it occurred — the task of the worker followed to its success —, prepares an
 amendment and contractualises it, the merge making its revision the reference. The gestures of the
 amendment (`prepare`, `contractualise`) are those of `amendment-flow.ts`, which
-`amendment-service.spec.ts` plays too. The paths of FBS-4.1 to 4.9 and of FLX-01 to FLX-07 thus all
-play against the service, in the same run (`make e2e-service`); only FLX-07 has no screen played:
-the extraction of the actual costs is imported through the API (`importActualCosts`,
-`in-progress.ts`). EP-08 left no `inService` guard to lift in these lists: those that remain, and
-the EPICs that lift them, are those of the list above.
+`amendment-service.spec.ts` plays too. The paths of FBS-4.1 to 4.9 and of FLX-01 to FLX-06 all play against the service, in the same run
+(`make e2e-service`), each in its file: FBS-4.1 `revision-cycle.spec.ts` and `pricing.spec.ts`; 4.2
+`projects.spec.ts`; 4.3, FLX-01 and FLX-02 `planning-service.spec.ts` and `exchanges.spec.ts`; 4.4
+`pricing.spec.ts`; 4.5 `remaining.spec.ts`; 4.6 `service/project-manager-risks.spec.ts`; 4.7
+`actual-costs.spec.ts`; 4.8 `service/project-manager-indicators.spec.ts`; 4.9 `revision-cycle.spec.ts`
+and `projects.spec.ts`; FLX-03 to FLX-06 `exchanges.spec.ts`. FLX-07 has no screen played: the
+extraction of the actual costs is imported through the API (`importActualCosts`, `in-progress.ts`), the
+screen being the object of issue #4699. EP-08 left no `inService` guard to lift in these lists: those
+that remain, and the EPICs that lift them, are those of the list below.
 
 The two readers of a project (`service/project-readers.spec.ts`, WF-ADM-0040-A) play against the
 service alone: two local accounts holding « Manager » and « Chef de projet », one reading in French
@@ -5902,7 +5906,7 @@ commits » on `main` (*Settings → Rules*), before creating the branch of the n
 targets neither `epic/*` nor `lot/*`. No check of the chain duplicates it: it is GitHub that
 refuses, hence this section.
 
-**The list of the entries not replayed**, as EP-08 leaves it (US-2640/L3), by the epic that removes
+**The list of the entries not replayed**, confirmed as it stands at the close of EP-08 (US-2650), by the epic that removes
 the guard and the entry above:
 
 - **EP-11** — the opening, from `/`, of the portfolio of `navigation.spec.ts`.

@@ -4951,11 +4951,16 @@ et porte En cours, il déclare un risque, chiffre son devis propre (une tâche e
 réexamine, le déclare survenu — la tâche du worker suivie jusqu'à sa réussite —, prépare un avenant
 et le contractualise, la fusion faisant de sa révision la référence. Les gestes de l'avenant
 (`prepare`, `contractualise`) sont ceux d'`amendment-flow.ts`, que rejoue aussi
-`amendment-service.spec.ts`. Les parcours de FBS-4.1 à 4.9 et de FLX-01 à FLX-07 se jouent ainsi
-tous contre le service, dans la même course (`make e2e-service`) ; seul FLX-07 n'a pas son écran
-joué : l'extraction des coûts réels s'importe par l'API (`importActualCosts`, `in-progress.ts`).
+`amendment-service.spec.ts`. Les parcours de FBS-4.1 à 4.9 et de FLX-01 à FLX-06 se jouent tous
+contre le service, dans la même course (`make e2e-service`), chacun dans son fichier : FBS-4.1
+`revision-cycle.spec.ts` et `pricing.spec.ts` ; 4.2 `projects.spec.ts` ; 4.3, FLX-01 et FLX-02
+`planning-service.spec.ts` et `exchanges.spec.ts` ; 4.4 `pricing.spec.ts` ; 4.5 `remaining.spec.ts` ;
+4.6 `service/project-manager-risks.spec.ts` ; 4.7 `actual-costs.spec.ts` ; 4.8
+`service/project-manager-indicators.spec.ts` ; 4.9 `revision-cycle.spec.ts` et `projects.spec.ts` ;
+FLX-03 à FLX-06 `exchanges.spec.ts`. FLX-07 n'a pas son écran joué : l'extraction des coûts réels
+s'importe par l'API (`importActualCosts`, `in-progress.ts`), l'écran étant l'objet de l'issue #4699.
 EP-08 n'a laissé aucune garde `inService` à lever dans ces listes : celles qui restent, et les
-EPIC qui les lèvent, sont celles de la liste ci-dessus.
+EPIC qui les lèvent, sont celles de la liste ci-dessous.
 
 Les deux lecteurs d'un projet (`service/project-readers.spec.ts`, WF-ADM-0040-A) se jouent contre le
 service seul : deux comptes locaux qui portent « Manager » et « Chef de projet », l'un lisant en
@@ -4963,7 +4968,7 @@ français et gardant toutes les colonnes, l'autre en anglais avec une colonne ma
 projet, ses contributeurs et ses révisions ; le premier le crée et ouvre une révision par les
 écrans, et inscrit l'autre par l'API sous son jeton.
 
-**La liste des entrées non rejouées**, telle qu'EP-08 la laisse (US-2640/L3), par l'EPIC qui retire
+**La liste des entrées non rejouées**, confirmée telle quelle à la clôture d'EP-08 (US-2650), par l'EPIC qui retire
 la garde et l'entrée ci-dessus :
 
 - **EP-11** — l'ouverture, depuis `/`, du portefeuille de `navigation.spec.ts`.

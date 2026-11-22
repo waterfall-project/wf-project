@@ -4,6 +4,7 @@ import { expect } from "@playwright/test";
 
 import { contractualise, prepare } from "../amendment-flow";
 import { MARKING, WORKING } from "../bounds";
+import { columnsOf } from "../columns";
 import { openHydrated } from "../hydration";
 import { inService, test } from "../mode";
 import { identifyRisk } from "../risk-seed";
@@ -25,7 +26,7 @@ test("the project manager of the run declares a risk on a project she creates, p
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
     // Declared: the register of the current revision, and the own estimate the declaration leads to.
-    const { risks, own } = await identifyRisk(
+    const { seeded, risks, own } = await identifyRisk(
       page,
       browser,
       calls,
@@ -33,9 +34,11 @@ test("the project manager of the run declares a risk on a project she creates, p
       "Risques du chef de projet",
       "Fuite du toit",
     );
-    const revision = /\/revisions\/([0-9a-f-]{36})\/risks$/.exec(risks)?.[1] ?? "";
-    expect(revision, "the address of the register names the revision").toMatch(/^[0-9a-f-]{36}$/);
-    const project = risks.slice(0, risks.indexOf("/revisions/"));
+    const project = seeded.own.path;
+    const revision = /\/revisions\/([0-9a-f-]{36})\/risks$/.exec(risks)?.[1];
+    if (revision === undefined) {
+      throw new Error(`the address of the register names no revision: ${risks}`);
+    }
 
     // Priced: a task and a line under it, in the own estimate of the risk.
     await openHydrated(page, own);
@@ -66,6 +69,22 @@ test("the project manager of the run declares a risk on a project she creates, p
     await expect(grid.getByRole("gridcell", { name: "Câbles" })).toBeVisible({
       timeout: WORKING,
     });
+    // The unit disbursement entered, the amount of the line is the one the service computes from it.
+    const at = await columnsOf(grid, {
+      disbursement: "Débours unit.",
+      reference: /Montant \(année de réf\.\)$/,
+    });
+    const cables = grid.getByRole("row", { name: /Câbles/ });
+    const disbursement = cables.getByRole("gridcell").nth(at.disbursement);
+    await disbursement.click();
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("250");
+    await page.keyboard.press("Enter");
+    await idle();
+    await expect(cables.getByRole("gridcell").nth(at.reference)).toHaveAccessibleName(
+      /^Calculé 250,00\s€$/,
+      { timeout: WORKING },
+    );
 
     // Reviewed, then declared occurred, from its detail in the register.
     await openHydrated(page, risks);
@@ -90,6 +109,11 @@ test("the project manager of the run declares a risk on a project she creates, p
       .filter({ hasText: "Survenance d’un risque « Fuite du toit »" });
     await expect(occurrence.getByText("Réussie")).toBeVisible({ timeout: MARKING });
     await occurrence.getByRole("button", { name: "Recharger l’écran" }).click();
+    // Read anew, the risk is occurred: « Réexaminer » says why it is no longer offered.
+    await expect(detail.getByRole("button", { name: "Réexaminer" })).toHaveAccessibleDescription(
+      /risque non survenu/,
+      { timeout: WORKING },
+    );
     await expect(detail.getByRole("button", { name: "Déclarer survenu" })).toHaveAttribute(
       "aria-disabled",
       "true",
