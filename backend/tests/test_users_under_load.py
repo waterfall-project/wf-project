@@ -19,12 +19,12 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-import psycopg
 import pytest
 import test_users_provider_reading
 from access_rows import ADMINISTRATION, role
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
+from psycopg.errors import DeadlockDetected
 from realm import KEY, TestRealm
 from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
@@ -409,13 +409,15 @@ def test_an_error_of_the_database_but_a_lock_not_obtained_stays_the_error_nobody
     stage: Stage, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # #924: the lock not obtained within the bound alone is answered 503; the database that fails
-    # otherwise is the internal error it was (500), which says nothing of it.
+    # otherwise is the internal error it was (500), which says nothing of it. A deadlock (40P01) is
+    # a statement the server judged: neither a lock refused (55P03) nor a database out of reach
+    # (a connection closed or lost, without SQLSTATE, is that: 503, WF-EXP-0040-A).
     statement = "SELECT set_config('lock_timeout', '10000ms', true)"
-    closed = psycopg.OperationalError("closed")
+    deadlock = DeadlockDetected("closed")
 
     def failing(session: Session) -> None:
         del session
-        raise OperationalError(statement, {}, closed)
+        raise OperationalError(statement, {}, deadlock)
 
     monkeypatch.setattr(authentication, "bound_administration_waits", failing)
     with stage.database.transaction() as session:

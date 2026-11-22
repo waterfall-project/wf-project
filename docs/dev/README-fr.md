@@ -190,7 +190,9 @@ au plus dans chacune de ses deux tables, que le rôle du service lit et que le p
 écrit (`waterfall.platform.maintenance`, migration `0035`) : une sauvegarde ne vide que `public`, et
 une restauration ne remplace que lui, si bien que vider Redis pendant une restauration ne lève pas
 la maintenance (EP-13, US-2830, #956). Chaque requête de l'API lit donc la maintenance en base, une
-lecture de plus par requête (la sonde de vie la lit pour la dire), bornée par `CONNECT_TIMEOUT` ; une
+lecture de plus par requête (la sonde de vie la lit pour la dire), bornée par `CONNECT_TIMEOUT` pour la
+connexion à la base — celle que l'adresse déclare par `?connect_timeout=` l'emporte — et par `POOL_TIMEOUT` pour le
+réservoir (#4189, #4190) ; une
 base qui ne répond pas ou dont le réservoir est épuisé dit « pas de maintenance » et la sonde répond.
 Une maintenance posée dont l'état manque reste posée, comme une restauration abandonnée. Les tâches planifiées se déposent par `waterfall-worker schedule`, la seule commande que les
 planificateurs appellent : elle inscrit et met en file ce qui est dû — la lecture des comptes et la sauvegarde à
@@ -4661,7 +4663,8 @@ contrat un 422, et Prism écrit chacune à son journal sous sa requête. Prism n
 le service authentifie, et son refus passe tel quel, confronté au contrat. Il lance enfin Playwright
 avec, dans son environnement — jamais en ligne de commande, où le mot de passe de Redis se lirait —,
 `E2E_PART=service`, `WATERFALL_API_ADDRESS` (le mandataire), `E2E_CONTRACT_PROXY` (son conteneur),
-`E2E_SERVICE_DATABASE` (celui de PostgreSQL), `WATERFALL_KEYCLOAK_ADDRESS`,
+`E2E_SERVICE_DATABASE` (celui de PostgreSQL), `E2E_SERVICE_CACHE` (celui de Redis),
+`E2E_SERVICE_DIRECTORY` (celui d'OpenLDAP), `WATERFALL_KEYCLOAK_ADDRESS`,
 `WATERFALL_FRONT_ADDRESS`, `WATERFALL_REDIS_URL` (le Redis de la plateforme) et
 `NODE_EXTRA_CA_CERTS` (la racine de l'autorité du frontal de Keycloak) ; le secret du client du
 front, et celui de l'administrateur de Keycloak, viennent de l'environnement. La plateforme reste
@@ -5486,6 +5489,15 @@ les EPIC de calcul (EP-06 à EP-11).
 
 L'enveloppe est fixée par le contrat (`docs/api/README-fr.md`, WF-ARC-0110) : un code machine et
 ses paramètres, jamais une phrase.
+
+- **Un composant tombé côté back** — une base qui ne répond pas à une requête, parce que la connexion
+  échoue ou se perd, que le serveur s'arrête ou démarre, ou que le réservoir reste pris au-delà de
+  `POOL_TIMEOUT`, est refusée par le 503 `COMPONENT_UNAVAILABLE` qui nomme `database`, non par un 500
+  (`is_unreachable` de `waterfall.platform.database`, lu par le middleware de la corrélation,
+  US-2860) ; une instruction que le serveur a jugée — un verrou refusé, un interblocage — reste ce
+  qu'elle était. Les autres composants se nomment là où ils sont atteints (`platform/storage.py`,
+  `platform/keycloak.py`) ; les essais d'un composant arrêté à la fois, derrière une porte que le test
+  ferme et rouvre (`backend/tests/degraded_platform.py`), sont dans `test_degraded_mode.py`.
 
 - **Ajouter un code côté front** — un code nouveau est d'abord une modification du contrat
   (`ErrorCode`, `docs/api/components/common.yaml`), suivie de `make generate-client`. Le
