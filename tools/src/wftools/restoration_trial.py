@@ -222,10 +222,19 @@ class Administrator:
     send: Post
     address: str
     client_secret: str
+    unreached: tuple[type[Exception], ...] = (TrialError, OSError)
+    """The errors of a sign-in that cannot be had: the realm or the front is down, or refuses."""
 
     def token(self) -> str:
         """Sign in in a new browser, and take a token from the session it opens."""
         return access_token(self.signed_in(), self.send, self.address, self.client_secret)
+
+    def token_if_reached(self) -> str | None:
+        """Sign in again; give no token, rather than fail, when the realm cannot be reached."""
+        try:
+            return self.token()
+        except self.unreached:
+            return None
 
 
 @dataclass(slots=True)
@@ -351,8 +360,9 @@ class RestorationTrial:
         (each read is a ``compose exec``), so the gap between two looks stays ``WATCH`` but for one
         in four, which carries the read. A first refusal (401) may be a token that has expired
         since it was taken, before the backup: the administrator signs in again and the task is
-        read again; only a refusal (401 or 503) with a fresh token arms ``GRACE``, and a read
-        that answers 200 again disarms it (a 503 of an API restarting). Beyond ``GRACE`` armed
+        read again, unless that sign-in fails (the realm closing), which leaves the refusal. A
+        refusal (401 or 503) arms ``GRACE``, and a read that answers 200 again disarms it (a 503
+        of an API restarting). Beyond ``GRACE`` armed
         without the maintenance said, the trial fails. The restoration closes every session before
         it lifts the maintenance: the administrator signs in again at the first ``ok`` after it,
         and again, after a pause, if the token is refused (401). It has ended when its task has
@@ -375,8 +385,13 @@ class RestorationTrial:
                     read = now
                     status = self.not_begun(token, task_id)
                     if status == UNAUTHORIZED and not renewed:
-                        token, renewed = self.administrator.token(), True
-                        status = self.not_begun(token, task_id)
+                        # The sessions close just before the maintenance: the realm may be
+                        # down, and the refusal then stands, without a fresh token.
+                        renewed = True
+                        fresh = self.administrator.token_if_reached()
+                        if fresh is not None:
+                            token = fresh
+                            status = self.not_begun(token, task_id)
                     if status == OK:
                         refused = None
                     elif refused is None:

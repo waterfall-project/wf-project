@@ -19,7 +19,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
-from wftools.production import Answer
+from wftools.production import Answer, ProductionError
 from wftools.restoration_trial import (
     API_CALL,
     GRACE,
@@ -38,7 +38,7 @@ from wftools.restoration_trial import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Mapping
+    from collections.abc import Callable, Iterator, Mapping
 
 ADDRESS = "https://waterfall.localhost"
 CALLBACK = f"{ADDRESS}/auth/callback"
@@ -419,3 +419,49 @@ def test_the_liveness_probe_says_ok_or_maintenance_and_nothing_else() -> None:
     for code, output in ((0, '{"status": "down"}'), (0, "Traceback"), (1, '{"status": "ok"}')):
         with pytest.raises(TrialError, match="the liveness probe of the API says"):
             probe_of(lambda _asked, code=code, output=output: (code, output), command)()
+
+
+def realm_down_once() -> Callable[[], Realm]:
+    """Make a sign-in that fails the first time, as the realm closing, then works."""
+    failed: list[bool] = []
+
+    def sign_in() -> Realm:
+        if not failed:
+            failed.append(True)
+            message = "the realm is down"
+            raise ProductionError(message)
+        return Realm()
+
+    return sign_in
+
+
+def trial_with_realm_down(
+    api: FakeApi, said: Iterator[str], clock: FakeClock, signed_in: Callable[[], Realm]
+) -> RestorationTrial:
+    administrator = Administrator(
+        signed_in, Realm().send, ADDRESS, FRONT_CLIENT, (ProductionError,)
+    )
+    timed = Clock(clock.now, clock.pause)
+    return RestorationTrial(Api(COMPOSE, api.ask), administrator, lambda: next(said), timed)
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_a_sign_in_that_fails_after_a_first_refusal_waits_for_the_maintenance() -> None:
+    # [US-2940] #997: the first 401 comes as the restoration closes the sessions, when the realm
+    # may be down: the sign-in that fails leaves the refusal, it does not end the trial; the
+    # maintenance said within the grace, the trial goes on to its end.
+    tasks = [(401, {"code": "SESSION_REVOKED"})] * 3
+    answers = {**ANSWERS, "GET /tasks/r": [*tasks, (200, {"status": "succeeded"})]}
+    trial = trial_with_realm_down(FakeApi(answers), looks(8), FakeClock(), realm_down_once())
+    assert trial.restored("token-1", "r").startswith("token-")
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_a_sign_in_that_fails_without_the_maintenance_fails_the_trial_after_the_grace() -> None:
+    # [US-2940] #997: the sign-in fails and the maintenance is never said: the grace runs from
+    # the refusal, and the trial says the maintenance missed.
+    missed = {**ANSWERS, "GET /tasks/r": [(401, {"code": "SESSION_REVOKED"})] * 100}
+    clock = FakeClock()
+    trial = trial_with_realm_down(FakeApi(missed), probes(*["ok"] * 1300), clock, realm_down_once())
+    with pytest.raises(TrialError, match=f"did not say the maintenance in {GRACE:.0f} s"):
+        trial.restored("token-1", "r")
