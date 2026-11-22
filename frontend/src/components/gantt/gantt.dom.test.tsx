@@ -188,6 +188,34 @@ describe("the Gantt of the planning", () => {
     expect(bar("Dossier de conception")).toHaveAccessibleName("Du 09/04/2026 au 15/04/2026");
   });
 
+  it("names the manual task of a link to a summary task in the bar of that manual task and in that of its predecessor [WF-PLA-0020-A]", () => {
+    const [review, studies, desks] = ["Revue de conception", "Études", "Pupitres opérateurs"].map(
+      (label) => planning.items.find((node) => node.task?.label === label),
+    );
+    if (review === undefined || studies === undefined || desks === undefined) {
+      throw new Error("the example of the planning lacks its tasks");
+    }
+    const conflict = {
+      predecessor_node_id: review.node_id,
+      successor_node_id: studies.node_id,
+      manual_node_id: desks.node_id,
+      link_type: "finish_to_start" as const,
+    };
+    renderPlanning("fr", {
+      ...planning,
+      items: planning.items.map((node) =>
+        node.task && (node.node_id === review.node_id || node.node_id === desks.node_id)
+          ? { ...node, task: { ...node.task, link_conflicts: [conflict] } }
+          : node,
+      ),
+    });
+    const bar = (label: string) => within(ganttOf(label)).getByRole("img");
+    const named = ` — Liaison en conflit\u00a0: 5FD vers la ligne ${String(studies.row_number)} — tâche manuelle à la ligne ${String(desks.row_number)}`;
+    expect(bar("Pupitres opérateurs").getAttribute("aria-label")).toMatch(new RegExp(`${named}$`));
+    expect(bar("Revue de conception").getAttribute("aria-label")).toMatch(new RegExp(`${named}$`));
+    expect(bar("Études")).not.toHaveAccessibleName(/conflit/);
+  });
+
   it("names each bar by the dates the API gives, a milestone by its day, the critical path in words [WF-PLA-0090-A]", () => {
     renderPlanning();
     const bar = (label: string) => within(ganttOf(label)).getByRole("img");

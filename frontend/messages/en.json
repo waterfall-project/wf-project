@@ -511,7 +511,7 @@
     "trackingSeparator": ", ",
     "notComputableReason": " — {reason}",
     "skeletonGenerated": "Planning skeleton generated: {tasks, plural, one {# task} other {# tasks}} in the grid.",
-    "conflict": "Link in conflict: {predecessor}{code}{successor, select, unknown {} other { to row {successor}}}",
+    "conflict": "Link in conflict: {predecessor}{code}{successor, select, unknown {} other { to row {successor}}}{manual, select, unknown {} other { — manual task on row {manual}}}",
     "planningStart": {
       "shown": "<label>Planning start date</label>: <time>{date}</time>",
       "label": "Planning start date",
