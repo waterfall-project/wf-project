@@ -724,7 +724,7 @@ chaque lot.
 
 ## US-3070 — Le devis propre d'un risque, préparé comme un différentiel de la structure principale
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-RIS-0030-A`
 - **opérations** : `createRisk`, `listCostStructures`, `createRevision`, `abandonRevision`,
   `markRevision`, la recomposition d'un devis propre (nouvelle, écrite par la conception) ; sur le

@@ -9,7 +9,7 @@ few the design leaves silent. A name a story adds besides joins the import of it
 comment that names it, in the order Ruff keeps. Another module imports them from here, never from
 the file.
 
-The later epics extend the revisions through eleven ordered registries, without this module
+The later epics extend the revisions through fourteen ordered registries, without this module
 importing theirs: ``register_copy`` the copy of a revision opened from a marked one (EP-06 the
 tasks and their links, EP-07 the lines and the rates, EP-08 the structures it adds),
 ``register_tasks_and_lines`` the questions the designation asks, the tasks (EP-06) and the lines
@@ -21,8 +21,11 @@ and the rates), ``register_indicators`` the indicators kept at the marking (EP-1
 ``register_rebase`` and ``register_rebase_end`` the same for the update of a differential from the
 main structure (US-3050/L3),
 ``register_rate_update`` whether the proposal of the rates of a revision presents a category
-(EP-07), and ``register_closing`` what a module does before a revision is marked or abandoned,
-under its stage (EP-06). Each registers its own by a call in the ``__init__`` of its module's
+(EP-07), ``register_closing`` what a module does before a revision is marked or abandoned,
+under its stage (EP-06), and, for the own estimate of a risk prepared as a differential (EP-30,
+US-3070/L1), ``register_compose`` and ``register_prune`` its recomposition and its pruning, under
+their stages, and ``register_before_marking`` what a module does before a marking or the merge of
+an amendment writes. Each registers its own by a call in the ``__init__`` of its module's
 interface (``waterfall.core.<module>.interface``), at its import: that interface imports this one
 first, so its copy comes after the structures', which this module registers itself, and after the
 copies of the modules it imports, whose rows its rows name. A registry holds nothing for a module
@@ -85,6 +88,10 @@ from waterfall.core.revisions.interface.merge_applying import (
 
 # ``merging`` (US-2550/L1; US-2560): the parts of the modules in the merge of an amendment.
 from waterfall.core.revisions.interface.merging import (
+    AMENDMENT_MERGE,
+    MERGE_MODES,
+    OCCURRENCE_MERGE,
+    MergeMode,
     MergePart,
     MergePartError,
     MergeReport,
@@ -93,6 +100,31 @@ from waterfall.core.revisions.interface.merging import (
     merge_report,
     register_merge,
     register_merge_end,
+)
+
+# ``own_estimates`` (US-3070/L1): the states of an own estimate, what it abandons, the registries of
+# its recomposition and of its pruning, and the one called before a marking or a merge.
+from waterfall.core.revisions.interface.own_estimates import (
+    COMPOSE_STAGES,
+    PRUNE_STAGES,
+    Abandonment,
+    BeforeMarking,
+    ComposeStage,
+    OwnEstimateComposing,
+    OwnEstimatePruning,
+    OwnEstimateState,
+    PruneStage,
+    abandonments_of,
+    before_marking,
+    compose_parts,
+    own_estimate_state,
+    own_estimate_state_of,
+    own_estimate_states,
+    prune_parts,
+    record_abandonments,
+    register_before_marking,
+    register_compose,
+    register_prune,
 )
 
 # ``portfolio`` (US-2670/L1; US-2670/L3): the revisions of several projects the portfolio retains.
@@ -175,8 +207,13 @@ from waterfall.core.revisions.interface.revisions import (
     revisions_present,
 )
 
-# ``shared`` (US-1500/L2): the current revision held before its project is locked.
-from waterfall.core.revisions.interface.shared import MAIN, hold_current_revision
+# ``shared`` (US-1500/L2): the current revision held before its project is locked; a provision line
+# written, which keeps the own estimates up to date (US-3070/L1).
+from waterfall.core.revisions.interface.shared import (
+    MAIN,
+    hold_current_revision,
+    provision_written,
+)
 
 # ``structures`` (US-0960; the facts the planning reads, US-1380/L2; written, US-1390/L2).
 from waterfall.core.revisions.interface.structures import (
@@ -212,23 +249,36 @@ from waterfall.core.revisions.interface.structures import (
 )
 
 __all__ = [
+    "AMENDMENT_MERGE",
     "CLOSING_STAGES",
+    "COMPOSE_STAGES",
     "KEPT",
     "MAIN",
     "MAIN_STRUCTURE",
+    "MERGE_MODES",
+    "OCCURRENCE_MERGE",
+    "PRUNE_STAGES",
     "UNMERGED_AMENDMENT_EXISTS",
+    "Abandonment",
+    "BeforeMarking",
     "ClosingKind",
     "ClosingStage",
+    "ComposeStage",
     "CopyImposed",
     "CurrentStructure",
     "DifferentialName",
     "MarkingRequest",
+    "MergeMode",
     "MergePart",
     "MergePartError",
     "MergeReport",
     "MergeRequest",
     "OpenedDifferential",
+    "OwnEstimateComposing",
     "OwnEstimateCounted",
+    "OwnEstimatePruning",
+    "OwnEstimateState",
+    "PruneStage",
     "RatesToUpdate",
     "RebasePart",
     "RebaseReport",
@@ -254,9 +304,12 @@ __all__ = [
     "StructureView",
     "abandon_revision",
     "abandon_structure",
+    "abandonments_of",
     "aimed_structure",
     "base_differential",
+    "before_marking",
     "closers",
+    "compose_parts",
     "compute_indicators",
     "consume_own_estimate",
     "copy_consumed_estimate",
@@ -293,6 +346,11 @@ __all__ = [
     "merge_report",
     "not_a_base",
     "open_revision_by_task",
+    "own_estimate_state",
+    "own_estimate_state_of",
+    "own_estimate_states",
+    "provision_written",
+    "prune_parts",
     "rate_update_available",
     "read_cost_structure",
     "read_revision",
@@ -301,11 +359,14 @@ __all__ = [
     "rebase_report",
     "rebased_structure",
     "rebasing_of",
+    "record_abandonments",
     "reference_at_marking",
     "reference_correctable",
     "reference_history",
     "reference_year_of",
+    "register_before_marking",
     "register_closing",
+    "register_compose",
     "register_copy",
     "register_designation",
     "register_indicators",
@@ -314,6 +375,7 @@ __all__ = [
     "register_merge",
     "register_merge_end",
     "register_own_estimate_counted",
+    "register_prune",
     "register_rate_update",
     "register_rebase",
     "register_rebase_end",

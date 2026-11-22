@@ -126,19 +126,20 @@ def _main_counter(session: Session, project_id: UUID, revision_id: UUID) -> int 
 
 
 def keep_differential_states(copy: RevisionCopy) -> None:
-    """Give each differential the copy of a revision took up the state it had in the source.
+    """Give each differential, and own estimate, the copy took up the state it had in the source.
 
     Called once every table is copied, the main structure of the copy redated: a differential up
     to date in the revision marked bears the counter of the main structure of the copy, and is up
     to date in it; one out of date keeps ``NEVER_BORNE``, which the main structure never bears
     (``FIRST_VERSION`` and after), and stays out of date until its update (WF-REV-0100, US-3050).
+    The own estimate of a risk keeps its state alike (EP-30, "Les états d'un devis propre").
     """
     source_counter = _main_counter(copy.session, copy.project_id, copy.source)
     up_to_date = copy.session.scalars(
         select(CostStructure.id).where(
             CostStructure.project_id == copy.project_id,
             CostStructure.revision_id == copy.source,
-            CostStructure.kind == AMENDMENT,
+            CostStructure.kind.in_((AMENDMENT, RISK)),
             CostStructure.is_merged.is_(False),
             CostStructure.main_lock_version == source_counter,
         )

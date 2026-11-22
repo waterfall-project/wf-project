@@ -19,6 +19,9 @@ When the risk designates another category or subproject for it (``updateRiskProv
 them on the line (``set_provision_bearing``): the subproject of a line of a started task that has
 received actual costs included, which a line entered by the grid may not take (WF-PRJ-0050).
 
+Each write of a provision line advances the counter of the main structure as a provision line's
+(``provision_written``): the own estimates up to date stay so (EP-30).
+
 Filled by US-2570/L1; completed by US-2580/L1.
 """
 
@@ -31,7 +34,11 @@ from sqlalchemy import case, select, update
 from waterfall.core.estimate.costing import basis_of, priced
 from waterfall.core.estimate.pricing import CENT
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.revisions.interface import structure_counted, structure_facts
+from waterfall.core.revisions.interface import (
+    provision_written,
+    structure_counted,
+    structure_facts,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -113,7 +120,8 @@ def rename_provision(
     line.label = label
     line.updated_at, line.updated_by = act.at, act.author
     session.flush()
-    structure_counted(session, place.project_id, place.structure_id)
+    with provision_written(session):
+        structure_counted(session, place.project_id, place.structure_id)
 
 
 def rename_provisions(session: Session, project_id: UUID, risk_labels: dict[UUID, str]) -> None:
@@ -163,7 +171,8 @@ def set_provision(session: Session, place: Place, node_id: UUID, amount: Decimal
     line.base_amount = amount
     line.reestimated_amount = amount
     session.flush()
-    structure_counted(session, place.project_id, place.structure_id)
+    with provision_written(session):
+        structure_counted(session, place.project_id, place.structure_id)
     return True
 
 
@@ -189,5 +198,6 @@ def set_provision_bearing(
         return False
     line.cost_category_id, line.subproject_id = category, subproject
     session.flush()
-    structure_counted(session, place.project_id, place.structure_id)
+    with provision_written(session):
+        structure_counted(session, place.project_id, place.structure_id)
     return True

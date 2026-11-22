@@ -27,6 +27,7 @@ transaction and needs an opening committed in it; it is not closed here, closing
 refusal (a new code) the contract does not have.
 """
 
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
@@ -49,6 +50,7 @@ from waterfall.platform.errors import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -61,6 +63,33 @@ if TYPE_CHECKING:
 # package that cannot import ``structures``, which imports them (#4003); the kinds all derive from
 # ``STRUCTURE_KINDS``, the list the table constrains, so that no declaration can drift (#4033).
 MAIN, AMENDMENT, RISK, BASE = STRUCTURE_KINDS
+# The key of the session telling that the writes of the main structure under way are those of a
+# provision line (``provision_written``).
+_PROVISION_WRITTEN = "waterfall.revisions.provision_written"
+
+
+@contextmanager
+def provision_written(session: Session) -> Generator[None]:
+    """Tell the counters of the main structure that what is written is a provision line (EP-30).
+
+    Each time the counter of the main structure advances within, the own estimates of the risks of
+    its revision that were up to date retain the new counter, in the same statement's transaction:
+    the provision line does not change the project the severity is computed on, and the update of a
+    risk, which writes its provision again, would otherwise put every other out of date (EP-30, "La
+    recomposition, la mise à jour et l'élagage"). Only the write of a provision line is so framed:
+    the planning writes its node, the estimate its figures.
+    """
+    held = session.info.get(_PROVISION_WRITTEN, False)
+    session.info[_PROVISION_WRITTEN] = True
+    try:
+        yield
+    finally:
+        session.info[_PROVISION_WRITTEN] = held
+
+
+def writing_provision(session: Session) -> bool:
+    """Tell whether what is written of the main structure now is a provision line."""
+    return bool(session.info.get(_PROVISION_WRITTEN, False))
 
 
 def refuse(condition: str) -> ConflictError:

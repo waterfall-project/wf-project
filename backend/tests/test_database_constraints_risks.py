@@ -26,7 +26,7 @@ from project_rows import (
     risk_row,
 )
 from risks_support import evaluation_row, review_row, share_row
-from sqlalchemy import Engine, delete, insert, text, update
+from sqlalchemy import Engine, delete, insert, select, text, update
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from waterfall.core.planning.tables import Node
@@ -214,16 +214,21 @@ REFUSALS: list[Refusal] = [
         {"occurrence_cost": Decimal("10.00")},
         "ck_risk_evaluation_cost_when_occurred",
     ),
+    # The two figures an occurrence froze, null out of that state (EP-30).
     (
         RiskEvaluation,
-        {"state": "occurred", "occurrence_cost": Decimal("-0.01")},
-        "ck_risk_evaluation_occurrence_cost_not_negative",
+        {"occurrence_frozen_cost": Decimal("10.00")},
+        "ck_risk_evaluation_frozen_cost_when_occurred",
+    ),
+    (
+        RiskEvaluation,
+        {"occurrence_earned_value": Decimal("10.00")},
+        "ck_risk_evaluation_earned_value_when_occurred",
     ),
     *stamped(RiskEvaluation, changed=True),
     (RiskReview, {"revision_id": uuid4()}, "fk_risk_review_project_id_revision"),
     (RiskReview, {"risk_id": uuid4()}, "fk_risk_review_project_id_risk"),
     (RiskReview, {"probability": Decimal("1.0001")}, "ck_risk_review_probability_ratio"),
-    (RiskReview, {"severity": Decimal("-0.01")}, "ck_risk_review_severity_not_negative"),
     (RiskReview, {"state": "forgotten"}, "ck_risk_review_state_known"),
     *stamped(RiskReview, changed=False),
     (
@@ -348,6 +353,41 @@ def test_an_evaluation_or_a_review_of_a_marked_revision_is_never_written(
         connection.execute(insert(Risk).values(**other))
     with pytest.raises(DBAPIError, match=ROW_REFUSED), owner.begin() as connection:
         connection.execute(row(table, parents, risk_id=other["id"]))
+
+
+def test_a_severity_and_the_figures_of_an_occurrence_are_signed(
+    parents: Parents, owner: Engine
+) -> None:
+    # Covers no requirement: the columns of EP-30 (migration 0044). An opportunity has a negative
+    # severity, recorded and retained; an opportunity realized a negative cost at occurrence, and
+    # an occurrence that reopens more than it completes a negative earned value.
+    negative = Decimal("-120.00")
+    with owner.begin() as connection:
+        connection.execute(
+            row(
+                RiskEvaluation,
+                parents,
+                state="occurred",
+                severity=negative,
+                occurrence_cost=negative,
+                occurrence_frozen_cost=negative,
+                occurrence_earned_value=negative,
+            )
+        )
+        connection.execute(row(RiskReview, parents, severity=negative))
+        kept = connection.execute(
+            select(
+                RiskEvaluation.severity,
+                RiskEvaluation.occurrence_cost,
+                RiskEvaluation.occurrence_frozen_cost,
+                RiskEvaluation.occurrence_earned_value,
+            ).where(RiskEvaluation.revision_id == parents.revision)
+        ).one()
+        retained = connection.scalar(
+            select(RiskReview.severity).where(RiskReview.revision_id == parents.revision)
+        )
+    assert tuple(kept) == (negative,) * 4
+    assert retained == negative
 
 
 @pytest.mark.requirement("WF-DAT-0050-A")

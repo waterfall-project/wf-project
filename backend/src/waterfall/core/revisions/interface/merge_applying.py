@@ -28,8 +28,10 @@ finished, the journal), and the reference designated by the way of the designati
   its lineage (#790). The differences are written by the parts of the planning and of the
   estimate, the differential marked merged (``is_merged``, its counter advanced), the merge
   inscribed in the journal (``structure_merge``), the revision marked under the name confirmed,
-  then made the reference. A reason of the report fails the task with its code and its
-  parameters, nothing written; so does any failure, no revision left opened (WF-DAT-0040).
+  then made the reference. Before anything is written, the modules registered do what they do
+  before a marking (``register_before_marking``: the risks update their own estimates, EP-30). A
+  reason of the report fails the task with its code and its parameters, nothing written; so does
+  any failure, no revision left opened (WF-DAT-0040).
 
 ``load_merge_at`` merges a differential of the witness at the instant it imposes, by the same
 transaction as the worker, without a report to confirm.
@@ -53,6 +55,7 @@ from waterfall.core.revisions.interface.marking import (
     mark_revision,
 )
 from waterfall.core.revisions.interface.merging import MergeJudged, merge_parts, merging_of
+from waterfall.core.revisions.interface.own_estimates import BeforeMarking, before_marking
 from waterfall.core.revisions.interface.reference import refer_after_merge
 from waterfall.core.revisions.interface.revisions import open_revision_by_task
 from waterfall.core.revisions.interface.shared import (
@@ -222,6 +225,11 @@ def _merged(session: Session, request: MergeRequest, act: Act, task_id: UUID | N
     judged = _judged(session, request, act, creates=True, besides=task_id)
     _refused_by_report(judged.merging)
     merging = judged.merging
+    # Before anything is written, the modules registered do what they do before a marking: the
+    # risks update their own estimates of the revision, or refuse (EP-30). A merge that creates the
+    # current revision is asked on a marked one, whose own estimates nothing writes.
+    before = BeforeMarking(session, project_id, merging.revision_id, act, merging.amendment_id)
+    before_marking(before)
     if judged.creates:
         merging = _opened(session, judged, act, task_id)
     merge_parts(replace(merging, applying=True))
