@@ -5,11 +5,13 @@
 « Aucune connexion en clair n'est acceptée par un composant de la plateforme, hors le point de
 métriques, qui n'est pas joignable hors du cluster. » (WF-SEC-0010-A). Inside the container of the
 API, on the network of the platform, ``PROBE`` speaks in the clear to each server — PostgreSQL,
-Redis, the API, Keycloak, the object storage, Prometheus — and says how it answered; it also
+Redis, the API, Keycloak, the object storage, Prometheus, Alertmanager, Grafana and the front
+(#4508) — and says how it answered; it also
 reaches each in TLS, its certificate checked against the root of the platform, so that a server out
 of reach is not
 taken for one that refuses. The listeners that must not be reached at all — Keycloak in HTTP, its
-management, the ports of its cluster, Garage behind its proxy — are tried too, and the port of the
+management, the ports of its cluster, Garage behind its proxy, the server of Next behind the proxy
+of the front — are tried too, and the port of the
 metrics of the API, which serves them in HTTP, must answer nothing else. ``wftools.production``
 runs it on the started platform and holds that every server refuses, and serves in TLS.
 
@@ -25,9 +27,19 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-SERVED = ("postgres", "redis", "api", "keycloak", "storage", "prometheus")
+SERVED = (
+    "postgres",
+    "redis",
+    "api",
+    "keycloak",
+    "storage",
+    "prometheus",
+    "alertmanager",
+    "grafana",
+    "front",
+)
 """The servers that must refuse the clear and serve in TLS (TFX-02 to TFX-05, TFX-08, TFX-12,
-TFX-14)."""
+TFX-14, TFX-17, the door to the front and the supervision, #4508)."""
 
 CLOSED = (
     "keycloak-http",
@@ -35,6 +47,7 @@ CLOSED = (
     "keycloak-cluster",
     "keycloak-cluster-detection",
     "garage",
+    "front-http",
 )
 """What must not be reached at all from the network of the platform.
 
@@ -131,6 +144,9 @@ said["api"] = http("api", 8443)
 said["keycloak"] = http("keycloak", 8443)
 said["storage"] = http("storage", 3900)
 said["prometheus"] = http("prometheus", 9090)
+said["alertmanager"] = http("alertmanager", 9093)
+said["grafana"] = http("grafana", 3000)
+said["front"] = http("front", 3443)
 # The port of the metrics of the API, in HTTP, serves the metrics and nothing else (TFX-09).
 answer = clear("api", 8000, b"GET /api/v1/health HTTP/1.0\r\nHost: api\r\n\r\n")
 if answer is None:
@@ -144,6 +160,7 @@ for name, host, port in (
     ("keycloak-cluster", "keycloak", 7800),
     ("keycloak-cluster-detection", "keycloak", 57800),
     ("garage", "garage", 3900),
+    ("front-http", "front", 3000),
 ):
     reached = clear(host, port, b"GET / HTTP/1.0\r\n\r\n") is not None
     said[name] = "accepted" if reached else "unreached"

@@ -7,7 +7,10 @@
 # (WF-SEC-0010). The front is served at the root, Keycloak under /auth, but its console and its
 # realm master, Grafana under /grafana (US-2880). The metrics are served on a port of their own that
 # this door does not reach: /metrics and /api/v1/metrics fall to the front, which answers 404
-# (TFX-09). A local name — localhost, *.localhost, *.internal, an address — gets its certificate
+# (TFX-09). Every server behind it is reached in TLS, its certificate checked against the root of
+# the authority of the platform (US-2840, WF-SEC-0010): the front, through its proxy, Keycloak and
+# Grafana. The host of a request goes to each as the browser gave it: Caddy would give the
+# upstream's to an upstream in HTTPS. A local name — localhost, *.localhost, *.internal, an address — gets its certificate
 # from Caddy's own authority instead, whose root is kept in its volume (compose.prod.local.yaml).
 {
 	# The account Let's Encrypt writes to before a certificate expires.
@@ -20,6 +23,22 @@
 	# HTTP/3 would ask for a port in UDP the platform does not open.
 	servers {
 		protocols h1 h2
+	}
+}
+
+# A server behind the door, in TLS: the host as the browser gave it, the certificate checked against
+# the root of the platform, which the authority writes in the volume trust.
+(trusted) {
+	header_up Host {host}
+	transport http {
+		tls_trust_pool file /trust/root.crt
+	}
+}
+
+# The front, behind its proxy in TLS (Caddyfile.front).
+(front) {
+	reverse_proxy https://front:3443 {
+		import trusted
 	}
 }
 
@@ -49,7 +68,7 @@ http://{$WATERFALL_DOMAIN} {
 	# here.
 	@front path /auth/callback /auth/sign-out
 	handle @front {
-		reverse_proxy front:3000
+		import front
 	}
 
 	# The console of Keycloak and its realm master, whose administrator holds every realm, are not
@@ -64,23 +83,19 @@ http://{$WATERFALL_DOMAIN} {
 	# Keycloak (TFX-15).
 	@grafana path /grafana /grafana/*
 	handle @grafana {
-		reverse_proxy grafana:3000
+		reverse_proxy https://grafana:3000 {
+			import trusted
+		}
 	}
 
-	# Keycloak, built under /auth: its pages and its endpoints, those of the realm waterfall. It
-	# serves in TLS alone, with the certificate the authority of the platform issued it, which this
-	# door checks against the root of that authority (US-2840, WF-SEC-0010). The host of the request
-	# goes to Keycloak as the browser gave it, as it did in HTTP: Caddy would give the upstream's.
+	# Keycloak, built under /auth: its pages and its endpoints, those of the realm waterfall.
 	handle /auth/* {
 		reverse_proxy https://keycloak:8443 {
-			header_up Host {host}
-			transport http {
-				tls_trust_pool file /trust/root.crt
-			}
+			import trusted
 		}
 	}
 
 	handle {
-		reverse_proxy front:3000
+		import front
 	}
 }

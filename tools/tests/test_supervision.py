@@ -121,6 +121,26 @@ def test_the_thresholds_are_settings_of_the_file_shipped_at_the_values_of_the_re
         assert re.search(rf"^{name}={re.escape(value)}$", template, re.MULTILINE), name
 
 
+@pytest.mark.requirement("WF-ADM-0130-A")
+def test_the_api_presents_the_values_the_rules_and_the_worker_are_given() -> None:
+    # #4636: the status screen presents the operating parameters in force, the thresholds the rules
+    # of Prometheus are written with and the retention the purge of the worker applies, which the
+    # API reads from the same variables, at the same defaults; it reads Prometheus in HTTPS
+    # (TFX-14). The bootstrap writes the largest avatar, shipped at 512 KiB.
+    api = environment("api")
+    prometheus = environment("prometheus")
+    for name in SHIPPED:
+        assert api[name] == prometheus[name], name
+    retention = "WATERFALL_BACKGROUND_TASK_RETENTION_DAYS"
+    assert api[retention] == environment("worker")[retention] == f"${{{retention}:-30}}"
+    assert api["WATERFALL_PROMETHEUS_ADDRESS"] == "https://prometheus:9090"
+    avatar = "WATERFALL_AVATAR_MAX_BYTES"
+    assert environment("install")[avatar] == f"${{{avatar}:-{512 * 1024}}}"
+    assert re.search(
+        rf"^# {avatar}={512 * 1024}$", TEMPLATE.read_text(encoding="utf-8"), re.MULTILINE
+    )
+
+
 def started(folder: Path, **given: str) -> subprocess.CompletedProcess[str]:
     """Start Prometheus as the Compose does, the thresholds shipped and those given, on nothing."""
     variables = {

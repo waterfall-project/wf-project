@@ -36,6 +36,9 @@ SERVERS = {
     "keycloak": "keycloak",
     "storage": "storage-proxy",
     "prometheus": "prometheus",
+    "alertmanager": "alertmanager",
+    "grafana": "grafana",
+    "front": "front-proxy",
 }
 # A variable that gives a service the address of another: Waterfall's, and their equivalents in the
 # services of Keycloak's image and of the buckets of the storage.
@@ -176,6 +179,44 @@ def test_postgresql_redis_keycloak_and_the_api_serve_in_tls_alone() -> None:
     assert (job["metrics_path"], job["dns_sd_configs"][0]["port"]) == ("/api/v1/metrics", 8000)
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_the_front_grafana_and_alertmanager_serve_in_tls_alone() -> None:
+    # #4508, all in TLS: the front behind its proxy, which holds its network, the server of Next on
+    # its loopback alone; Grafana and Alertmanager with the certificate the authority issues them.
+    found = services()
+    front = found["front"]
+    assert front["network_mode"] == "service:front-proxy"
+    assert environment("front")["HOSTNAME"] == "127.0.0.1"
+    assert "networks" not in front
+    assert "ports" not in front
+    proxy = found["front-proxy"]
+    assert proxy["networks"] == {"default": {"aliases": ["front"]}}
+    assert "./Caddyfile.front:/etc/caddy/Caddyfile.front:ro" in proxy["volumes"]
+    served = (COMPOSE / "Caddyfile.front").read_text(encoding="utf-8")
+    assert re.search(
+        r"^https://:3443 \{\s*tls /tls/tls.crt /tls/tls.key\s*reverse_proxy 127.0.0.1:3000\s*\}",
+        served,
+        re.MULTILINE,
+    )
+    # Keycloak tells the front of a closed session in HTTPS, trusting the root (TFX-17).
+    assert environment("keycloak-realm")["WATERFALL_FRONT_BACKCHANNEL"] == "https://front:3443"
+    assert environment("keycloak")["KC_TRUSTSTORE_PATHS"] == ROOT
+    assert TRUST in found["keycloak"]["volumes"]
+    grafana = environment("grafana")
+    assert (grafana["GF_SERVER_PROTOCOL"], grafana["GF_SERVER_CERT_FILE"]) == (
+        "https",
+        "/tls/tls.crt",
+    )
+    assert grafana["GF_SERVER_CERT_KEY"] == "/tls/tls.key"
+    web = "--web.config.file=/etc/waterfall/alertmanager-web.yml"
+    assert web in found["alertmanager"]["command"]
+    collected = yaml.safe_load((COMPOSE / "prometheus.yml").read_text(encoding="utf-8"))
+    (manager,) = collected["alerting"]["alertmanagers"]
+    assert (manager["scheme"], manager["tls_config"]) == ("https", {"ca_file": "/tls/ca.crt"})
+    assert {"front", "grafana", "alertmanager"} <= set(transport.SERVED)
+    assert "front-http" in transport.CLOSED
+
+
 def instructions(dockerfile: str) -> list[tuple[str, str]]:
     """Read the instructions of a Dockerfile, each as its keyword and its arguments, on one line.
 
@@ -294,10 +335,9 @@ def test_every_client_reaches_its_server_encrypted_and_checks_it_against_the_roo
             assert value.endswith(f"?{VERIFIED}"), where
         elif value.startswith("redis"):
             assert value.startswith("rediss://"), where
-        # The only addresses in HTTP: those of the browser's side, which Keycloak gives back to the
-        # front by its back channel (TFX-17), out of this lot.
-        elif value.startswith("http://"):
-            assert (service, variable) == ("keycloak-realm", "WATERFALL_FRONT_BACKCHANNEL"), where
+        # No address in HTTP: Keycloak reaches the front by its back channel in HTTPS (TFX-17).
+        else:
+            assert not value.startswith("http://"), where
     for name, service in services().items():
         values = " ".join(environment(name).values())
         if ROOT in values:
@@ -314,11 +354,20 @@ def test_every_client_reaches_its_server_encrypted_and_checks_it_against_the_roo
     assert front["NODE_EXTRA_CA_CERTS"] == ROOT
     assert environment("keycloak-realm")["KEYCLOAK_URL"] == "https://keycloak:8443/auth"
     door = (COMPOSE / "Caddyfile.prod").read_text(encoding="utf-8")
+    # The door reaches Keycloak, the front and Grafana in TLS, each checked against the root.
     assert re.search(
-        r"reverse_proxy https://keycloak:8443 \{\s*header_up Host \{host\}\s*transport http \{\s*"
+        r"^\(trusted\) \{\s*header_up Host \{host\}\s*transport http \{\s*"
         rf"tls_trust_pool file {ROOT}\s*\}}",
         door,
+        re.MULTILINE,
     )
+    upstreams = re.findall(r"reverse_proxy (\S+) \{\s*import trusted\s*\}", door)
+    assert sorted(upstreams) == [
+        "https://front:3443",
+        "https://grafana:3000",
+        "https://keycloak:8443",
+    ]
+    assert not re.search(r"reverse_proxy (?!https://)", door)
     assert "keycloak:8080" not in door
     assert TRUST in services()["caddy"]["volumes"]
 

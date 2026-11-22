@@ -205,7 +205,10 @@ def test_caddy_is_the_only_door_and_serves_the_front_at_the_root_and_keycloak_un
     assert re.search(r"^\{\$WATERFALL_DOMAIN\} \{$", caddyfile, re.MULTILINE)
     assert "email {$WATERFALL_ACME_EMAIL}" in caddyfile
     assert re.search(r"handle /auth/\* \{\s*reverse_proxy https://keycloak:8443 \{", caddyfile)
-    assert re.search(r"handle \{\s*reverse_proxy front:3000\s*\}", caddyfile)
+    # The front behind its proxy in TLS, its certificate checked against the root (US-2840).
+    assert re.search(r"handle \{\s*import front\s*\}", caddyfile)
+    front = r"^\(front\) \{\s*reverse_proxy https://front:3443 \{"
+    assert re.search(front, caddyfile, re.MULTILINE)
 
 
 def site(caddyfile: str, address: str) -> str:
@@ -262,7 +265,8 @@ def test_the_console_of_keycloak_and_its_realm_master_are_not_served() -> None:
 
 def test_every_route_of_the_front_under_auth_is_served_to_it_or_kept_inside_the_platform() -> None:
     # Keycloak is under /auth, and so are three routes of the front: those the browser opens pass
-    # to the front; its back channel, which Keycloak reaches at front:3000, is not served (#731).
+    # to the front; its back channel, which Keycloak reaches at front:3443, in HTTPS through the
+    # proxy of the front (TFX-17), is not served (#731).
     routes = {path.name for path in (REPOSITORY / "frontend/src/app/auth").iterdir()}
     served = re.search(r"@front path ([^\n]+)", CADDYFILE.read_text(encoding="utf-8"))
     assert served is not None
@@ -270,7 +274,7 @@ def test_every_route_of_the_front_under_auth_is_served_to_it_or_kept_inside_the_
         "backchannel-logout"
     }
     realm = environment("keycloak-realm")
-    assert realm["WATERFALL_FRONT_BACKCHANNEL"] == "http://front:3000"
+    assert realm["WATERFALL_FRONT_BACKCHANNEL"] == "https://front:3443"
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")
@@ -884,7 +888,7 @@ def test_the_trial_starts_bootstraps_holds_and_removes_the_platform(
     assert "HTTP sends to https://waterfall.localhost\n" in said
     assert "HTTPS answers with Strict-Transport-Security, X-Content-Type-Options" in said
     assert "/auth/admin/ and /auth/realms/master/ answer 404" in said
-    refused = "postgres, redis, api, keycloak, storage, prometheus refuse a connection in the clear"
+    refused = f"{', '.join(transport.SERVED)} refuse a connection in the clear"
     assert refused in said
     assert "signs in at https://waterfall.localhost, and the front names them" in said
     assert "the backup and its restoration are left out (WATERFALL_TRIAL_RESTORATION)" in said

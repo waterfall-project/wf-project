@@ -32,6 +32,8 @@ CADDYFILE = COMPOSE / "Caddyfile.prod"
 DASHBOARD = COMPOSE / "grafana-dashboard.json"
 DATASOURCE = COMPOSE / "grafana-datasource.yml"
 PROVIDERS = COMPOSE / "grafana-dashboards.yml"
+# What Alertmanager serves in TLS with, and what its health check reaches it with (US-2840).
+TLS = ("alertmanager-web.yml", "alertmanager-client.yml")
 SERVER = {
     "WATERFALL_ALERT_SMTP_HOST": "smtp.example.test:587",
     "WATERFALL_ALERT_SMTP_FROM": "waterfall@example.test",
@@ -185,8 +187,17 @@ def test_alertmanager_is_a_service_of_the_platform_that_prometheus_sends_its_ale
     assert alertmanager["restart"] == "unless-stopped"
     assert [str(volume) for volume in alertmanager["volumes"]] == [
         "./alertmanager.sh:/etc/waterfall/alertmanager.sh:ro",
+        # In TLS alone, with the certificate the authority issues it, its health checked so
+        # (US-2840, #4508).
+        *(f"./{name}:/etc/waterfall/{name}:ro" for name in TLS),
         "alertmanager-data:/alertmanager",
+        "certificates-alertmanager:/tls:ro",
     ]
+    assert "--web.config.file=/etc/waterfall/alertmanager-web.yml" in alertmanager["command"]
+    served = yaml.safe_load((COMPOSE / TLS[0]).read_text(encoding="utf-8"))
+    pair = {"cert_file": "/tls/tls.crt", "key_file": "/tls/tls.key"}
+    assert served == {"tls_server_config": pair}
+    assert "https://localhost:9093" in " ".join(alertmanager["healthcheck"]["test"])
     variables = environment("alertmanager")
     assert variables == {
         "WATERFALL_ALERT_SMTP_HOST": "${WATERFALL_ALERT_SMTP_HOST:-}",
@@ -199,6 +210,8 @@ def test_alertmanager_is_a_service_of_the_platform_that_prometheus_sends_its_ale
     configuration = yaml.safe_load((COMPOSE / "prometheus.yml").read_text(encoding="utf-8"))
     (manager,) = configuration["alerting"]["alertmanagers"]
     assert manager["static_configs"] == [{"targets": ["alertmanager:9093"]}]
+    # Prometheus sends the alerts in HTTPS, checking the certificate against the root (US-2840).
+    assert (manager["scheme"], manager["tls_config"]) == ("https", {"ca_file": "/tls/ca.crt"})
     assert "alertmanager-data" in yaml.safe_load(PRODUCTION.read_text(encoding="utf-8"))["volumes"]
     template = TEMPLATE.read_text(encoding="utf-8")
     for name in (
@@ -219,10 +232,13 @@ def test_the_service_platform_runs_the_same_alertmanager_and_grafana_on_the_same
         assert beside["image"] == production["image"], name
         assert beside["profiles"] == ["supervision"], name
         assert beside.get("entrypoint") == production.get("entrypoint"), name
+        # The TLS of the production is its own: the service platform serves in the clear.
         kept = [
             str(volume)
             for volume in production["volumes"]
-            if str(volume).startswith("./") and not str(volume).startswith("./Caddyfile")
+            if str(volume).startswith("./")
+            and not str(volume).startswith("./Caddyfile")
+            and not any(f"/{name}:" in str(volume) for name in TLS)
         ]
         assert [str(volume) for volume in beside["volumes"]] == kept, name
 
@@ -258,12 +274,21 @@ def test_grafana_does_not_start_without_the_password_of_its_own_account() -> Non
 def test_grafana_reads_neither_postgresql_nor_redis_and_keeps_its_account_from_its_password() -> (
     None
 ):
-    # It stays served when they are down (WF-OBS-0030): it waits for no service of data, and keeps
-    # nothing in a volume — an account kept would outlive a password changed in .env.
+    # It stays served when they are down (WF-OBS-0030): it waits for no service of data — the
+    # authority alone, which issues its certificate (US-2840) —, and keeps nothing in a volume — an
+    # account kept would outlive a password changed in .env.
     grafana = services()["grafana"]
-    assert "depends_on" not in grafana
+    assert set(grafana["depends_on"]) == {"authority"}
     assert "ports" not in grafana
     assert not [volume for volume in grafana["volumes"] if not str(volume).endswith(":ro")]
+    # In TLS alone, with the certificate the authority issues it (US-2840, #4508).
+    variables = environment("grafana")
+    assert (variables["GF_SERVER_PROTOCOL"], variables["GF_SERVER_CERT_FILE"]) == (
+        "https",
+        "/tls/tls.crt",
+    )
+    assert "certificates-grafana:/tls:ro" in grafana["volumes"]
+    assert "https://localhost:3000/grafana/api/health" in grafana["healthcheck"]["test"]
     assert grafana["restart"] == "unless-stopped"
     assert all("grafana" not in service.get("depends_on", {}) for service in services().values()), (
         "no service waits for the dashboard"
@@ -275,7 +300,7 @@ def test_the_door_serves_grafana_under_its_own_path_and_the_address_is_the_platf
     caddyfile = CADDYFILE.read_text(encoding="utf-8")
     assert re.search(
         r"@grafana path /grafana /grafana/\*\s+handle @grafana \{\s*"
-        r"reverse_proxy grafana:3000\s*\}",
+        r"reverse_proxy https://grafana:3000 \{\s*import trusted\s*\}\s*\}",
         caddyfile,
     )
     grafana = environment("grafana")

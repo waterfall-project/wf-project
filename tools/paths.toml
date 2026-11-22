@@ -279,6 +279,10 @@ paths = [
     # Prometheus in TLS (TFX-14), and its health checked so.
     "deploy/compose/prometheus-web.yml",
     "deploy/compose/prometheus-client.yml",
+    # The front, Alertmanager and Grafana in TLS (#4508), and their health checked so.
+    "deploy/compose/Caddyfile.front",
+    "deploy/compose/alertmanager-web.yml",
+    "deploy/compose/alertmanager-client.yml",
     # The test of a restoration, which the trial plays after the restoration (US-2930).
     "deploy/compose/compose.restore-test.yaml",
     "deploy/compose/restore-test.sh",
@@ -298,6 +302,14 @@ paths = [
     "deploy/compose/grafana-datasource.yml",
     "deploy/compose/grafana-dashboards.yml",
     "deploy/compose/grafana-dashboard.json",
+    # The encryption between the services the chart serves as the Compose does (US-2840): the proxies
+    # in TLS of the front and of the storage, the access to PostgreSQL, and the servers of the
+    # supervision in TLS.
+    "deploy/compose/Caddyfile.front",
+    "deploy/compose/Caddyfile.storage",
+    "deploy/compose/pg_hba.conf",
+    "deploy/compose/prometheus-web.yml",
+    "deploy/compose/alertmanager-web.yml",
     # The launcher the Makefile starts the slots by, and the slot guard of production-trial (PLC-06).
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
@@ -342,6 +354,14 @@ paths = [
     "deploy/compose/grafana-datasource.yml",
     "deploy/compose/grafana-dashboards.yml",
     "deploy/compose/grafana-dashboard.json",
+    # The encryption between the services the chart serves as the Compose does (US-2840): the proxies
+    # in TLS of the front and of the storage, the access to PostgreSQL, and the servers of the
+    # supervision in TLS.
+    "deploy/compose/Caddyfile.front",
+    "deploy/compose/Caddyfile.storage",
+    "deploy/compose/pg_hba.conf",
+    "deploy/compose/prometheus-web.yml",
+    "deploy/compose/alertmanager-web.yml",
     # The launcher the Makefile starts the slots by, and the turns of the heavy runs the trial waits for.
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",

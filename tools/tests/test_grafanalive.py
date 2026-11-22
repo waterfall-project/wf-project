@@ -5,8 +5,10 @@
 The image pinned by its digest runs with the variables GF_* and the mounts of the service grafana of
 compose.prod.yaml, and a password of the test: it answers under /grafana, loads the dashboard the
 platform delivers and the one source that is Prometheus, read in HTTPS against the root of the
-platform (US-2840), and the account ``operator`` opens a session there, a wrong password not. The
-volume trust, where the platform writes its root, is a folder of the test that holds one. A docker
+platform (US-2840), and the account ``operator`` opens a session there, a wrong password not. It
+serves in HTTPS alone (#4508), with the certificate of a folder of the test, as the volume of its
+certificates holds the one the authority issues it; the volume trust, where the platform writes its
+root, is a folder of the test that holds one. A docker
 daemon and OpenSSL are needed: a test skips without them, and says so; the image is pulled behind
 ``WATERFALL_MIRROR``, as the Compose pulls it (#4321).
 """
@@ -16,6 +18,7 @@ import http.client
 import json
 import re
 import shutil
+import ssl
 import subprocess
 import time
 import uuid
@@ -39,9 +42,12 @@ pytestmark = [
 ]
 
 PHRASE = "grafana-test-only"
+# What the test trusts Grafana's certificate by: the one it makes it.
+SERVED = ssl.create_default_context()
 START_WITHIN = 120.0
 OK = 200
 UNAUTHORIZED = 401
+BAD_REQUEST = 400
 
 
 def substituted(value: str, given: dict[str, str]) -> str:
@@ -73,7 +79,7 @@ def get(port: int, path: str, password: str | None = None) -> tuple[int, Any]:
     if password is not None:
         token = base64.b64encode(f"operator:{password}".encode()).decode()
         headers["Authorization"] = f"Basic {token}"
-    connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+    connection = http.client.HTTPSConnection("127.0.0.1", port, timeout=5, context=SERVED)
     try:
         connection.request("GET", path, headers=headers)
         answer = connection.getresponse()
@@ -100,6 +106,26 @@ def until(path: str, port: int, password: str | None = None) -> tuple[int, Any]:
     raise AssertionError(message)
 
 
+def certificates(folder: Path) -> Path:
+    """Make the folder of the certificate of Grafana, for the loopback, which the test trusts."""
+    folder.chmod(0o755)
+    subprocess.run(
+        [
+            *("openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256"),
+            *("-nodes", "-keyout", str(folder / "tls.key"), "-out", str(folder / "tls.crt")),
+            *("-subj", "/CN=grafana", "-days", "1"),
+            *("-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1"),
+        ],
+        capture_output=True,
+        check=True,
+    )
+    # Read by the user of the image, as the authority makes the key of the server its own.
+    for name in ("tls.crt", "tls.key"):
+        (folder / name).chmod(0o644)
+    SERVED.load_verify_locations(cafile=folder / "tls.crt")
+    return folder
+
+
 def trust(folder: Path) -> Path:
     """Make a folder that holds a root, root.crt, as the volume trust of the platform does."""
     folder.chmod(0o755)
@@ -120,7 +146,10 @@ def trust(folder: Path) -> Path:
 def grafana(tmp_path_factory: pytest.TempPathFactory) -> Iterator[int]:
     """Start Grafana on the variables and the mounts of the production Compose; give its port."""
     service = production()
-    volumes = {"trust": trust(tmp_path_factory.mktemp("trust"))}
+    volumes = {
+        "trust": trust(tmp_path_factory.mktemp("trust")),
+        "certificates-grafana": certificates(tmp_path_factory.mktemp("certificates")),
+    }
     given = {"WATERFALL_GRAFANA_ADMIN_PASSWORD": PHRASE, "WATERFALL_DOMAIN": "waterfall.test"}
     variables = {
         name: substituted(str(value), given) for name, value in service["environment"].items()
@@ -170,6 +199,22 @@ def test_grafana_answers_under_its_path_and_the_operator_opens_a_session_there(
     assert (status, user["login"], user["isGrafanaAdmin"]) == (OK, "operator", True)
     assert get(grafana, "/grafana/api/user", "not-the-password")[0] == UNAUTHORIZED
     assert get(grafana, "/grafana/api/datasources")[0] == UNAUTHORIZED
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_grafana_refuses_a_connection_in_the_clear(grafana: int) -> None:
+    # #4508: started on the values of production, it serves in TLS alone; a request in HTTP gets
+    # the answer Go gives on a port in TLS, never a page of Grafana.
+    until("/grafana/api/health", grafana)
+    connection = http.client.HTTPConnection("127.0.0.1", grafana, timeout=5)
+    try:
+        connection.request("GET", "/grafana/api/health")
+        answer = connection.getresponse()
+        said = answer.read()
+    finally:
+        connection.close()
+    assert answer.status == BAD_REQUEST
+    assert b"HTTP request to an HTTPS server" in said
 
 
 @pytest.mark.story("US-2880")
