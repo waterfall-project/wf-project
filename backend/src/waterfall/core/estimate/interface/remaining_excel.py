@@ -26,7 +26,7 @@ from waterfall.core.estimate.interface.remaining_indicators import remaining_ind
 from waterfall.core.estimate.remaining import analysing, applying, exporting
 from waterfall.core.estimate.remaining.excel.reader import check_header, read_remaining_workbook
 from waterfall.core.estimate.remaining.excel.writer import write_workbook
-from waterfall.core.exchanges.interface import LARGEST_FILE, ExportedFile
+from waterfall.core.exchanges.interface import LARGEST_FILE, ExportedFile, kept_refusal
 from waterfall.core.projects.interface import project_facts
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
@@ -43,9 +43,11 @@ if TYPE_CHECKING:
         ImportTarget,
     )
     from waterfall.platform.audit import Act
+    from waterfall.platform.errors import UnprocessableError
 
 # The bytes of a file the header is read in: the whole file, at most what a deposit holds — a
-# workbook is a zip, whose directory is at its end.
+# workbook is a zip, whose directory is at its end —, parsed before the lock of the project
+# (US-3190/L2).
 HEADER_LENGTH = LARGEST_FILE
 # The phase a remaining to commit is imported in (WF-RAE-0040; ``ProjectCommand.import_remaining``).
 IN_PROGRESS = "in_progress"
@@ -66,14 +68,20 @@ class RemainingFormat:
     reading = "remaining.read"
     permission = "remaining.write"
 
-    def read_header(self, session: Session, head: bytes) -> None:
-        """Refuse a file that is not the workbook of a remaining of a known version (422).
+    def parse_header(self, head: bytes) -> UnprocessableError | None:
+        """Keep, before any lock, the refusal of a file that is no workbook of a remaining.
 
-        ``FILE_FORMAT_UNREADABLE``, ``expected_format`` ``remaining`` and ``expected_version``
-        (WF-INTF-0070).
+        A workbook of an unknown version is refused too (422 ``FILE_FORMAT_UNREADABLE``,
+        ``expected_format`` ``remaining`` and ``expected_version``; WF-INTF-0070); ``None`` for
+        one it reads.
         """
+        return kept_refusal(check_header, head)
+
+    def judge_header(self, session: Session, parsed: UnprocessableError | None) -> None:
+        """Refuse a file that is not the workbook of a remaining of a known version (422)."""
         del session
-        check_header(head)
+        if parsed is not None:
+            raise parsed
 
     def judge(self, session: Session, target: ImportTarget) -> None:
         """Refuse a remaining to commit imported on a project not In progress (409).

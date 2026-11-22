@@ -11,7 +11,9 @@ in the project, under the permission to write its actual costs; it aims at no st
 
 Declared by US-1580/L1; US-1610/L1 judges an import on the state of its project and the mapping,
 reads the header at the opening (``extraction``) and analyses (``analysing``); US-1610/L2 applies
-(``applying``), on the rows the preparation read before any lock (US-1610/L4, #2739).
+(``applying``), on the rows the preparation read before any lock (US-1610/L4, #2739). US-3190/L2
+splits the header: its row is read from the workbook before the lock of the project, and judged
+against the mapping under it — the mapping is read at the judgment alone.
 """
 
 from typing import TYPE_CHECKING, Any
@@ -26,7 +28,7 @@ from waterfall.core.projects.interface import (
     no_background_task_running,
     project_facts,
 )
-from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError, UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -41,8 +43,9 @@ PROJECT_IN_PROGRESS = "project_in_progress"
 ACTUAL_COST_MAPPING_COMPLETE = "actual_cost_mapping_complete"
 IN_PROGRESS = "in_progress"
 # The bytes of a file the header is read in: the whole file, at most what a deposit holds. A
-# workbook is a zip, whose directory is at its end: no head of bytes holds the header. openpyxl,
-# in read-only mode, inflates only the first row of the first tab.
+# workbook is a zip, whose directory is at its end: no head of bytes holds the header. It is parsed
+# before the lock of the project: the opener of the exchanges judges the archive, then openpyxl, in
+# read-only mode, gives the first row of the first tab alone.
 HEADER_LENGTH = LARGEST_FILE
 
 
@@ -62,23 +65,37 @@ class ActualCostsFormat:
     reading = "actual_costs.read"
     permission = "actual_costs.write"
 
-    def read_header(self, session: Session, head: bytes) -> None:
-        """Refuse a file that is no extraction, or lacks a required column of the mapping (422).
+    def parse_header(self, head: bytes) -> tuple[Any, ...] | UnprocessableError:
+        """Read the row of the headers of an extraction, before any lock, reading no mapping.
 
+        The cells of the first row of the first tab, none for an empty tab; the refusal of a file
+        that is no workbook, or beyond the bounds of the opener, kept (422
+        ``FILE_FORMAT_UNREADABLE``, ``expected_format`` ``actual_costs``).
+        """
+        try:
+            rows = sheet_rows(head, max_row=HEADER_ROW)
+        except UnprocessableError as refusal:
+            return refusal
+        return rows[0] if rows else ()
+
+    def judge_header(self, session: Session, parsed: tuple[Any, ...] | UnprocessableError) -> None:
+        """Refuse an incomplete mapping, then a file that is no extraction or lacks a column.
+
+        First a mapping whose required columns lack a label (409 ``actual_cost_mapping_complete``,
+        ``params.columns`` those, in the order of the mapping; WF-REF-0190): the exchanges ask
+        ``judge_header`` at the opening only, after ``judge``, so that the order of the conditions
+        stays that of ``ProjectCommand.import_actual_costs``. Then the refusal the parse kept, and
+        the headers against the mapping read now, under the lock of the project:
         ``FILE_FORMAT_UNREADABLE``, ``expected_format`` ``actual_costs``, and ``missing_columns``
-        for the columns the headers of its first tab do not name (WF-INTF-0070, WF-REF-0190).
-
-        Before the header, a mapping whose required columns lack a label is refused (409
-        ``actual_cost_mapping_complete``, ``params.columns`` those, in the order of the mapping;
-        WF-REF-0190): the exchanges ask ``read_header`` at the opening only, after ``judge``, so
-        that the order of the conditions stays that of ``ProjectCommand.import_actual_costs``.
-        An import analysed is applied as it was analysed, whatever the mapping became.
+        for the columns they do not name (WF-INTF-0070, WF-REF-0190). An import analysed is applied
+        as it was analysed, whatever the mapping became.
         """
         missing = read_actual_cost_mapping(session).missing_columns
         if missing:
             raise _refused(ACTUAL_COST_MAPPING_COMPLETE, columns=list(missing))
-        rows = sheet_rows(head, max_row=HEADER_ROW)
-        read_header(session, rows[0] if rows else ())
+        if isinstance(parsed, UnprocessableError):
+            raise parsed
+        read_header(session, parsed)
 
     def judge(self, session: Session, target: ImportTarget) -> None:
         """Refuse an import of the actual costs on its project or its tasks (409).
@@ -87,7 +104,7 @@ class ActualCostsFormat:
         exchanges refuse: a project not In progress (``project_in_progress``), then a task of the
         background that writes in it, but the application that asks
         (``no_background_task_running``). The mapping is not judged here, which the application
-        replays: an import analysed is applied as it was analysed (``read_header`` judges it at the
+        replays: an import analysed is applied as it was analysed (``judge_header`` judges it at the
         opening; WF-REF-0190). The project is read under the lock its caller holds.
         """
         project_id = target.project_id

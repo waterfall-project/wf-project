@@ -5,9 +5,10 @@
 A workbook of the format given, swollen afterwards: a member that inflates to 64 MiB while it
 declares 7 000 bytes, its CRC that of its first 7 000 bytes, as the workbook of #4419 holds 64 MiB
 of spaces in its theme in some 68 kB; a member that announces 1 GiB; an archive of too many
-members; a member compressed by another method than deflate. And a tab grown past its rows or
-columns. Each is written by streams of a mebibyte at most, so that writing one does not take the
-memory the test then measures. And the measure: the peak of what Python allocates during a call.
+members; a member compressed by another method than deflate; an archive in ZIP64, honest or
+announcing 5 GiB through its ZIP64 field. And a tab grown past its rows or columns. Each is written
+by streams of a mebibyte at most, so that writing one does not take the memory the test then
+measures. And the measure: the peak of what Python allocates during a call.
 """
 
 import tracemalloc
@@ -136,6 +137,32 @@ def encrypted(base: bytes) -> bytes:
         if bytes(raw[at + 46 : at + 46 + length]) == HUGE.encode():
             raw[at + 8] |= 1
         at = raw.find(b"PK\x01\x02", at + 4)
+    return bytes(raw)
+
+
+def in_zip64(base: bytes, announced: int | None = None) -> bytes:
+    """Give the workbook written again in ZIP64, its first member announcing ``announced`` if given.
+
+    zipfile writes ZIP64 past its limit alone: the limit lowered to nothing, every member carries
+    its sizes and its offset in the ZIP64 field of its extra (APPNOTE 4.5.3), the directory holds
+    0xFFFFFFFF in their place, and the end of the directory has its record of 64 bits. The size
+    announced replaces the first eight bytes of the ZIP64 field of the first directory entry, its
+    size inflated.
+    """
+    out = BytesIO()
+    limit = zipfile.ZIP64_LIMIT
+    zipfile.ZIP64_LIMIT = 0
+    try:
+        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target:
+            _copied(base, target)
+    finally:
+        zipfile.ZIP64_LIMIT = limit
+    raw = bytearray(out.getvalue())
+    if announced is not None:
+        at = raw.find(b"PK\x01\x02")
+        field = at + 46 + int.from_bytes(raw[at + 28 : at + 30], "little")
+        assert raw[field : field + 2] == b"\x01\x00"
+        raw[field + 4 : field + 12] = announced.to_bytes(8, "little")
     return bytes(raw)
 
 

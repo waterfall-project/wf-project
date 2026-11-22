@@ -276,6 +276,24 @@ def test_an_opening_is_refused_for_a_head_its_format_does_not_recognise(
         assert session.scalars(select(ImportReport)).all() == []
 
 
+@pytest.mark.story("US-3190")
+def test_a_head_parsed_before_the_lock_is_refused_at_its_place_in_the_order_of_the_contract(
+    api: ContractClient, stage: Scene, trial: TrialFormat
+) -> None:
+    # The head is parsed before the lock of the project, its refusal kept: the conditions of the
+    # opening come first, as before (US-3190/L2), and the deposit is left usable by the refusal.
+    project_id = stage.project["project_id"]
+    upload_id = deposited(api, stage.manager, b"PROJECT XML\n")
+    trial.condition = "project_before_in_progress"
+    response = open_import(api, stage.manager, project_id, upload_id)
+    assert refusal(response)[2] == {"missing_condition": "project_before_in_progress"}
+    trial.condition = None
+    assert refusal(open_import(api, stage.manager, project_id, upload_id))[:2] == (
+        422,
+        "FILE_FORMAT_UNREADABLE",
+    )
+
+
 @pytest.mark.usefixtures("trial")
 def test_an_opening_on_a_backup_deposit_names_the_deposit(
     api: ContractClient, stage: Scene, database: Database

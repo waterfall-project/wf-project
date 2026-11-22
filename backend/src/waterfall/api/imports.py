@@ -7,8 +7,9 @@
 of MS Project in calendar gap, which analyses the import again (US-2000/L2). A file is deposited
 whole, written to the storage under ``uploads/<upload_id>`` before its row; an import opens on it,
 is analysed by the worker, then applied or abandoned. The storage is asked out of any transaction:
-the head of a file is read before the opening is judged, and a file is deleted once the transaction
-that ends its import is committed (WF-DAT-0120).
+the head of a file is read, and parsed by its format, before the opening is judged — a workbook read
+holds neither the lock of the project nor a connection (US-3190/L2, #4419) —, and a file is deleted
+once the transaction that ends its import is committed (WF-DAT-0120).
 
 Each operation of a project is guarded by ``RequiresProject`` on the visibility of the project
 alone: the project exists only for who may consult it (404). The kind of an import is judged by
@@ -68,6 +69,7 @@ from waterfall.core.exchanges.interface import (
     judge_deposit,
     list_imports,
     open_import,
+    parse_head,
     read_import,
     set_duration_rule,
 )
@@ -288,8 +290,9 @@ def post_import(
 ) -> ImportDetail:
     """Open an import of a deposited file, and deposit its analysis for the worker (202).
 
-    The head of the file is read from the storage before the transaction that judges the opening
-    under the lock of the project, which does not wait for the storage; it judges the deposit again.
+    The head of the file is read from the storage and parsed by its format before the transaction
+    that judges the opening under the lock of the project, which waits neither for the storage nor
+    for a workbook opened; it judges the deposit again, and the head as its format parsed it.
     """
     confirmer = confirmer_of(actor)
     opening = ImportOpening(
@@ -304,10 +307,8 @@ def post_import(
         where = head_to_read(session, opening.upload_id, opening.kind, confirmer.act)
     head = None
     if where is not None:
-        try:
-            head = services.backups.head(where.object_key, where.length)
-        except MissingObjectError:
-            head = None
+        with suppress(MissingObjectError):
+            head = parse_head(opening.kind, services.backups.head(where.object_key, where.length))
     with services.database.transaction() as session:
         view = open_import(session, services.queue, opening, head, confirmer)
         return detailed(session, view)

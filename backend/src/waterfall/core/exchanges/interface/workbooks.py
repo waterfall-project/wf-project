@@ -15,12 +15,19 @@ byte past what it declares, and refuses one that holds more; a member neither st
 whose inflation zipfile does not bound, or encrypted, is refused too (Excel writes none). Only then
 is the workbook opened, read-only and by values.
 
-The cost, accepted: the check inflates each deflated member once more than openpyxl will, and it is
-replayed at each judgment of a file (the header, the analysis, the application), so a workbook at
-the bound, 200 MiB declared, inflates up to 200 MiB per judgment, for some hundreds of
-milliseconds, a step of a mebibyte at a time and never held. A workbook of the format weighs
-a few mebibytes inflated; the bound is a worst case, which a user may reach only by depositing
-a file that is refused anyway, and no bound could be had without inflating.
+An archive in ZIP64 — the sizes and the offsets of its members in their extra field, the end of its
+directory in a record of 64 bits — is judged as any other, and none is refused for it: zipfile reads
+the sizes its directory declares there, which the bounds judge, and the opener steps over the
+extra field of each local header. Excel writes none under 4 GiB; a member that announces beyond the
+bound through its ZIP64 field is refused by the bound.
+
+The cost, accepted: the check inflates once each deflated member, which openpyxl may inflate again
+if it reads it, and it is replayed at each judgment of a file (the header, the analysis, the
+application), so a workbook at the bound, 200 MiB declared, inflates up to 200 MiB per judgment, a
+step of a mebibyte at a time and never held: 0.3 s, measured once on the machine of development
+for a member of 198 MiB of spaces (#4740). The prototypes of the specification declare 0.5 MiB
+and 0.2 MiB inflated; the bound is a worst case, which a user may reach only by depositing a file
+that is refused anyway, and no bound could be had without inflating.
 
 A reader then materialises the tabs its format reads, and those alone, by ``bounded_rows``: a tab
 of more than ``MOST_ROWS`` rows or ``MOST_COLUMNS`` columns, as openpyxl gives them, is refused.

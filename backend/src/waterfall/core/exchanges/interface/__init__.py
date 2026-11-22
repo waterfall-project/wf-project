@@ -109,6 +109,9 @@ from waterfall.core.exchanges.interface.imports import (
     Judge as Judge,
 )
 from waterfall.core.exchanges.interface.imports import (
+    ParsedHead as ParsedHead,
+)
+from waterfall.core.exchanges.interface.imports import (
     RuleChange as RuleChange,
 )
 from waterfall.core.exchanges.interface.imports import (
@@ -130,10 +133,16 @@ from waterfall.core.exchanges.interface.imports import (
     judge_deposit as judge_deposit,
 )
 from waterfall.core.exchanges.interface.imports import (
+    kept_refusal as kept_refusal,
+)
+from waterfall.core.exchanges.interface.imports import (
     list_imports as list_imports,
 )
 from waterfall.core.exchanges.interface.imports import (
     open_import as open_import,
+)
+from waterfall.core.exchanges.interface.imports import (
+    parse_head as parse_head,
 )
 from waterfall.core.exchanges.interface.imports import (
     read_import as read_import,
