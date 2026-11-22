@@ -70,11 +70,13 @@ from waterfall.core.revisions.interface.shared import (
     BASE,
     MAIN,
     RISK,
+    bears_main_counter,
     inscribe_structure,
+    writing_provision,
 )
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import revision_state
-from waterfall.core.revisions.tables import CostStructure, Revision
+from waterfall.core.revisions.tables import CostStructure, OwnEstimateAbandonment, Revision
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.identifiers import new_id
 
@@ -83,6 +85,7 @@ if TYPE_CHECKING:
     from datetime import date, datetime
     from uuid import UUID
 
+    from sqlalchemy import ColumnElement
     from sqlalchemy.orm import Session
 
     from waterfall.core.projects.interface import Viewer
@@ -175,18 +178,46 @@ def _counted(
 ) -> int:
     """Advance the counter of a structure with the values given; give it, its followers told.
 
-    The own estimate of a risk tells what follows it (``register_own_estimate_counted``).
+    The own estimate of a risk tells what follows it (``register_own_estimate_counted``). The main
+    structure, written for a provision line (``provision_written``), carries the own estimates of
+    its revision that were up to date over to its new counter: the counter advances by one under
+    the lock of the structure, so those that bore the one before were up to date until now (EP-30).
+    A consumed own estimate, which its risk's occurrence merged, has no update left and is not
+    carried over, as ``keep_differential_states`` leaves it.
     """
     row = session.execute(
         update(CostStructure)
         .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
         .values(lock_version=CostStructure.lock_version + 1, **values)
-        .returning(CostStructure.lock_version, CostStructure.revision_id, CostStructure.risk_id)
+        .returning(
+            CostStructure.lock_version,
+            CostStructure.revision_id,
+            CostStructure.risk_id,
+            CostStructure.kind,
+        )
         .execution_options(synchronize_session=False)
     ).first()
     if row is None:
         raise NotFoundError(NOT_FOUND)
-    counter, revision_id, risk_id = row
+    counter, revision_id, risk_id, kind = row
+    if kind == MAIN and writing_provision(session):
+        session.execute(
+            update(CostStructure)
+            .where(
+                CostStructure.project_id == project_id,
+                CostStructure.revision_id == revision_id,
+                CostStructure.kind == RISK,
+                CostStructure.is_merged.is_(False),
+                CostStructure.main_lock_version == counter - 1,
+            )
+            .values(main_lock_version=counter)
+            .execution_options(synchronize_session=False)
+        )
+        # The statement does not synchronize the session: an own estimate it holds reads its
+        # counter again, as ``rename_own_estimates`` does of a label (#4041).
+        for held in tuple(session.identity_map.values()):
+            if isinstance(held, CostStructure) and held.kind == RISK:
+                session.expire(held, ["main_lock_version"])
     if risk_id is not None:
         counted = OwnEstimateCounted(session, project_id, revision_id, structure_id, risk_id)
         for follower in _OWN_ESTIMATES.entries():
@@ -236,6 +267,14 @@ def create_own_estimate(
     """
     (project_id, revision_id), (risk_id, label) = revision, risk
     structure_id, start = (new_id(), current_day(act.at)) if kept is None else kept
+    # Born up to date with the main structure, as a differential is (EP-30).
+    main_counter = session.scalar(
+        select(CostStructure.lock_version).where(
+            CostStructure.project_id == project_id,
+            CostStructure.revision_id == revision_id,
+            CostStructure.kind == MAIN,
+        )
+    )
     session.add(
         CostStructure(
             project_id=project_id,
@@ -246,6 +285,7 @@ def create_own_estimate(
             is_merged=False,
             lineage_id=structure_id,
             risk_id=risk_id,
+            main_lock_version=NEVER_BORNE if main_counter is None else main_counter,
             planning_start_on=start,
             scheduled_at=act.at,
             lock_version=FIRST_VERSION,
@@ -263,8 +303,9 @@ def delete_own_estimate(session: Session, project_id: UUID, structure_id: UUID) 
     """Delete the own estimate of a risk deleted with it, its nodes already deleted (US-2590/L1).
 
     The structure is locked by the caller, which has deleted the evaluation that names it and the
-    nodes it holds; nothing else names it.
+    nodes it holds; what it abandons goes with it (EP-30).
     """
+    _delete_abandonments(session, project_id, OwnEstimateAbandonment.structure_id == structure_id)
     session.delete(
         session.scalars(
             select(CostStructure).where(
@@ -305,7 +346,8 @@ def copy_consumed_estimate(copy: RevisionCopy, structure_id: UUID) -> UUID:
     row it is — merged, its lineage and its start kept — but not its content, which the occurrence
     consumed and which is read in the revision it occurred in (WF-REV-0100, WF-RIS-0060). Its nodes,
     its lines and its images are not taken up: ``copy_structures`` leaves it out of the identifiers
-    the copies of the planning and of the estimate follow.
+    the copies of the planning and of the estimate follow. Empty, it holds no difference to be exact
+    against a marked revision: a pruned one's copy names none (``pruned_revision_id`` null).
     """
     row = copy.session.scalars(
         select(CostStructure).where(
@@ -323,6 +365,8 @@ def copy_consumed_estimate(copy: RevisionCopy, structure_id: UUID) -> UUID:
             is_merged=True,
             lineage_id=row.lineage_id,
             risk_id=row.risk_id,
+            main_lock_version=NEVER_BORNE,
+            pruned_revision_id=None,
             planning_start_on=row.planning_start_on,
             scheduled_at=row.scheduled_at or row.created_at,
             lock_version=FIRST_VERSION,
@@ -433,6 +477,7 @@ def copy_structures(copy: RevisionCopy) -> None:
                 if row.differential_id is None
                 else copy.identifiers[row.differential_id],
                 main_lock_version=None if row.main_lock_version is None else NEVER_BORNE,
+                pruned_revision_id=row.pruned_revision_id,
                 planning_start_on=row.planning_start_on,
                 scheduled_at=row.scheduled_at or row.created_at,
                 lock_version=FIRST_VERSION,
@@ -448,8 +493,10 @@ def copy_structures(copy: RevisionCopy) -> None:
 def delete_structures(session: Session, project_id: UUID, revision_id: UUID) -> None:
     """Delete the structures of a revision being abandoned, row by row (WF-DAT-0010).
 
-    The bases first, which name their differentials (US-3050).
+    What the own estimates abandon first, then the bases, which name their differentials
+    (US-3050, EP-30).
     """
+    _delete_abandonments(session, project_id, OwnEstimateAbandonment.revision_id == revision_id)
     rows = session.scalars(
         select(CostStructure).where(
             CostStructure.project_id == project_id, CostStructure.revision_id == revision_id
@@ -460,6 +507,17 @@ def delete_structures(session: Session, project_id: UUID, revision_id: UUID) -> 
         if row.kind == BASE:
             session.flush()
     session.flush()
+
+
+def _delete_abandonments(
+    session: Session, project_id: UUID, criterion: ColumnElement[bool]
+) -> None:
+    """Delete what own estimates abandon, of a project, as the criterion retains (EP-30)."""
+    session.execute(
+        delete(OwnEstimateAbandonment)
+        .where(OwnEstimateAbandonment.project_id == project_id, criterion)
+        .execution_options(synchronize_session=False)
+    )
 
 
 def _structures(
@@ -531,7 +589,7 @@ def _up_to_date(row: CostStructure, main_counter: int | None) -> bool | None:
     """
     if row.kind != AMENDMENT or row.is_merged:
         return None
-    return row.main_lock_version == main_counter
+    return bears_main_counter(row, main_counter)
 
 
 def _nature(row: CostStructure, main_counter: int | None) -> StructureNature:

@@ -18,7 +18,7 @@ from sqlalchemy import delete, func, insert, select, table, text
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.tables import Project
-from waterfall.core.revisions.tables import CostStructure, Revision
+from waterfall.core.revisions.tables import CostStructure, OwnEstimateAbandonment, Revision
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -66,11 +66,11 @@ MARKED: dict[str, object] = {"status": "marked", "version_name": "v1.0", "marked
 def structure_row(project_id: UUID, revision_id: UUID, **overrides: object) -> dict[str, object]:
     """Give the columns of the main structure of a revision, with the changes asked for.
 
-    A differential keeps the counter of the main structure its base was taken at (US-3050): the
-    first, unless the changes say another.
+    A differential keeps the counter of the main structure its base was taken at (US-3050), and
+    the own estimate of a risk likewise (EP-30): the first, unless the changes say another.
     """
     structure_id = uuid4()
-    differential = overrides.get("kind") == "amendment"
+    differential = overrides.get("kind") in {"amendment", "risk"}
     return {
         "project_id": project_id,
         "id": structure_id,
@@ -118,7 +118,8 @@ def delete_structure(owner: Engine, structure_id: UUID) -> None:
 
     The one place that knows what hangs from a structure: a test that wrote one by hand calls it in
     its ``finally``, and a table that comes to depend on the nodes is added here, not in each test.
-    The base of a differential goes first, which names it (US-3050).
+    The base of a differential goes first, which names it (US-3050); what an own estimate abandons
+    goes with it (EP-30).
     """
     with owner.begin() as connection:
         bases = connection.scalars(
@@ -129,6 +130,9 @@ def delete_structure(owner: Engine, structure_id: UUID) -> None:
             connection.execute(delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
             connection.execute(delete(Task).where(Task.node_id.in_(nodes)))
             connection.execute(delete(Node).where(Node.structure_id == each))
+            connection.execute(
+                delete(OwnEstimateAbandonment).where(OwnEstimateAbandonment.structure_id == each)
+            )
             connection.execute(delete(CostStructure).where(CostStructure.id == each))
 
 
@@ -157,6 +161,7 @@ def partition_of(project_id: UUID) -> str:
 # name a revision alone, which is no partitioned table; the rows of the risks name the structures
 # and the nodes (EP-08).
 REVISED = (
+    "own_estimate_abandonment",
     "risk_reference_share",
     "risk_review",
     "risk_evaluation",

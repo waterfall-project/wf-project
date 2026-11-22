@@ -158,9 +158,12 @@ class CostStructure(Audited):
     and by revision (EP-08, migration ``0035``). The base of a differential names its differential
     (``differential_id``, there for that kind alone), of the same revision, one base at most by
     differential; a differential keeps the counter the main structure bore when its base was taken
-    (``main_lock_version``, there for that kind alone): it is up to date while the main structure
-    bears it (US-3050, migration ``0038``). ``lineage_id`` is kept by the copy of the
-    revision, its own identifier at the creation of the structure (WF-DAT-0030). The date its
+    (``main_lock_version``, there for that kind and the own estimate of a risk alone): it is up to
+    date while the main structure bears it (US-3050, migration ``0038``). An own estimate pruned
+    names the marked revision its differences are exact against (``pruned_revision_id``, EP-30,
+    migration ``0044``), and what it abandons is kept apart (``OwnEstimateAbandonment``).
+    ``lineage_id`` is kept by the copy of the revision, its own identifier at the creation of the
+    structure (WF-DAT-0030). The date its
     planning starts on and the instant its dates were computed (EP-06, #2170) are null for a row
     the migration ``0023`` did not fill, which the code reads as their derived values: the day of
     the creation of the origin of its lineage, the instant of its own creation.
@@ -188,12 +191,21 @@ class CostStructure(Audited):
         CheckConstraint(
             "(differential_id IS NOT NULL) = (kind = 'base')", name="differential_of_its_kind"
         ),
+        # A differential and the own estimate of a risk keep it alike (US-3050, EP-30).
         CheckConstraint(
-            "(main_lock_version IS NOT NULL) = (kind = 'amendment')",
+            "(main_lock_version IS NOT NULL) = (kind IN ('amendment', 'risk'))",
             name="main_counter_of_its_kind",
         ),
         # A differential copied out of date keeps 0, which the main structure never bears.
         CheckConstraint("main_lock_version >= 0", name="main_counter_not_negative"),
+        # The marked revision an own estimate pruned is exact against, with its project (EP-30);
+        # the revision first, which names the key apart from the one of the revision of the row.
+        ForeignKeyConstraint(
+            ["pruned_revision_id", "project_id"],
+            ["revision.id", "revision.project_id"],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("pruned_revision_id IS NULL OR kind = 'risk'", name="pruned_of_its_kind"),
         *bounded("label", LABEL_LENGTH),
         # What a revised row of the planning names: the structure with its revision (EP-06).
         UniqueConstraint("project_id", "id", "revision_id"),
@@ -239,6 +251,57 @@ class CostStructure(Audited):
     risk_id: Mapped[UUID | None]
     # The differential whose base the structure is; null for any other kind (US-3050).
     differential_id: Mapped[UUID | None]
-    # The counter the main structure bore when the base of the differential was taken, 0 when it
-    # bore none in this revision (a differential taken up out of date); null for any other kind.
+    # The counter the main structure bore when the base of the differential, or of the own estimate
+    # of a risk, was taken or last carried over, 0 when it bore none in this revision (one taken up
+    # out of date); null for any other kind.
     main_lock_version: Mapped[int | None] = mapped_column(Integer)
+    # The marked revision against whose main structure the differences of an own estimate pruned
+    # are exact; null for an own estimate whole, and for any other kind (EP-30).
+    pruned_revision_id: Mapped[UUID | None]
+
+
+class OwnEstimateAbandonment(Base):
+    """What the own estimate of a risk, pruned, abandons of the main structure (EP-30).
+
+    A node, by its lineage, or a link, by the lineages of its two tasks (WF-DAT-0030): what the
+    pruning keeps of a removal, the nodes it removes being deleted with the rest. Revised, of the
+    revision of its structure; written once, by the pruning, taken up by the copy of a revision,
+    and deleted with its structure, by the abandonment of a revision or the deletion of its risk.
+    """
+
+    __tablename__ = "own_estimate_abandonment"
+    __table_args__ = (
+        # The own estimate, with its revision: a structure of the revision of the row.
+        ForeignKeyConstraint(
+            ["project_id", "structure_id", "revision_id"],
+            ["cost_structure.project_id", "cost_structure.id", "cost_structure.revision_id"],
+            ondelete="RESTRICT",
+        ),
+        # A node or a link, never both, a link by its two tasks.
+        CheckConstraint(
+            "(node_lineage_id IS NULL) = (predecessor_lineage_id IS NOT NULL) "
+            "AND (predecessor_lineage_id IS NULL) = (successor_lineage_id IS NULL)",
+            name="node_or_link",
+        ),
+        # A node or a link abandoned once by an own estimate; each led by its own column, which
+        # names the constraint apart, the key of the partition held.
+        UniqueConstraint("node_lineage_id", "structure_id", "project_id"),
+        UniqueConstraint(
+            "predecessor_lineage_id", "successor_lineage_id", "structure_id", "project_id"
+        ),
+        # The abandonments of a revision: its abandonment deletes them, its copy reads them.
+        Index(None, "revision_id"),
+        {"postgresql_partition_by": BY_PROJECT},
+    )
+
+    project_id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    revision_id: Mapped[UUID]
+    structure_id: Mapped[UUID]
+    node_lineage_id: Mapped[UUID | None]
+    predecessor_lineage_id: Mapped[UUID | None]
+    successor_lineage_id: Mapped[UUID | None]
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime)
+    created_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("user_account.id", ondelete="RESTRICT")
+    )

@@ -69,7 +69,7 @@ from waterfall.core.projects.tables import (
     WorkPackage,
 )
 from waterfall.core.resource_settings.tables import Calendar, DurationUnit, OrgNode, ResourceRole
-from waterfall.core.revisions.tables import CostStructure, Revision
+from waterfall.core.revisions.tables import CostStructure, OwnEstimateAbandonment, Revision
 from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReferenceShare, RiskReview
 from waterfall.core.users.tables import IdentitySyncReport, UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
@@ -290,6 +290,7 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         Deliverable.__tablename__,
         Revision.__tablename__,
         CostStructure.__tablename__,
+        OwnEstimateAbandonment.__tablename__,
         Node.__tablename__,
         Task.__tablename__,
         TaskLink.__tablename__,
@@ -463,6 +464,9 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "risk_evaluation": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "risk_review": {"SELECT", "INSERT", "DELETE"},
     "risk_reference_share": {"SELECT", "INSERT", "DELETE"},
+    # What an own estimate pruned abandons (EP-30, migration 0044): written once by the pruning,
+    # copied with its revision, deleted with its structure; never changed.
+    "own_estimate_abandonment": {"SELECT", "INSERT", "DELETE"},
 }
 
 
@@ -537,6 +541,7 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
         ("cost_structure_refuse_marked_change", False, own),
         ("estimate_line_refuse_marked_change", False, own),
         ("node_refuse_marked_change", False, own),
+        ("own_estimate_abandonment_refuse_marked_change", False, own),
         ("revision_calendar_refuse_marked_change", False, own),
         ("revision_category_refuse_marked_change", False, own),
         ("revision_indicator_refuse_marked_change", False, own),
@@ -553,7 +558,14 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
 
 # The revised tables of the revisions and the planning (EP-04, EP-06), of the estimate (EP-07), of
 # the indicators (EP-10) and of the risks (EP-08).
-PLANNING_REVISED = ("cost_structure", "node", "structure_reading", "task", "task_link")
+PLANNING_REVISED = (
+    "cost_structure",
+    "node",
+    "own_estimate_abandonment",
+    "structure_reading",
+    "task",
+    "task_link",
+)
 INDICATORS_REVISED = ("revision_indicator",)
 RISKS_REVISED = ("risk_evaluation", "risk_review", "risk_reference_share")
 ESTIMATE_REVISED = (

@@ -121,6 +121,9 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "rebasing",
         # The merge applied, as a task of the worker and for the witness (US-2560/L2).
         "merge_applying",
+        # The own estimate of a risk prepared as a differential: its states, its registries
+        # (US-3070/L1).
+        "own_estimates",
     },
 }
 # The modules of the planning, the history and the exchanges (EP-06), of the indicators (EP-10), of

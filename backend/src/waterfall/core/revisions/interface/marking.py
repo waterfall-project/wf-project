@@ -12,8 +12,10 @@ the commands that would write in the revision name ``no_background_task_running`
 The worker marks (``run_marking``), in the one transaction of the task, under the lock of the
 revision taken ``FOR UPDATE`` (#2104): the guard of the revised tables reads the revision under
 ``FOR KEY SHARE``, which this lock excludes, so that no row enters a revision once it is judged
-current here. It judges again what the request judged — still current, its name free —, has the
-modules registered keep their part of it (``register_marking``: the images and the rates of EP-07),
+current here. The modules registered do first what they do before a marking writes
+(``register_before_marking``: the risks update their own estimates, EP-30). It judges again what
+the request judged — still current, its name free —, has the modules registered keep their part
+of it (``register_marking``: the images and the rates of EP-07),
 computes and keeps its indicators (``compute_indicators``, which EP-10 extends by
 ``register_indicators``), marks it with its moment and its name, takes it from its project as the
 current revision, and inscribes ``revision_mark`` in the journal, its author the requester. A
@@ -54,6 +56,7 @@ from waterfall.core.projects.interface import (
 )
 from waterfall.core.revisions.commands import REVISION_DRAFT
 from waterfall.core.revisions.interface.closing import close_revision
+from waterfall.core.revisions.interface.own_estimates import BeforeMarking, before_marking
 from waterfall.core.revisions.interface.shared import (
     found_revision,
     inscribe_revision,
@@ -248,6 +251,7 @@ def run_marking(session: Session, payload: Mapping[str, Any], act: Act) -> None:
     if exit_state is not None:
         _judge_project_counter(session, UUID(payload[PROJECT]), payload[EXIT_LOCK_VERSION])
     description = payload.get(DESCRIPTION, KEPT)
+    _before(session, revision, act)
     mark_revision(session, UUID(payload[REVISION]), payload[NAME], description, act)
     if exit_state is not None:
         project_id = UUID(payload[PROJECT])
@@ -256,6 +260,16 @@ def run_marking(session: Session, payload: Mapping[str, Any], act: Act) -> None:
         # The requester was judged a project manager in the request. The worker judges the quality
         # again, under the lock, for an exit alone: a marking alone writes no project.
         exit_project(session, project_id, request, act, Viewer(UUID(str(act.author)), ()))
+
+
+def _before(session: Session, revision: Revision, act: Act) -> None:
+    """Have the modules registered do what they do before a revision still current is marked.
+
+    The revision locked and read under its lock: one marked meanwhile is refused by the marking
+    itself (``revision_draft``), nothing done before (``register_before_marking``, EP-30).
+    """
+    if revision.status == "draft":
+        before_marking(BeforeMarking(session, revision.project_id, revision.id, act))
 
 
 def mark_revision(
@@ -388,5 +402,12 @@ def compute_indicators(session: Session, revision_id: UUID, act: Act) -> None:
 def load_marking(
     session: Session, revision_id: UUID, version_name: str, description: str | None, act: Act
 ) -> None:
-    """Mark a revision of the witness, at the instant it imposes, as the worker marks it."""
+    """Mark a revision of the witness, at the instant it imposes, as the worker marks it.
+
+    The revision locked, then its project, as ``run_marking`` locks them: what is done before the
+    marking is told under the same locks.
+    """
+    revision = found_revision(session, revision_id, lock=True)
+    lock_project(session, revision.project_id)
+    _before(session, revision, act)
     mark_revision(session, revision_id, version_name, description, act)

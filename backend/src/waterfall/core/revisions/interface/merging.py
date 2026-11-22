@@ -27,10 +27,11 @@ date (#4034).
 
 Declared by US-2550/L1, the socle of EP-08, with nothing registered; filled by US-2560/L1 (the
 report, the end) and US-2560/L2 (the judgement shared with the application, ``merge_applying``).
+The mode of a merge (``MergeMode``) declared by US-3070/L1: the occurrence of a risk (US-3100).
 """
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import select
 
@@ -46,7 +47,7 @@ from waterfall.core.revisions.commands import (
     merge_conditions,
 )
 from waterfall.core.revisions.interface.revisions import last_marked_revision
-from waterfall.core.revisions.interface.shared import refuse
+from waterfall.core.revisions.interface.shared import bears_main_counter, refuse
 from waterfall.core.revisions.interface.structures import AMENDMENT, BASE, MAIN
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import CostStructure, Revision
@@ -63,6 +64,13 @@ if TYPE_CHECKING:
 
 # The order the report gives the differences in, each change in the order of the parts.
 _CHANGES = ("added", "updated", "removed", "kept")
+# The modes of a merge (EP-30): the merge of an amendment, and the occurrence of a risk, which
+# merges its own estimate on the current figures alone — a line added at a budgeted amount of
+# nought and marked of its risk, a task removed kept and completed whatever its state —, marking
+# nothing.
+type MergeMode = Literal["amendment", "occurrence"]
+MERGE_MODES: tuple[MergeMode, ...] = ("amendment", "occurrence")
+AMENDMENT_MERGE, OCCURRENCE_MERGE = MERGE_MODES
 
 
 class MergePartError(ValueError):
@@ -79,6 +87,8 @@ class StructureMerging:
 
     ``applying`` tells the application, which writes, from the report, which writes nothing.
     ``shared`` what a part computes once for the parts after it and the end, under a key of its own.
+    ``mode`` what the parts apply (``MergeMode``, EP-30): the merge of an amendment by default; in
+    the mode ``occurrence``, ``amendment_id`` is the own estimate of the risk that occurs.
     """
 
     session: Session
@@ -89,6 +99,7 @@ class StructureMerging:
     act: Act
     applying: bool
     shared: dict[str, object] = field(default_factory=dict[str, object])
+    mode: MergeMode = AMENDMENT_MERGE
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,7 +139,9 @@ _ENDS: Registry[Callable[[StructureMerging], MergePart]] = Registry("revisions.m
 def register_merge(part: Callable[[StructureMerging], MergePart]) -> Callable[[], None]:
     """Add the part a module takes of a merge after those registered; give its withdrawal.
 
-    A module registers at the import of its interface, which imports this one first.
+    A module registers at the import of its interface, which imports this one first. Its part reads
+    the mode of the merge (``StructureMerging.mode``): one function serves both, the occurrence of a
+    risk being the merge of its own estimate (EP-30, "Ce que la conception décide").
     """
     return _MERGES.register(part)
 
@@ -243,7 +256,7 @@ def merging_of(
         no_task_running=no_background_task_running(session, project_id, besides),
         mergeable=amendment.kind == AMENDMENT and not amendment.is_merged,
         creates=creates,
-        up_to_date=amendment.main_lock_version == main.lock_version,
+        up_to_date=bears_main_counter(amendment, main.lock_version),
     )
     missing = merge_conditions(state)
     if missing and missing[0] != STRUCTURE_UP_TO_DATE:
