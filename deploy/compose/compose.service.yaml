@@ -195,6 +195,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      keycloak-database:
+        condition: service_completed_successfully
 
   api:
     <<: *back

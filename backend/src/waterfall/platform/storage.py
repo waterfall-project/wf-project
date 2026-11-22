@@ -10,19 +10,21 @@ service; an object that is missing is said apart.
 """
 
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 from waterfall.platform.errors import UnavailableError
+from waterfall.platform.logs import get_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Generator, Iterator, Sequence
+    from collections.abc import Callable, Collection, Generator, Sequence
     from datetime import datetime
     from pathlib import Path
 
+    from botocore.response import StreamingBody
     from mypy_boto3_s3.client import S3Client
     from mypy_boto3_s3.type_defs import CompletedPartTypeDef
 
@@ -36,6 +38,8 @@ CHUNK = 1 << 20
 MISSING = {"NoSuchKey", "NoSuchUpload", "404"}
 # How many parts S3 lists at a time.
 PARTS_PAGE = 1000
+
+logger = get_logger(__name__)
 
 
 class MissingObjectError(Exception):
@@ -58,6 +62,43 @@ def reached() -> Generator[None]:
         raise unavailable() from error
     except BotoCoreError as error:
         raise unavailable() from error
+
+
+class ObjectStream:
+    """An object read as a stream of chunks, which closes the body it reads (#897).
+
+    A storage that stops answering once the stream has begun is the same refusal as before it
+    (503, ``object_storage``), journaled with the key, and the body is closed: the connection it
+    holds goes back at once, whether the stream ends, fails or is abandoned by its reader
+    (``close``, which may be called again). ``length`` is the size the storage gives the object.
+    """
+
+    def __init__(self, body: StreamingBody, length: int | None, key: str = "") -> None:
+        self.body = body
+        self.length = length
+        self.key = key
+        self._chunks = body.iter_chunks(CHUNK)
+
+    def __iter__(self) -> Self:
+        return self
+
+    def __next__(self) -> bytes:
+        """Read the next chunk; stop, closed, at the end of the object."""
+        try:
+            with reached():
+                chunk = next(self._chunks, None)
+        except MissingObjectError, UnavailableError:
+            logger.exception("storage.stream_interrupted", key=self.key)
+            self.close()
+            raise
+        if chunk is None:
+            self.close()
+            raise StopIteration
+        return chunk
+
+    def close(self) -> None:
+        """Close the body of the object, held open until then."""
+        self.body.close()
 
 
 def _left[T](listed: list[T], kept: Callable[[Sequence[T]], Collection[T]] | None) -> list[T]:
@@ -238,14 +279,15 @@ class Bucket:
         with reached():
             self.client.download_file(self.name, key, str(path))
 
-    def stream(self, key: str) -> Iterator[bytes]:
+    def stream(self, key: str) -> ObjectStream:
         """Open the object of a key, to be read as a stream of chunks.
 
-        Refused before the first chunk if the object is missing or the storage does not answer.
+        Refused before the first chunk if the object is missing or the storage does not answer;
+        the reader closes the stream it abandons (``ObjectStream``).
         """
         with reached():
-            body = self.client.get_object(Bucket=self.name, Key=key)["Body"]
-        return body.iter_chunks(CHUNK)
+            found = self.client.get_object(Bucket=self.name, Key=key)
+        return ObjectStream(found["Body"], found.get("ContentLength"), key)
 
     def open_parts(self, key: str) -> str:
         """Open the deposit in parts of an object under a key; give the identifier S3 gives it."""
