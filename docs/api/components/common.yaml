@@ -617,7 +617,10 @@ ErrorCode:
     # the account's for an identity field of an account that does not come from Waterfall
     # (`origin` other than `local`), which the provider holds, or a node other than that of a
     # resource role at its modification (`/org_node_id`, `updateResourceRole`, WF-REF-0090); sending
-    # the field unchanged is not refused (WF-ADM-0050, WF-ADM-0090, WF-ADM-0030).
+    # the field unchanged is not refused (WF-ADM-0050, WF-ADM-0090, WF-ADM-0030). One exception,
+    # where the field is not the caller's to give at all: the planning start date of the own
+    # estimate of a risk (`updateCostStructure`, `/planning_start_on`), which is the main
+    # structure's, is refused sent unchanged as well (WF-RIS-0030).
     - UNKNOWN_ACCESS_ROLE
     - UNKNOWN_ORG_NODE
     - FIELD_READ_ONLY

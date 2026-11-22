@@ -189,6 +189,27 @@ def test_the_recomposition_makes_the_own_estimate_whole() -> None:
     assert marked["params"] == {"missing_condition": "revision_draft"}
 
 
+def test_the_recomposition_is_listed_on_a_pruned_own_estimate_not_consumed() -> None:
+    # #4620: `recompose` is listed on that one only, and the entry and the update wait for it.
+    structures = {each["structure_id"]: each for each in fixture("structures_next_revision")}
+    own = structures[universe(209)]
+    assert (own["is_pruned"], own["revision_id"]) == (True, universe(104))
+    assert _commands(own)["recompose"] == []
+    waiting = {"edit_planning", "edit_estimate", "rebase"}
+    assert {name for name in waiting if _commands(own)[name] == ["own_estimate_whole"]} == waiting
+    assert "recompose" not in _commands(structures[universe(210)])
+    assert all("recompose" not in _commands(each) for each in fixture("structures"))
+
+
+def test_the_planning_start_of_an_own_estimate_is_read_only_even_unchanged() -> None:
+    # The exception of `FIELD_READ_ONLY`, for `updateCostStructure`.
+    refused = fixture("structure_update_own_start_read_only")
+    assert refused["fields"] == [{"pointer": "/planning_start_on", "code": "FIELD_READ_ONLY"}]
+    common = yaml.safe_load((API / "components" / "common.yaml").read_text("utf-8"))
+    assert common["ErrorCode"]["enum"].count("FIELD_READ_ONLY") == 1
+    assert "structure_update_own_start_read_only" in _cited("updateCostStructure", "422")[-1]
+
+
 def test_the_recomposition_is_an_operation_of_its_own() -> None:
     operation = _operations()["recomposeCostStructure"]
     assert "requestBody" not in operation
@@ -201,7 +222,13 @@ def test_the_recomposition_is_an_operation_of_its_own() -> None:
 
 def test_the_two_conditions_are_named_where_the_conception_says() -> None:
     # #4623: the writes of the tree, the import, the review, the report and the occurrence.
-    assert set(CONDITIONS) <= set(_schemas("projects")["CommandCondition"]["enum"])
+    # The third, `own_estimate_pruned`, is the one the recomposition names.
+    enum = _schemas("projects")["CommandCondition"]["enum"]
+    assert set(CONDITIONS) | {"own_estimate_pruned"} <= set(enum)
+    assert (
+        "`own_estimate_pruned`"
+        in _operations()["recomposeCostStructure"]["responses"]["409"]["description"]
+    )
     operations = _operations()
     for name in (
         "createNode",
@@ -237,6 +264,8 @@ def test_every_example_of_the_module_is_cited_by_its_operation() -> None:
         *_cited("rebaseCostStructure", "200", "application/json"),
         *_cited("recomposeCostStructure", "200", "application/json"),
         *_cited("recomposeCostStructure", "409"),
+        *_cited("listCostStructures", "200", "application/json"),
+        *_cited("updateCostStructure", "422"),
     }
     assert {name.removesuffix(".json") for name in mockownestimate.examples()} <= cited
     assert set(mockownestimate.examples()).isdisjoint(mockrebase.examples())

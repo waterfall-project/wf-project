@@ -398,9 +398,9 @@ CommandCondition:
     likewise for the update of the own estimate of a risk already up to date. Two depend on the
     state of the own estimate of a risk (`CostStructure.is_pruned`, `CostStructure.is_up_to_date`;
     WF-RIS-0030, WF-RIS-0070), in this order, the recomposition coming before the update:
-    `own_estimate_whole` is missing on a pruned own estimate, which a marking has reduced to what
-    it designates and which has no base — for its entry (`StructureCommand.edit_planning`,
-    `edit_estimate`; the writes of the tree, the paste and the application of an import on it) and
+    `own_estimate_whole` is missing on a pruned own estimate not consumed, which a marking has
+    reduced to what it designates and which has no base — for its entry
+    (`StructureCommand.edit_planning`, `edit_estimate`; the writes of the tree, the paste and the application of an import on it) and
     for its update (`StructureCommand.rebase`, `getStructureRebaseReport`,
     `rebaseCostStructure`), the own estimate being first recomposed (`recomposeCostStructure`); and
     for the review that leaves or makes its risk identified (`reviewRisk`), the preliminary report
@@ -414,9 +414,10 @@ CommandCondition:
     `own_estimate_pruned` is missing on a structure that is not a pruned own estimate — the main
     structure, a differential, a whole own estimate —, for its recomposition
     (`StructureCommand.recompose`, `recomposeCostStructure`), which is listed on a pruned own
-    estimate only. The review that
-    dismisses the risk requires neither. The structure names them in its commands
-    (`StructureCommand`), the risk in its own (`Risk.available_commands`), and each of these
+    estimate not consumed only. The own estimate consumed by the occurrence of its risk, pruned
+    too, is outside `own_estimate_whole` and `own_estimate_up_to_date`: its update and its
+    recomposition are refused by `risk_not_occurred`. The review that dismisses the risk requires
+    neither. The structure names them in its commands (`StructureCommand`) and each of these
     operations in its 409, after its state conditions; nothing is written.
     `rate_update_available` is missing for the rate update (`apply_rate_update`) of a current
     revision whose proposal presents no category — its reference year is that of the revision of

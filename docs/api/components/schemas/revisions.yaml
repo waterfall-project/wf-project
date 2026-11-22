@@ -570,9 +570,9 @@ StructureCommand:
     a risk are priced whatever the project's state (WF-DEV-0050, WF-REV-0100, WF-RIS-0030) — and
     `edit_remaining` is never listed: only the main structure has a remaining to commit
     (WF-RAE-0040). On the own estimate of a risk, `edit_planning` and `edit_estimate` lack, after
-    the revision's state conditions, `own_estimate_whole` on a pruned own estimate, which is
-    first recomposed (`recompose`), then `own_estimate_up_to_date` on an out of date one, which
-    is first updated (`rebase`): its grid presents itself read-only until then, and the writes
+    the revision's state conditions, `own_estimate_whole` on a pruned own estimate not consumed,
+    which is first recomposed (`recompose`), then `own_estimate_up_to_date` on an out of date
+    one, which is first updated (`rebase`): its grid presents itself read-only until then, and the writes
     of the tree, the paste and the application of an import on it name them in their 409
     (WF-RIS-0030, WF-RIS-0070).
 

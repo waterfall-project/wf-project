@@ -722,6 +722,7 @@
               amendments: { $ref: ../../../fixtures/api/structures_amendments.json }
               without_tasks: { $ref: ../../../fixtures/api/structures_without_tasks.json }
               estimator: { $ref: ../../../fixtures/api/structures_estimator.json }
+              next_revision: { $ref: ../../../fixtures/api/structures_next_revision.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '500': { $ref: ../components/responses.yaml#/InternalError }
@@ -839,7 +840,7 @@
           the order in which it names them — `revision_draft` on a marked revision
           (WF-DAT-0020), then `no_background_task_running` during a background task that writes
           into the current revision or freezes it (`StructureCommand`), then, on the own estimate
-          of a risk, `own_estimate_whole` on a pruned one and `own_estimate_up_to_date` on an out
+          of a risk, `own_estimate_whole` on a pruned one, not consumed, and `own_estimate_up_to_date` on an out
           of date one (WF-RIS-0030, WF-RIS-0070); `project_not_terminal` on a terminal project
           (WF-CYC-0100). Nothing is written.
         content:
@@ -874,6 +875,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               non_working_day: { $ref: ../../../fixtures/api/structure_start_non_working_day.json }
+              own_estimate_start: { $ref: ../../../fixtures/api/structure_update_own_start_read_only.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
@@ -1731,7 +1733,7 @@
           any other, the amendment rebudgeting it (WF-REV-0050, #1765). The phase of the
           project refuses nothing (C-358).
           On the own estimate of a risk, right after the state conditions of the revision:
-          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_whole` on a pruned own estimate not consumed, which is first recomposed, then
           `own_estimate_up_to_date` on an out of date one, which is first updated, as the
           command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:
@@ -1956,7 +1958,7 @@
           risk (`provision_line_refused`; WF-RIS-0010; #4007).
           In a differential, the line of a completed task can be deleted (WF-REV-0050).
           On the own estimate of a risk, right after the state conditions of the revision:
-          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_whole` on a pruned own estimate not consumed, which is first recomposed, then
           `own_estimate_up_to_date` on an out of date one, which is first updated, as the
           command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:
@@ -2108,7 +2110,7 @@
           WF-DAT-0020), and `no_background_task_running` while a background task writes to the
           revision or freezes it, as the command of the structure says (WF-IHM-0090).
           On the own estimate of a risk, right after the state conditions of the revision:
-          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_whole` on a pruned own estimate not consumed, which is first recomposed, then
           `own_estimate_up_to_date` on an out of date one, which is first updated, as the
           command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:
@@ -2244,7 +2246,7 @@
           differential, the line of a completed task can be modified (WF-REV-0050). The phase of
           the project refuses nothing (C-358).
           On the own estimate of a risk, right after the state conditions of the revision:
-          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_whole` on a pruned own estimate not consumed, which is first recomposed, then
           `own_estimate_up_to_date` on an out of date one, which is first updated, as the
           command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:
@@ -2340,7 +2342,7 @@
           WF-DAT-0020), and `no_background_task_running` while a background task writes to the
           revision or freezes it, as the command of the structure says (WF-IHM-0090).
           On the own estimate of a risk, right after the state conditions of the revision:
-          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_whole` on a pruned own estimate not consumed, which is first recomposed, then
           `own_estimate_up_to_date` on an out of date one, which is first updated, as the
           command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:
@@ -2711,7 +2713,7 @@
           A selection names the condition of the first node concerned in plan order, like its
           other refusals.
           On the own estimate of a risk, right after the state conditions of the revision:
-          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_whole` on a pruned own estimate not consumed, which is first recomposed, then
           `own_estimate_up_to_date` on an out of date one, which is first updated, as the
           command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:
@@ -2946,7 +2948,7 @@
           revision (WF-IHM-0050, WF-IHM-0090). The refusal of a line of the block is not a 409:
           it is returned in `rejected`, with its reason (`PasteRejection`).
           On the own estimate of a risk, right after the state conditions of the revision:
-          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_whole` on a pruned own estimate not consumed, which is first recomposed, then
           `own_estimate_up_to_date` on an out of date one, which is first updated, as the
           command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:

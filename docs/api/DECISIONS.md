@@ -12986,7 +12986,13 @@ révision marquée (`structure_recompose_revision_marked`). Les écritures de la
 (`structure_rebase_report_risk_refused`), et la mise à jour aboutie l'enregistre
 (`structure_rebased_risk`). Dans `structures`, 204 est entier et à jour, 206, celui d'un risque
 écarté, entier et en retard, 205, consommé, élagué ; dans `structures_amendments`, que la fusion de
-l'avenant 1 a marquée, les trois sont entiers et en retard. Le faux back sert `risk_estimate` à
+l'avenant 1 a marquée, les trois sont entiers et en retard. `structures_next_revision` montre la recomposition offerte (`recompose`) sur le devis propre élagué non
+consommé de la révision 104, 209, dont la saisie et la mise à jour manquent de `own_estimate_whole`, et
+`structure_update_own_start_read_only` le refus `FIELD_READ_ONLY` de sa date de début, renvoyée
+inchangée comprise. `own_estimate_whole` ne se dit que d'un devis propre non consommé : le devis propre
+consommé, élagué aussi, n'est pas jugé par ces deux conditions, sa mise à jour et sa recomposition étant
+refusées par `risk_not_occurred`.
+Le faux back sert `risk_estimate` à
 l'adresse de chaque devis propre que liste `structures` (`wftools.mock`, #4409). La survenance de
 751 (`risk_occurrence_report`) et le chargeur du témoin lisent encore le devis propre d'EP-08, que
 US-3080, US-3100 et US-3150 réécrivent.

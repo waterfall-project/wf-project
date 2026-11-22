@@ -468,6 +468,52 @@ def recomposed() -> JsonObject:
     }
 
 
+NEXT_MAIN = 210
+
+
+def next_structures() -> list[JsonObject]:
+    """Return the structures of the revision 104 opened after the marking, the own estimate pruned.
+
+    The main structure is the current one, taken over; the own estimate of 751 is the copy
+    ``recomposed`` makes whole, still pruned: its entry and its update wait for its recomposition,
+    which is the command it lists.
+    """
+    [main] = [
+        each for each in cast("list[JsonObject]", fixture("structures")) if each["kind"] == "main"
+    ]
+    waiting: list[JsonValue] = ["own_estimate_whole"]
+    commands: list[JsonValue] = [
+        {"command": name, "is_available": False, "missing_conditions": waiting}
+        for name in ("edit_planning", "edit_estimate", "rebase")
+    ]
+    commands.append({"command": "recompose", "is_available": True, "missing_conditions": []})
+    own: JsonObject = {
+        **recomposed(),
+        "is_pruned": True,
+        "is_up_to_date": True,
+        "available_commands": commands,
+        "lock_version": 1,
+    }
+    return [
+        {
+            **main,
+            "structure_id": universe(NEXT_MAIN),
+            "revision_id": universe(NEXT_REVISION),
+        },
+        own,
+    ]
+
+
+def start_read_only() -> JsonObject:
+    """Return what updateCostStructure answers to a planning start sent on an own estimate."""
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [{"pointer": "/planning_start_on", "code": "FIELD_READ_ONLY"}],
+        "correlation_id": correlation("structure_update_own_start_read_only"),
+    }
+
+
 def examples() -> dict[str, JsonObject]:
     """Return the examples of the own estimate of 751 read as a differential, by file name."""
     labels = mockrebase.node_labels()
@@ -581,6 +627,22 @@ def examples() -> dict[str, JsonObject]:
                 "params": {"missing_condition": "own_estimate_whole"},
                 "correlation_id": correlation("structure_rebase_risk_pruned_refused"),
             },
+        ),
+        "structures_next_revision.json": mocktext.example(
+            f"Les structures de la révision {NEXT_REVISION}, ouverte après le marquage de "
+            f"nodes_risk_estimate_pruned : la principale, reprise, et le devis propre de « "
+            f"{LABEL} », structure {NEXT_STRUCTURE}, élagué (is_pruned vrai) et non consommé. "
+            f"Sa saisie et sa mise à jour manquent de own_estimate_whole, et sa recomposition "
+            f"(recompose) est offerte : c'est la commande que l'écran lance à l'ouverture de la "
+            f"grille (WF-RIS-0030, WF-RIS-0070, #4585).",
+            cast("list[JsonValue]", next_structures()),
+        ),
+        "structure_update_own_start_read_only.json": mocktext.example(
+            f"La date de début envoyée sur le devis propre de « {LABEL} », structure {STRUCTURE} : "
+            f"refusée sur son champ, FIELD_READ_ONLY, inchangée ou non, le devis propre n'ayant "
+            f"pas de date à lui, celle de la principale ; son libellé seul se modifie ici. Rien "
+            f"n'est écrit (WF-RIS-0030, #4585).",
+            start_read_only(),
         ),
         "structure_recompose_revision_marked.json": mocktext.example(
             f"{marking} (nodes_risk_estimate_pruned). Sa recomposition demandée sur cette révision "
