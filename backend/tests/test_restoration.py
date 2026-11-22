@@ -665,6 +665,7 @@ def test_a_value_the_server_quotes_is_masked_whole_whatever_it_holds_and_its_lan
     assert marker not in "".join(kept)
 
 
+@pytest.mark.story("US-2940")
 @pytest.mark.requirement("WF-OBS-0020-A")
 def test_a_line_of_error_made_up_in_a_value_restored_is_not_kept() -> None:
     # #998: a value holds a line break, then a line made to look like an error of pg_restore,
@@ -676,6 +677,7 @@ def test_a_line_of_error_made_up_in_a_value_restored_is_not_kept() -> None:
     assert errors_of(said.encode()) == [f'{realm}"..."']
 
 
+@pytest.mark.story("US-2940")
 @pytest.mark.requirement("WF-OBS-0020-A")
 def test_a_pg_restore_that_dies_without_a_line_of_error_leaves_its_code_of_return_in_the_journal(
     database_url: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

@@ -318,6 +318,9 @@ maintenance. Les journaux disent pourquoi (`task.failed`, avec `reason`) :
 docker compose -f compose.prod.yaml logs restore keycloak-realm
 ```
 
+Ce délai n'est vérifié qu'entre deux tentatives : une tentative dont `pg_restore` pend tient la
+maintenance au-delà de quatre heures, tant qu'elle ne finit ni n'échoue.
+
 Interrompue une fois les bases sur le point d'être remplacées, une restauration peut trouver
 Keycloak servant le royaume de la sauvegarde, dont les secrets ne sont pas ceux de `.env` — ses
 caches vidés, ou Keycloak redémarré seul (#1017) : sa reprise fait d'abord appliquer de nouveau le

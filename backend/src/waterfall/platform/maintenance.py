@@ -332,6 +332,16 @@ def guard_writes(engine: Engine) -> None:
     transaction that writes here, it sees a maintenance held before the restoration asked for the
     lock. A database the migrations have not brought to the schema ``platform`` holds no
     maintenance.
+
+    The proof holds for ``READ COMMITTED``. A ``REPEATABLE READ`` transaction that wrote would see
+    a snapshot taken at its first read, possibly before the maintenance was held, and would admit
+    itself on a maintenance it does not see; this is why the transactions of the repository opened
+    so (``platform/database.py``, ``worker/inventory.py``) stay read only.
+
+    Limits: a write the guard does not see. ``writes`` reads the first word of the statement, so a
+    function that writes called in a ``SELECT``, a large object written by ``lo_*`` in a
+    ``SELECT``, and ``SELECT ... INTO`` pass. ``nextval`` is harmless (a sequence is not
+    restored); no call of the repository writes a large object through a ``SELECT``.
     """
     event.listen(engine, "begin", _begun)
     event.listen(engine, "savepoint", _saved)

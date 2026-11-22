@@ -11,6 +11,7 @@ guarded, as the API and the worker reach theirs.
 
 import threading
 from datetime import timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -134,6 +135,7 @@ def held_restoration(maintenance: Maintenance) -> Restoring:
     return maintenance.hold(Restoring(uuid4(), {}, None, REQUEST, 1))
 
 
+@pytest.mark.story("US-2940")
 @pytest.mark.requirement("WF-ADM-0160-A")
 def test_a_write_admitted_before_the_maintenance_is_kept_and_one_after_is_refused(
     installation: Installation, guarded: Database, owner: Engine, maintenance: Maintenance
@@ -285,6 +287,7 @@ def test_no_project_is_created_once_a_restoration_has_drained_the_writes(
         assert session.scalar(select(func.count()).select_from(Project)) == 0
 
 
+@pytest.mark.story("US-2940")
 @pytest.mark.requirement("WF-ADM-0160-A")
 def test_a_write_the_maintenance_catches_past_the_entry_of_its_request_answers_503(
     installation: Installation,
@@ -311,6 +314,7 @@ def test_a_write_the_maintenance_catches_past_the_entry_of_its_request_answers_5
         assert session.scalar(backups) == 0
 
 
+@pytest.mark.story("US-2940")
 @pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_run_of_the_worker_is_admitted_by_the_drain_and_waited_for_until_it_ends(
     guarded: Database, owner: Engine, queue: TaskQueue
@@ -357,3 +361,16 @@ def test_a_statement_is_a_write_unless_its_first_word_says_a_reading(
     # Any statement whose first word says no reading is taken for a write: the lock is asked for
     # rather than a write missed.
     assert writes(statement) is written
+
+
+@pytest.mark.story("US-2940")
+def test_a_transaction_repeatable_read_of_the_repository_never_writes() -> None:
+    # The proof of ``guard_writes`` holds in READ COMMITTED: a REPEATABLE READ transaction that
+    # wrote would see a maintenance older than its snapshot. The restoration, unguarded, is
+    # the one exception.
+    source = Path(restoration.__file__).parents[1]
+    for path in source.rglob("*.py"):
+        text_of = path.read_text(encoding="utf-8")
+        if 'isolation_level="REPEATABLE READ"' not in text_of or path.parent.name == "restore":
+            continue
+        assert "READ ONLY" in text_of.upper() or "postgresql_readonly=True" in text_of, path

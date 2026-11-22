@@ -596,6 +596,7 @@ def test_a_restoration_ended_whose_maintenance_was_not_lifted_lifts_it_and_runs_
     assert not service.restorer.queue.waiting()
 
 
+@pytest.mark.story("US-2940")
 @pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_restoration_whose_attempts_are_spent_is_given_up_its_task_failed_and_the_platform_lifted(
     installation: Installation, take: Take, service: Service, logs: Logs
@@ -626,6 +627,7 @@ def test_a_restoration_whose_attempts_are_spent_is_given_up_its_task_failed_and_
     assert len(logs.named("task.failed")) == 1
 
 
+@pytest.mark.story("US-2940")
 @pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_maintenance_held_without_a_restoration_in_progress_is_lifted_at_the_start_of_the_service(
     installation: Installation, service: Service, logs: Logs
@@ -647,6 +649,7 @@ def test_a_maintenance_held_without_a_restoration_in_progress_is_lifted_at_the_s
     assert service.provider.steps == []
 
 
+@pytest.mark.story("US-2940")
 @pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_restoration_held_beyond_its_deadline_is_given_up_the_installation_kept_as_it_was(
     installation: Installation, service: Service, logs: Logs
@@ -671,6 +674,7 @@ def test_a_restoration_held_beyond_its_deadline_is_given_up_the_installation_kep
     assert (late["reason"], late["databases_changed"]) == ("deadline_passed", False)
 
 
+@pytest.mark.story("US-2940")
 @pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_restoration_given_up_once_its_databases_may_have_changed_leaves_what_it_kept(
     installation: Installation, service: Service
@@ -692,6 +696,7 @@ def test_a_restoration_given_up_once_its_databases_may_have_changed_leaves_what_
     owner.dispose()
 
 
+@pytest.mark.story("US-2940")
 @pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_restoration_in_progress_within_its_deadline_is_taken_up_at_the_start_of_the_service(
     service: Service,
@@ -704,6 +709,7 @@ def test_a_restoration_in_progress_within_its_deadline_is_taken_up_at_the_start_
     assert service.maintenance.current() == held
 
 
+@pytest.mark.story("US-2940")
 @pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_restoration_stopped_after_a_replacement_keycloak_restarted_alone_gives_the_realm_back(
     installation: Installation, take: Take, service: Service, monkeypatch: pytest.MonkeyPatch
