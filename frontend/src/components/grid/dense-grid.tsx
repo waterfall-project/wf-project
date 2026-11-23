@@ -216,10 +216,12 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
   readonly undo?: UndoControl | undefined;
   /**
    * What holds the grid, given the rows it shows — those of the answer, as its writes left them —:
-   * the Gantt of the planning lays them out once for all its cells (`GanttRows`). One element
-   * around the grid, never a prop of each row (défaut n° 14).
+   * and the row of its active cell — the Gantt of the planning lays them out once for all its cells
+   * (`GanttRows`), and brings the bar of the active row into its frame. One element around the grid,
+   * never a prop of each row (défaut n° 14).
    */
-  readonly around?: ((rows: readonly Row[], grid: ReactNode) => ReactNode) | undefined;
+  readonly around?:
+    ((rows: readonly Row[], grid: ReactNode, active: Row | undefined) => ReactNode) | undefined;
   /** The filters of the screen, as menus in the bar of the grid (#2916/L6); none, the bar as it is. */
   readonly treeFilters?: ReactNode;
   /**
@@ -934,5 +936,10 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       </Table>
     </div>
   );
-  return held(<FoldContext value={folding.view}>{grid}</FoldContext>, shownRows, around);
+  return held(
+    <FoldContext value={folding.view}>{grid}</FoldContext>,
+    shownRows,
+    around,
+    shownRows[cursor.active.row],
+  );
 }

@@ -73,6 +73,15 @@ function ZoomIn() {
   );
 }
 
+/** The bar of a row, its place in the drawing as a length of pixels: where it starts, how long it is. */
+function barSpan(cell: HTMLElement, drawn: number): { from: number; to: number } {
+  const rect = cell.querySelector("rect[rx]");
+  const share = (name: string) =>
+    (Number.parseFloat(rect?.getAttribute(name) ?? "NaN") / 100) * drawn;
+  const from = share("x");
+  return { from, to: from + share("width") };
+}
+
 /** The cell of the Gantt in the row of a label. */
 function ganttOf(label: string): HTMLElement {
   const row = screen
@@ -646,6 +655,96 @@ describe("the Gantt of the planning", () => {
     check();
     await userEvent.click(screen.getByRole("button", { name: "Zoom avant" }));
     check();
+  });
+
+  // [US-3350] : propre à l'US, le compte des graduations ; aucune mesure, un compte.
+  it("draws the graduations and the days off of the frame alone, a count the width of the frame bounds, not the length of the project [US-3350]", async () => {
+    const task = planning.items.find((item) => item.task !== null && item.task !== undefined);
+    if (task?.task === undefined || task.task === null) {
+      throw new Error("no task");
+    }
+    // Three years of days of 8 hours: 8 760 graduations of hours in all.
+    const long = {
+      ...task,
+      task: {
+        ...task.task,
+        start: { date: "2026-01-01", hours: "0" },
+        finish: { date: "2028-12-31", hours: "8" },
+      },
+    };
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(600);
+    const view = render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <GanttRows rows={[long]} scope="count" hoursPerDay={8}>
+          <ZoomIn />
+          <GanttAxis width={600} />
+          <GanttCell row={long} />
+        </GanttRows>
+      </NextIntlClientProvider>,
+    );
+    // Fitted to the column, then each level in turn down to the hours: 20 points an hour.
+    for (let level = 0; level < 4; level += 1) {
+      await userEvent.click(view.container.querySelector("button") ?? document.body);
+    }
+    const drawing = view.container.querySelector<SVGElement>("[data-gantt] svg");
+    expect(Number.parseInt(drawing?.style.width ?? "0", 10)).toBeGreaterThan(100_000);
+    const lines = () => drawing?.querySelectorAll(":scope > line").length ?? -1;
+    const bands = () => drawing?.querySelectorAll("rect[data-day-off]").length ?? -1;
+    // Two frames of 600 points at 20 points a graduation, and the rounding of the day: not 8 760.
+    const bound = (2 * 600) / 20 + 16;
+    expect(lines()).toBeGreaterThan(0);
+    expect(lines()).toBeLessThanOrEqual(bound);
+    expect(bands()).toBeLessThanOrEqual(2);
+    const before = lines();
+    // Far along the axis the count is the same: it follows the frame, not the project.
+    const frame = view.container.querySelector<HTMLElement>("div.overflow-x-auto");
+    act(() => {
+      if (frame !== null) {
+        frame.scrollLeft = 100_000;
+        fireEvent.scroll(frame);
+      }
+    });
+    expect(lines()).toBeGreaterThan(0);
+    expect(lines()).toBeLessThanOrEqual(bound);
+    expect(Math.abs(lines() - before)).toBeLessThanOrEqual(20);
+  });
+
+  // WF-IHM-0100-A, WF-PLA-0090-A : la barre de la tâche active est ramenée dans le cadre.
+  it("brings the bar of the active task into the frame as the active cell goes down, and writes nothing [WF-IHM-0100-A] [WF-PLA-0090-A]", async () => {
+    // A planning of two years: the review of the design comes at the end of 2027.
+    const items = planning.items.map((item) =>
+      item.task?.label === "Revue de conception"
+        ? {
+            ...item,
+            task: {
+              ...item.task,
+              start: { date: "2027-12-06", hours: "0" },
+              finish: { date: "2027-12-10", hours: "8" },
+            },
+          }
+        : item,
+    );
+    renderPlanning("fr", { ...planning, items });
+    // Two zooms in from the level fitted to the project.
+    await userEvent.click(screen.getByRole("button", { name: "Zoom avant" }));
+    await userEvent.click(screen.getByRole("button", { name: "Zoom avant" }));
+    const drawing = ganttOf("Études de détail").querySelector("svg");
+    const drawn = Number.parseFloat(drawing?.style.width ?? "NaN");
+    expect(drawn).toBeGreaterThan(1400);
+    const frame = screen.getAllByRole("columnheader").at(-1)?.querySelector("div.overflow-x-auto");
+    const before = frame?.scrollLeft ?? 0;
+    await userEvent.click(ganttOf("Études de détail"));
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+    const bar = barSpan(ganttOf("Revue de conception"), drawn);
+    const left = frame?.scrollLeft ?? 0;
+    // The task before it, and the bar of this one, in the frame: seen, with the focus.
+    expect(bar.from).toBeGreaterThan(1400);
+    expect(left).toBeGreaterThan(before);
+    expect(bar.to).toBeGreaterThan(left);
+    expect(bar.from).toBeLessThanOrEqual(left + 1400);
+    expect(server.client?.calls.filter((call) => call.route !== "PATCH /me/preferences")).toEqual(
+      [],
+    );
   });
 
   it("zooms by the menu of a cell too, where a narrow bar has no room for its buttons [WF-PLA-0090-A]", async () => {
