@@ -14,6 +14,7 @@ the applications of the actual costs, ``test_estimate_export``'s, ``test_remaini
 ``test_actual_costs_apply``'s, which pass through the opener as every import does.
 """
 
+import warnings
 import zipfile
 from dataclasses import dataclass
 from functools import cache
@@ -27,6 +28,7 @@ from estimate_import_support import workbook as estimate_workbook
 from lxml import etree
 from openpyxl import load_workbook
 from openpyxl.chartsheet import Chartsheet
+from openpyxl.xml.constants import SHARED_STRINGS
 from remaining_import_support import workbook as remaining_workbook
 from workbook_bombs import (
     CALM,
@@ -469,6 +471,53 @@ def test_a_vml_drawing_not_well_formed_is_read_where_excel_names_it_and_refused_
     )
     charted = with_relations(charted, {}, {"xl/drawings/drawing1.xml": "chart vmlDrawing1.vml"})
     assert _refused(read, charted)
+
+
+def _strings_at_a_vml(base: bytes) -> bytes:
+    """Give the workbook whose content types name its shared strings at a VML drawing ill formed.
+
+    openpyxl looks the shared strings up by their content type, and parses them whatever their name.
+    """
+    with zipfile.ZipFile(BytesIO(base)) as archive:
+        types = archive.read("[Content_Types].xml")
+    override = f'<Override PartName="/xl/sharedStrings.vml" ContentType="{SHARED_STRINGS}"/>'
+    named = types.replace(b"</Types>", override.encode() + b"</Types>")
+    members = {"[Content_Types].xml": named, "xl/sharedStrings.vml": EXCEL_VML}
+    return with_relations(base, members, {})
+
+
+def _a_tab_twice(base: bytes, *, ill_formed_first: bool) -> bytes:
+    """Give the workbook whose tab lies twice at a ``.vml``, one of its copies ill formed.
+
+    zipfile, as openpyxl, reads the last copy of a name; the reading ahead keeps the error of the
+    first copy that has one.
+    """
+    sheet, member = tab(base, "1 Études"), "xl/worksheets/sheet3.vml"
+    with zipfile.ZipFile(BytesIO(base)) as archive:
+        well_formed = archive.read(sheet)
+    ill_formed = well_formed.replace(b"</sheetData>", b"<br></sheetData>")
+    first = relocated(base, sheet, member, f"/{member}", [b"<br>"] if ill_formed_first else [])
+    with warnings.catch_warnings():
+        # zipfile warns of a name written twice, which is the point here.
+        warnings.simplefilter("ignore", UserWarning)
+        return with_member(first, member, well_formed if ill_formed_first else ill_formed)
+
+
+VML_PARSED: dict[str, Callable[[bytes], bytes]] = {
+    "named-by-the-content-types": _strings_at_a_vml,
+    "twice-ill-formed-first": lambda base: _a_tab_twice(base, ill_formed_first=True),
+    "twice-ill-formed-last": lambda base: _a_tab_twice(base, ill_formed_first=False),
+}
+
+
+@pytest.mark.story("US-3190")
+@pytest.mark.usefixtures("unopened")
+@pytest.mark.parametrize("swollen_by", list(VML_PARSED))
+def test_a_vml_ill_formed_that_openpyxl_parses_is_refused(swollen_by: str) -> None:
+    # The tolerance of an ill-formed VML drawing holds only where openpyxl does not parse it: not
+    # where the content types name it, nor at a name a member of the archive bears twice (#4838).
+    content = VML_PARSED[swollen_by](_base("estimate"))
+    assert _refused(estimate_reader.read_workbook, content) == READINGS["estimate"].params
 
 
 RELATIONS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
