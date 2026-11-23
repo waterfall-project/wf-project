@@ -109,6 +109,24 @@ soir » du fichier d'EP-11), à rattacher à un lot :
   round_to_cent ; porté par US-2780/L4 #4494 d'EP-11, retiré, avec sa décision du 2026-11-21 (un
   test d'abord dit si l'arrondi change une valeur réelle)
 
+Reportées d'EP-32 le 2026-11-23 (arbitrage de l'utilisateur), relevées à la revue d'US-3320 #4552,
+à rattacher à un lot qui touche `core/resource_settings/interface/resource_roles.py`, avec #3985 :
+
+- #4788 — back : le changement de catégorie d'un rôle ne rechiffre pas les révisions en cours ; un
+  test de service dit d'abord si les montants d'une révision en cours suivent déjà le taux, sinon
+  `update_role` rappelle `recalculate` quand la catégorie change
+- #4789 — back : aucun test ne couvre le 409 du code tenu à la mise à jour d'un rôle, avant et après
+  le redatage ; les deux tests que l'issue propose
+
+Ouvertes au tri des issues de spécification du 2026-11-23 (spécification 1.0.10), à rattacher à un
+lot qui touche la courbe de coûts cumulés (`core/indicators/curving.py`,
+`core/revisions/interface/reference.py`), avec #4440 :
+
+- #4814 — back : la courbe du budget manque la marche de l'avenant 1 du témoin, la référence 100
+  étant en vigueur depuis le passage En cours (WF-IND-0100) ; remplace #4651, fermée
+- #4815 — back : une correction de la référence dessine une marche dans la courbe du budget
+  (WF-IND-0100, WF-REV-0040) ; le texte de la 1.0.10 (#4260)
+
 ## Conception
 
 À écrire au cadrage.

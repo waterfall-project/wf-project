@@ -209,6 +209,12 @@ où je démarre mes tâches (#1851).
   entier, sans être aplati. » : du service ; EP-06 le réalise (US-1380/L4) ;
 - écart : `WF-PLA-0040-A` — « Un déplacement qui placerait un nœud sous lui-même ou sous l’un
   de ses subordonnés est refusé. » : du service ; EP-06 le réalise (US-1380/L4) ;
+- écart : `WF-PLA-0040-A` — « Une feuille démarrée qui reçoit une sous-tâche non démarrée est une
+  récapitulative démarrée, à sa date de démarrage ; privée de cette sous-tâche, elle redevient une
+  feuille démarrée à cette date. » : ajouté par la spécification 1.0.10 (#4564) ; EP-32 (US-3310) ;
+- écart : `WF-PLA-0040-A` — « Une feuille terminée qui reçoit une sous-tâche non terminée est une
+  récapitulative démarrée, à sa date de démarrage. » : ajouté par la spécification 1.0.10 (#4564) ;
+  EP-32 (US-3310) ;
 - propre à l'US : `docs/api/DECISIONS.md` a son entrée, `info.version` reste 1.0.0, et la description de
   `listStartableTasks` dit que la colonne démarrée rend cette récapitulative ;
 - propre à l'US : l'aide FBS-4.5.3, en français et en anglais, décrit la carte de la récapitulative et ne

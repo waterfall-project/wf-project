@@ -1010,6 +1010,12 @@ prédécesseurs, **afin de** démarrer le travail du jour sans parcourir trois c
   entier, sans être aplati. » : du service ; EP-06 le réalise (US-1380/L4) ;
 - écart : `WF-PLA-0040-A` — « Un déplacement qui placerait un nœud sous lui-même ou sous l’un
   de ses subordonnés est refusé. » : du service ; EP-06 le réalise (US-1380/L4) ;
+- écart : `WF-PLA-0040-A` — « Une feuille démarrée qui reçoit une sous-tâche non démarrée est une
+  récapitulative démarrée, à sa date de démarrage ; privée de cette sous-tâche, elle redevient une
+  feuille démarrée à cette date. » : ajouté par la spécification 1.0.10 (#4564) ; EP-32 (US-3310) ;
+- écart : `WF-PLA-0040-A` — « Une feuille terminée qui reçoit une sous-tâche non terminée est une
+  récapitulative démarrée, à sa date de démarrage. » : ajouté par la spécification 1.0.10 (#4564) ;
+  EP-32 (US-3310) ;
 - propre à l'US : les aides du reste à engager et du Kanban disent la marque (#1776).
 
 **Notes de réalisation.** Trois colonnes, les états d'une tâche : une quatrième colonne « Prêtes »
