@@ -31,6 +31,12 @@ leave its task without an hour (``TASK_WITHOUT_WORKING_HOURS``). Its quantity is
 days typed x hours per day, its unit disbursement the amount typed over the mean inflation
 coefficient of the years of its task.
 
+A line other than labour whose amount the file writes — its unit disbursement, to the cent, times
+its quantity kept and the coefficient of its task — is not the amount typed is signalled
+(``AMOUNT_ROUNDED``, ``params.typed_amount`` and ``params.written_amount``; US-3230, #4428):
+1,234.56 typed on a quantity of 1,000 write 1,230.00. A line that divides exactly is not; the
+calculation does not change.
+
 A line that carries the lineage of a provision line of a risk is ignored, the line left as it is
 and named in the report (``provision_lines``, WF-INTF-0120, WF-RIS-0010; US-2580/L2): a provision
 is its risk's, and the remaining to commit counts it for its amount.
@@ -96,6 +102,7 @@ if TYPE_CHECKING:
     from waterfall.core.planning.interface import BearingTask, TaskView
 
 COMPLETION_DATE_REQUIRED = "COMPLETION_DATE_REQUIRED"
+AMOUNT_ROUNDED = "AMOUNT_ROUNDED"
 DATE_INVALID = "DATE_INVALID"
 UNKNOWN_SUBPROJECT = "UNKNOWN_SUBPROJECT"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
@@ -150,13 +157,18 @@ class Reviewed:
     """What the analysis of a remaining to commit finds.
 
     ``found`` the lines accepted and the rejections, as the estimate's; ``closing`` by task it
-    completes, the line whose re-estimate completes it; ``review_date`` the date it completes at.
+    completes, the line whose re-estimate completes it; ``review_date`` the date it completes at;
+    ``rounded`` by node the amount typed and the amount written of a line known whose unit
+    disbursement does not give the amount back (``AMOUNT_ROUNDED``).
     """
 
     found: Analysis
     review_date: date | None
     unreadable_date: str | None = None
     closing: dict[UUID, UUID] = field(default_factory=dict[UUID, UUID])
+    rounded: dict[UUID, tuple[Decimal, Decimal]] = field(
+        default_factory=dict[UUID, tuple[Decimal, Decimal]]
+    )
 
 
 def same_cell(typed: Decimal, written: Decimal) -> bool:
@@ -256,6 +268,7 @@ def analyse(
         if (lineage := importing.lineage_of(each.lineage)) is not None and lineage in held.lines
     }
     judging = importing.Judging(confirmed is not None, HEADERS)
+    rounded: dict[UUID, tuple[Decimal, Decimal]] = {}
     # The double is judged on the lines read; a copy the reader rejected has its lineage taken.
     alone, doubled, twice = importing.alone_on_lineage(read.lines)
     found.rejected += doubled
@@ -273,12 +286,12 @@ def analyse(
         elif current is None:
             _create(session, line, held, (reference, named, scale), (found, judging))
         else:
-            _known(session, (line, current), held, scale, (found, judging))
+            _known(session, (line, current), held, scale, (found, judging, rounded))
     if confirmed is not None:
         lineages = lineages_by_node(held)
         found.planned = [each for each in found.planned if _confirmed(lineages, each, confirmed)]
     importing.judge_hours(session, held, reference, found)
-    reviewed = Reviewed(found, read.review_date, read.unreadable_review)
+    reviewed = Reviewed(found, read.review_date, read.unreadable_review, rounded=rounded)
     _close(session, held, reviewed)
     return reviewed
 
@@ -327,11 +340,15 @@ def _known(
     read: tuple[ReadRemainingLine, EstimateLine],
     held: Aimed,
     scale: Scale,
-    outcome: tuple[Analysis, Judging],
+    outcome: tuple[Analysis, Judging, dict[UUID, tuple[Decimal, Decimal]]],
 ) -> None:
-    """Plan a line the structure holds when its cell or its tab changes it; or reject it."""
+    """Plan a line the structure holds when its cell or its tab changes it; or reject it.
+
+    A line other than labour whose written amount is not the typed one is recorded in the third
+    of ``outcome``, by node, to be signalled once the line is known accepted.
+    """
     line, current = read
-    found, judging = outcome
+    found, judging, rounded = outcome
     placed = _placed(line)
     task_id = held.bearers[current.node_id]
     if held.is_main and held.tasks[task_id].progress == COMPLETED:
@@ -358,6 +375,14 @@ def _known(
         found.planned.append(
             importing.Planned(placed, task_id, entry, current, role, draft.label, fields)
         )
+        if role is None and entry.unit_disbursement is not None:
+            bearer, year = held.bearer(task_id), current.consumption_year
+            coefficient = task_coefficient(scale.basis, bearer, year)
+            typed = line.disbursement or NOUGHT
+            quantity = entry.quantity or ONE
+            written = round_to_cent(entry.unit_disbursement * quantity * coefficient)
+            if not same_cell(typed, written):
+                rounded[current.node_id] = (typed, written)
 
 
 def _figures(
@@ -484,6 +509,21 @@ def _refusal(task: TaskView, reviewed: Reviewed) -> tuple[str, dict[str, Any]] |
     return None
 
 
+def _rounded_signal(lineage: UUID, label: str, amounts: tuple[Decimal, Decimal]) -> dict[str, Any]:
+    """Give the signal of a line whose written amount is not the typed one (``ImportSignal``)."""
+    typed, written = amounts
+    return {
+        "lineage_id": str(lineage),
+        "label": label,
+        "column": "unit_disbursement",
+        "code": AMOUNT_ROUNDED,
+        "params": {
+            "typed_amount": format(round_to_cent(typed), "f"),
+            "written_amount": format(written, "f"),
+        },
+    }
+
+
 def report_of(held: Aimed, read: RemainingRead, reviewed: Reviewed) -> dict[str, Any]:
     """Give the report of an analysis, as the contract reads it (``ImportReport``).
 
@@ -515,6 +555,13 @@ def report_of(held: Aimed, read: RemainingRead, reviewed: Reviewed) -> dict[str,
         for task_id in held.tasks
         if task_id in reviewed.closing
     ]
+    signals = [
+        _rounded_signal(
+            lineages[each.current.node_id], each.label, reviewed.rounded[each.current.node_id]
+        )
+        for each in found.planned
+        if each.current is not None and each.current.node_id in reviewed.rounded
+    ]
     rejected_rows = {(each["sheet"], each["row"]) for each in rejected}
     read_count = len(set(rows))
     unchanged = read_count - len(rejected_rows) - len(found.planned) - len(found.provisions)
@@ -528,6 +575,6 @@ def report_of(held: Aimed, read: RemainingRead, reviewed: Reviewed) -> dict[str,
         "ignored": importing.ignored_of(found),
         "completed_tasks": completed,
         "date_mismatches": [],
-        "signals": [],
+        "signals": signals,
         "requires_confirmation_reasons": [],
     }

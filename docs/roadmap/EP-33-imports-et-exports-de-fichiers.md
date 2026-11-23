@@ -692,7 +692,7 @@ préalable ; ni test de durée ni mesure aux volumes dans ce lot — EP-13 (US-2
 
 ## US-3230 — L'import du reste à engager termine une tâche selon la spécification 1.0.7, et annonce le montant qu'il écrit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0120-A`
 - **opérations** : `openImport`, `getImport`, `applyImport`
 - **issue** : #4535
