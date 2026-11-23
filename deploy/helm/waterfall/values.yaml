@@ -198,7 +198,9 @@ metrics:
 # and evaluates the rules of the alerts. `enabled: false` leaves both to a Prometheus of the
 # operator: the chart still renders the rules, the key alerts.yml of the ConfigMap
 # <release>-prometheus, and the headless Services <release>-front-metrics, -api-metrics and
-# -worker-metrics its collection finds the instances by, as prometheus.yml beside them does.
+# -worker-metrics its collection finds the instances by, as prometheus.yml beside them does. The API
+# is then given the address of no Prometheus: the status screen shows no metrics, and says them
+# unavailable (docs/exploitation/chiffrement-chart.md).
 prometheus:
   enabled: true
   image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
