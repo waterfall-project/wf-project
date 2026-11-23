@@ -74,6 +74,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Mapping
     from uuid import UUID
 
+    from sqlalchemy import Subquery
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.interface.facets import FacetHooks
@@ -215,12 +216,11 @@ def structures_of(
 
 
 def lines_of_revision(session: Session, project_id: UUID, revision_id: UUID) -> dict[UUID, UUID]:
-    """Give the lines of a revision by their lineage: its main structure's, its own estimates'.
+    """Give the lines of a revision by their lineage: those of its main structure.
 
     What a reading by lineage asks — the budgeted amount of the reference, by the lineage of a
     line —: a differential and its base copy the main structure under its lineages (US-3050), and
-    the main structure alone says what the revision holds of them; an own estimate of a risk holds
-    lineages of its own.
+    the main structure alone says what the revision holds of them.
     """
     rows = session.execute(
         select(Node.lineage_id, Node.id).where(
@@ -303,6 +303,22 @@ def lines_of_structures(
     for structure_id, node_id in rows:
         held[structure_id].append(node_id)
     return {structure_id: tuple(nodes) for structure_id, nodes in held.items()}
+
+
+def line_nodes_of(project_id: UUID, structure_ids: Collection[UUID]) -> Subquery:
+    """Give the lines of the structures named as a subquery: ``node_id``, ``structure_id``.
+
+    What the estimate joins to its own lines to total them by structure in one statement.
+    """
+    return (
+        select(Node.id.label("node_id"), Node.structure_id.label("structure_id"))
+        .where(
+            Node.project_id == project_id,
+            Node.structure_id.in_(list(structure_ids)),
+            Node.kind == LINE,
+        )
+        .subquery()
+    )
 
 
 def revision_bears(session: Session, revision_id: UUID, kind: str) -> bool:

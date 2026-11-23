@@ -91,12 +91,13 @@ def test_the_severity_and_the_provision_follow_every_entry_of_the_own_estimate(
     risk = risks.declared()
     revision = project.revision_id
     counter = main_counter(project)
+    born = risks.risk(risk)["lock_version"]
     line = risks.costed_at(risk, revision, "200.00")
     read = risks.risk(risk)
     assert (read["severity"], read["provision_amount"], read["lock_version"]) == (
         "200.00",
         "60.00",
-        3,
+        born + 2,
     )
     assert main_line(project, risk["provision_node_id"])["reestimated_amount"] == "60.00"
     assert main_counter(project) == counter + 1
@@ -105,7 +106,7 @@ def test_the_severity_and_the_provision_follow_every_entry_of_the_own_estimate(
     assert (read["severity"], read["provision_amount"], read["lock_version"]) == (
         "250.00",
         "75.00",
-        4,
+        born + 3,
     )
     provision = main_line(project, risk["provision_node_id"])
     assert (provision["unit_disbursement"], provision["base_amount"]) == ("75.00", "75.00")
@@ -119,10 +120,11 @@ def test_an_entry_that_moves_no_amount_advances_the_counter_of_the_risk_alone(
     # main structure is left as it was.
     risk = risks.declared()
     counter = main_counter(project)
+    born = risks.risk(risk)["lock_version"]
     path = risks.own(risk, project.revision_id)
     risks.made(path, {"kind": "task", "parent_id": None, "task": {"label": "Grue"}})
     read = risks.risk(risk)
-    assert (read["severity"], read["lock_version"]) == ("0.00", 2)
+    assert (read["severity"], read["lock_version"]) == ("0.00", born + 1)
     assert main_counter(project) == counter
 
 
@@ -145,20 +147,21 @@ def test_the_identity_is_written_without_a_revision_and_no_abandonment_undoes_it
     changed = answer.json()
     assert (changed["mitigation_notes"], changed["lock_version"]) == (
         "Réserver une seconde grue.",
-        2,
+        risk["lock_version"] + 1,
     )
     assert changed["audit"]["updated_by"]["user_id"] == str(project.stage.manager.user_id)
     assert revisions_of(project) == before
     opened = risks.revision()
     renamed = risks.update(risks.risk(risk), label="Grue indisponible").json()
-    assert renamed["lock_version"] == 4
+    # The opening advanced the risk once, the renaming once.
+    assert renamed["lock_version"] == changed["lock_version"] + 2
     risks.abandon(opened)
     after = risks.risk(risk)
     assert (after["label"], after["mitigation_notes"]) == (
         "Grue indisponible",
         "Réserver une seconde grue.",
     )
-    assert after["lock_version"] == 5
+    assert after["lock_version"] == renamed["lock_version"] + 1
 
 
 @pytest.mark.requirement("WF-RIS-0020-A")
@@ -250,7 +253,10 @@ def test_the_abandonment_takes_the_evaluations_of_its_revision_away_and_advances
     gone = risks.declared()
     risks.abandon(opened)
     after = risks.risk(kept)
-    assert (after["lock_version"], after["structure_id"]) == (3, kept["structure_id"])
+    assert (after["lock_version"], after["structure_id"]) == (
+        kept["lock_version"] + 2,
+        kept["structure_id"],
+    )
     assert risks.read(gone).status_code == 404
     with project.stage.database.transaction() as session:
         evaluations = session.scalars(

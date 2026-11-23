@@ -280,14 +280,12 @@ class OwnEstimateOpening:
     """The own estimate of a risk to open: the risk and its label, what the opening keeps.
 
     ``kept`` the identifier the witness imposes, or the own estimate created again by the undoing of
-    the deletion of its risk; ``nodes`` the identifier the witness imposes on the copy of a node of
-    the main structure, by its lineage. What is not named is drawn.
+    the deletion of its risk. What is not named is drawn.
     """
 
     risk_id: UUID
     label: str
     kept: OwnEstimateKept | None = None
-    nodes: Mapping[UUID, UUID] | None = None
 
 
 def open_own_estimate(
@@ -316,7 +314,7 @@ def open_own_estimate(
             session,
             (project_id, revision_id, place.structure_id),
             targets,
-            (opening.nodes or {}, act),
+            ({}, act),
         )
     return opened.structure_id
 

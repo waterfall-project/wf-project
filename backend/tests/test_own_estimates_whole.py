@@ -19,8 +19,8 @@ from uuid import UUID
 import pytest
 from amendments_support import listed, on
 from estimate_support import Costing, Lines, costing
-from history_support import delete
-from nodes_support import set_progress
+from history_support import delete, link, undone
+from nodes_support import set_progress, signed_in
 from paste_support import counter
 from projects_support import Scene
 from projects_support import scene as make_scene
@@ -32,6 +32,7 @@ from waterfall.core.risks.tables import Risk, RiskEvaluation
 
 if TYPE_CHECKING:
     from nodes_support import Tree
+    from projects_support import Person
     from realm import TestRealm
     from sqlalchemy import Engine
     from support import ContractClient
@@ -300,3 +301,52 @@ def test_a_line_of_a_completed_task_is_modified_and_a_completed_task_abandoned_i
     assert answer.status_code == 200, answer.text
     read = labelled(own.items())
     assert (read[WIRING]["difference"], read[MAKING]["difference"]) == ("modified", "removed")
+
+
+def marks(own: Tree) -> dict[str, str]:
+    """Read the mark of each node of an own estimate, by its label, provision lines left out."""
+    return {
+        label: each["difference"]
+        for label, each in labelled(own.items()).items()
+        if not label.startswith("Provision")
+    }
+
+
+def moved(project: Costed, own: Tree, who: Person, label: str, parent: str) -> None:
+    """Move a node of an own estimate under a task, as a contributor does, at the counter read."""
+    held = structure(own.api, project, own.structure_id)
+    nodes = labelled(own.items())
+    sent = {
+        "node_ids": [nodes[label]["node_id"]],
+        "parent_id": nodes[parent]["node_id"],
+        "lock_version": held["lock_version"],
+    }
+    answer = own.api.post(f"{own.path}/nodes/move", headers=who.headers, json=sent)
+    assert answer.status_code == 200, answer.text
+
+
+@pytest.mark.story("US-3070")
+def test_a_move_and_a_link_of_an_own_estimate_whole_are_undone_with_its_marks_and_severity(
+    api: ContractClient, project: Costed, realm: TestRealm
+) -> None:
+    # « mêmes opérations » : the operations of a structure serve the own estimate born whole as
+    # they serve the main structure — a move, a replacement of predecessors, their undoing — and
+    # the marks of its nodes and the severity recorded come back with them.
+    who = signed_in(project.stage, realm)
+    risks = Risks(api, project)
+    risk = risks.declared("0.5")
+    own = on(project.tree, risk["structure_id"])
+    own.made(ADDED)
+    still = (marks(own), recorded(project, risk)[0])
+    assert still[0][ADDED] == "added"
+    moved(project, own, who, ADDED, STUDY)
+    assert marks(own)[ADDED] == "added"
+    assert recorded(project, risk)[0] == still[1]
+    assert undone(own, who)["undone"]["kind"] == "node_move"
+    assert (marks(own), recorded(project, risk)[0]) == still
+    answer = link(own, labelled(own.items())[MAKING], who, labelled(own.items())[STUDY])
+    assert answer.status_code == 200, answer.text
+    assert marks(own)[MAKING] == "modified"
+    assert recorded(project, risk)[0] == still[1]
+    assert undone(own, who)["undone"]["kind"] == "link"
+    assert (marks(own), recorded(project, risk)[0]) == still

@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from waterfall.core.estimate.interface import provision_amount
-from waterfall.core.planning.interface import bearing_of
 from waterfall.core.projects.interface import (
     NO_BACKGROUND_TASK_RUNNING,
     PROJECT_NOT_TERMINAL,
@@ -89,7 +88,7 @@ class OccurrenceReport:
     provision_amount: Decimal
     refusals: tuple[Mapping[str, object], ...]
     own_estimate_past_planning_start_on: date | None = None
-    completed_provision_task: Mapping[str, object] | None = None
+    completed_provision_task: Mapping[str, object] | None = None  # None until US-3100/L2 (#4592)
 
 
 def judge_project(session: Session, project_id: UUID, besides: UUID | None = None) -> None:
@@ -163,12 +162,10 @@ def report_occurrence(
     if line is None or main is None:
         msg = "an identified risk bears its provision line in the main structure"
         raise ValueError(msg)
-    bearer = bearing_of(session, project_id, (line,))[line].node_id
     merged = merge_parts(occurrence_merging(session, evaluation, main, act))
     provision = provision_amount(session, project_id, line)
     start = structure_facts(session, project_id, evaluation.structure_id, lock=False)
     today = current_day(act.at)
-    reopened = [each for each in merged.reopened_tasks if each.get("node_id") == str(bearer)]
     return OccurrenceReport(
         main_structure_lock_version=structure_facts(
             session, project_id, main, lock=False
@@ -181,7 +178,6 @@ def report_occurrence(
         own_estimate_past_planning_start_on=(
             start.planning_start_on if start.planning_start_on < today else None
         ),
-        completed_provision_task=reopened[0] if reopened else None,
     )
 
 

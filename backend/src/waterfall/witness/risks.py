@@ -223,8 +223,7 @@ def occur(
     estimate, by which their states are laid (US-3070/L3).
     """
     risk = risks.named(write.risk_id)
-    imposed = {each.lineage_id: (each.node_id, each.copy_lineage_id) for each in risk.grafted}
-    occurrence = OccurrenceLoad(risk.risk_id, imposed)
+    occurrence = OccurrenceLoad(risk.risk_id)
     # Merged up to date: what the main structure received since is carried into it first.
     enter_estimate(session, risk, made, read_from=_last_estimate(risk))
     load_occurrence(session, made.project_id, occurrence, made.writer.act)

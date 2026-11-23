@@ -224,7 +224,7 @@ def _merged(session: Session, request: MergeRequest, act: Act, task_id: UUID | N
     if task_id is not None:
         act = Act(act.author, utc_now())
     judged = _judged(session, request, act, creates=True, besides=task_id)
-    _refused_by_report(judged.merging)
+    refuse_by_report(judged.merging)
     merging = judged.merging
     if judged.creates:
         merging = _opened(session, judged, act, task_id)
@@ -243,7 +243,7 @@ def _merged(session: Session, request: MergeRequest, act: Act, task_id: UUID | N
     refer_after_merge(session, project_id, merging.revision_id, act)
 
 
-def _refused_by_report(merging: StructureMerging) -> None:
+def refuse_by_report(merging: StructureMerging) -> None:
     """Refuse a merge a reason of its report refuses: its first, its code and its parameters (422).
 
     Judged before anything is written, on the structures the report reads: the task fails with

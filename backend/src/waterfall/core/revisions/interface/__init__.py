@@ -83,6 +83,7 @@ from waterfall.core.revisions.interface.marking import (
 from waterfall.core.revisions.interface.merge_applying import (
     MergeRequest,
     load_merge_at,
+    refuse_by_report,
     run_merge,
     submit_merge,
 )
@@ -376,6 +377,7 @@ __all__ = [
     "reference_correctable",
     "reference_history",
     "reference_year_of",
+    "refuse_by_report",
     "register_before_marking",
     "register_closing",
     "register_compose",

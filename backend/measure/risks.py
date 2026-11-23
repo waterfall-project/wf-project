@@ -110,7 +110,7 @@ def _occurred(session: Session, *, target: Target) -> float:
     risk_id = _identified(session, target)
     act = Act(target.manager_id, utc_now())
     started = perf_counter()
-    load_occurrence(session, target.place.project_id, OccurrenceLoad(risk_id, {}), act)
+    load_occurrence(session, target.place.project_id, OccurrenceLoad(risk_id), act)
     session.flush()
     return perf_counter() - started
 

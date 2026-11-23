@@ -245,6 +245,9 @@ from waterfall.core.planning.interface.lines import (
     judge_line_creation as judge_line_creation,
 )
 from waterfall.core.planning.interface.lines import (
+    line_nodes_of as line_nodes_of,
+)
+from waterfall.core.planning.interface.lines import (
     lineages_of as lineages_of,
 )
 from waterfall.core.planning.interface.lines import (

@@ -294,8 +294,7 @@ def _declared(
     )
     session.flush()
     kept = None if imposed is None else OwnEstimateKept(imposed.structure_id)
-    nodes = None if imposed is None else imposed.nodes
-    opening = OwnEstimateOpening(risk_id, entry.label, kept, nodes)
+    opening = OwnEstimateOpening(risk_id, entry.label, kept)
     structure_id = open_own_estimate(session, place, opening, act)
     provision = ProvisionEntry(entry.label, category, subproject, NOUGHT)
     if imposed is None:

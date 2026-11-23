@@ -56,13 +56,13 @@ def create_own_estimate(
     born: tuple[StructureFacts, OwnEstimateKept | None],
     act: Act,
 ) -> OpenedDifferential:
-    """Create the own estimate of a risk in a revision and its base, empty; give them (EP-30).
+    """Create the structures of the own estimate of a risk and of its base, without nodes (EP-30).
 
     ``revision`` is the project and its current revision, ``risk`` the risk and its label, ``born``
-    the facts of the main structure, read under its lock, and what the creation keeps: the own
-    estimate is born whole, a
-    differential of the main structure (EP-30, "Les états d'un devis propre"), its nodes and its
-    base's copied after them by the planning (``open_own_estimate``). Both start their planning on
+    the facts of the main structure, read under its lock, and what the creation keeps. The own
+    estimate is born whole, a differential of the main structure (EP-30, "Les états d'un devis
+    propre"): the planning copies the nodes of the main structure into it and into its base once
+    they exist (``open_own_estimate``). Both start their planning on
     the day the main structure does, which is the own estimate's (WF-RIS-0030), and hold its dates
     as it computed them; the own estimate keeps the counter of the main structure read, up to date
     while the main structure bears it. ``kept`` the identifier of an own estimate the witness

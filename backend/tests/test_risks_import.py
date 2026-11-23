@@ -205,3 +205,24 @@ def test_the_same_file_imported_on_the_own_estimate_of_a_risk_becomes_what_it_de
     assert (marks["Montage"], marks["Recette"]) == ("unchanged", "unchanged")
     assert (content_of(project.tree), counter(project.tree)) == main_before
     assert risk_counter(project, risk) > held
+
+
+@pytest.mark.requirement("WF-INTF-0090-A")
+@pytest.mark.story("US-3070")
+def test_a_file_imported_on_the_own_estimate_marks_what_it_changes_and_what_it_no_longer_bears(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # « ce que le fichier ajoute, change ou ne porte plus » : of the tasks the file gave the
+    # project, one renamed is read modified, one the file no longer bears is read removed, and the
+    # main structure keeps both as they were.
+    seven_hours_a_day(project.stage)
+    imported(api, project, worker)
+    risk = Risks(api, project).declared("0.5")
+    main_before = (content_of(project.tree), counter(project.tree))
+    file = planning(task(1, "Montage révisé"), task(3, "Livraison"))
+    imported(api, project, worker, risk["structure_id"], file)
+    marks = dict(marks_of(on(project.tree, risk["structure_id"])))
+    assert marks["Montage révisé"] == "modified"
+    assert marks["Recette"] == "removed"
+    assert marks["Livraison"] == "added"
+    assert (content_of(project.tree), counter(project.tree)) == main_before

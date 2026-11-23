@@ -31,7 +31,7 @@ presented is what is written (WF-RIS-0060).
 """
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from waterfall.core.cost_settings.interface import share_natures
@@ -48,6 +48,7 @@ from waterfall.core.revisions.interface import (
     consume_own_estimate,
     merge_parts,
     open_revision_by_task,
+    refuse_by_report,
     revision_draft,
     structure_facts,
 )
@@ -63,7 +64,6 @@ from waterfall.platform.errors import (
     STALE_LOCK_VERSION,
     NotFoundError,
     PreconditionFailedError,
-    UnprocessableError,
 )
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.tasks import PROJECT, submit
@@ -229,14 +229,9 @@ def run_occurrence_task(
 
 @dataclass(frozen=True, slots=True)
 class OccurrenceLoad:
-    """The occurrence of a risk of the witness: the risk, and the copies of the nodes it adds.
-
-    ``imposed`` the identifier and the lineage of the copy of each node of its own estimate, by its
-    lineage (US-2650/L1), which the merge does not take yet (US-3150).
-    """
+    """The occurrence of a risk of the witness: the risk."""
 
     risk_id: UUID
-    imposed: Mapping[UUID, tuple[UUID, UUID]]
 
 
 def load_occurrence_at(session: Session, project_id: UUID, load: OccurrenceLoad, act: Act) -> None:
@@ -275,10 +270,7 @@ def _apply(session: Session, held: tuple[Risk, RiskEvaluation, UUID], writer: Wr
         msg = "an identified risk bears its provision line in the main structure"
         raise ValueError(msg)
     merging = occurrence_merging(session, evaluation, main, act)
-    refusals = merge_parts(merging).refusals
-    if refusals:
-        first = refusals[0]
-        raise UnprocessableError(str(first["code"]), cast("Mapping[str, Any]", first["params"]))
+    refuse_by_report(merging)
     own = evaluation.structure_id
     cost = recorded_severity(evaluation)
     evaluation.state = OCCURRED
