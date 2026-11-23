@@ -13,7 +13,6 @@ of its labour lines. Every answer is checked against the contract.
 
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 import pytest
 from estimate_support import Lines, add_role, costing
@@ -32,6 +31,8 @@ from waterfall.core.resource_settings.tables import Calendar, ResourceRole
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
