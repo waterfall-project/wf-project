@@ -21,7 +21,7 @@ import pytest
 from fastapi.testclient import TestClient
 from imports_trial import deposited, import_worker, path, read, refusal, run
 from nodes_support import opened, put_facts, put_risk, set_progress, work_breakdown
-from projects_support import Scene
+from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from sqlalchemy import func, select, update
 from support import ContractClient
@@ -885,6 +885,32 @@ def test_a_summary_the_file_makes_a_leaf_takes_its_duration_and_keeps_its_state(
         Decimal(2),
         "d",
     )
+
+
+@pytest.mark.story("US-3310")
+def test_a_leaf_started_the_file_gives_a_subtask_is_a_summary_started_at_its_date(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # La règle vaut quelle que soit l'entrée, l'import MS Project (``applyImport``) compris : le
+    # fichier donne à « Études », démarrée le 1er mars 2026, une sous-tâche non démarrée ; l'import
+    # ne la refuse pas, et « Études » est une récapitulative démarrée à sa date.
+    revision = opened(api, stage)
+    imported(api, stage, worker, planning(task(1, "Études")))
+    set_progress(stage, str(by_label(stage)["Études"][0].id), "started", date(2026, 3, 1))
+    report = imported(
+        api, stage, worker, planning(task(1, "Études"), task(2, "Conception", level=2))
+    )
+    assert report["rejected"] == []
+    node, _ = by_label(stage)["Études"]
+    assert by_label(stage)["Conception"][0].parent_id == node.id
+    base = f"{PROJECTS}/{stage.project['project_id']}/revisions/{revision['revision_id']}"
+    listed = api.get(
+        f"{base}/structures/{main_structure(stage)}/nodes", headers=stage.manager.headers
+    )
+    assert listed.status_code == 200, listed.text
+    studies = next(each for each in listed.json()["items"] if each["node_id"] == str(node.id))
+    assert studies["task"]["is_summary"] is True
+    assert (studies["task"]["progress"], studies["task"]["started_on"]) == ("started", "2026-03-01")
 
 
 @pytest.mark.requirement("WF-PLA-0030-A")

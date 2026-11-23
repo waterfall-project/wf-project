@@ -352,10 +352,11 @@ def test_the_report_tells_a_completed_task_the_graft_reopens_and_the_occurrence_
     ready: Occurring, worker: Worker
 ) -> None:
     # Propre à l'US (#4240) : la survenance greffe le devis propre sous les études, qui portent
-    # la provision ; terminées, elles deviennent la récapitulative des tâches greffées, non
-    # démarrée, et leur valeur acquise, 600, retombe (1 000 à 400). Le compte rendu les nomme,
-    # sans refuser ; une écriture des études le rend périmé ; la survenance s'applique, et la
-    # valeur acquise retombée n'est pas corrigée (règle provisoire, EP-30).
+    # la provision ; terminées, elles deviennent la récapitulative des tâches greffées, démarrée à
+    # sa date (WF-PLA-0040, spécification 1.0.10 ; US-3310), et leur valeur acquise, 600, retombe
+    # (1 000 à 400). Le compte rendu les nomme, sans refuser ; une écriture des études le rend
+    # périmé ; la survenance s'applique, et la valeur acquise retombée n'est pas corrigée (règle
+    # provisoire, EP-30).
     open_report = ready.reported()
     assert open_report["completed_provision_task"] is None
     tree = main_tree(ready)
@@ -368,7 +369,7 @@ def test_the_report_tells_a_completed_task_the_graft_reopens_and_the_occurrence_
     assert read(ready)["earned_value"] == "1000.00"
     occurred(ready, worker)
     reopened = task_named(main_tree(ready), "Étude")["task"]
-    assert reopened["progress"] == "not_started"
+    assert (reopened["progress"], reopened["started_on"]) == ("started", DAY.isoformat())
     assert read(ready)["earned_value"] == "400.00"
 
 

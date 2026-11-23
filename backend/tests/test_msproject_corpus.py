@@ -230,10 +230,13 @@ def mismatches(file: str) -> list[str]:
 @pytest.mark.requirement("WF-QUA-0080-A")
 @pytest.mark.requirement("WF-INTF-0050-A")
 @pytest.mark.requirement("WF-INTF-0060-A")
+@pytest.mark.story("US-3300")
 @pytest.mark.parametrize("entry", DATED, ids=[entry["file"] for entry in DATED])
 def test_each_planning_of_the_corpus_is_dated_by_the_engine_as_ms_project_dated_it(
     entry: dict[str, Any],
 ) -> None:
+    # US-3300: « les dates ne changent pas : le corpus MS Project [...] rend[...] les dates
+    # d'avant » — the backward pass changed, the forward one did not.
     assert mismatches(entry["file"]) == []
 
 

@@ -50,7 +50,6 @@ from waterfall.core.planning.dating import (
     LINK_FORBIDDEN,
     MANUAL,
     PROJECT_HORIZON_EXCEEDED,
-    conflicts_of,
     constants_of,
     duration_of,
     in_days,
@@ -77,7 +76,7 @@ from waterfall.core.planning.scheduling import (
 from waterfall.core.planning.scheduling import Task as Planned
 from waterfall.core.planning.shaping import closed_above, deleted, reopened, stamp
 from waterfall.core.planning.tables import Node, Task, TaskLink
-from waterfall.core.planning.tree import TASK, read_links, read_tree
+from waterfall.core.planning.tree import TASK, read_conflicts, read_links, read_tree
 from waterfall.core.planning.views import COMPLETED, NOT_STARTED, state_of
 from waterfall.core.revisions.interface import structure_facts
 from waterfall.platform.errors import UnprocessableError
@@ -644,7 +643,7 @@ def write_graft(session: Session, plan: GraftPlan, act: Act) -> None:
         first = plan.refusals[0]
         raise UnprocessableError(first["code"], first["params"])
     asked, source = plan.asked, plan.source
-    conflicts = conflicts_of(plan.read.target_links)
+    conflicts = read_conflicts(session, asked.project_id, asked.target_id)
     _reshaped(session, plan, act)
     if source.order:
         session.execute(insert(Node), [_node(plan, each, act) for each in source.order])

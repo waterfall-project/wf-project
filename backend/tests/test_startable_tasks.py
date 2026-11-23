@@ -61,11 +61,13 @@ FRIDAY = DAY + timedelta(days=4)
 TERMINAL = ["completed", "lost", "abandoned"]
 # The conditions, in the order of the contract, a task not started that is no milestone lacks.
 NOT_STARTED = ["task_is_milestone", "task_without_lines"]
-# The statements the Kanban takes, measured at 35 on 2026-11-19 and again after the corrections of
-# the review (the state of a revision reads its main structure for the declaration of a risk,
-# ``has_main_task``, US-2570; #4002): a bound of 37, a margin of 2, as it has always kept — tight
+# The statements the Kanban takes, measured at 35 on 2026-11-19, at 37 after the corrections of the
+# review (the state of a revision reads its main structure for the declaration of a risk,
+# ``has_main_task``, US-2570; #4002), and at 38 on 2026-11-23, the head of the EPIC before the lot
+# and with it: the one more is the read of the conflicts of the structure, once a reading
+# (``task_link_conflict``, US-3300/L3). A bound of 40, a margin of 2, as it has always kept — tight
 # enough to catch one more a task, which the test grows by 12.
-BOUND = 37
+BOUND = 40
 
 
 @pytest.fixture
@@ -356,6 +358,31 @@ def test_a_summary_whose_subordinates_are_all_completed_is_a_card_only_while_its
         "started": [],
         "completed": ["Étude"],
     }
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_a_leaf_started_given_a_subtask_keeps_its_start_on_the_card_that_awaits_its_own_line(
+    review: Review,
+) -> None:
+    # « Une feuille démarrée qui reçoit une sous-tâche non démarrée est une récapitulative
+    # démarrée, à sa date de démarrage » (US-3310) : l'assemblage, démarré le lundi, reçoit une
+    # sous-tâche ; récapitulative, il n'est une carte que lorsqu'il n'attend plus que sa ligne
+    # propre (#1851), et cette carte est dans la colonne des tâches démarrées, à sa date, non à
+    # celle de sa sous-tâche.
+    tree = review.tree
+    moved(tree, "Montage", "started", DAY)
+    assembly = task_named(tree, "Montage")
+    tree.made("Pose", parent_id=assembly["node_id"])
+    columns = board(tree)
+    assert "Montage" not in labels(columns)["started"] + labels(columns)["not_started"]
+    assert "Pose" in labels(columns)["not_started"]
+    moved(tree, "Pose", "started", TUESDAY)
+    moved(tree, "Pose", "completed", FRIDAY)
+    columns = board(tree)
+    card = card_of(columns, "Montage")
+    assert card in columns["started"]
+    assert card["task"]["awaiting_own_lines"] is True
+    assert (card["task"]["progress"], card["task"]["started_on"]) == ("started", DAY.isoformat())
 
 
 @pytest.mark.requirement("WF-PLA-0050-A")

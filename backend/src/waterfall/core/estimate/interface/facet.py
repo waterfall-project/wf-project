@@ -92,29 +92,38 @@ def delete_lines(session: Session, project_id: UUID, node_ids: Collection[UUID])
     )
 
 
-def line_calendars(
+def line_roles(
     session: Session, project_id: UUID, task_ids: Collection[UUID]
 ) -> dict[UUID, set[UUID]]:
-    """Give the calendars of the roles of the labour lines of each task named (WF-PLA-0010)."""
+    """Give the roles of the labour lines of each task named, none for a task without any."""
     lines = lines_of(session, project_id, task_ids)
     bearer = {line: task for task, held in lines.items() for line in held}
     found: dict[UUID, set[UUID]] = {task: set() for task in task_ids}
     if not bearer:
         return found
-    roles = dict(
-        session.execute(
-            select(EstimateLine.node_id, EstimateLine.resource_role_id).where(
-                EstimateLine.project_id == project_id,
-                among(EstimateLine.node_id, bearer),
-                EstimateLine.resource_role_id.is_not(None),
-            )
-        ).all()
-    )
-    calendars = role_calendars(session, {role for role in roles.values() if role is not None})
-    for line, role in roles.items():
-        if role is not None and role in calendars:
-            found[bearer[line]].add(calendars[role])
+    roles = session.execute(
+        select(EstimateLine.node_id, EstimateLine.resource_role_id).where(
+            EstimateLine.project_id == project_id,
+            among(EstimateLine.node_id, bearer),
+            EstimateLine.resource_role_id.is_not(None),
+        )
+    ).all()
+    for line, role in roles:
+        if role is not None:
+            found[bearer[line]].add(role)
     return found
+
+
+def line_calendars(
+    session: Session, project_id: UUID, task_ids: Collection[UUID]
+) -> dict[UUID, set[UUID]]:
+    """Give the calendars of the roles of the labour lines of each task named (WF-PLA-0010)."""
+    held = line_roles(session, project_id, task_ids)
+    calendars = role_calendars(session, {role for roles in held.values() for role in roles})
+    return {
+        task: {calendars[role] for role in roles if role in calendars}
+        for task, roles in held.items()
+    }
 
 
 def _json(value: object) -> JsonValue:
@@ -262,6 +271,7 @@ LINE_FACET = FacetHooks(
     copy=copy_lines,
     delete=delete_lines,
     calendars=line_calendars,
+    roles=line_roles,
     create=create_line,
     snapshot=snapshot_lines,
     restore=restore_lines,

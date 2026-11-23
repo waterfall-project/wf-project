@@ -92,11 +92,12 @@ def test_a_date_differs_in_calendar_days_and_an_amount_to_the_cent() -> None:
 
 @pytest.mark.requirement("WF-IHM-0150-A")
 def test_a_difference_is_null_when_either_value_is() -> None:
-    # A task not started in the base, started in the revision read; a manual task without float.
-    base = task(started_on=None, total_float=duration("2", "d"))
-    read = task(started_on="2026-03-02", total_float=None)
-    found = deltas_of(["task.started_on", "task.total_float"], base, read, CONSTANTS)
-    assert found == {"task.started_on": None, "task.total_float": None}
+    # A task not started in the base, started in the revision read; one completed in the base, its
+    # completion withdrawn in the revision read.
+    base = task(started_on=None, completed_on="2026-03-06")
+    read = task(started_on="2026-03-02", completed_on=None)
+    found = deltas_of(["task.started_on", "task.completed_on"], base, read, CONSTANTS)
+    assert found == {"task.started_on": None, "task.completed_on": None}
 
 
 @pytest.mark.requirement("WF-IHM-0150-A")
@@ -108,23 +109,13 @@ def test_a_duration_less_another_keeps_the_unit_of_the_first() -> None:
     assert week.less(Duration(Decimal(5), "d"), CONSTANTS) == Duration(Decimal(0), "w")
 
 
-@pytest.mark.requirement("WF-IHM-0150-A")
-@pytest.mark.parametrize(
-    ("read", "base", "delta"),
-    [
-        (duration("5", "d"), duration("2", "d"), "3"),
-        (duration("-1.5", "d"), duration("0.5", "d"), "-2"),
-        # The float is written in days of work (``TaskDeltas``), whatever the unit given.
-        (duration("1", "w"), duration("2", "d"), "3"),
-        (duration("4", "h"), duration("1", "d"), "-0.5"),
-    ],
-)
-def test_a_total_float_differs_in_working_days(
-    read: dict[str, str], base: dict[str, str], delta: str
-) -> None:
-    # « le total_float lu moins celui de la base, en jours ouvrés » (the contract): the unit
-    # written is the day, not that of the value read, as a duration's is.
+@pytest.mark.requirement("WF-REV-0080-A")
+def test_the_total_float_bears_no_difference() -> None:
+    # A value the planning engine computes, which modifies no task (#4312): named, it bears none.
     found = deltas_of(
-        ["task.total_float"], task(total_float=base), task(total_float=read), CONSTANTS
+        ["task.total_float"],
+        task(total_float=duration("2", "d")),
+        task(total_float=duration("5", "d")),
+        CONSTANTS,
     )
-    assert found == {"task.total_float": {"value": delta, "unit": "d"}}
+    assert found == {}

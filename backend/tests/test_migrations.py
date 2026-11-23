@@ -56,6 +56,7 @@ from waterfall.core.planning.tables import (
     StructureReading,
     Task,
     TaskLink,
+    TaskLinkConflict,
     Timeline,
     TrackingEntry,
 )
@@ -293,6 +294,7 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         Node.__tablename__,
         Task.__tablename__,
         TaskLink.__tablename__,
+        TaskLinkConflict.__tablename__,
         Timeline.__tablename__,
         TrackingEntry.__tablename__,
         StructureReading.__tablename__,
@@ -430,6 +432,9 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "node": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "task": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "task_link": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    # The tasks in manual mode a link in conflict cannot satisfy (EP-32, US-3300), written by the
+    # engine with the link, copied and deleted with it (migration 0044).
+    "task_link_conflict": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "timeline": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "tracking_entry": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "import_report": {"SELECT", "INSERT", "UPDATE", "DELETE"},
@@ -546,6 +551,7 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
         ("revision_role_refuse_marked_change", False, own),
         ("risk_evaluation_refuse_marked_change", False, own),
         ("risk_review_refuse_marked_change", False, own),
+        ("task_link_conflict_refuse_marked_change", False, own),
         ("task_link_refuse_marked_change", False, own),
         ("task_refuse_marked_change", False, own),
     ]
@@ -553,7 +559,14 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
 
 # The revised tables of the revisions and the planning (EP-04, EP-06), of the estimate (EP-07), of
 # the indicators (EP-10) and of the risks (EP-08).
-PLANNING_REVISED = ("cost_structure", "node", "structure_reading", "task", "task_link")
+PLANNING_REVISED = (
+    "cost_structure",
+    "node",
+    "structure_reading",
+    "task",
+    "task_link",
+    "task_link_conflict",
+)
 INDICATORS_REVISED = ("revision_indicator",)
 RISKS_REVISED = ("risk_evaluation", "risk_review", "risk_reference_share")
 ESTIMATE_REVISED = (

@@ -232,7 +232,6 @@
       "deltaStartedOn": "Écart du démarrage",
       "deltaCompletedOn": "Écart de l’achèvement",
       "deltaDuration": "Écart de la durée",
-      "deltaTotalFloat": "Écart de la marge",
       "deltaUnitDisbursement": "Écart du débours unit.",
       "deltaBudgetedAmount": "Écart du budgété",
       "deltaReferenceAmount": "Écart du montant de réf.",
@@ -511,7 +510,7 @@
     "trackingSeparator": ", ",
     "notComputableReason": " — {reason}",
     "skeletonGenerated": "Squelette de planning engendré : {tasks, plural, one {# tâche} other {# tâches}} dans la grille.",
-    "conflict": "Liaison en conflit : {predecessor}{code}{successor, select, unknown {} other { vers la ligne {successor}}}",
+    "conflict": "Liaison en conflit : {predecessor}{code}{successor, select, unknown {} other { vers la ligne {successor}}}{manual, select, unknown {} other { — tâche manuelle à la ligne {manual}}}",
     "planningStart": {
       "shown": "<label>Date de début de planning</label> : <time>{date}</time>",
       "label": "Date de début de planning",

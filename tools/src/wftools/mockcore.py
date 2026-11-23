@@ -342,8 +342,10 @@ class _Emitter:
     def _conflicts(self, placed: Dated) -> list[JsonValue]:
         """Return the links a task cannot satisfy, or that are not satisfied for it (WF-PLA-0020).
 
-        Each by its two tasks and its type, in the order of the plan of their predecessor, then of
-        their successor: a summary, never linked to a task in manual mode, bears none.
+        Each by its two tasks, its manual task and its type, in the order of the plan of their
+        predecessor, then of their successor: a summary, never linked to a task in manual mode,
+        bears none. The witness links no summary to a predecessor it cannot satisfy: the manual
+        task is the successor itself (``LinkConflict.manual_node_id``).
         """
         found = sorted(
             placed.conflicts,
@@ -353,6 +355,7 @@ class _Emitter:
             {
                 "predecessor_node_id": node_id(each.predecessor),
                 "successor_node_id": node_id(each.successor),
+                "manual_node_id": node_id(each.successor),
                 "link_type": each.link_type,
             }
             for each in found
