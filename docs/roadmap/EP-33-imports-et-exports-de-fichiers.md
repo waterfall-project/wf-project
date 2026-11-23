@@ -415,7 +415,7 @@ recette de l'aller-retour, la correction n'en dépend pas.
 
 ## US-3180 — Le lecteur MS Project refuse un fichier hors bornes par le refus du format, et lit une tâche manuelle sans calendrier nommé
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0040-A`
 - **opérations** : `openImport`, `getImport`
 - **issue** : #4532

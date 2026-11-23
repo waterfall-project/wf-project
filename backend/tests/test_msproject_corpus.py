@@ -161,6 +161,9 @@ def dated(file: str) -> tuple[MsProject, Schedule]:
     project = read_project((CORPUS / file).read_bytes()).project
     assert project.start is not None, f"{file} says no start"
     calendars = calendars_of(project)
+    # MS Project names the calendar of its project, and carries it: no file of the corpus is dated
+    # on the calendar the reader assumes of a file without one.
+    assert project.calendar_uid in calendars, f"{file} names no calendar it carries"
     constants = constants_of(project)
     parents = project.parents()
     summaries = {uid for uid in parents.values() if uid is not None}
@@ -168,7 +171,6 @@ def dated(file: str) -> tuple[MsProject, Schedule]:
     tasks: list[Task] = []
     for each in project.tasks:
         calendar = calendar_of(project, calendars, each)
-        assert calendar is not None, f"{file}: {each.name} has no calendar"
         frozen = each.manual or each.constraint in DATE_CONSTRAINTS
         manual = frozen and each.uid not in summaries
         assert not manual or (each.start is not None and each.finish is not None)
@@ -206,7 +208,6 @@ def mismatches(file: str) -> list[str]:
         if each.name in DERIVED.get(file, ()):
             continue
         calendar = calendar_of(project, calendars, each)
-        assert calendar is not None
         assert each.start is not None
         assert each.finish is not None
         placed = dates.tasks[ids[each.uid]]
@@ -274,7 +275,6 @@ def test_a_summary_in_manual_mode_is_dated_from_its_subordinates_not_at_the_file
         WorkInstant(date(2009, 11, 19), Decimal(3)),
     )
     calendar = calendar_of(project, calendars_of(project), summary)
-    assert calendar is not None
     assert summary.start is not None
     assert summary.finish is not None
     assert (calendar.instant(summary.start), calendar.instant(summary.finish)) == (

@@ -180,10 +180,18 @@ def calendars_of(project: MsProject) -> dict[int, FileCalendar]:
 
 def calendar_of(
     project: MsProject, calendars: Mapping[int, FileCalendar], task: MsTask
-) -> FileCalendar | None:
-    """Give the calendar a task is dated on in the file: its own, else the project's."""
-    uid = project.calendar_uid if task.calendar_uid is None else task.calendar_uid
-    return None if uid is None else calendars.get(uid)
+) -> FileCalendar:
+    """Give the calendar a task is dated on in the file: its own, else the project's.
+
+    A calendar the file names and does not carry is none; a project without one is on the calendar
+    MS Project assumes (``STANDARD``), as the calendar gap reads it (US-3180): a file of another
+    tool keeps its manual tasks at their dates.
+    """
+    for uid in (task.calendar_uid, project.calendar_uid):
+        found = None if uid is None else calendars.get(uid)
+        if found is not None:
+            return found
+    return STANDARD
 
 
 def hours_of(span: timedelta) -> Fraction:

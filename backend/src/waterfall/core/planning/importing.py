@@ -448,7 +448,7 @@ def _facets(
     for row in plan.rows:
         task = row.task
         dated_on = calendar_of(project, calendars, task)
-        if dated_on is not None and task.start is not None and task.finish is not None:
+        if task.start is not None and task.finish is not None:
             row.file_dates = (dated_on.instant(task.start), dated_on.instant(task.finish))
         if row.dropped or _rejected(plan, row):
             continue
@@ -458,7 +458,7 @@ def _facets(
 def _facet(
     plan: Plan,
     row: Row,
-    read: tuple[Constants, FileCalendar | None],
+    read: tuple[Constants, FileCalendar],
     file_children: set[int],
 ) -> Facet:
     """Give the facet of a row: a summary automatic, a leaf in its mode and its unit."""
@@ -484,7 +484,7 @@ def _facet(
         # A leaf started or completed does not become a milestone (WF-PLA-0050): it keeps its
         # duration, which the report, the engine replayed and the application all read.
         duration = duration_of(row.old)
-    if not manual or row.file_dates is None or dated_on is None:
+    if not manual or row.file_dates is None:
         return Facet(task.name, description, AUTOMATIC, duration)
     calendar = plan.calendars[row.node_id]
     start, finish = row.file_dates
