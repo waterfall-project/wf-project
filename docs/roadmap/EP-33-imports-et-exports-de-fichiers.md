@@ -431,7 +431,11 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
   `cellStyles` et `dxfs` 65 490 chacune, les limites d'Excel, pour qu'un classeur qu'Excel écrit ne
   soit jamais refusé (les items d'une liste sont ses enfants ; ceux de `colors`, les couleurs de ses
   listes, comptées avec elles) ; 10 000 noms définis. La pré-lecture les compte et refuse avant
-  l'ouverture. Le produit lignes × colonnes coûte 8,3 octets par cellule et 140 par ligne
+  l'ouverture. Les listes de `styles.xml` et les noms définis se comptent par nom local, enfants
+  directs de la racine du membre, comme openpyxl les lit, commentaires et instructions de
+  traitement compris (openpyxl en fait des items) ; une partie qu'openpyxl lit et qui déclare un
+  type de document (DOCTYPE) est refusée, une entité non déclarée sous un DOCTYPE externe
+  échappant à la pré-lecture. Le produit lignes × colonnes coûte 8,3 octets par cellule et 140 par ligne
   explicite (790 Mio pour 200 000 × 500, d'un fichier de 7,9 Ko) : les onglets lus sont bornés en
   cumul à 200 000 lignes **et**
   10 000 000 de cellules, comptées dans `bounded_rows` à mesure que les lignes arrivent ; le refus
