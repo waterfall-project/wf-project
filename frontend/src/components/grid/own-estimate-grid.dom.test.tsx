@@ -165,7 +165,7 @@ describe("the entry into the grid of an own estimate in arrears", () => {
     expect(screen.queryByText(/devis propre à jour de la structure principale/)).toBeNull();
   });
 
-  it("writes nothing and says so when the node is gone after the update [US-3140] [WF-RIS-0070-A]", async () => {
+  it("writes nothing and says it once when the node is gone after the update [US-3140] [WF-RIS-0070-A]", async () => {
     const client = fakeClient({
       [REPORT]: "structure_rebase_report_risk_clean",
       [REBASE]: "structure_rebased_risk",
@@ -175,7 +175,10 @@ describe("the entry into the grid of an own estimate in arrears", () => {
     server.client = client;
     render(tree(5));
     await enterRole();
-    expect(await screen.findByText(/la saisie n’a pas été enregistrée/)).toBeVisible();
+    // The refusal told by the grid, as the service tells a node it does not have, and by it alone.
+    expect(await screen.findByText(/cet élément n’existe pas/)).toBeVisible();
+    expect(screen.getAllByText(/cet élément n’existe pas/)).toHaveLength(1);
+    expect(screen.getByText(/a été mis à jour\./)).toBeVisible();
     expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, NODES]);
     expect(screen.queryByText(/Saisissez de nouveau/)).toBeNull();
   });

@@ -477,12 +477,15 @@ export function PlanningGrid({
         ask: names.ask,
         write: async (node, predecessors) =>
           answered(
-            await guard(() =>
-              setPredecessors(structure, node.node_id, {
-                predecessors: [...predecessors],
-                lock_version: node.lock_version,
-              }),
-            ),
+            await guard({
+              nodes: [node.node_id],
+              fields: ["task.predecessors"],
+              send: (fresh) =>
+                setPredecessors(structure, node.node_id, {
+                  predecessors: [...predecessors],
+                  lock_version: counterOf(fresh, node.node_id, node.lock_version),
+                }),
+            }),
           ),
       },
       modes: (mode) => modes(mode),

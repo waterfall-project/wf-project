@@ -121,6 +121,15 @@ function quantity(
   };
 }
 
+/** What an entry was answered: done, or the code of the refusal and those of its fields. */
+function toldOf(outcome: Outcome<NodesWritten>): string {
+  if (outcome.kind === "done" || outcome.kind === "unreachable") {
+    return outcome.kind;
+  }
+  const fields = (outcome.problem.fields ?? []).map((field) => `:${field.pointer}:${field.code}`);
+  return [outcome.problem.code, ...fields].join("");
+}
+
 /** Entries made one after the other, with no wait between them, each through the guard. */
 function Entered({ entries }: { readonly entries: readonly Entry<NodesWritten>[] }) {
   const guard = useEntryGuard();
@@ -132,7 +141,7 @@ function Entered({ entries }: { readonly entries: readonly Entry<NodesWritten>[]
         onClick={() => {
           for (const entry of entries) {
             void guard(entry).then((outcome) => {
-              setTold((before) => [...before, outcome.kind]);
+              setTold((before) => [...before, toldOf(outcome)]);
             });
           }
         }}
@@ -234,7 +243,7 @@ describe("the first entry into an own estimate in arrears", () => {
     expect(client.calls).toHaveLength(3);
   });
 
-  it("writes nothing and says so when the node is gone after the update, or no longer accepts the field [US-3140] [WF-RIS-0070-A]", async () => {
+  it("writes nothing and refuses the entry as the service would when the node is gone after the update, or no longer accepts the field, and says it once [US-3140] [WF-RIS-0070-A]", async () => {
     serve({
       [REPORT]: "structure_rebase_report_risk_clean",
       [REBASE]: "structure_rebased_risk",
@@ -249,11 +258,56 @@ describe("the first entry into an own estimate in arrears", () => {
     });
     await userEvent.click(screen.getByRole("button", { name: "Saisir la quantité" }));
     await waitFor(() => {
-      expect(screen.getByRole("status", { name: "Saisies" })).toHaveTextContent("refused,refused");
+      expect(screen.getByRole("status", { name: "Saisies" })).toHaveTextContent(
+        "NOT_FOUND,VALIDATION_FAILED:/unit_disbursement:FIELD_NOT_ACCEPTED",
+      );
     });
     expect(sent).toEqual([]);
-    expect(screen.getByRole("alert")).toHaveTextContent("la saisie n’a pas été enregistrée");
+    // The refusal is the grid's to tell, where the entry was made: the guard says only the update.
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText(/a été mis à jour\./)).toBeVisible();
     expect(screen.queryByText(/Saisissez de nouveau/)).toBeNull();
+  });
+
+  it("writes an entry made while those held back are still being written after them, from the counters they answered, not from the grid's [US-3140] [WF-RIS-0070-A]", async () => {
+    const client = serve({
+      [REPORT]: "structure_rebase_report_risk_clean",
+      [REBASE]: "structure_rebased_risk",
+      [NODES]: "nodes_risk_estimate",
+    });
+    const sent: (Fresh | undefined)[] = [];
+    const answered = quantity(sent, { moved: 4 });
+    // The first write held back for the update is held on its way: the second entry is made meanwhile.
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const first: Entry<NodesWritten> = {
+      ...answered,
+      send: async (fresh) => {
+        const outcome = answered.send(fresh);
+        if (sent.length === 1) {
+          await held;
+        }
+        return outcome;
+      },
+    };
+    entry({ entries: [first] });
+    await userEvent.click(screen.getByRole("button", { name: "Saisir la quantité" }));
+    await waitFor(() => {
+      expect(sent).toHaveLength(1);
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Saisir la quantité" }));
+    // Not sent while the one before is not answered, and not from the counters of the grid.
+    expect(sent).toHaveLength(1);
+    release();
+    await waitFor(() => {
+      expect(screen.getByRole("status", { name: "Saisies" })).toHaveTextContent("done,done");
+    });
+    expect(sent).toHaveLength(2);
+    expect(sent[1]?.nodes.get(LINE)?.lock_version).toBe(4);
+    expect(sent[1]?.structureLockVersion).toBe(7);
+    expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, NODES]);
   });
 
   it("writes the entries made while the update is under way one after the other, each from the counters the one before answered [US-3140] [WF-RIS-0070-A]", async () => {

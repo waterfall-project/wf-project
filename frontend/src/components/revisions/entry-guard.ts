@@ -95,14 +95,31 @@ export function withheld<T>(): Outcome<T> {
 }
 
 /**
- * The refusal of an entry whose node the update removed, or whose field it no longer accepts, as the
- * service would tell a node it does not have (`NOT_FOUND`): nothing is written, and the screen says
- * what became of the entry.
+ * The refusal of an entry whose node the update removed, as the service tells a node it does not have
+ * (`NOT_FOUND`): nothing is written, and the grid tells it where the entry was made — the one message
+ * of the entry, the screen saying apart that the own estimate was updated.
  */
 export function notFound<T>(): Outcome<T> {
   return {
     kind: "refused",
     problem: { code: "NOT_FOUND", status: 404 },
+    conflictingObjectId: null,
+  };
+}
+
+/**
+ * The refusal of an entry into a field its node no longer accepts once updated, as the service tells
+ * it (`VALIDATION_FAILED`, `FIELD_NOT_ACCEPTED` on the field of the body): nothing is written, and the
+ * grid tells it on the cell, the one message of the entry.
+ */
+export function notAccepted<T>(field: string): Outcome<T> {
+  return {
+    kind: "refused",
+    problem: {
+      code: "VALIDATION_FAILED",
+      status: 422,
+      fields: [{ pointer: `/${field.slice(field.indexOf(".") + 1)}`, code: "FIELD_NOT_ACCEPTED" }],
+    },
     conflictingObjectId: null,
   };
 }

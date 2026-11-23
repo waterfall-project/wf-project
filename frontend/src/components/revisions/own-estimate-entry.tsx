@@ -13,11 +13,13 @@
  *   (`rebaseCostStructure`) without a question, the nodes are read again (`readNodeCounters`), and the
  *   entry is written as the user made it, from the counter of its node read again — or, for a block
  *   pasted, from the counter of the structure; the node gone, or the field no longer accepted, nothing is
- *   written and the screen says it. The report keeps a value against the project, it is presented to
+ *   written, and the refusal is told once, by the grid, as the service tells it (`notFound`,
+ *   `notAccepted`). The report keeps a value against the project, it is presented to
  *   confirm, with the severity and the provision it recomputes; it refuses, the report says what is to
  *   correct in the own estimate; the entry is withheld in each case, and the user enters it anew. Entries
  *   made while the report is read share the one reading and the one update, then are written one after
- *   the other, each from the counter the one before answered.
+ *   the other, each from the counter the one before answered; an entry made before the last of them is
+ *   answered joins them, from those counters too, not from the grid's, which may not have taken them yet.
  *
  * The front decides none of it but by the word of the structure and of the report (`signals`). The
  * component is mounted for one structure — its parent keys it by the structure —, and renders what it
@@ -49,6 +51,7 @@ import {
   type EntryGuard,
   EntryGuardProvider,
   type FreshNode,
+  notAccepted,
   notFound,
   withheld,
 } from "./entry-guard";
@@ -73,11 +76,21 @@ interface Rewritten {
   structureLockVersion: number;
 }
 
+/** The update applied without a question, and the counter the structure moved on to. */
+interface Updated {
+  readonly kind: "updated";
+  readonly structureLockVersion: number;
+}
+
 /** What settling the update came to. */
 type Settled =
-  | { readonly kind: "updated"; readonly structureLockVersion: number }
-  | { readonly kind: "presented" }
-  | { readonly kind: "failed"; readonly outcome: Refused };
+  Updated | { readonly kind: "presented" } | { readonly kind: "failed"; readonly outcome: Refused };
+
+/** The entries written again after an update, and how many of them are still to be answered. */
+interface Replay {
+  readonly settled: Updated;
+  pending: number;
+}
 
 /** The own estimate, whether it is in arrears and whether it waits for its recomposition. */
 export interface OwnEstimateEntryProps {
@@ -113,8 +126,6 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
   const [failed, setFailed] = useState<Outcome<unknown>>();
   const [working, setWorking] = useState<"recomposing" | "updating">();
   const [done, setDone] = useState<{ readonly title: string }>();
-  // What the entries written again found gone: a node the update removed, a field it no longer accepts.
-  const [missing, setMissing] = useState<{ readonly title: string }>();
   const [busy, setBusy] = useState(false);
   // What the structure lists now, read by the guard at the time of the entry — a write held by the
   // grid before the page was read anew must not see the state of the page before (défaut n° 2): kept
@@ -169,7 +180,7 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
   // the structure now says, read once for the update they all waited for.
   const rereads = useRef(new WeakMap<Settled, Promise<Rewritten | Refused>>());
   const reread = useCallback(
-    (settled: Settled & { readonly kind: "updated" }): Promise<Rewritten | Refused> => {
+    (settled: Updated): Promise<Rewritten | Refused> => {
       const known = rereads.current.get(settled);
       if (known !== undefined) {
         return known;
@@ -193,28 +204,33 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
   );
 
   // The entries written again, one after the other: each takes the counters the one before answered.
+  // Until the last of them is answered, the counters of the grid may lag behind those answers: an entry
+  // made meanwhile joins the turns (`replay`), and is written from the same counters.
   const turns = useRef<Promise<unknown>>(Promise.resolve());
+  const replay = useRef<Replay>(undefined);
   const announced = useRef(new WeakSet<Settled>());
   const write = useCallback(
-    <T extends NodesWritten>(
-      entry: Entry<T>,
-      settled: Settled & { readonly kind: "updated" },
-    ): Promise<Outcome<T>> => {
+    <T extends NodesWritten>(entry: Entry<T>, settled: Updated): Promise<Outcome<T>> => {
+      if (replay.current?.settled !== settled) {
+        replay.current = { settled, pending: 0 };
+      }
+      const replaying = replay.current;
+      replaying.pending += 1;
       const turn = turns.current.then(async (): Promise<Outcome<T>> => {
         const fresh = await reread(settled);
         if (!("nodes" in fresh)) {
           return fresh;
         }
-        const gone = entry.nodes.some((id) => {
+        for (const id of entry.nodes) {
           const node = fresh.nodes.get(id);
-          const accepted: readonly string[] = node?.editable_fields ?? [];
-          return node === undefined || !entry.fields.every((field) => accepted.includes(field));
-        });
-        if (gone) {
-          if (alive.current) {
-            setMissing({ title: t("gone", { label }) });
+          if (node === undefined) {
+            return notFound();
           }
-          return notFound();
+          const accepted: readonly string[] = node.editable_fields;
+          const refused = entry.fields.find((field) => !accepted.includes(field));
+          if (refused !== undefined) {
+            return notAccepted(refused);
+          }
         }
         const outcome = await entry.send(fresh);
         if (outcome.kind === "done") {
@@ -229,10 +245,13 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
         }
         return outcome;
       });
-      turns.current = turn.catch(() => undefined);
-      return turn;
+      const answered = turn.finally(() => {
+        replaying.pending -= 1;
+      });
+      turns.current = answered.catch(() => undefined);
+      return answered;
     },
-    [reread, t, label],
+    [reread],
   );
 
   const guard = useCallback(
@@ -242,6 +261,11 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
       const send = typeof entry === "function" ? entry : () => entry.send();
       const now = live.current;
       if (!now.late || now.updated) {
+        const replaying = replay.current;
+        if (typeof entry !== "function" && replaying !== undefined && replaying.pending > 0) {
+          // Entries held back for the update are still being written: this one follows them.
+          return write(entry, replaying.settled);
+        }
         const outcome = await send();
         if (refusedAsLate(outcome)) {
           // The service says it late: the next entry reads the report anew.
@@ -374,11 +398,6 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
             </Button>
           </div>
         </section>
-      )}
-      {missing === undefined ? null : (
-        <p role="alert" className="text-sm text-destructive">
-          {missing.title}
-        </p>
       )}
       <DoneNotice title={done?.title} of={done} subject={label} />
       {children}
