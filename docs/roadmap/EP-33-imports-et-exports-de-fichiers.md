@@ -841,7 +841,7 @@ restauration désigne (#4471, EP-39) ; le fichier d'un import emporté par une c
 
 ## US-3260 — Une panne passagère du stockage laisse l'import à reprendre, au lieu de le faire échouer pour de bon
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-EXP-0040-A`
 - **opérations** : `openImport`, `applyImport`, `getImport`
 - **issue** : #4537
