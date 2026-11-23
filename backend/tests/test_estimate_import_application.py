@@ -492,6 +492,25 @@ def test_a_line_entered_since_the_analysis_is_not_removed_by_the_application(
     assert entered["nodes"][0]["lineage_id"] in estimate_lines(tree.items())
 
 
+@pytest.mark.requirement("WF-ARC-0100-A")
+def test_a_line_entered_since_the_analysis_refuses_the_import_with_its_counter_kept(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
+) -> None:
+    # The twin of the test above, the counter of the report kept: « Entre l'analyse et la
+    # confirmation, aucune donnée du projet n'a changé. » The line entered since refuses the
+    # application (409 ``import_structure_unchanged``): the import is refused, nothing is written.
+    tree, costs = held["tree"], held["costs"]
+    import_id = analysed_import(api, stage, worker, workbook(as_exported(held), held["tasks"]))
+    Lines(tree).made(
+        held["second"], quantity="1", cost_category_id=str(costs.material), unit_disbursement="5"
+    )
+    before = tree.items()
+    answer = apply(api, stage, import_id)
+    assert refusal(answer) == (409, STATE, {"missing_condition": "import_structure_unchanged"})
+    assert read(api, stage, import_id)["status"] == "refused"
+    assert tree.items() == before
+
+
 @pytest.mark.requirement("WF-INTF-0080-A")
 def test_a_line_the_report_rejected_is_not_written_though_accepted_since(
     api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]

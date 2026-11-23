@@ -229,6 +229,27 @@ def test_a_provision_declared_after_the_report_fails_the_application_by_the_same
     assert risks.project.tree.items() == before
 
 
+@pytest.mark.requirement("WF-ARC-0100-A")
+def test_a_provision_declared_after_the_report_refuses_the_import_with_its_counter_kept(
+    api: ContractClient, risks: Risks, stage: Scene, worker: Worker
+) -> None:
+    # The twin of the test above, the counter of the report kept: « Entre l'analyse et la
+    # confirmation, aucune donnée du projet n'a changé. » The provision line written since refuses
+    # the application (409 ``import_structure_unchanged``): the import is refused, nothing written.
+    found = analysed(api, stage, worker, NO_TASK_LEFT)
+    assert found["report"]["refusals"] == []
+    risks.declared_costed()
+    before = risks.project.tree.items()
+    answer = applying(api, stage, found)
+    assert refusal(answer) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "import_structure_unchanged"},
+    )
+    assert read(api, stage, found["import_id"])["status"] == "refused"
+    assert risks.project.tree.items() == before
+
+
 @pytest.mark.requirement("WF-RIS-0010-A")
 def test_a_stranded_provision_line_without_a_risk_is_an_anomaly_not_an_empty_refusal(
     api: ContractClient,

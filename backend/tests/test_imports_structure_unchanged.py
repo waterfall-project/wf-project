@@ -9,6 +9,7 @@ estimate and a remaining to commit whose structure was written since are refused
 is not concerned. Through the service and its worker, each answer checked against the contract.
 """
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -19,7 +20,7 @@ from actual_costs_import_support import declare, extraction, line, subproject
 from actual_costs_import_support import in_progress as costs_in_progress
 from estimate_import_support import analysed_import, as_exported, two_tasks
 from estimate_import_support import workbook as estimate_workbook
-from estimate_support import Costing, Lines, costing
+from estimate_support import YEAR, Costing, Lines, costing
 from fastapi.testclient import TestClient
 from imports_trial import (
     apply,
@@ -355,6 +356,35 @@ def test_a_first_revision_opened_since_the_analysis_is_compared_as_its_opening_l
     applied_now(api, stage, worker, first)
     assert tasks_of(tree) == ["T1", "T2"]
     refused_for_good(api, stage, backups_bucket, second, apply(api, stage, second))
+
+
+@pytest.mark.requirement("WF-ARC-0100-A")
+def test_a_copy_whose_opening_advanced_the_counter_further_refuses_the_import_though_unwritten(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    costs: Costing,
+    backups_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Fixes a behavior that is a limit, not a wish (#4791, a decision for the author):
+    # ``unwritten_since_opening`` expects the opening to leave the counter of the copy at its first
+    # value, or one more after the redating. An opening in a later reference year prices the lines
+    # again and advances it further; the copy, written by no one, is judged written and the import
+    # refused. The rule is not changed here: this test says what it does today.
+    tree = planned(api, stage, worker)
+    first = next(item for item in tree.items() if item["kind"] == "task")
+    Lines(tree).made(first, quantity="1", resource_role_id=str(costs.role), hours="10")
+    mark(stage, tree.revision)
+    import_id = analysed(api, stage, worker, REWORKED)["import_id"]
+    monkeypatch.setattr(
+        "waterfall.api.revisions.utc_now", lambda: datetime(YEAR + 1, 1, 12, 10, tzinfo=UTC)
+    )
+    copy = Tree(api, stage, opened(api, stage))
+    # The redated copy of a source that holds a node stands at 2: the opening went beyond.
+    assert counter(stage, copy.structure_id) > 2
+    refused_for_good(api, stage, backups_bucket, import_id, apply(api, stage, import_id))
+    assert tasks_of(copy) == ["T1", "T2"]
 
 
 # --- The rule of the durations, the counter null, the actual costs --------------------------------
