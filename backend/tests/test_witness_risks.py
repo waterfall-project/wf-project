@@ -297,8 +297,9 @@ def test_the_labels_of_the_risks_and_of_the_amendments_are_those_of_the_witness(
 
 # What the examples say of a risk that the service does not serve yet: EP-30 writes into the
 # contract the trend of a risk and the severity of an occurred risk read at its cost at occurrence,
-# which its computed fields name (US-3080/L1, #4589); the service says them from US-3160 and
-# US-3080, which take this set apart back.
+# which its computed fields name (US-3080/L1, #4589). Each exemption is lifted by the lot that
+# serves it: `trend` by US-3160/L1 (#4598), the severity of an occurred risk and its
+# `computed_fields` by US-3080/L2 (#4590). Lifting one fails `test_the_trend_is_not_served_yet`.
 RISK_APART = frozenset({"trend"})
 OCCURRED_APART = RISK_APART | {"computed_fields"}
 
@@ -323,6 +324,8 @@ def test_the_register_the_risk_and_the_matrix_read_are_the_examples(
     occurred = read(f"{BASE}/risks/{DELAY}")
     assert served_risk(occurred) == served_risk(example("risk_occurred_detail"))
     assert read(f"{BASE}/risks/matrix") == example("risk_matrix")
+    # The exemption of `trend` ends with US-3160/L1 (#4598): remove it from RISK_APART then.
+    assert not any("trend" in each for each in (*register["items"], occurred))
 
 
 @pytest.mark.story("US-2650")

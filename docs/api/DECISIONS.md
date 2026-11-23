@@ -13042,7 +13042,8 @@ service rendent.
   à la survenance, au tri et au filtre comme à la colonne (#4400).
 - **`RiskOccurrenceReport`** (#4629) prend la forme de `StructureMergeReport` : `differences` dit
   les ajouts, les modifications, les tâches abandonnées conservées (`kept`) et la ligne de provision
-  retirée ; **`completed_tasks`** (`ImportCompletedTask`, le schéma de la fusion) les tâches
+  retirée — la description d'`ImportDifference` dit que `kept` couvre aussi une tâche abandonnée par
+  la survenance, même non démarrée ; **`completed_tasks`** (`ImportCompletedTask`, le schéma de la fusion) les tâches
   abandonnées non encore terminées, que la survenance termine ; **`reopened_tasks`**
   (**`RiskOccurrenceReopenedTask`**, lignée et libellé, comme une tâche terminée) les tâches
   terminées qu'elle rouvre ; **`earned_value_added`** et **`earned_value_removed`** la valeur

@@ -45,7 +45,7 @@ def _risk(before: tuple[str, str] | None, now: tuple[str, str], state: str = IDE
     return replace(REGISTER[0], reviews=(*reviews, today))
 
 
-@pytest.mark.story("US-3160")
+@pytest.mark.requirement("WF-RIS-0040-A")
 @pytest.mark.parametrize(
     ("before", "now", "expected"),
     [
@@ -64,20 +64,20 @@ def test_the_trend_compares_the_signed_products_with_the_reference(
     assert trend(_risk(before, now)) == expected
 
 
-@pytest.mark.story("US-3160")
+@pytest.mark.requirement("WF-RIS-0040-A")
 def test_a_risk_dismissed_at_the_reference_and_identified_again_is_new() -> None:
     dismissed = (Review(MARKED, Decimal("0.2"), Decimal(300), "dismissed"),)
     risk = replace(REGISTER[0], reviews=(*dismissed, Review(TODAY, Decimal("0.2"), Decimal(300))))
     assert trend(risk) == NEW
 
 
-@pytest.mark.story("US-3160")
+@pytest.mark.requirement("WF-RIS-0040-A")
 def test_a_risk_occurred_or_dismissed_has_no_trend() -> None:
     assert trend(_risk(("300", "0.2"), ("300", "0.2"), "occurred")) is None
     assert trend(_risk(("300", "0.2"), ("300", "0.2"), "dismissed")) is None
 
 
-@pytest.mark.story("US-3150")
+@pytest.mark.requirement("WF-RIS-0040-A")
 def test_the_register_of_the_witness_carries_the_trend_of_each_risk() -> None:
     # 751, from 1,000,000 at 25 % to 1,250,000 at 40 %, is up; 752 occurred and 753 dismissed have
     # none.
@@ -99,7 +99,7 @@ def test_the_opportunity_has_a_negative_severity_and_a_provision_of_nought() -> 
     assert witness == mockhistory.readings()["risks"]["items"]
 
 
-@pytest.mark.story("US-3080")
+@pytest.mark.requirement("WF-RIS-0080-A")
 def test_the_opportunity_changes_no_total_of_the_register() -> None:
     assert _value("risks_opportunity")["totals"] == mockhistory.readings()["risks"]["totals"]
 

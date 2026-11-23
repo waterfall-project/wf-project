@@ -498,8 +498,9 @@ RiskOccurrence:
     reference figures and take its current ones; the tasks it abandons, kept and completed on
     the day of the occurrence whatever their state —, as `declareRiskOccurrence` states; the
     provision line is removed, and the risk keeps its cost at occurrence
-    (`Risk.occurrence_cost`). Marks no revision and does not move the reference (WF-RIS-0060). Final: no command undoes it, only abandoning the current revision reverts it
-    (WF-RIS-0060). The confirmation follows the preliminary report
+    (`Risk.occurrence_cost`). Marks no revision and does not move the reference (WF-RIS-0060).
+    Final: no command undoes it, only abandoning the current revision reverts it (WF-RIS-0060).
+    The confirmation follows the preliminary report
     (`getRiskOccurrenceReport`) and carries the two lock versions it read, and whether it was
     creating the current revision: with the main structure or the risk changed since — and the
     risk also changes on any entry in its own estimate (`Risk.lock_version`) —, or a current
