@@ -235,6 +235,14 @@ le planning entier : ses tâches se datent par leurs liaisons avec celles du pro
 lit dans sa grille. US-3100 retire les deux premiers signalements et garde le troisième, étendu à
 toute tâche terminée que la survenance rouvre.
 
+- #4822 — contrat : `RiskOccurrenceReport.completed_provision_task` (et la phrase voisine de
+  `getRiskOccurrenceReport`) dit la tâche porteuse terminée repassée « not started », quand la
+  spécification 1.0.10 (WF-PLA-0040-A) en fait une récapitulative démarrée, à sa date de démarrage.
+  Reporté d'EP-32 à sa livraison (décision de l'auteur du 2026-11-23) : la forme du contrat ne
+  change pas, seule la description est périmée. Corrigé par US-3100/L2, qui récrit le compte rendu
+  de survenance (« tâches terminées qu'elle rouvre ») ; la phrase d'EP-08 (#4240) reste, EP-08
+  étant livré.
+
 ## Conception
 
 Écrite au cadrage du 2026-11-21, sur le code d'`epic/EP-08` et d'`epic/EP-11` à cette date, après la
