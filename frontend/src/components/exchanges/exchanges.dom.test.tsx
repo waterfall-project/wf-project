@@ -650,7 +650,7 @@ describe("the report of an import", () => {
     await waitFor(() => {
       expect(client.calls).toHaveLength(1);
     });
-    window.history.replaceState(null, "", `${START}&import=01926f3a-7c00-7000-8000-000000000a10`);
+    window.history.replaceState(null, "", `${START}&import=01926f3a-7c00-7000-8000-000000000a09`);
     answer.release();
     await waitFor(() => {
       expect(abandon).toHaveAttribute("aria-busy", "false");
