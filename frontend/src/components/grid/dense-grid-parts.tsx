@@ -43,13 +43,18 @@ export function sharedName(
   return config.address === undefined ? undefined : named(config.name);
 }
 
-/** The grid, held by what its screen puts around it, if anything. */
+/**
+ * The grid, held by what its screen puts around it, if anything: given the rows it shows and the
+ * row of its active cell.
+ */
 export function held<Row>(
   grid: ReactNode,
   rows: readonly Row[],
-  around: ((rows: readonly Row[], grid: ReactNode) => ReactNode) | undefined,
+  around:
+    ((rows: readonly Row[], grid: ReactNode, active: Row | undefined) => ReactNode) | undefined,
+  active: Row | undefined,
 ): ReactNode {
-  return around === undefined ? grid : around(rows, grid);
+  return around === undefined ? grid : around(rows, grid, active);
 }
 
 /** Whether the server computes the cell of a column in a row. */

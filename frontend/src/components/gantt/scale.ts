@@ -176,6 +176,33 @@ export function revealedOffset(
   return Math.round(Math.min(Math.max(target, 0), Math.max(width - frame, 0)));
 }
 
+/**
+ * The stretch of time the frame shows, widened so that it holds still while the drawing scrolls: in
+ * whole days, from `first` to `last` — the axis —, snapped to half frames, so that it changes only
+ * each half frame scrolled, and holds the frame wherever it stands in its step. The whole axis where
+ * the drawing is fitted to its column, or the frame is not yet measured (US-3350).
+ */
+export function visibleSpan(
+  axis: { readonly first: number; readonly last: number },
+  width: number | undefined,
+  frame: number,
+  offset: number,
+): { readonly from: number; readonly to: number } {
+  const { first, last } = axis;
+  if (width === undefined || frame <= 0 || width <= 0) {
+    return { from: first, to: last };
+  }
+  const step = frame / 2;
+  const block = Math.floor(offset / step);
+  const days = (last - first) / DAY;
+  const at = (pixels: number, round: (value: number) => number) =>
+    first + round((Math.min(Math.max(pixels, 0), width) / width) * days) * DAY;
+  return {
+    from: Math.min(at((block - 1) * step, Math.floor), last),
+    to: Math.min(Math.max(at((block + 3) * step, Math.ceil), first), last),
+  };
+}
+
 /** The level a zoom in or out reaches from the one shown, within those offered. */
 export function zoomed(zoom: Zoom, fitted: number, step: 1 | -1, levels: number): number {
   const from = zoom === "fit" ? fitted : zoom;
