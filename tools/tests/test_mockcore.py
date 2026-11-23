@@ -369,6 +369,7 @@ _RENAMED = {
             "structure_rebase_report_refused.json",
             "structure_rebase_report_risk.json",
             "structure_rebase_report_risk_refused.json",
+            "structure_rebase_report_risk_clean.json",
         )
         for identifier in (universe(WIRING), mockcore.lineage(WIRING))
     ),

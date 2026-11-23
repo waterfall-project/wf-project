@@ -156,7 +156,7 @@ export interface Examples {
     200: "dependencies_labour" | "dependencies_labour_category" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_provision_subproject" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase": {
-    200: "structure_rebase_report" | "structure_rebase_report_refused" | "structure_rebase_report_risk" | "structure_rebase_report_risk_refused";
+    200: "structure_rebase_report" | "structure_rebase_report_refused" | "structure_rebase_report_risk" | "structure_rebase_report_risk_clean" | "structure_rebase_report_risk_refused";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}": {
     200: "row_number_estimate_line" | "row_number_task";
@@ -367,7 +367,7 @@ export interface Examples {
     200: "structure_rebased" | "structure_rebased_risk";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/recompose": {
-    200: "structure_recomposed";
+    200: "structure_recomposed" | "structure_recomposed_late";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/undo": {
     200: "undo_task_renamed" | "undo_task_renamed_one_left";

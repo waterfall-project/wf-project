@@ -1,0 +1,21 @@
+{
+  "summary": "Variante de structure_recomposed : la structure principale de la révision 104 a changé depuis le marquage de la révision 102. Recomposé, le devis propre de « Risque de reprise du câblage », structure 209, est entier mais en retard (is_up_to_date faux) : sa saisie et son planning manquent de own_estimate_up_to_date, sa mise à jour (rebase) est offerte ; l'écran la lance avant toute saisie (structure_rebase_report_risk_clean). Son compteur passe à 2 (WF-RIS-0030, WF-RIS-0070, #4585).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "structure_id": "01926f3a-7c00-7000-8000-000000000209",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000104",
+    "kind": "risk",
+    "label": "Risque de reprise du câblage",
+    "planning_start_on": "2026-03-02",
+    "risk_id": "01926f3a-7c00-7000-8000-000000000751",
+    "is_merged": false,
+    "is_up_to_date": false,
+    "is_pruned": false,
+    "available_commands": [
+      {"command":"edit_planning","is_available":false,"missing_conditions":["own_estimate_up_to_date"]},
+      {"command":"edit_estimate","is_available":false,"missing_conditions":["own_estimate_up_to_date"]},
+      {"command":"rebase","is_available":true,"missing_conditions":[]}
+    ],
+    "lock_version": 2
+  }
+}
