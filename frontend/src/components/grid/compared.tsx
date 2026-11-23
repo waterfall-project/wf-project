@@ -88,7 +88,6 @@ const BASE_FIELDS: Readonly<Record<string, BaseField>> = {
   finish: { shown: "instant", task: "finish" },
   progress: { shown: "progress", task: "progress" },
   physical_progress: { shown: "share", task: "physical_progress" },
-  total_float: { shown: "duration", task: "total_float" },
   started_on: { shown: "plain", task: "started_on" },
   completed_on: { shown: "plain", task: "completed_on" },
   predecessors: { shown: "predecessors" },
