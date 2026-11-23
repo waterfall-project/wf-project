@@ -655,6 +655,7 @@
       "notSet": "Non renseignée",
       "neverReviewed": "Jamais réexaminé",
       "referenceProvision": "Provision de la référence",
+      "costToday": "Ce qu’il coûte aujourd’hui",
       "provisionLine": {
         "title": "Ligne de provision",
         "present": "Présente dans la structure principale : la provision pèse sur le devis.",
@@ -2151,6 +2152,22 @@
     "done": "Le devis propre « {label} » est à jour. Saisissez de nouveau.",
     "updated": "Le devis propre « {label} » a été mis à jour."
   },
+  "ownEstimatesOutOfDate": {
+    "title": "Devis propres à mettre à jour",
+    "statement": "{count, plural, one {Le devis propre d’un risque garde une valeur contre le projet ou est refusé à la mise à jour : rien n’a été écrit.} other {Les devis propres de # risques gardent une valeur contre le projet ou sont refusés à la mise à jour : rien n’a été écrit.}} Lisez le compte rendu de chacun, confirmez-le ou corrigez-le, puis recommencez.",
+    "read": "Lire le compte rendu",
+    "readOf": "Lire le compte rendu de « {label} »"
+  },
+  "ownEstimateFirst": {
+    "recomposing": "Recomposition du devis propre « {label} »…",
+    "updating": "Mise à jour du devis propre « {label} »…",
+    "title": "Mise à jour du devis propre",
+    "keeps": "La mise à jour du devis propre « {label} » garde une valeur contre le projet : confirmez-la pour poursuivre.",
+    "refused": "La mise à jour du devis propre « {label} » est refusée : corrigez le devis propre dans la grille, puis recommencez.",
+    "confirm": "Confirmer la mise à jour du devis propre",
+    "skip": "Écarter le risque sans mise à jour",
+    "close": "Fermer"
+  },
   "rebaseReport": {
     "labelOwn": "Mettre à jour le devis propre",
     "statementOwn": "La mise à jour reporte dans le devis propre ce que la structure principale a reçu depuis sa dernière mise à jour, sans rien changer de ce qu’il désigne, puis recalcule la gravité et la provision du risque. Abandonner ici ne change rien.",
@@ -2290,6 +2307,7 @@
     "review": "Réexaminer",
     "reviewTitle": "Réexaminer « {name} »",
     "reviewHint": "Le réexamen est daté du jour : le confirmer sans rien changer en produit un, qui s’ajoute à l’historique. La gravité et la provision se recalculent.",
+    "reviewRecomputed": "Le devis propre est à jour : la gravité recalculée est de {amount}.",
     "retainedState": "État retenu",
     "categoryOnReturn": "Demandée au retour à l’état identifié : la catégorie que le risque désignait n’est plus active.",
     "reviewed": "Risque « {name} » réexaminé."
@@ -2311,7 +2329,14 @@
     "title": "Compte rendu de la survenance",
     "reading": "Lecture du compte rendu…",
     "createsRevision": "Le projet n’a pas de révision en cours : la survenance la crée d’abord par copie de la dernière révision marquée, y fusionne le devis propre du risque, dans la même tâche de fond. Si elle échoue, aucune révision n’est créée.",
-    "pastStart": "Le devis propre du risque commence le {date}, avant le jour de la déclaration : la survenance l’accepte sans le refuser ni redater ses tâches, qui gardent leurs dates, désormais passées.",
+    "completedTitle": "Tâches terminées par la survenance",
+    "completed": "{count, plural, =0 {Aucune tâche terminée par la survenance} one {# tâche terminée par la survenance} other {# tâches terminées par la survenance}}",
+    "completedTask": "« {label} » : le devis propre l’abandonne ; elle est conservée et terminée le jour de la survenance, son reste à engager porté à zéro.",
+    "earnedAdded": "Valeur acquise apportée : {amount}",
+    "reopenedTitle": "Tâches rouvertes par la survenance",
+    "reopened": "{count, plural, =0 {Aucune tâche terminée rouverte} one {# tâche terminée rouverte par la survenance} other {# tâches terminées rouvertes par la survenance}}",
+    "reopenedTask": "« {label} » : terminée, elle est rouverte ; la valeur acquise qu’elle avait retombe.",
+    "earnedRemoved": "Valeur acquise retirée : {amount}",
     "provision": "La ligne de provision du risque est retirée du reste à engager : {amount} de provision en moins.",
     "refusals": "{count, plural, one {# motif refuse la survenance} other {# motifs refusent la survenance}}",
     "reread": "Relire le compte rendu"

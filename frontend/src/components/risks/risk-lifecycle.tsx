@@ -14,6 +14,11 @@
  * tracker of the shell follows the task (WF-IHM-0080), and once it has succeeded the screen says so and
  * is read anew, the risk then listing no command of entry.
  *
+ * A risk whose own estimate is pruned or in arrears lists `declare_occurrence` unavailable for that sole
+ * reason: the command stays pressable, and its press first recomposes and updates the own estimate
+ * (`OwnEstimateStep`, US-3140) — without a question when the update signals nothing, to confirm when it
+ * keeps a value against the project —, then opens the confirmation on the report of the occurrence.
+ *
  * « Déclarer survenu » first reads the report of the occurrence (`getRiskOccurrenceReport`, US-0680)
  * and presents it in the confirmation (`occurrence-report.tsx`); it confirms with the counters of the
  * report shown (`declareRiskOccurrence`), and offers it only while the report carries no motive of
@@ -35,9 +40,11 @@ import { ConfirmedCommand } from "@/components/commands/confirmed-command";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import { findOffer } from "@/components/commands/offer";
 import { DoneNotice } from "@/components/notices/done-notice";
+import { Button } from "@/components/ui/button";
 import { Following } from "@/components/tasks/following";
 
 import { type OccurrenceReport, OccurrencePanel } from "./occurrence-report";
+import { lateOf, OwnEstimateStep, PRESSABLE } from "./own-estimate-first";
 import { useRiskNavigation } from "./risk-cells";
 
 /** A risk, as the contract gives it. */
@@ -81,9 +88,11 @@ export function DeleteRisk({
 /** « Déclarer survenu », as the risk lists `declare_occurrence`; the tracker follows the task. */
 export function DeclareOccurrence({
   projectId,
+  revisionId,
   risk,
 }: {
   readonly projectId: string;
+  readonly revisionId: string;
   readonly risk: Risk;
 }) {
   const t = useTranslations("riskOccurrence");
@@ -97,10 +106,17 @@ export function DeclareOccurrence({
   const onRead = useCallback((next: Outcome<OccurrenceReport> | undefined) => {
     setReport(next);
   }, []);
-  const offer = findOffer(risk.available_commands, "declare_occurrence");
-  if (offer === undefined) {
+  // The own estimate updated first: the counter of the risk it was updated at, the offer being the
+  // one listed until the page read anew lists it available.
+  const [updatedAt, setUpdatedAt] = useState<number>();
+  const [stepping, setStepping] = useState(false);
+  const listed = findOffer(risk.available_commands, "declare_occurrence");
+  if (listed === undefined) {
     return null;
   }
+  const { late, pruned } = lateOf(listed);
+  const updated = updatedAt !== undefined && risk.lock_version <= updatedAt;
+  const offer = late && updated ? PRESSABLE : listed;
   const read = report?.kind === "done" ? report.data : undefined;
   const run = () =>
     read === undefined
@@ -110,9 +126,47 @@ export function DeclareOccurrence({
           riskLockVersion: read.risk_lock_version,
           createsCurrentRevision: read.creates_current_revision,
         });
+  // The step stands apart from the command: the page read anew while it runs may list the command
+  // available, and the step still leads to its confirmation.
+  const step = stepping ? (
+    <OwnEstimateStep
+      projectId={projectId}
+      revisionId={revisionId}
+      risk={risk}
+      pruned={pruned}
+      onReady={(fresh) => {
+        setStepping(false);
+        setUpdatedAt(fresh?.lock_version ?? risk.lock_version);
+      }}
+      onClose={() => {
+        setStepping(false);
+      }}
+    />
+  ) : null;
+  if (late && !updated) {
+    return (
+      <div className="space-y-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setStepping(true);
+          }}
+        >
+          {commandIcon(PROJECT_COMMAND_ICONS.declare_risk_occurrence)}
+          {t("label")}
+        </Button>
+        {step}
+      </div>
+    );
+  }
   return (
     <div className="space-y-2">
+      {step}
       <ConfirmedCommand
+        key={updatedAt ?? "listed"}
+        initiallyOpen={updatedAt !== undefined}
         offer={offer}
         label={t("label")}
         help={helps("project.declare_risk_occurrence.help")}

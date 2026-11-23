@@ -9,28 +9,10 @@ import { example } from "@/test/fixtures";
 
 import { type OccurrenceReport, ReportBody } from "./occurrence-report";
 
-const REPORT = example("risk_occurrence_report") as OccurrenceReport;
-
-/**
- * The report as the contract gives it, with what the occurrence of #4133 and #4134 adds. The
- * difference `updated` of a task redated is derived by hand from the example `risk_occurrence_report`:
- * no example of the contract carries it (the contract is frozen, #4134 form 1).
- */
-const REDATING: OccurrenceReport = {
-  ...REPORT,
-  own_estimate_past_planning_start_on: "2026-03-02",
-  differences: [
-    ...REPORT.differences,
-    {
-      change: "updated",
-      target: "task",
-      lineage_id: "01926f3a-7c00-7000-8000-000000000653",
-      label: "Essais de réception",
-      predecessor_label: null,
-      fields: ["start", "finish"],
-    },
-  ],
-};
+// The report in the form of a merge: the task the own estimate abandons is kept and completed.
+const ABANDONED = example("risk_occurrence_report_abandoned_task") as OccurrenceReport;
+// The report as EP-08 gave it, which still carries the two signals the screen no longer tells.
+const GRAFT = example("risk_occurrence_report") as OccurrenceReport;
 
 function shown(report: OccurrenceReport) {
   return render(
@@ -41,58 +23,60 @@ function shown(report: OccurrenceReport) {
 }
 
 describe("le compte rendu de la survenance", () => {
-  it("présente en tâche modifiée chaque tâche que la greffe redate, après la tâche porteuse [US-2640] [WF-IHM-0020-A]", () => {
-    shown(REDATING);
+  it("présente les tâches qu'elle termine et la valeur acquise qu'elles apportent [US-3140]", () => {
+    shown(ABANDONED);
+    const completed = screen.getByRole("region", { name: "Tâches terminées par la survenance" });
+    expect(completed).toHaveTextContent(/1 tâche terminée par la survenance/);
+    expect(within(completed).getByText(/« Mise en service »/)).toBeVisible();
+    expect(completed).toHaveTextContent(/Valeur acquise apportée : 6\s074,57/);
+  });
+
+  it("présente ce qu'elle garde et ce qu'elle retire, dans les marques de la grille [US-3140]", () => {
+    shown(ABANDONED);
     const table = screen.getByRole("table", { name: /écarts/i });
-    const row = within(table).getByRole("row", { name: /Essais de réception/ });
-    expect(within(row).getAllByRole("cell")[0]).toHaveAccessibleName("Modifié");
-    expect(row).toHaveTextContent(/Début/);
-    expect(row).toHaveTextContent(/Fin/);
+    expect(within(table).getAllByRole("row")).toHaveLength(3);
+    expect(table).toHaveTextContent(/Mise en service/);
+    expect(table).toHaveTextContent(/Provision — Mise en service/);
   });
 
-  it("signale un devis propre qui commence avant le jour de la déclaration, sans le refuser [US-2640] [WF-IHM-0020-A]", () => {
-    shown(REDATING);
-    expect(screen.getByRole("note")).toHaveTextContent(/commence le 2 mars 2026, avant le jour/);
-    // Un avertissement, non un motif de refus : rien n'est dit en alerte.
-    expect(screen.queryByRole("alert")).toBeNull();
-  });
-
-  it("ne signale pas de départ passé quand le contrat n'en donne aucun, que le report crée la révision ou non [US-2640] [WF-IHM-0020-A]", () => {
-    // The example has `creates_current_revision` false: that the absence of a note comes from the date
-    // alone is proven with the revision created, whose own note is the only one told.
-    const { unmount } = shown({ ...REPORT, own_estimate_past_planning_start_on: null });
-    expect(screen.queryByRole("note")).toBeNull();
-    unmount();
+  it("dit la valeur acquise retirée et nomme les tâches terminées qu'elle rouvre [US-3140]", () => {
     shown({
-      ...REPORT,
-      creates_current_revision: true,
-      own_estimate_past_planning_start_on: null,
+      ...ABANDONED,
+      reopened_tasks: [{ lineage_id: "01926f3a-7c00-7000-8000-000000000666", label: "Essais" }],
+      earned_value_removed: "1200.00",
     });
-    expect(screen.getAllByRole("note")).toHaveLength(1);
-    expect(screen.getByRole("note")).toHaveTextContent(/crée d’abord par copie/);
+    const reopened = screen.getByRole("region", { name: "Tâches rouvertes par la survenance" });
+    expect(reopened).toHaveTextContent(/1 tâche terminée rouverte/);
+    expect(within(reopened).getByText(/« Essais » : terminée, elle est rouverte/)).toBeVisible();
+    expect(reopened).toHaveTextContent(/Valeur acquise retirée : 1\s200,00/);
+  });
+
+  it("ne dit ni tâche terminée ni tâche rouverte quand la survenance n'en a aucune [US-3140]", () => {
+    shown({
+      main_structure_lock_version: ABANDONED.main_structure_lock_version,
+      risk_lock_version: ABANDONED.risk_lock_version,
+      creates_current_revision: false,
+      differences: ABANDONED.differences,
+      provision_amount: ABANDONED.provision_amount,
+      refusals: [],
+    });
+    expect(screen.queryByRole("region", { name: /Tâches terminées/ })).toBeNull();
+    expect(screen.queryByRole("region", { name: /Tâches rouvertes/ })).toBeNull();
+  });
+
+  it("dit ce qui la refuse, en alerte [US-3140]", () => {
+    shown({ ...ABANDONED, refusals: [{ code: "TASK_WITHOUT_WORKING_HOURS" }] });
+    expect(screen.getByRole("alert")).toHaveTextContent(/1 motif refuse la survenance/);
+  });
+
+  it("ne signale plus un devis propre qui commence avant le jour, ni les tâches redatées par la greffe (#4133, #4134) [US-3140]", () => {
+    shown({ ...GRAFT, own_estimate_past_planning_start_on: "2026-03-02" });
+    expect(screen.queryByRole("note")).toBeNull();
     expect(screen.queryByText(/commence le/)).toBeNull();
   });
 
-  it("dit les deux notes quand la révision est créée et que le devis propre commence avant le jour [US-2640] [WF-IHM-0020-A]", () => {
-    shown({ ...REDATING, creates_current_revision: true });
-    const notes = screen.getAllByRole("note");
-    expect(notes).toHaveLength(2);
-    expect(screen.getByText(/crée d’abord par copie/)).toBeVisible();
-    expect(screen.getByText(/commence le 2 mars 2026/)).toBeVisible();
+  it("dit que la survenance crée la révision en cours, quand elle n'en trouve pas [US-3140]", () => {
+    shown({ ...ABANDONED, creates_current_revision: true });
+    expect(screen.getByRole("note")).toHaveTextContent(/crée d’abord par copie/);
   });
-
-  it.each([
-    ["2026-03-01", "1 mars 2026"],
-    ["2026-12-31", "31 déc. 2026"],
-  ])(
-    "dit le jour calendaire %s sans le décaler, quel que soit le fuseau de l'écran [US-2640] [WF-IHM-0020-A]",
-    (day, said) => {
-      render(
-        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="Pacific/Auckland">
-          <ReportBody report={{ ...REDATING, own_estimate_past_planning_start_on: day }} />
-        </NextIntlClientProvider>,
-      );
-      expect(screen.getByRole("note")).toHaveTextContent(`commence le ${said}, avant`);
-    },
-  );
 });

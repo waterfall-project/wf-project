@@ -136,4 +136,61 @@ describe("the predecessors entered into the planning of an own estimate in arrea
     expect(await screen.findByText(/a été mis à jour\./)).toBeVisible();
     expect(screen.queryByText(/Saisissez de nouveau/)).toBeNull();
   });
+
+  it("tells the refusal of the predecessors a node no longer accepts once updated, on their cell, and writes nothing [US-3140] [WF-RIS-0070-A] (#4820)", async () => {
+    // The nodes as the update left them are the example `nodes_risk_estimate`, whose second row no
+    // longer lists `task.predecessors` among the fields it accepts (`entry-guard.ts`, `notAccepted`,
+    // VALIDATION_FAILED on FIELD_NOT_ACCEPTED); the page read it before, still accepting them.
+    const left = example("nodes_risk_estimate") as NodeList;
+    const ROW = 1;
+    const page: NodeList = {
+      ...left,
+      items: left.items.map((node, row) =>
+        row === ROW
+          ? { ...node, editable_fields: [...node.editable_fields, "task.predecessors"] }
+          : node,
+      ),
+    };
+    const client = fakeClient({
+      [REPORT]: "structure_rebase_report_risk_clean",
+      [REBASE]: "structure_rebased_risk",
+      [NODES]: "nodes_risk_estimate",
+      [PREDECESSORS]: "predecessor_set",
+    });
+    server.client = client;
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <OwnEstimateEntry
+          estimate={{
+            projectId: STRUCTURE.project_id,
+            revisionId: STRUCTURE.revision_id,
+            structureId: STRUCTURE.structure_id,
+            label: "Indisponibilité de l'automaticien",
+          }}
+          late
+          recompose={false}
+        >
+          <PlanningGrid
+            nodes={page}
+            structure={STRUCTURE}
+            structureVersion={5}
+            filters={{ kinds: ["task"] }}
+            query={NO_QUERY}
+            preferences={PREFERENCES}
+            undoable
+            editable
+          />
+        </OwnEstimateEntry>
+      </NextIntlClientProvider>,
+    );
+    await act(async () => {
+      cellAt(ROW, "predecessors").focus();
+      await Promise.resolve();
+    });
+    await userEvent.keyboard("{F2}");
+    await userEvent.clear(within(screen.getByRole("treegrid")).getByRole("textbox"));
+    await userEvent.keyboard("{Enter}");
+    expect(await screen.findByText("Ce champ ne se saisit pas sur cette ligne.")).toBeVisible();
+    expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, NODES]);
+  });
 });

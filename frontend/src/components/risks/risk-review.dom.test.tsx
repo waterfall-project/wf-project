@@ -37,6 +37,7 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
+const REVISION = "01926f3a-7c00-7000-8000-000000000002";
 const REVIEW = "POST /projects/{project_id}/risks/{risk_id}/reviews";
 const UPDATE = "PATCH /projects/{project_id}/risks/{risk_id}";
 
@@ -84,7 +85,13 @@ function detail(
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PendingAddress>
-        <RiskDetail risk={risk} reviews={reviews} projectId={PROJECT} options={options} />
+        <RiskDetail
+          risk={risk}
+          reviews={reviews}
+          projectId={PROJECT}
+          revisionId={REVISION}
+          options={options}
+        />
       </PendingAddress>
     </NextIntlClientProvider>
   );

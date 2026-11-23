@@ -175,10 +175,12 @@ function useRereadWhenShown(): void {
  */
 export function RiskCommands({
   projectId,
+  revisionId,
   risk,
   options,
 }: {
   readonly projectId: string;
+  readonly revisionId: string;
   readonly risk: Risk;
   /** What the provision is chosen among; read while the risk lists `update` or `review` available. */
   readonly options: ProvisionOptions | undefined;
@@ -220,6 +222,7 @@ export function RiskCommands({
         <ReviewRisk
           key={`review-${id}`}
           projectId={projectId}
+          revisionId={revisionId}
           risk={shown}
           options={options}
           writing={write?.writing ?? false}
@@ -227,7 +230,12 @@ export function RiskCommands({
           onAnswered={onAnswered}
         />
       </div>
-      <DeclareOccurrence key={`declare-${id}`} projectId={projectId} risk={shown} />
+      <DeclareOccurrence
+        key={`declare-${id}`}
+        projectId={projectId}
+        revisionId={revisionId}
+        risk={shown}
+      />
       <DeleteRisk key={`delete-${id}`} projectId={projectId} risk={shown} />
     </div>
   );

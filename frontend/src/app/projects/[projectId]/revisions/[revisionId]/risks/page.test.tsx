@@ -619,7 +619,12 @@ describe("the screen of the risks", () => {
     const risk = example("risk_dismissed_category_deactivated") as Risk;
     const detail = renderToStaticMarkup(
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
-        <RiskDetail risk={risk} reviews={[]} projectId="01926f3a-7c00-7000-8000-000000000001" />
+        <RiskDetail
+          risk={risk}
+          reviews={[]}
+          projectId="01926f3a-7c00-7000-8000-000000000001"
+          revisionId="01926f3a-7c00-7000-8000-000000000002"
+        />
       </NextIntlClientProvider>,
     );
     expect(text(detail)).toContain("Category Provisions pour risques (no longer admitted)");
@@ -636,14 +641,14 @@ describe("the screen of the risks", () => {
     );
   });
 
-  it("says of a risk occurred the provision of the reference and its cost at the occurrence, each computed, in its detail", async () => {
+  it("says of a risk occurred the provision of the reference, its cost at the occurrence and what it costs today, each computed, in its detail [US-3140]", async () => {
     server.answers = {
       ...server.answers,
       [RISK]: { example: "risk_occurred_detail", status: 200 },
     };
     const page = await risksAt({ risk: DELIVERY });
     expect(text(page)).toContain(
-      "State Occurred Probability 30% Severity 200.00 Reference provision 60.00 Cost at occurrence 200.00 Last review",
+      "State Occurred Probability 30% Severity 200.00 Reference provision 60.00 Cost at occurrence 200.00 What it costs today 200.00 Last review",
     );
     expect(page).toMatch(
       /Cost at occurrence<\/dt><dd[^>]*><span[^>]*><svg[^>]*role="img" aria-label="Computed"/,

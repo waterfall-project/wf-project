@@ -64,6 +64,8 @@ export interface ConfirmedCommandProps<T> {
   readonly onDone?: ((data: T) => void) | undefined;
   /** What a stale confirmation (412) is read anew by, where it is not the screen that is reloaded. */
   readonly reread?: Reread | undefined;
+  /** Whether the confirmation is open as the command is mounted: a step that waited for it led here. */
+  readonly initiallyOpen?: boolean | undefined;
 }
 
 /** Offer a command, open its confirmation when pressed, and say what followed. */
@@ -83,12 +85,13 @@ export function ConfirmedCommand<T>({
   done,
   onDone,
   reread,
+  initiallyOpen = false,
 }: ConfirmedCommandProps<T>) {
   const t = useTranslations("revisionCommands");
   const form = useId();
   const sentence = `${form}-statement`;
   const held = useHeldCommand();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   // What was told is kept as it was told: the page read again may change what `done` would say.
   const [result, setResult] = useState<{ readonly data: T; readonly title: string }>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();

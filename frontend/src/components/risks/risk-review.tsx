@@ -18,6 +18,13 @@
  * a risk occurred (409), the return refused for want of an active category or of a task, the version
  * stale (412) — is told under the form (`ReferenceForm`), which stays open.
  *
+ * A risk whose own estimate is pruned or in arrears lists `review` unavailable for that sole reason
+ * (`own_estimate_whole`, `own_estimate_up_to_date`): the command stays pressable, and its press first
+ * recomposes and updates the own estimate (`OwnEstimateStep`, US-3140) — without a question when the
+ * update signals nothing —, then opens the form on the risk read again, whose severity it presents
+ * recomputed. An update that keeps a value against the project is presented to confirm; the review
+ * that dismisses the risk asks no update, and the step offers to go to it directly.
+ *
  * The write under way and the answer are those of the commands of the risk (`RiskCommands`), which
  * outlive the detail: this command only tells them.
  */
@@ -25,6 +32,7 @@
 
 import { RefreshCw } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { reviewRisk } from "@/api/actions/risks";
 import type { components } from "@/api/generated/schema";
@@ -35,8 +43,10 @@ import { ANOTHER_OBJECT } from "@/components/reference/commands";
 import { inPercent } from "@/components/reference/in-percent";
 import { Reactivations } from "@/components/reference/reactivation";
 import { type Draft, type FormField, ReferenceForm } from "@/components/reference/reference-form";
-import { editablePercent, percentRatio } from "@/i18n/format";
+import { useCurrency } from "@/currency/context";
+import { editablePercent, formatMoney, percentRatio } from "@/i18n/format";
 
+import { lateOf, OwnEstimateStep, PRESSABLE } from "./own-estimate-first";
 import type { ProvisionOptions } from "./provision-choices";
 import { OpensForm, Status, useRiskDialog } from "./risk-dialog";
 
@@ -76,6 +86,8 @@ function ReviewForm({
   projectId,
   risk,
   categories,
+  updated,
+  dismissing,
   onDone,
   onWriting,
   onClose,
@@ -83,6 +95,10 @@ function ReviewForm({
 }: {
   readonly projectId: string;
   readonly risk: Risk;
+  /** Whether the own estimate was updated first: the form presents the severity it recomputed. */
+  readonly updated: boolean;
+  /** Whether the form starts on the dismissal, which asks no update. */
+  readonly dismissing: boolean;
   /** The active categories of the type provision for risks, among which a return is asked one. */
   readonly categories: ProvisionOptions["categories"];
   readonly onDone: (answer: Risk) => void;
@@ -94,6 +110,7 @@ function ReviewForm({
   const states = useTranslations("enums.RiskState");
   const detail = useTranslations("risks.detail");
   const locale = useLocale();
+  const currency = useCurrency();
   // The category is asked of a risk dismissed whose own is no longer active, when the return has more
   // than one to choose: with one alone the server retains it, with none it refuses the return.
   const asks = risk.state === "dismissed" && !risk.provision_cost_category_is_active;
@@ -136,14 +153,18 @@ function ReviewForm({
     <ReferenceForm<Risk>
       kind="risk"
       title={t("reviewTitle", { name: risk.label })}
-      hint={t("reviewHint")}
+      hint={
+        updated
+          ? `${t("reviewHint")} ${t("reviewRecomputed", { amount: formatMoney(risk.severity, locale, currency) })}`
+          : t("reviewHint")
+      }
       creating={false}
       submit={t("review")}
       icon={<RefreshCw aria-hidden="true" />}
       fields={fields}
       initial={{
         probability: editablePercent(risk.probability, locale),
-        state: heldState(risk),
+        state: dismissing ? "dismissed" : heldState(risk),
       }}
       subject={risk.label}
       ask={ask}
@@ -166,13 +187,15 @@ function ReviewForm({
  */
 export function ReviewRisk({
   projectId,
-  risk,
+  revisionId,
+  risk: listed,
   options,
   writing,
   onWriting,
   onAnswered,
 }: {
   readonly projectId: string;
+  readonly revisionId: string;
   readonly risk: Risk;
   /** What the provision is chosen among; read while the risk lists `review` available. */
   readonly options: ProvisionOptions | undefined;
@@ -185,25 +208,72 @@ export function ReviewRisk({
   const dialog = useRiskDialog({ writing, setWriting: onWriting });
   const [said, say] = useSaid();
   const { open, current } = dialog;
+  // The own estimate is updated first: the step runs, and the risk it read again stands in for the
+  // listed one until the page read anew brings a newer one.
+  const [stepping, setStepping] = useState(false);
+  const [fresh, setFresh] = useState<Risk>();
+  const [dismissing, setDismissing] = useState(false);
+  const updated = fresh !== undefined && fresh.lock_version >= listed.lock_version;
+  const risk = updated ? fresh : listed;
+  const offer = findOffer(listed.available_commands, "review");
+  const { late, pruned } = lateOf(offer);
+  const chained = late && !updated;
+  const press = () => {
+    if (dialog.writing) {
+      return;
+    }
+    setDismissing(false);
+    if (chained) {
+      setStepping(true);
+    } else {
+      dialog.opening();
+    }
+  };
   return (
     <Reactivations reads={[]}>
       <div className="flex flex-wrap items-start gap-2">
         <Status said={said} />
         <OpensForm
-          offer={findOffer(risk.available_commands, "review")}
+          offer={late ? PRESSABLE : offer}
           label={t("review")}
           help={helps("reviewRisk.help")}
           icon={<RefreshCw aria-hidden="true" />}
           writing={dialog.writing}
           trigger={dialog.trigger}
-          onOpen={dialog.opening}
+          onOpen={press}
         />
       </div>
+      {stepping ? (
+        <OwnEstimateStep
+          projectId={projectId}
+          revisionId={revisionId}
+          risk={listed}
+          pruned={pruned}
+          onReady={(read) => {
+            setStepping(false);
+            if (read !== undefined) {
+              setFresh(read);
+              onAnswered(read);
+            }
+            dialog.opening();
+          }}
+          onClose={() => {
+            setStepping(false);
+          }}
+          onSkip={() => {
+            setStepping(false);
+            setDismissing(true);
+            dialog.opening();
+          }}
+        />
+      ) : null}
       {open === undefined ? null : (
         <ReviewForm
           key={open}
           projectId={projectId}
           risk={risk}
+          updated={updated}
+          dismissing={dismissing}
           categories={options?.categories ?? []}
           onDone={(answer) => {
             onAnswered(answer);
