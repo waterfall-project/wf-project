@@ -185,6 +185,18 @@ Ouverts au cadrage du 2026-11-21, avec les issues de l'EPIC :
 - #4566 — contrat : `createRevision` déclare le refus d'une tâche sans heure travaillée
 - #4567 — contrat : `updateResourceRole` déclare les refus du redatage
 
+Relevés à la livraison, arbitrés le 2026-11-23 :
+
+- #4749 — back : une tâche suivie d'une durée écoulée qui atteint la fin du jour est critique malgré
+  un jeu apparent — écarté, la marge reste nulle ; l'écart est dit dans la conception (« Durée
+  écoulée »)
+- #4777 — front : deux tests de la ligne de marque disent plus qu'ils ne prouvent — reporté → EP-34,
+  au prochain lot qui touche `folded-runs.dom.test.tsx`
+- #4788 — back : le changement de catégorie d'un rôle ne rechiffre pas les révisions en cours —
+  reporté → EP-35, à vérifier d'abord par un test de service
+- #4789 — back : aucun test ne couvre le 409 du code tenu à la mise à jour d'un rôle, avant et après
+  le redatage — reporté → EP-35, qui touche `resource_roles.py`
+
 ## Conception
 
 Écrite le 2026-11-21, contre `main` (12a58bc27) et `epic/EP-08` (99d036957), dont EP-32 part une
@@ -253,6 +265,13 @@ voulu — une inscription suit la lignée d'une révision à l'autre.
 - *Durée écoulée.* `latest_start` cherche le dernier départ du jour dont la fin placée tient encore
   le compte, au lieu de la première heure du jour (BPL-03). `entries.finish_after` borne la fin
   d'une tâche manuelle à durée écoulée par `calendar.bounded`, comme `placed` (BPL-08).
+  Écart retenu (#4749, arbitré le 2026-11-23) : une tâche suivie d'une durée écoulée qui atteint la
+  fin du jour garde une marge nulle, et toutes deux sont critiques, malgré un jeu apparent. Sur un
+  calendrier de 8 h, A (13 h) → B (10 eh) : A finit le mardi à 5 h, B va de 5 h à 8 h ; A pourrait
+  finir jusqu'à 8 h sans retarder B, mais décalée de ces 3 h elle pousserait B au mercredi. Ce jeu
+  est une borne qu'aucun décalage n'atteint, non une marge : la marge reste nulle, et l'invariant
+  des exemples (#2832) tient — une tâche décalée de sa marge laisse la fin du projet inchangée.
+  Écarté : une marge « strictement inférieure à » pour ces durées.
 - *Conflits.* `conflicts` juge chaque feuille manuelle sous le successeur d'une liaison, comme
   `place` et `backward` le font ; `LinkConflict` porte la tâche manuelle en cause, qui est le
   successeur quand celui-ci est une feuille.
