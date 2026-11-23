@@ -7,7 +7,7 @@
     "creates_current_revision": false,
     "differences": [
       {"change":"kept","target":"task","lineage_id":"01926f3a-7c00-7000-8000-000000000665","label":"Mise en service","predecessor_label":null,"fields":[]},
-      {"change":"removed","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000683","label":"Provision — Mise en service par l'automaticien du client","predecessor_label":null,"fields":[]}
+      {"change":"removed","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000688","label":"Provision — Mise en service par l'automaticien du client","predecessor_label":null,"fields":[]}
     ],
     "completed_tasks": [
       {"lineage_id":"01926f3a-7c00-7000-8000-000000000665","label":"Mise en service","completed_on":null}

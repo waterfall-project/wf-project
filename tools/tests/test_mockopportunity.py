@@ -95,7 +95,7 @@ def test_the_opportunity_has_a_negative_severity_and_a_provision_of_nought() -> 
     assert Decimal(opportunity["severity"]) < 0
     assert opportunity["provision_amount"] == "0.00"
     assert opportunity["trend"] == NEW
-    assert opportunity["provision_node_id"] == universe(583)
+    assert opportunity["provision_node_id"] == universe(588)
     assert witness == mockhistory.readings()["risks"]["items"]
 
 

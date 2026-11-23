@@ -27,7 +27,7 @@ WF-IND-0140); its cost at occurrence is negative, and the coverage counts it as 
 - ``risk_coverage_opportunity``, the coverage then, the negative cost at occurrence of the
   opportunity offsetting that of 752 (WF-RIS-0050).
 
-Its structure 217 and its line of provision 583 are read by no other example.
+Its structure 217 and its line of provision 588 are read by no other example.
 """
 
 from dataclasses import replace
@@ -85,10 +85,10 @@ OPPORTUNITY = Risk(
         Review(STUDIES_STARTED.instant, PROBABILITY, Decimal("0.00")),
         Review(STUDIES_STARTED.instant, PROBABILITY, severity()),
     ),
-    provision_line=583,
+    provision_line=588,
 )
 """The opportunity: declared on 2 March at 50 %, its own estimate then entered, which abandons the
-commissioning; its line of provision 583, of nought, on the first task of the first level."""
+commissioning; its line of provision 588, of nought, on the first task of the first level."""
 
 OCCURRED_TODAY = replace(
     OPPORTUNITY,
