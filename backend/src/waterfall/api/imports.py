@@ -252,13 +252,18 @@ def _report(view: ImportView) -> dict[str, Any] | None:
 
 
 def detailed(session: Session, view: ImportView) -> ImportDetail:
-    """Describe an import as reading it does: with its report, its last task and its commands."""
-    task = session.get_one(BackgroundTask, view.task_id)
+    """Describe an import as reading it does: with its report, its last task and its commands.
+
+    The task is read, not required: the purge of the background tasks deletes one at the end of the
+    retention of its result, and an import of the witness never had one, so ``task`` is null for
+    either (WF-DAT-0080-A, US-3250).
+    """
+    task = None if view.task_id is None else session.get(BackgroundTask, view.task_id)
     return ImportDetail.model_validate(
         {
             **_listed(view),
             "report": _report(view),
-            "task": task_ref(task),
+            "task": None if task is None else task_ref(task),
             "available_commands": _commands(view),
         }
     )

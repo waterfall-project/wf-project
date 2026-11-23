@@ -7,7 +7,10 @@ its report in codes and parameters (``ImportReport``), the last background task 
 and, for a planning of MS Project in calendar gap, the rule its durations are converted by
 (``duration_rule``, US-2000; null otherwise).
 A deposit serves one import; the report outlives the file, which the purge or the abandonment
-deletes (WF-DAT-0120). It is deleted at its expiry or its abandonment, and with the structure it
+deletes (WF-DAT-0120). The purge deletes its row, report included, in the pass that finds the
+import ``analysed`` with its report expired, or ``abandoned`` (WF-DAT-0080-A, US-3250): the state
+``expired`` is read and never written, and an import ``applied``, ``failed`` or ``refused`` stays,
+the journal of the imports and the costs naming it. It is deleted as well with the structure it
 aims at or the revision it writes in (``CASCADE``, US-3060): the structure of the current revision,
 or of the last marked one when there is no current revision yet, and that revision is null then.
 The cascade takes the report alone: the file stays, and goes with the sweep of the purge once the

@@ -35,6 +35,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import defer
 
 from waterfall.core.exchanges import running
 from waterfall.core.exchanges.judgments import (
@@ -622,7 +623,9 @@ def _read(session: Session, row: ImportReport, now: datetime) -> str:
 def _view(session: Session, row: ImportReport, viewer: Viewer | None, read: str) -> ImportView:
     """Describe an import as it is ``read``, with the commands of ``viewer`` if one is given.
 
-    The commands are listed to the holder of the permission of the kind (WF-IHM-0090).
+    The commands are listed to the holder of the permission of the kind (WF-IHM-0090). Without a
+    ``viewer``, as in a list, the report is not read — the row was loaded without it — and the view
+    carries none (US-3250).
     """
     commands: tuple[CommandAvailability, ...] = ()
     form = _format_named(row.kind)
@@ -643,7 +646,7 @@ def _view(session: Session, row: ImportReport, viewer: Viewer | None, read: str)
         status=read,
         created_at=row.created_at,
         expires_at=expiry_read(read, row.expires_at),
-        report=row.report,
+        report=None if viewer is None else row.report,
         task_id=row.task_id,
         commands=commands,
     )
@@ -668,7 +671,8 @@ def list_imports(
     """List a page of the imports of a project, the latest opened first (``listImports``).
 
     Only the imports of the kinds ``viewer`` consults are listed, and counted (#2473). Each is read
-    as ``getImport`` reads it, its expiry and the end of its task judged at ``now``.
+    as ``getImport`` reads it, its expiry and the end of its task judged at ``now``; its report is
+    not loaded, a list not saying it (US-3250).
     """
     limit, offset = page.limit, page.offset
     kinds = [kind for kind in formats() if _readable(kind, viewer)]
@@ -676,6 +680,7 @@ def list_imports(
     total = session.scalar(select(func.count()).select_from(ImportReport).where(kept)) or 0
     rows = session.execute(
         select(ImportReport, BackgroundTask.status)
+        .options(defer(ImportReport.report))
         .outerjoin(BackgroundTask, BackgroundTask.id == ImportReport.task_id)
         .where(kept)
         .order_by(ImportReport.created_at.desc(), ImportReport.id.desc())

@@ -11,16 +11,16 @@ each write of the chronology that concerns the actual costs (EP-09, "Le chargeur
   (``load_cost_import``); then the lines it created or updated (``load_cost_lines``), each imputed
   by the service to the subproject its code names, or to the project alone;
 - a line excluded (``cost_line_excluded``): the line of its document and its item taken out of the
-  tracked scope for its reason (``load_exclusion``);
-- an extraction expired (``import_expired``): the import of the exchanges, analysed, expired the
-  day after without being applied (``load_import``).
+  tracked scope for its reason (``load_exclusion``).
+
+No extraction expired is loaded: the purge deletes an import expired in the pass that finds it so
+(WF-DAT-0080-A, US-3250), and ``imports.json`` lists none.
 
 Each at the identifiers of ``witness_costs.json`` — written by ``make mock-data`` beside the
 examples, read here by a model of its own, strict, without importing ``wftools`` — and the instant
 of its event, the project manager of the witness for account: an import is requested by an
 account, which the platform is not. The instants and the files of the imports of the exchanges are
-those ``imports.json`` lists, the report of the extraction expired that of
-``import_actual_costs_analysed.json``; a description whose files disagree with the chronology
+those ``imports.json`` lists; a description whose files disagree with the chronology
 stops the command, nothing written. The amounts and the imputations are those the service computes:
 the computed becomes the expected. Nothing is loaded for the remaining to commit: the copy of the
 revision 102 from the reference 101 gives it.
@@ -29,7 +29,7 @@ revision 102 from the reference 101 gives it.
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
@@ -44,7 +44,7 @@ from waterfall.core.costs.interface import (
 )
 from waterfall.core.exchanges.interface import ImportLoad, load_import
 from waterfall.platform.audit import Act
-from waterfall.witness.timeline import CostImportApplied, CostLineExcluded, ImportExpired
+from waterfall.witness.timeline import CostImportApplied, CostLineExcluded
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -53,7 +53,6 @@ if TYPE_CHECKING:
 
 COSTS_FILE = "witness_costs.json"
 IMPORTS_FILE = "imports.json"
-EXPIRED_FILE = "import_actual_costs_analysed.json"
 ACTUAL_COSTS = "actual_costs"
 
 type Count = Annotated[int, Field(ge=0)]
@@ -136,20 +135,18 @@ class Imports(BaseModel):
 
 @dataclass(frozen=True, slots=True)
 class Costs:
-    """What the slice reads of the description: the costs, the imports listed, the one expired."""
+    """What the slice reads of the description: the costs and the imports listed."""
 
     costs: WitnessCosts
     listed: dict[UUID, Import]
-    expired: Import
 
     @classmethod
     def read(cls, witness: Witness) -> Costs:
-        """Read the three files of the description the slice writes from."""
+        """Read the two files of the description the slice writes from."""
         listed = witness.read(IMPORTS_FILE, Imports).items
         return cls(
             witness.read(COSTS_FILE, WitnessCosts),
             {item.import_id.root: item for item in listed},
-            witness.read(EXPIRED_FILE, Import),
         )
 
     def entry(self, cost_import_id: UUID) -> CostImportEntry:
@@ -168,11 +165,11 @@ class Costs:
         message = f"the chronology names a line {document} {item} that {COSTS_FILE} does not"
         raise ValueError(message)
 
-    def listing(self, import_id: UUID, status: Literal["applied", "expired"]) -> Import:
-        """Give an import of the exchanges as ``imports.json`` lists it, in its state; or refuse."""
+    def listing(self, import_id: UUID) -> Import:
+        """Give an import of the exchanges as ``imports.json`` lists it, applied; or refuse."""
         found = self.listed.get(import_id)
-        if found is None or found.kind.value != ACTUAL_COSTS or found.status.value != status:
-            message = f"{IMPORTS_FILE} lists no import {import_id} of actual costs {status}"
+        if found is None or found.kind.value != ACTUAL_COSTS or found.status.value != "applied":
+            message = f"{IMPORTS_FILE} lists no import {import_id} of actual costs applied"
             raise ValueError(message)
         return found
 
@@ -193,7 +190,6 @@ def _import(listed: Import, project_id: UUID, report: dict[str, object]) -> Impo
         project_id=project_id,
         kind=ACTUAL_COSTS,
         filename=listed.filename,
-        status="applied" if listed.status.value == "applied" else "expired",
         period_from=period_from,
         period_to=period_to,
         report=report,
@@ -224,9 +220,7 @@ class CostWrite:
         return Act(self.account, self.at)
 
 
-def check(
-    costs: Costs, made: CostImportApplied | CostLineExcluded | ImportExpired, at: datetime
-) -> None:
+def check(costs: Costs, made: CostImportApplied | CostLineExcluded, at: datetime) -> None:
     """Refuse a write of the costs the description disagrees with, before anything is written.
 
     The march of the events checks every write of the costs this way before its first event
@@ -239,15 +233,12 @@ def check(
             _expiry(listed)
         case CostLineExcluded():
             _excluded(costs, made, at)
-        case ImportExpired():
-            listed, _ = _expired(costs, made.import_id)
-            _expiry(listed)
 
 
 def write(
     session: Session,
     costs: Costs,
-    made: CostImportApplied | CostLineExcluded | ImportExpired,
+    made: CostImportApplied | CostLineExcluded,
     at: CostWrite,
 ) -> None:
     """Make a write of the chronology that concerns the actual costs, at its event's instant."""
@@ -256,8 +247,6 @@ def write(
             _apply(session, costs, made.cost_import_id, at)
         case CostLineExcluded():
             _exclude(session, costs, made, at)
-        case ImportExpired():
-            _expire(session, costs, made.import_id, at)
 
 
 def _applied(
@@ -268,7 +257,7 @@ def _applied(
     if entry.imported_at != at:
         message = f"the import of costs {cost_import_id} is not applied at its event"
         raise ValueError(message)
-    listed = costs.listing(entry.import_id, "applied")
+    listed = costs.listing(entry.import_id)
     if (listed.filename, _period(listed)) != (entry.filename, (entry.period_from, entry.period_to)):
         message = f"{IMPORTS_FILE} and {COSTS_FILE} disagree on the import {entry.import_id}"
         raise ValueError(message)
@@ -321,18 +310,3 @@ def _exclude(session: Session, costs: Costs, made: CostLineExcluded, at: CostWri
     """Take a line out of the tracked scope at the instant of its event, for its reason."""
     line = _excluded(costs, made, at.at)
     load_exclusion(session, at.project_id, line.cost_line_id, made.reason, at.act)
-
-
-def _expired(costs: Costs, import_id: UUID) -> tuple[Import, dict[str, object]]:
-    """Give the extraction the chronology expires, listed, and its report; or refuse the files."""
-    if costs.expired.import_id.root != import_id:
-        message = f"{EXPIRED_FILE} is not the import {import_id} the chronology expires"
-        raise ValueError(message)
-    listed = costs.listing(import_id, "expired")
-    return listed, _report(costs.expired.report, EXPIRED_FILE)
-
-
-def _expire(session: Session, costs: Costs, import_id: UUID, at: CostWrite) -> None:
-    """Write an extraction analysed at the instant of its event, expired without being applied."""
-    listed, report = _expired(costs, import_id)
-    load_import(session, _import(listed, at.project_id, report), at.act)

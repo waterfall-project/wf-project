@@ -84,7 +84,6 @@ from waterfall.witness.timeline import (
     CostImportApplied,
     CostLineExcluded,
     DesignationAttempted,
-    ImportExpired,
     ProjectCreated,
     RateUpdateApplied,
     RevisionMarked,
@@ -237,7 +236,7 @@ class _Walk:
                 self._enter(write, act)
             case StateTransition():
                 self._check(write, event)
-            case CostImportApplied() | CostLineExcluded() | ImportExpired():
+            case CostImportApplied() | CostLineExcluded():
                 self._cost(write, act)
 
     def check(self) -> None:
@@ -247,7 +246,7 @@ class _Walk:
         was refused only once the whole witness before them had been written, then rolled back.
         """
         for event, write in timeline.read(self.witness).writes():
-            if isinstance(write, CostImportApplied | CostLineExcluded | ImportExpired):
+            if isinstance(write, CostImportApplied | CostLineExcluded):
                 if self.costs is None:
                     self.costs = costs.Costs.read(self.witness)
                 costs.check(self.costs, write, timeline.at(self.witness, event.occurred_at).at)
@@ -397,7 +396,7 @@ class _Walk:
             raise ValueError(message)
         return name, revision.description
 
-    def _cost(self, write: CostImportApplied | CostLineExcluded | ImportExpired, act: Act) -> None:
+    def _cost(self, write: CostImportApplied | CostLineExcluded, act: Act) -> None:
         """Make a write of the actual costs at its instant, by the project manager (EP-09).
 
         An import is requested by an account, which the platform is not: the manager of the

@@ -256,20 +256,15 @@ def test_each_import_of_the_journal_is_applied_by_an_event_of_the_chronology() -
     assert hex_identifier(0xC11) == applied[0][1]
 
 
-def test_the_replayed_extraction_of_april_expires_in_the_chronology() -> None:
-    # The re-extraction of 2 June, analysed and expired the day after, is an import of the exchanges
-    # that was never applied (imports.json); its event writes import_expired.
+@pytest.mark.requirement("WF-DAT-0080-A")
+def test_the_replayed_extraction_of_april_writes_nothing_and_no_list_keeps_it() -> None:
+    # The re-extraction of 2 June, analysed and expired the day after, is deleted by the purge in
+    # the pass that finds it expired: its event keeps its place and writes nothing, and no import
+    # of imports.json is expired or abandoned (US-3250).
     [event] = [event for event in _events() if event["what"].startswith("Extraction d'avril")]
-    [write] = event["writes"]
-    assert write == {
-        "kind": "import_expired",
-        "project": "PRJ-001",
-        "import_id": module.expired_exchange_id(),
-    }
-    expired = next(item for item in _read("imports.json")["items"] if item["status"] == "expired")
-    assert expired["import_id"] == write["import_id"]
-    assert expired["kind"] == "actual_costs"
-    assert expired["import_id"] not in {entry["import_id"] for entry in _imports()}
+    assert event["writes"] == []
+    statuses = {item["status"] for item in _read("imports.json")["items"]}
+    assert not statuses & {"expired", "abandoned"}
 
 
 def test_the_amounts_of_the_lines_total_those_of_the_consultation() -> None:

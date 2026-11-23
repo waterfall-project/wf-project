@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+from costs_support import load_import
 from fastapi.testclient import TestClient
 from imports_trial import (
     TrialFormat,
@@ -24,6 +25,7 @@ from imports_trial import (
     deposited,
     import_worker,
     opened,
+    path,
     read,
     refusal,
     stand_in,
@@ -31,11 +33,12 @@ from imports_trial import (
 )
 from projects_support import Scene
 from projects_support import scene as make_scene
-from sqlalchemy import insert, select, update
+from sqlalchemy import insert, select, text, update
 from support import ContractClient, wait_for_a_lock
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.costs.tables import CostImport
 from waterfall.core.exchanges.interface import (
     Purged,
     head_to_read,
@@ -172,9 +175,31 @@ def deposit_row_exists(database: Database, key: str) -> bool:
         return session.scalar(select(FileUpload.id).where(FileUpload.object_key == key)) is not None
 
 
+def listed(api: ContractClient, stage: Scene) -> dict[str, Any]:
+    """Read the list of the imports of the project as its manager does."""
+    response = api.get(path(stage), headers=stage.manager.headers)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def abandon(api: ContractClient, stage: Scene, import_id: str) -> Any:
+    """Abandon an import as its manager does; give the answer."""
+    return api.delete(path(stage, import_id), headers=stage.manager.headers)
+
+
+def unknown_after_the_purge(api: ContractClient, stage: Scene, import_id: str) -> None:
+    """Check that the three operations on an import answer 404, and the list says nothing of it."""
+    headers = stage.manager.headers
+    assert api.get(path(stage, import_id), headers=headers).status_code == 404
+    assert apply(api, stage, import_id).status_code == 404
+    assert abandon(api, stage, import_id).status_code == 404
+    found = listed(api, stage)
+    assert import_id not in [each["import_id"] for each in found["items"]]
+
+
 @pytest.mark.requirement("WF-ARC-0100-A")
 @pytest.mark.usefixtures("trial")
-def test_the_purge_passes_an_expired_report_expired_and_deletes_its_file(
+def test_an_expired_report_is_read_expired_until_the_purge_that_deletes_it_and_its_file(
     api: ContractClient,
     stage: Scene,
     worker: Worker,
@@ -182,18 +207,100 @@ def test_the_purge_passes_an_expired_report_expired_and_deletes_its_file(
     backups_bucket: Bucket,
 ) -> None:
     # « Un compte rendu expiré ne peut plus être appliqué, et son fichier n'est plus sur le
-    # stockage objet. » : the report is read expired at once; the purge writes it and deletes the
-    # file, never to be applied.
+    # stockage objet. » : the report is read expired at once, applied no more, abandoned with a 204
+    # as before; the purge deletes its row, its report with it, and its file in the pass that finds
+    # it expired, and the import is unknown (404) to the three operations, absent from the list.
     import_id = analysed(api, stage, worker)["import_id"]
     key = stored(database, import_id).object_key
     assert backups_bucket.size(key) is not None
-    purged_at(database, backups_bucket, utc_now() + LATER)
-    row = stored(database, import_id)
-    assert row.status == "expired"
-    assert backups_bucket.size(key) is None
-    found = read(api, stage, import_id)
-    assert found["status"] == "expired"
+    with database.transaction() as session:
+        session.execute(
+            update(ImportReport)
+            .where(ImportReport.id == UUID(import_id))
+            .values(expires_at=utc_now() - timedelta(minutes=1))
+        )
+    assert read(api, stage, import_id)["status"] == "expired"
     assert refusal(apply(api, stage, import_id))[:2] == (409, "STATE_FORBIDS_OPERATION")
+    assert listed(api, stage)["meta"]["total"] == 1
+    assert abandon(api, stage, import_id).status_code == 204
+    # The state ``expired`` is read, never written: the row stays ``analysed`` until the purge.
+    assert stored(database, import_id).status == "analysed"
+    gone = purged_at(database, backups_bucket, utc_now())
+    assert key in gone.objects
+    with database.transaction() as session:
+        assert session.get(ImportReport, UUID(import_id)) is None
+    assert backups_bucket.size(key) is None
+    unknown_after_the_purge(api, stage, import_id)
+    assert listed(api, stage)["meta"]["total"] == 0
+
+
+@pytest.mark.requirement("WF-ARC-0100-A")
+@pytest.mark.usefixtures("trial")
+def test_an_abandoned_import_stays_abandoned_until_the_purge_deletes_its_row(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    database: Database,
+    backups_bucket: Bucket,
+) -> None:
+    # « Après l'abandon […], cet import ne peut plus être appliqué, et son fichier n'est plus sur le
+    # stockage objet » : the abandon writes ``abandoned`` and deletes the file; abandoning again
+    # answers 204 (#1789) until the next pass of the purge, which deletes the row; then 404.
+    import_id = analysed(api, stage, worker)["import_id"]
+    key = stored(database, import_id).object_key
+    assert abandon(api, stage, import_id).status_code == 204
+    assert backups_bucket.size(key) is None
+    assert read(api, stage, import_id)["status"] == "abandoned"
+    assert abandon(api, stage, import_id).status_code == 204
+    purged_at(database, backups_bucket, utc_now())
+    with database.transaction() as session:
+        assert session.get(ImportReport, UUID(import_id)) is None
+    unknown_after_the_purge(api, stage, import_id)
+
+
+@pytest.mark.requirement("WF-DAT-0080-A")
+@pytest.mark.usefixtures("trial")
+def test_the_purge_keeps_the_imports_applied_failed_and_refused_even_past_their_term(
+    api: ContractClient,
+    stage: Scene,
+    database: Database,
+    backups_bucket: Bucket,
+) -> None:
+    # « un compte rendu d'import […] expirés » go; an import applied, failed or refused stays, the
+    # journal of the imports names it, and a line of costs may (#4425): the three survive a purge
+    # a day and an hour on, each at its state, and are still listed.
+    kept = {status: opened(api, stage)["import_id"] for status in ("applied", "failed", "refused")}
+    term = utc_now() - timedelta(days=2)
+    with database.transaction() as session:
+        for status, import_id in kept.items():
+            session.execute(
+                update(ImportReport)
+                .where(ImportReport.id == UUID(import_id))
+                .values(status=status, expires_at=term if status == "applied" else None)
+            )
+    purged_at(database, backups_bucket, utc_now() + LATER)
+    for status, import_id in kept.items():
+        assert stored(database, import_id).status == status
+        assert read(api, stage, import_id)["status"] == status
+    assert listed(api, stage)["meta"]["total"] == 3
+
+
+@pytest.mark.requirement("WF-DAT-0080-A")
+def test_the_purge_keeps_an_applied_import_a_cost_import_names(
+    stage: Scene, database: Database, backups_bucket: Bucket
+) -> None:
+    # The journal of the costs names the import that applied it, its key restricting the deletion:
+    # an import applied is never a row the purge deletes, past its term or not.
+    project_id = UUID(stage.project["project_id"])
+    cost_import = load_import(stage, project_id, [])
+    with database.transaction() as session:
+        report_id = session.scalars(
+            select(CostImport.import_report_id).where(CostImport.id == cost_import)
+        ).one()
+    purged_at(database, backups_bucket, utc_now() + LATER)
+    assert stored(database, str(report_id)).status == "applied"
+    with database.transaction() as session:
+        assert session.get(CostImport, cost_import) is not None
 
 
 @pytest.mark.requirement("WF-DAT-0120-A")
@@ -223,7 +330,7 @@ def test_the_purge_ends_an_import_whose_task_failed_without_a_trace_and_deletes_
 ) -> None:
     # « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration » : an import
     # read ``failed`` — its attempts spent by a worker stopped each time — and never abandoned
-    # keeps its file until the purge (#2479); an import abandoned is left as it is.
+    # keeps its file until the purge (#2479); an import abandoned goes with its row (US-3250).
     failing = opened(api, stage)["import_id"]
     abandoned = opened(api, stage)["import_id"]
     running = opened(api, stage)["import_id"]
@@ -247,7 +354,8 @@ def test_the_purge_ends_an_import_whose_task_failed_without_a_trace_and_deletes_
     ended = stored(database, failing)
     assert (ended.status, ended.expires_at) == ("failed", None)
     assert backups_bucket.size(keys[failing]) is None
-    assert stored(database, abandoned).status == "abandoned"
+    with database.transaction() as session:
+        assert session.get(ImportReport, UUID(abandoned)) is None
     assert stored(database, running).status == "analysing"
     assert backups_bucket.size(keys[running]) is not None
 
@@ -395,6 +503,27 @@ def test_the_purge_marks_consumed_the_exports_of_more_than_a_day_and_deletes_the
         "media_type": "application/xml",
         "consumed": True,
     }
+
+
+@pytest.mark.story("US-3250")
+def test_the_purge_neither_reads_nor_locks_an_export_already_consumed(
+    database: Database, backups_bucket: Bucket
+) -> None:
+    # An export whose result is consumed is not a row of the pass: another transaction holding its
+    # row does not make the purge wait, where one holding an export to mark would.
+    now = utc_now()
+    key = f"exports/{uuid4()}.xml"
+    backups_bucket.put(key, b"<Project/>")
+    consumed = export_task(database, key, now - timedelta(hours=30), consumed=True)
+    with database.transaction() as holder:
+        holder.scalars(
+            select(BackgroundTask).where(BackgroundTask.id == consumed).with_for_update()
+        ).all()
+        with database.transaction() as session:
+            session.execute(text("SET LOCAL lock_timeout = '1s'"))
+            gone = purge(session, now)
+    assert gone.objects == ()
+    assert backups_bucket.size(key) is not None
 
 
 @pytest.mark.requirement("WF-DAT-0120-A")

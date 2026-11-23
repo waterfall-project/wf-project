@@ -445,7 +445,6 @@ class _Writing:
                 project_id=project_id,
                 kind=ACTUAL_COSTS,
                 filename=f"{lines[0].document_number}.xlsx",
-                status="applied",
                 period_from=first,
                 period_to=last,
                 report=_report(imported),
