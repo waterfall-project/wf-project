@@ -43,6 +43,23 @@ const OWN_ESTIMATE = new Set<string>(["own_estimate_whole", "own_estimate_up_to_
 /** The offer of a command made available, which the step leaves the user to press. */
 export const PRESSABLE: CommandOffer = { is_available: true, missing_conditions: [] };
 
+/**
+ * Whether the listing of the risk has announced its command available since the own estimate was
+ * updated, `stamp` naming that update (none before one). The update is held as made until then, the
+ * listing read anew not yet saying so; once it has, a listing that says the own estimate late again —
+ * the main structure having moved, the risk keeping the counter it had — is a new lateness, which the
+ * update made before does not cover.
+ */
+export function useListedSince(stamp: object | undefined, late: boolean): boolean {
+  const [seen, setSeen] = useState<object>();
+  const caught = stamp !== undefined && seen === stamp;
+  if (stamp !== undefined && !late && !caught) {
+    // Adjusted while rendering, as React admits for a state derived from the props that change.
+    setSeen(stamp);
+  }
+  return caught;
+}
+
 /** What a command lacks of its own estimate, when that is all it lacks. */
 export interface Lateness {
   /** Whether the command lacks the own estimate, and nothing else. */

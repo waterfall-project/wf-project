@@ -298,6 +298,78 @@ describe("« Déclarer survenu » devant un devis propre en retard [US-3140] [WF
   });
 });
 
+describe("les commandes devant un devis propre en retard : focus, aide et retard retrouvé [US-3140] [WF-RIS-0070-A]", () => {
+  it("offre « Déclarer survenu » comme une commande qui ouvre l'étape, avec son aide, sa région et son état", async () => {
+    serve({ ...CLEAN, [REPORT]: { example: "structure_rebase_report_risk_refused", status: 200 } });
+    render(detail(LATE));
+    const command = screen.getByRole("button", { name: "Déclarer survenu" });
+    expect(command).toHaveAttribute("aria-expanded", "false");
+    await userEvent.hover(command);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(/survenu/i);
+    await userEvent.click(command);
+    const step = await screen.findByRole("region", { name: "Mise à jour du devis propre" });
+    expect(command).toHaveAttribute("aria-expanded", "true");
+    expect(command.getAttribute("aria-controls")).toBe(step.id);
+  });
+
+  it("rend le focus à « Déclarer survenu » quand l'étape est fermée", async () => {
+    serve({ ...CLEAN, [REPORT]: { example: "structure_rebase_report_risk_refused", status: 200 } });
+    render(detail(LATE));
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer survenu" }));
+    const step = await screen.findByRole("region", { name: "Mise à jour du devis propre" });
+    await userEvent.click(within(step).getByRole("button", { name: "Fermer" }));
+    expect(screen.queryByRole("region", { name: "Mise à jour du devis propre" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Déclarer survenu" })).toHaveFocus();
+  });
+
+  it("rend le focus à « Réexaminer » quand l'étape est fermée", async () => {
+    const client = serve(CLEAN);
+    render(detail(LATE));
+    await userEvent.click(screen.getByRole("button", { name: "Réexaminer" }));
+    const step = await screen.findByRole("region", { name: "Mise à jour du devis propre" });
+    await userEvent.click(within(step).getByRole("button", { name: "Fermer" }));
+    expect(screen.queryByRole("region", { name: "Mise à jour du devis propre" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Réexaminer" })).toHaveFocus();
+    expect(client.calls).toHaveLength(0);
+  });
+
+  it("remet à jour un devis propre redevenu en retard sans que le compteur du risque change : « Déclarer survenu »", async () => {
+    const client = serve({
+      ...CLEAN,
+      [OCCURRENCE_REPORT]: { example: "risk_occurrence_report_abandoned_task", status: 200 },
+    });
+    const view = render(detail(LATE));
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer survenu" }));
+    await screen.findByRole("form", { name: "Déclarer survenu" });
+    // The page read anew lists the command available, then the own estimate late again, the risk
+    // keeping the counter it was updated at.
+    view.rerender(detail(IDENTIFIED));
+    view.rerender(detail(lacking(["own_estimate_up_to_date"], IDENTIFIED.lock_version)));
+    const command = await screen.findByRole("button", { name: "Déclarer survenu" });
+    expect(screen.queryByRole("form", { name: "Déclarer survenu" })).toBeNull();
+    await userEvent.click(command);
+    await vi.waitFor(() => {
+      expect(client.calls.filter((call) => call.route === REPORT)).toHaveLength(2);
+    });
+  });
+
+  it("remet à jour un devis propre redevenu en retard sans que le compteur du risque change : « Réexaminer »", async () => {
+    const client = serve({ ...CLEAN, [REVIEW]: { example: "risk_reviewed", status: 201 } });
+    const view = render(detail(LATE));
+    await reviewAndUpdate();
+    const form = await screen.findByRole("dialog");
+    await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+    view.rerender(detail(IDENTIFIED));
+    view.rerender(detail(lacking(["own_estimate_up_to_date"], IDENTIFIED.lock_version)));
+    await userEvent.click(screen.getByRole("button", { name: "Réexaminer" }));
+    expect(
+      await screen.findByRole("region", { name: "Mise à jour du devis propre" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(client.calls.filter((call) => call.route === REPORT)).toHaveLength(1);
+  });
+});
+
 describe("le détail d'un risque survenu [US-3140] [WF-RIS-0050-A]", () => {
   it("présente son coût à la survenance, signé, et en regard ce qu'il coûte aujourd'hui", () => {
     const occurred: Risk = {

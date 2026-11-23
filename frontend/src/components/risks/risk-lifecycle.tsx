@@ -31,20 +31,20 @@
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 
 import { declareRiskOccurrence, deleteRisk } from "@/api/actions/risks";
 import type { components } from "@/api/generated/schema";
 import type { BackgroundTask, Outcome } from "@/api/problem";
+import { Command } from "@/components/commands/command";
 import { ConfirmedCommand } from "@/components/commands/confirmed-command";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import { findOffer } from "@/components/commands/offer";
 import { DoneNotice } from "@/components/notices/done-notice";
-import { Button } from "@/components/ui/button";
 import { Following } from "@/components/tasks/following";
 
 import { type OccurrenceReport, OccurrencePanel } from "./occurrence-report";
-import { lateOf, OwnEstimateStep, PRESSABLE } from "./own-estimate-first";
+import { lateOf, OwnEstimateStep, PRESSABLE, useListedSince } from "./own-estimate-first";
 import { useRiskNavigation } from "./risk-cells";
 
 /** A risk, as the contract gives it. */
@@ -111,14 +111,20 @@ export function DeclareOccurrence({
   }, []);
   // The own estimate updated first: the counter of the risk it was updated at, the offer being the
   // one listed until the page read anew lists it available.
-  const [updatedAt, setUpdatedAt] = useState<number>();
+  const [updatedAt, setUpdatedAt] = useState<{ readonly lockVersion: number }>();
   const [stepping, setStepping] = useState(false);
+  const stepId = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
   const listed = findOffer(risk.available_commands, "declare_occurrence");
+  const { late, pruned } = lateOf(listed);
+  // The update made stands for the listing until it is read anew, and no more once it lists the own
+  // estimate late again.
+  const caught = useListedSince(updatedAt, late);
   if (listed === undefined) {
     return null;
   }
-  const { late, pruned } = lateOf(listed);
-  const updated = updatedAt !== undefined && risk.lock_version <= updatedAt;
+  const updated =
+    updatedAt !== undefined && risk.lock_version <= updatedAt.lockVersion && !(caught && late);
   const offer = late && updated ? PRESSABLE : listed;
   const read = report?.kind === "done" ? report.data : undefined;
   const run = () =>
@@ -140,27 +146,33 @@ export function DeclareOccurrence({
       estimate={estimate}
       onReady={(fresh) => {
         setStepping(false);
-        setUpdatedAt(fresh?.lock_version ?? risk.lock_version);
+        setUpdatedAt({ lockVersion: fresh?.lock_version ?? risk.lock_version });
       }}
       onClose={() => {
         setStepping(false);
+        trigger.current?.focus();
       }}
+      id={stepId}
     />
   ) : null;
   if (late && !updated) {
     return (
       <div className="space-y-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setStepping(true);
+        <Command
+          offer={PRESSABLE}
+          label={t("label")}
+          help={helps("project.declare_risk_occurrence.help")}
+          icon={commandIcon(PROJECT_COMMAND_ICONS.declare_risk_occurrence)}
+          subject={risk.label}
+          disclosure={{
+            expanded: stepping,
+            controls: stepId,
+            toggle: () => {
+              setStepping(!stepping);
+            },
+            ref: trigger,
           }}
-        >
-          {commandIcon(PROJECT_COMMAND_ICONS.declare_risk_occurrence)}
-          {t("label")}
-        </Button>
+        />
         {step}
       </div>
     );
@@ -169,7 +181,7 @@ export function DeclareOccurrence({
     <div className="space-y-2">
       {step}
       <ConfirmedCommand
-        key={updatedAt ?? "listed"}
+        key={updatedAt?.lockVersion ?? "listed"}
         initiallyOpen={updatedAt !== undefined}
         offer={offer}
         label={t("label")}

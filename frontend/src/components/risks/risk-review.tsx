@@ -46,7 +46,7 @@ import { type Draft, type FormField, ReferenceForm } from "@/components/referenc
 import { useCurrency } from "@/currency/context";
 import { editablePercent, formatMoney, percentRatio } from "@/i18n/format";
 
-import { lateOf, OwnEstimateStep, PRESSABLE } from "./own-estimate-first";
+import { lateOf, OwnEstimateStep, PRESSABLE, useListedSince } from "./own-estimate-first";
 import type { ProvisionOptions } from "./provision-choices";
 import { OpensForm, Status, useRiskDialog } from "./risk-dialog";
 
@@ -216,10 +216,14 @@ export function ReviewRisk({
   const [stepping, setStepping] = useState(false);
   const [fresh, setFresh] = useState<Risk>();
   const [dismissing, setDismissing] = useState(false);
-  const updated = fresh !== undefined && fresh.lock_version >= listed.lock_version;
-  const risk = updated ? fresh : listed;
   const offer = findOffer(listed.available_commands, "review");
   const { late, pruned } = lateOf(offer);
+  // The update made stands for the listing until it is read anew, and no more once it lists the own
+  // estimate late again.
+  const caught = useListedSince(fresh, late);
+  const updated =
+    fresh !== undefined && fresh.lock_version >= listed.lock_version && !(caught && late);
+  const risk = updated ? fresh : listed;
   const chained = late && !updated;
   const press = () => {
     if (dialog.writing) {
@@ -263,6 +267,7 @@ export function ReviewRisk({
           }}
           onClose={() => {
             setStepping(false);
+            dialog.trigger.current?.focus();
           }}
           onSkip={() => {
             setStepping(false);
