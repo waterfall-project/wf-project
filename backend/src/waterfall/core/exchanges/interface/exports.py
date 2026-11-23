@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol
 from uuid import UUID
 
 from waterfall.core.projects.interface import current_day
-from waterfall.core.revisions.interface import list_cost_structures, read_revision
+from waterfall.core.revisions.interface import MAIN, list_cost_structures, read_revision
 from waterfall.platform.database import frozen_reading, utc_now
 from waterfall.platform.errors import (
     NOT_FOUND,
@@ -60,7 +60,6 @@ EXPORT_COMMANDS: Mapping[ExportKind, tuple[str, str]] = {
 # The key of the result of a task ``export`` that says its file is gone — downloaded to the end, or
 # expired — and its link with it.
 CONSUMED = "consumed"
-MAIN = "main"
 PERMISSION_MISSING = "PERMISSION_MISSING"
 TASK_SUCCEEDED = "task_succeeded"
 # The key of the payload that names the project: not ``project_id``, which makes the project wait

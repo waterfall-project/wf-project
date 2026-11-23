@@ -127,7 +127,7 @@ describe("the objects a refusal names", () => {
       [2, "000000000527", 3, "Ingénierie de détail"],
       [9, "000000000553", 10, "Raccordement des borniers"],
       [10, "000000000554", 11, "Borniers"],
-      [11, "000000000555", 12, "Provision — risque de reprise du câblage"],
+      [11, "000000000555", 12, "Provision — Risque de reprise du câblage"],
       [15, "000000000543", 16, "Frais de relance"],
       [17, "000000000545", 18, "Affrètement"],
     ] as const;

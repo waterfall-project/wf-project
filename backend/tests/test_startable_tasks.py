@@ -61,8 +61,11 @@ FRIDAY = DAY + timedelta(days=4)
 TERMINAL = ["completed", "lost", "abandoned"]
 # The conditions, in the order of the contract, a task not started that is no milestone lacks.
 NOT_STARTED = ["task_is_milestone", "task_without_lines"]
-# The statements the Kanban takes, measured at 33; tight enough to catch one more a task.
-BOUND = 35
+# The statements the Kanban takes, measured at 35 on 2026-11-19 and again after the corrections of
+# the review (the state of a revision reads its main structure for the declaration of a risk,
+# ``has_main_task``, US-2570; #4002): a bound of 37, a margin of 2, as it has always kept — tight
+# enough to catch one more a task, which the test grows by 12.
+BOUND = 37
 
 
 @pytest.fixture
@@ -503,7 +506,7 @@ def test_the_conditions_a_card_names_are_those_the_entry_of_the_remaining_can_la
                     reference_correctable=True,
                 )
                 for command, lacking in structure_commands_of(
-                    {"remaining.write"}, kind, state, revision, main=True
+                    {"remaining.write"}, kind, state, revision, nature="main"
                 ):
                     if command == "edit_remaining":
                         found.update(lacking)
@@ -611,14 +614,14 @@ def grow(held: Review, costs: Costing, first: int, count: int) -> None:
 
 
 @pytest.mark.requirement("WF-RAE-0030-A")
-def test_a_line_is_a_provision_for_the_card_by_its_risk_not_by_its_category(
+def test_a_line_is_a_provision_for_the_card_by_its_category_not_by_its_risk(
     api: ContractClient, stage: Scene, costs: Costing
 ) -> None:
     # « Une tâche feuille démarrée sans ligne de devis est terminée depuis le Kanban. » : the card
-    # and the refusal of ``setTaskProgress`` judge a line a provision by ``origin_risk_id``
-    # (``open_lines`` judges by the category, and meets them once EP-08 gives each its risk): a
-    # line of the category of provisions without a risk holds its task, the line of a risk of an
-    # ordinary category does not.
+    # and the refusal of ``setTaskProgress`` judge a line a provision by its category, as the
+    # estimate tells, never by the risk it came from (EP-08, "Ce qui reconnaît une ligne de
+    # provision", US-2550/L1): a line of the category of provisions does not hold its task, the
+    # line an occurrence merged, of an ordinary category, does.
     def build(tree: Tree, lines: Lines) -> None:
         lines.made(tree.made("Départ"), **material(costs, "Ligne de départ", "10"))
 
@@ -635,8 +638,8 @@ def test_a_line_is_a_provision_for_the_card_by_its_risk_not_by_its_category(
         )
     put_risk(stage, line_named(held.tree, "Ligne Risque seul")["node_id"], UUID(int=3))
     columns = board(held.tree)
-    assert gestures(card_of(columns, "Catégorie seule"))[-1] == ("enter_remaining", None, True, [])
-    assert gestures(card_of(columns, "Risque seul")) == [
+    assert gestures(card_of(columns, "Risque seul"))[-1] == ("enter_remaining", None, True, [])
+    assert gestures(card_of(columns, "Catégorie seule")) == [
         ("start", "started", True, []),
         ("complete", "completed", False, ["task_is_milestone"]),
     ]

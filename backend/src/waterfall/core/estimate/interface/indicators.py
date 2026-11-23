@@ -19,7 +19,7 @@ from waterfall.core.estimate.indicating import (
     estimate_indicators_of,
     missing_rates_of,
 )
-from waterfall.core.estimate.shares import shown
+from waterfall.core.estimate.shares import distribution, share_of, shown
 from waterfall.core.revisions.interface import read_revision_for
 
 if TYPE_CHECKING:
@@ -34,8 +34,10 @@ __all__ = [
     "Figure",
     "IndicatorsAsked",
     "MissingRate",
+    "distribution",
     "estimate_indicators",
     "missing_rates",
+    "share_of",
     "shown",
 ]
 

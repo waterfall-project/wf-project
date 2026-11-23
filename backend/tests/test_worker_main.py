@@ -116,6 +116,8 @@ def test_with_its_secrets_the_worker_runs_the_kinds_it_has_a_handler_for(
         "backup_copy",
         "identity_sync",
         "revision_mark",
+        "structure_merge",
+        "risk_occurrence",
         "import_analysis",
         "import_apply",
         "export",

@@ -224,6 +224,26 @@ class CostWrite:
         return Act(self.account, self.at)
 
 
+def check(
+    costs: Costs, made: CostImportApplied | CostLineExcluded | ImportExpired, at: datetime
+) -> None:
+    """Refuse a write of the costs the description disagrees with, before anything is written.
+
+    The march of the events checks every write of the costs this way before its first event
+    (``witness.revisions``): a description that strays stops the command at once, not after the
+    whole chronology up to the costs has been written and rolled back. ``at`` the event's instant.
+    """
+    match made:
+        case CostImportApplied():
+            _, listed, _ = _applied(costs, made.cost_import_id, at)
+            _expiry(listed)
+        case CostLineExcluded():
+            _excluded(costs, made, at)
+        case ImportExpired():
+            listed, _ = _expired(costs, made.import_id)
+            _expiry(listed)
+
+
 def write(
     session: Session,
     costs: Costs,
@@ -240,17 +260,24 @@ def write(
             _expire(session, costs, made.import_id, at)
 
 
-def _apply(session: Session, costs: Costs, cost_import_id: UUID, at: CostWrite) -> None:
-    """Write an import applied: its import of the exchanges, its entry, the lines it brought."""
+def _applied(
+    costs: Costs, cost_import_id: UUID, at: datetime
+) -> tuple[CostImportEntry, Import, dict[str, object]]:
+    """Give an import applied at an instant, its listing and its report; or refuse the files."""
     entry = costs.entry(cost_import_id)
-    if entry.imported_at != at.at:
+    if entry.imported_at != at:
         message = f"the import of costs {cost_import_id} is not applied at its event"
         raise ValueError(message)
     listed = costs.listing(entry.import_id, "applied")
     if (listed.filename, _period(listed)) != (entry.filename, (entry.period_from, entry.period_to)):
         message = f"{IMPORTS_FILE} and {COSTS_FILE} disagree on the import {entry.import_id}"
         raise ValueError(message)
-    report = _report(entry.report, COSTS_FILE)
+    return entry, listed, _report(entry.report, COSTS_FILE)
+
+
+def _apply(session: Session, costs: Costs, cost_import_id: UUID, at: CostWrite) -> None:
+    """Write an import applied: its import of the exchanges, its entry, the lines it brought."""
+    entry, listed, report = _applied(costs, cost_import_id, at.at)
     load_import(session, _import(listed, at.project_id, report), at.act)
     load_cost_import(
         session,
@@ -281,21 +308,31 @@ def _period(listed: Import) -> tuple[date | None, date | None]:
     )
 
 
-def _exclude(session: Session, costs: Costs, made: CostLineExcluded, at: CostWrite) -> None:
-    """Take a line out of the tracked scope at the instant of its event, for its reason."""
+def _excluded(costs: Costs, made: CostLineExcluded, at: datetime) -> CostLineEntry:
+    """Give the line an exclusion at an instant takes out; or refuse the file."""
     line = costs.line(made.document, made.item)
-    if line.excluded != Exclusion(excluded_at=at.at, reason=made.reason):
+    if line.excluded != Exclusion(excluded_at=at, reason=made.reason):
         message = f"{COSTS_FILE} does not exclude the line {made.document} as the chronology does"
         raise ValueError(message)
+    return line
+
+
+def _exclude(session: Session, costs: Costs, made: CostLineExcluded, at: CostWrite) -> None:
+    """Take a line out of the tracked scope at the instant of its event, for its reason."""
+    line = _excluded(costs, made, at.at)
     load_exclusion(session, at.project_id, line.cost_line_id, made.reason, at.act)
 
 
-def _expire(session: Session, costs: Costs, import_id: UUID, at: CostWrite) -> None:
-    """Write an extraction analysed at the instant of its event, expired without being applied."""
+def _expired(costs: Costs, import_id: UUID) -> tuple[Import, dict[str, object]]:
+    """Give the extraction the chronology expires, listed, and its report; or refuse the files."""
     if costs.expired.import_id.root != import_id:
         message = f"{EXPIRED_FILE} is not the import {import_id} the chronology expires"
         raise ValueError(message)
     listed = costs.listing(import_id, "expired")
-    load_import(
-        session, _import(listed, at.project_id, _report(costs.expired.report, EXPIRED_FILE)), at.act
-    )
+    return listed, _report(costs.expired.report, EXPIRED_FILE)
+
+
+def _expire(session: Session, costs: Costs, import_id: UUID, at: CostWrite) -> None:
+    """Write an extraction analysed at the instant of its event, expired without being applied."""
+    listed, report = _expired(costs, import_id)
+    load_import(session, _import(listed, at.project_id, report), at.act)

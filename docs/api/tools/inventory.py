@@ -62,9 +62,19 @@ REASONS: dict[str, str] = {
     "DEV": "Le détail du plan de charge et la projection de dépenses, ajoutés par la "
     "spécification 1.0.6 : leur contrat reste à écrire, avec EP-10 (#3181, #3182).",
     "IHM": "Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent "
-    "dans le front.",
+    "dans le front. La copie de lignes d'une grille (WF-IHM-0180), ajoutée par la "
+    "spécification 1.0.8, attend son contrat (#4398).",
+    "IND": "La marque d'une survenance sur les courbes de valeur acquise (WF-IND-0140), ajoutée "
+    "par la spécification 1.0.9 : EP-30 écrit son contrat (US-3120), dont les issues s'ouvrent "
+    "avec celles de ses lots.",
     "INTF": "Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par "
     "le catalogue des permissions ; la règle de traduction vit dans le front.",
+    "REV": "La base d'un différentiel et sa mise à jour (WF-REV-0110), ajoutées par la "
+    "spécification 1.0.8 : les opérations qu'EP-08 écrit pour elles (US-3050) les servent, "
+    "et leur citation au contrat reste à écrire (#4402).",
+    "RIS": "La mise à jour du devis propre d'un risque (WF-RIS-0070) et la gravité d'un risque "
+    "(WF-RIS-0080), ajoutées par la spécification 1.0.9 : EP-30 écrit leur contrat (US-3090, "
+    "US-3080), dont les issues s'ouvrent avec celles de ses lots.",
     "QUA": "Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle "
     "s'exerce sur le contrat, elle n'y figure pas.",
 }

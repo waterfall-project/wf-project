@@ -1,0 +1,10 @@
+{
+  "summary": "Sur un planning de quatre niveaux de récapitulatives, l'arborescence demandée au niveau 2 dessine le nœud du projet et les récapitulatives des deux premiers niveaux, chacune de premier niveau sous le projet (WF-PLA-0110).",
+  "examples": ["WF-PLA-0110-A#7e0f932d2ca2"],
+  "depth": 2,
+  "plan": {
+    "Études": {"Conception": {"Schémas": {"Relecture": {}}}},
+    "Chantier": {"Pose": {}}
+  },
+  "drawn": [["Études", 1], ["Conception", 2], ["Chantier", 1], ["Pose", 2]]
+}

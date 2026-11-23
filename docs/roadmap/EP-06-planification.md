@@ -1077,6 +1077,12 @@ planning dont le devis portera les lignes.
   #2741), réalisé par US-1380/L4 (#2519), éprouvé par
   `test_a_selection_moved_under_itself_or_one_of_its_subordinates_closes_a_loop_refused`
   (`test_nodes_move.py`) ;
+- écart : `WF-PLA-0040-A` — « Une feuille démarrée qui reçoit une sous-tâche non démarrée est une
+  récapitulative démarrée, à sa date de démarrage ; privée de cette sous-tâche, elle redevient une
+  feuille démarrée à cette date. » : ajouté par la spécification 1.0.10 (#4564) ; EP-32 (US-3310) ;
+- écart : `WF-PLA-0040-A` — « Une feuille terminée qui reçoit une sous-tâche non terminée est une
+  récapitulative démarrée, à sa date de démarrage. » : ajouté par la spécification 1.0.10 (#4564) ;
+  EP-32 (US-3310) ;
 - `WF-DAT-0150-A` — « Deux contributeurs lisent la même tâche ; le premier la modifie ; la
   modification du second, fondée sur sa lecture, est refusée, le refus le dit, et la tâche garde la
   valeur du premier. Relue, la tâche se modifie. » : 412 `STALE_LOCK_VERSION` sur le `lock_version`
@@ -1474,6 +1480,10 @@ s'importent de la même façon.
 - `WF-ARC-0100-A` — « Une application refusée parce qu’un marquage est en cours sur le projet peut
   être redemandée après lui, sans nouveau dépôt. » : un refus passager laisse le compte rendu
   applicable et son fichier en place (spécification 1.0.3, #2523), réalisé par US-1380/L4 (#2519) ;
+- écart : `WF-ARC-0100-A` — « Après l'abandon d'un différentiel sur lequel un import a été analysé,
+  cet import ne peut plus être appliqué, et son fichier n'est plus sur le stockage objet au terme du
+  délai d'expiration. » : ajouté par la spécification 1.0.8 (#4331) ; EP-08 le tient (US-3060/L5,
+  #4269) : le compte rendu part avec la structure, et le fichier au balayage de la purge ;
 - `WF-INTF-0080-A` — « Pour un fichier qui contient des lignes invalides, le compte rendu les
   liste avec leur motif avant la confirmation. » : `ImportReport.rejected`, par le format
   (US-1430 pour MS Project) ; les lignes d'un devis sont d'EP-07, qui clôt ;

@@ -21,8 +21,13 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.recalling import remembering
-from waterfall.core.estimate.writing import HoursJudged
-from waterfall.core.planning.interface import LineNodeLoad, lines_of_revision, load_line_nodes
+from waterfall.core.estimate.writing import HoursJudged, read_ahead, write_budgeted
+from waterfall.core.planning.interface import (
+    LineNodeLoad,
+    lines_of_revision,
+    load_line_nodes,
+    revision_lines,
+)
 from waterfall.core.projects.interface import project_facts
 
 if TYPE_CHECKING:
@@ -31,6 +36,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.estimate.entries import LineEntry
+    from waterfall.core.estimate.tables import EstimateLine
     from waterfall.core.planning.interface import Place
     from waterfall.platform.audit import Act
 
@@ -58,18 +64,19 @@ def _budgeted(session: Session, project_id: UUID, revision_id: UUID) -> None:
     reference = project_facts(session, project_id).reference_revision_id
     if reference is None or reference == revision_id:
         return
-    held = lines_of_revision(session, project_id, revision_id)
+    lineages = revision_lines(session, project_id, revision_id, bases=True)
     kept = lines_of_revision(session, project_id, reference)
     budgets = {
         line.node_id: budgeted_of(line)
         for line in rows_of(session, project_id, list(kept.values()))
     }
-    lineages = {node: lineage for lineage, node in held.items()}
-    for line in rows_of(session, project_id, list(held.values())):
+    moved: list[tuple[EstimateLine, Decimal]] = []
+    for line in rows_of(session, project_id, list(lineages)):
         node = kept.get(lineages[line.node_id])
         budgeted = NOUGHT if node is None else budgets.get(node, NOUGHT)
         if line.budgeted_amount != budgeted:
-            line.budgeted_amount = budgeted
+            moved.append((line, budgeted))
+    write_budgeted(session, project_id, moved)
     session.flush()
 
 
@@ -94,5 +101,6 @@ def load_lines(session: Session, place: Place, lines: tuple[LineLoad, ...], act:
         for each in lines
     )
     with remembering(session):
+        read_ahead(session, place.project_id, [each.node_id for each in lines])
         load_line_nodes(session, place, nodes, act)
     _budgeted(session, place.project_id, place.revision_id)

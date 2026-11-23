@@ -59,6 +59,7 @@ class ActualCostsFormat:
     header_length = HEADER_LENGTH
     judged_first = False
     scope: ImportScope = "project"
+    reading = "actual_costs.read"
     permission = "actual_costs.write"
 
     def read_header(self, session: Session, head: bytes) -> None:

@@ -165,9 +165,14 @@
           `active_provision_category`, then `may_create_revision` when the project has no current
           revision and the caller lacks `revisions.write`: the declaration would create it
           (WF-RIS-0020, `ProjectCommand.declare_risk`); on a terminal project, where the command
-          is not listed, it names `project_not_terminal`. This 409 comes before the 422: without a task or an
-          active category, no designation would be valid, and the fields are not judged.
-          Nothing is written.
+          is not listed, it names `project_not_terminal`. This 409 comes before the 422 of the
+          designations of the provision alone — `/provision_cost_category_id`,
+          `/provision_subproject_id`, `/provision_task_id`: without a task or an active category,
+          no designation would be valid, and these fields are not judged. The fields the schema
+          of the request judges, `/label` empty or too long and `/probability` that is not a
+          number, are validated before any 409, as on every operation: such a request answers 422
+          whatever the state of the project. The bounds of `/probability`, judged by the service,
+          come with the designations, after the 409. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -250,7 +255,10 @@
       #1782). Refused on an occurred risk, with 409 `STATE_FORBIDS_OPERATION`,
       `params.missing_condition` set to `risk_not_occurred` — the risk's `update` command already
       said it was unavailable. It carries the risk's lock version as read (`Risk.lock_version`),
-      which it advances.
+      which it advances. A new label also renames, in the current revision when the project has
+      one, the own structure of the risk and its provision line (`Provision — <label>`), as the
+      declaration named them: outside the undo history like the rest, the revisions marked
+      keeping the names they were marked with (#3980).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -582,7 +590,10 @@
       what it read: an entry made in the meantime in the main structure, on the risk or in its
       own estimate — which advances `Risk.lock_version` —, or a current revision born since
       the read, has it refused with 412 (WF-IHM-0110). As long as `refusals` is not empty, the
-      occurrence does not apply, and the screen does not offer its confirmation. Refused with
+      occurrence does not apply, and the screen does not offer its confirmation; its warnings —
+      an own estimate starting in the past, a completed carrying task that the graft makes not
+      started again (`own_estimate_past_planning_start_on`, `completed_provision_task`, #4133,
+      #4240) — refuse nothing. Refused with
       409 when the state forbids the occurrence, on the conditions of its 409 and in the same
       order (`declareRiskOccurrence`): a report of an occurrence that could not apply is not
       read.
@@ -597,6 +608,7 @@
             schema: { $ref: ../components/schemas/risks.yaml#/RiskOccurrenceReport }
             examples:
               witness: { $ref: ../../../fixtures/api/risk_occurrence_report.json }
+              completed_task: { $ref: ../../../fixtures/api/risk_occurrence_report_completed_task.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -742,6 +754,7 @@
             schema: { $ref: ../components/schemas/risks.yaml#/RiskCoverage }
             examples:
               witness: { $ref: ../../../fixtures/api/risk_coverage.json }
+              reestimated: { $ref: ../../../fixtures/api/risk_coverage_reestimated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }

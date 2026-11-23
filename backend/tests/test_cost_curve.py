@@ -223,10 +223,9 @@ def test_a_kept_curve_of_a_subproject_created_after_the_marking_is_refused_witho
     assert curve(api, stage, COST_CURVE, f"?scope={since}")["context"]["is_stored"] is False
 
 
-# The provision of the risk identified, 500 000, and the two lines its occurrence added, 120 and 80,
-# all of EP-08, are among the remaining to commit of the example, that no line of the witness bears
-# yet: 500 200.
-PROVISION = D("500200.00")
+# The two lines the occurrence of 752 added, 120 and 80, of tasks completed, are among the remaining
+# to commit of the example, and not of the witness (#4278): 200.
+OCCURRED = D("200.00")
 
 
 def points_of(body: dict[str, Any], name: str) -> dict[str, D]:
@@ -235,16 +234,16 @@ def points_of(body: dict[str, Any], name: str) -> dict[str, D]:
 
 
 @pytest.mark.requirement("WF-IND-0100-A")
-def test_the_curve_of_the_witness_is_the_example_but_for_the_reference_and_the_provision(
+def test_the_curve_of_the_witness_is_the_example_but_for_the_step_and_the_occurrence(
     api: ContractClient, witness: Database, realm: TestRealm, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # « Celle du coût réel s'arrête à la date de calcul, et la projection part de ce point pour
     # atteindre la projection du chef de projet. » The witness read on 3 June 2026, as the
     # examples: the actual cost is the example's, but for its origin, which the example draws at
-    # the end of January, where the amendment 1 steps the budget (EP-08), the reference of the
-    # witness being the offer 100 until it merges; the projection starts at the actual cost and
-    # follows the example, less the provision (EP-08), month-end for month-end to the end of the
-    # last task. The reference budget, measured to the offer 100, is not compared.
+    # the end of January, where it steps the budget by the amendment 1 (#4278); the projection
+    # starts at the actual cost and follows the example, the provisions included (EP-08), less the
+    # lines of the occurrence of 752 the example counts (#4278), month-end for month-end to the end
+    # of the last task.
     monkeypatch.setattr("waterfall.api.indicator_curves.utc_now", lambda: READ_AT)
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/indicators/{COST_CURVE}")
     expected = example("cost_curve")
@@ -257,7 +256,7 @@ def test_the_curve_of_the_witness_is_the_example_but_for_the_reference_and_the_p
     assert projection["2026-06-03"] == asked["2026-06-03"] == actual["2026-06-03"]
     assert set(projection) == set(asked)
     assert {day: asked[day] - amount for day, amount in projection.items()} == {
-        day: D(0) if day == "2026-06-03" else PROVISION for day in asked
+        day: D(0) if day == "2026-06-03" else OCCURRED for day in asked
     }
 
 
@@ -269,8 +268,8 @@ def test_the_projection_grows_each_month_by_the_projection_of_spending_to_the_ce
     # charge, par les parts arrondies communes de core/estimate » (US-1690/L4, #3564, #3614). The
     # witness read on 3 June 2026 by the two routes: what the projection of the project manager
     # gains in each month is the total of that month `getProjectSpending` gives on the remaining
-    # to commit, to the cent; the occurrence of a risk (EP-08) and the provision are left out of
-    # both, the witness bearing neither.
+    # to commit, to the cent, but for the provision of 751, which the projection counts at the date
+    # of its task, in June, and the spending leaves out (EP-08).
     monkeypatch.setattr("waterfall.api.indicator_curves.utc_now", lambda: READ_AT)
     monkeypatch.setattr("waterfall.api.spending.utc_now", lambda: READ_AT)
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/indicators/{COST_CURVE}")
@@ -285,4 +284,6 @@ def test_the_projection_grows_each_month_by_the_projection_of_spending_to_the_ce
         row["month"]: D(row["amount"]) for row in spent["monthly_totals"] if D(row["amount"])
     }
     assert spending
-    assert gained == spending
+    provision = D(example("remaining_indicators")["coverage"]["remaining_provisions"])
+    gaps = {month: amount - spending.get(month, D(0)) for month, amount in gained.items()}
+    assert {month: gap for month, gap in gaps.items() if gap} == {"2026-06": provision}

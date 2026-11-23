@@ -14,6 +14,7 @@ import {
 } from "@playwright/test";
 
 import catalogue from "../messages/fr.json" with { type: "json" };
+import { firstWords } from "../src/i18n/report-titles";
 import { WORKING } from "./bounds";
 import type { components } from "../src/api/generated/schema";
 import type { Answer } from "./answer";
@@ -29,6 +30,29 @@ import { API } from "./service/realm";
 
 const gap = catalogue.exchanges.report.calendarGap;
 const rules = catalogue.enums.ImportDurationRule;
+
+/**
+ * A pattern anchored at the start of a text of the catalogue, up to its first placeholder, escaped:
+ * what the name of a control begins with, whatever follows (#3969). `rest` is a pattern too. A
+ * no-break space of the catalogue (`«\u00a0`) is read by the browser as a plain space in a name:
+ * the pattern takes any white space there.
+ */
+function beginning(text: string, rest = ""): RegExp {
+  const [start = ""] = text.split("{", 1);
+  const escaped = start.replaceAll(/[$()*+.?[\\\]^{|}]/g, String.raw`\$&`);
+  return new RegExp(`^${escaped.replaceAll(/[\u00a0\u202f]/g, String.raw`\s`)}${rest}`);
+}
+
+const tracker = catalogue.tasks;
+// The button of the tracker, once a task is followed: its name goes on with a no-break space and a colon.
+const FOLLOWING = beginning(tracker.toggle, String.raw`\s:`);
+const REPORT = beginning(catalogue.exchanges.report.title);
+// Any report, not the import's alone: the reports of the update, the merge and the occurrence open
+// with the same two words (`Compte rendu`), which no key of the catalogue holds apart; so the
+// pattern keeps what the title of the import's report begins with, up to its second word.
+const ANY_REPORT = beginning(firstWords(catalogue.exchanges.report.title));
+const confirmTitle = catalogue.exchanges.report.confirmTitle;
+const confirm = catalogue.exchanges.report.confirm;
 
 // The last two paths below are the service's, tagged `@shared`, on a project the run creates: the
 // export of the planning in MS Project XML, downloaded once, and imported back (US-1430); and the
@@ -73,10 +97,10 @@ async function exportDownloaded(
   const { pathname, search } = new URL((await fetched).url());
   const download = await made;
   const card = page
-    .getByRole("region", { name: "Aboutissements des tâches" })
-    .getByRole("group", { name: /Export/ });
-  await expect(card.getByRole("button", { name: /^Fermer la carte/ })).toBeVisible();
-  await expect(card.getByRole("link", { name: /^Télécharger le résultat/ })).toHaveCount(0);
+    .getByRole("region", { name: tracker.cards.label })
+    .getByRole("group", { name: new RegExp(catalogue.enums.BackgroundTaskRef.kind.export) });
+  await expect(card.getByRole("button", { name: beginning(tracker.cards.close) })).toBeVisible();
+  await expect(card.getByRole("link", { name: beginning(tracker.download) })).toHaveCount(0);
   expect(page.url()).toBe(shown);
   return { download, result: `${pathname}${search}` };
 }
@@ -110,10 +134,10 @@ async function applyAndFollow({
   headers,
 }: Application): Promise<void> {
   await report.getByRole("button", { name: "Appliquer l’import" }).click();
-  const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
-  await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
+  const confirmation = report.getByRole("form", { name: confirmTitle });
+  await confirmation.getByRole("button", { name: confirm }).click();
   await expect(confirmation).toHaveCount(0);
-  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
+  await page.getByRole("button", { name: FOLLOWING }).click();
   const application = tasks
     .getByRole("listitem")
     .filter({ hasText: `Application d’un import « ${filename} »` });
@@ -175,10 +199,10 @@ test("imports a file in two steps: the report lists the lines rejected with thei
   // Nothing is applied before the confirmation; confirmed, the application is a task followed.
   const read = page.waitForRequest((request) => request.postData()?.includes(APPLICATION) === true);
   await report.getByRole("button", { name: "Appliquer l’import" }).click();
-  const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
-  await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
+  const confirmation = report.getByRole("form", { name: confirmTitle });
+  await confirmation.getByRole("button", { name: confirm }).click();
   await expect(confirmation).toHaveCount(0);
-  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
+  await page.getByRole("button", { name: FOLLOWING }).click();
   const panel = page.getByRole("dialog", { name: "Tâches et messages" });
   const tasks = panel.getByRole("region", { name: "Tâches de fond" });
   const application = "Application d’un import « devis-avenant-2-reprise-des-essais.xlsx »";
@@ -205,7 +229,7 @@ test("offers no choice of the duration rule on the report of an import without a
   // `calendar-gap.dom.test.tsx` on the examples of the contract (`import_planning_calendar_gap`,
   // `import_duration_rule_set`): prism cannot be asked another example of a server read.
   await openHydrated(page, `${START}&import=${IMPORT}`);
-  const report = page.getByRole("region", { name: /^Compte rendu de l’import/ });
+  const report = page.getByRole("region", { name: REPORT });
   await expect(report.getByText("5 lignes lues.")).toBeVisible();
   await expect(report.getByRole("radio")).toHaveCount(0);
   await expect(report.getByText(gap.title)).toHaveCount(0);
@@ -383,8 +407,9 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
   // revision; exported, then imported back without a change into the revision in progress, the
   // report says no difference, and the lines are the same. The report comes before any
   // confirmation, and the application confirmed is followed in the shell; the lines a report
-  // rejects and the abandonment, which WF-INTF-0080-A verifies, stay with the fake back (« imports
-  // a file in two steps », above), the exported workbook having no line to reject. The workbook
+  // rejects and the abandonment of an import without a gap, which WF-INTF-0080-A verifies, stay
+  // with the fake back (« imports a file in two steps », above), the exported workbook having no
+  // line to reject; the abandonment after a gap is the `@shared` path below. The workbook
   // goes to the browser and back to the API byte for byte: the proxy of the contract carries the
   // bytes of a body that is not JSON past Prism (`bench/contract-proxy.ts`, #2687).
   test.skip(
@@ -442,7 +467,7 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
   // The project is unchanged: the form stays open, no report is shown, and the service holds no
   // import for the project.
   await expect(form).toBeVisible();
-  await expect(page.getByRole("region", { name: /^Compte rendu/ })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: ANY_REPORT })).toHaveCount(0);
   const listed = await request.get(`${API}/projects/${seeded.ids.project}/imports`, {
     headers: seeded.headers,
   });
@@ -538,8 +563,8 @@ test("imports a planning typed at seven hours a day: the calendar gap is on the 
   const address = `${base}/imports/${opened}`;
   const report = page.getByRole("region", { name: `Compte rendu de l’import « ${filename} »` });
   const keep = {
-    durations: report.getByRole("radio", { name: new RegExp(`^${rules.keep_durations}`) }),
-    dates: report.getByRole("radio", { name: new RegExp(`^${rules.keep_dates}`) }),
+    durations: report.getByRole("radio", { name: rules.keep_durations }),
+    dates: report.getByRole("radio", { name: rules.keep_dates }),
   };
   const reportRead = async () => {
     // The analysis is a task of the background: the report comes when the screen is read anew.
@@ -559,7 +584,7 @@ test("imports a planning typed at seven hours a day: the calendar gap is on the 
   const days = report.getByRole("table", {
     name: gap.daysTable,
   });
-  const monday = days.getByRole("row", { name: /^Lundi/ });
+  const monday = days.getByRole("row", { name: gap.days.monday });
   await expect(monday.getByRole("cell", { name: "7", exact: true })).toBeVisible();
   await expect(monday.getByRole("cell", { name: "8", exact: true })).toBeVisible();
   await expect(report.getByText(gap.ignored)).toBeVisible();
@@ -733,8 +758,8 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
     await route.fallback();
   });
   await report.getByRole("button", { name: "Appliquer l’import" }).click();
-  const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
-  await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
+  const confirmation = report.getByRole("form", { name: confirmTitle });
+  await confirmation.getByRole("button", { name: confirm }).click();
   await expect(confirmation).toHaveCount(0);
   await held;
   await page
@@ -745,7 +770,7 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
   await expect(report).toHaveCount(0);
 
   // From the other screen, the shell shows the application still followed, its read held.
-  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
+  await page.getByRole("button", { name: FOLLOWING }).click();
   const application = tasks
     .getByRole("listitem")
     .filter({ hasText: `Application d’un import « ${filename} »` });

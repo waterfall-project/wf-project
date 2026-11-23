@@ -126,9 +126,7 @@ def closed_again(
         for each in {above for node_id in left for above in tree.ancestors(node_id)}
         if each not in receiving
         and tree.tasks[each].progress != COMPLETED
-        and (
-            lines := [line for line in tree.lines(each) if tree.nodes[line].origin_risk_id is None]
-        )
+        and (lines := tree.own_lines(each))
     }
     if not asked:
         return {}

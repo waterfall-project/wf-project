@@ -1,5 +1,5 @@
 {
-  "summary": "Les structures de la révision courante : la principale ; l'avenant 2 « reprise des essais », différentiel que la révision a repris de la révision de référence, où il coexistait avec l'avenant 1 sans être fusionné, et qui ne l'est toujours pas (WF-REV-0100, #791) — l'avenant 1, fusionné dans la référence, n'est pas repris, consommé par sa fusion (#1758) ; et le devis propre de chacun des trois risques de `risks`. Chacune a ses identifiants à elle, distincts de ceux des structures de la révision de référence qu'elle copie (WF-DAT-0030) — la reprise du câblage, le retard de livraison des armoires, dont la survenance a fusionné le devis propre dans la structure principale (WF-RIS-0060), et l'indisponibilité de l'automaticien (WF-RIS-0030). Chacune dit ses commandes de saisie : le projet étant En cours, la principale se saisit au planning et au reste à engager, son devis lisible en lecture seule (`project_before_in_progress`) ; l'avenant et le devis propre d'un risque se saisissent au planning et au devis, quel que soit l'état du projet, et n'ont pas de reste à engager (WF-DEV-0050, WF-RAE-0040, WF-IHM-0090).",
+  "summary": "Les structures de la révision courante : la principale ; l'avenant 2 « reprise des essais », différentiel que la révision a repris de la révision de référence, où il coexistait avec l'avenant 1 sans être fusionné, et qui ne l'est toujours pas (WF-REV-0100, #791) — l'avenant 1, fusionné dans la référence, n'est pas repris, consommé par sa fusion (#1758) ; et le devis propre de chacun des trois risques de `risks`. Chacune a ses identifiants à elle, distincts de ceux des structures de la révision de référence qu'elle copie (WF-DAT-0030) — la reprise du câblage, le retard de livraison des armoires, dont la survenance a fusionné le devis propre dans la structure principale (WF-RIS-0060), et l'indisponibilité de l'automaticien (WF-RIS-0030). Chacune dit ses commandes de saisie : le projet étant En cours, la principale se saisit au planning et au reste à engager, son devis lisible en lecture seule (`project_before_in_progress`) ; l'avenant et le devis propre d'un risque se saisissent au planning et au devis, quel que soit l'état du projet, et n'ont pas de reste à engager (WF-DEV-0050, WF-RAE-0040, WF-IHM-0090) ; l'avenant, non fusionné, peut seul être abandonné (delete, deleteCostStructure, WF-REV-0100) ; repris en retard de la révision de référence (structures_amendments), il a été mis à jour depuis, et la structure principale n'a rien reçu après : il est à jour, et sa mise à jour n'a rien à reprendre (is_up_to_date, rebase, structure_out_of_date) ; l'état est nul pour les autres structures (#4034).",
   "value": [
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000201",
@@ -8,6 +8,7 @@
       "label": "Structure principale",
       "planning_start_on": "2026-03-02",
       "is_merged": false,
+      "is_up_to_date": null,
       "available_commands": [
         {
           "command": "edit_planning",
@@ -27,7 +28,7 @@
           "missing_conditions": []
         }
       ],
-      "lock_version": 1
+      "lock_version": 9
     },
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000203",
@@ -36,6 +37,7 @@
       "label": "Avenant 2 — reprise des essais",
       "planning_start_on": "2026-03-02",
       "is_merged": false,
+      "is_up_to_date": true,
       "available_commands": [
         {
           "command": "edit_planning",
@@ -46,9 +48,21 @@
           "command": "edit_estimate",
           "is_available": true,
           "missing_conditions": []
+        },
+        {
+          "command": "delete",
+          "is_available": true,
+          "missing_conditions": []
+        },
+        {
+          "command": "rebase",
+          "is_available": false,
+          "missing_conditions": [
+            "structure_out_of_date"
+          ]
         }
       ],
-      "lock_version": 2
+      "lock_version": 6
     },
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000204",
@@ -58,6 +72,7 @@
       "planning_start_on": "2026-01-12",
       "risk_id": "01926f3a-7c00-7000-8000-000000000751",
       "is_merged": false,
+      "is_up_to_date": null,
       "available_commands": [
         {
           "command": "edit_planning",
@@ -70,7 +85,7 @@
           "missing_conditions": []
         }
       ],
-      "lock_version": 1
+      "lock_version": 5
     },
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000205",
@@ -80,6 +95,7 @@
       "planning_start_on": "2026-01-12",
       "risk_id": "01926f3a-7c00-7000-8000-000000000752",
       "is_merged": true,
+      "is_up_to_date": null,
       "available_commands": [
         {
           "command": "edit_planning",
@@ -92,7 +108,7 @@
           "missing_conditions": []
         }
       ],
-      "lock_version": 1
+      "lock_version": 4
     },
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000206",
@@ -102,6 +118,7 @@
       "planning_start_on": "2026-01-12",
       "risk_id": "01926f3a-7c00-7000-8000-000000000753",
       "is_merged": false,
+      "is_up_to_date": null,
       "available_commands": [
         {
           "command": "edit_planning",
@@ -114,7 +131,7 @@
           "missing_conditions": []
         }
       ],
-      "lock_version": 1
+      "lock_version": 3
     }
   ]
 }

@@ -27,8 +27,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from waterfall.platform.database import CODE_POINTS, Base, UtcDateTime, bounded
 
 # The kinds of document a marking keeps (EP-10, "Tables et migrations"): the indicators of the
-# estimate and of the remaining to commit, those of the project, and its three curves. EP-11 adds
-# its own.
+# estimate and of the remaining to commit, those of the project, and its three curves; then the
+# documents of a project the portfolio sums (EP-11, migration ``0042``).
 KINDS = (
     "estimate",
     "remaining",
@@ -36,6 +36,11 @@ KINDS = (
     "cost_curve",
     "cost_curve_payment_delays",
     "earned_value_curves",
+    "portfolio_workload",
+    "portfolio_cost_structure",
+    "portfolio_risks",
+    "portfolio_milestones",
+    "portfolio_offer_curves",
 )
 # The longest scope: ``project``, ``unassigned``, or the identifier of a subproject in text.
 SCOPE_LENGTH = 36

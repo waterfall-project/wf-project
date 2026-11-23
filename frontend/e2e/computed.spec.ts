@@ -207,7 +207,7 @@ test("recalculates the amount of a summary task at each write of a line and refu
   await expect(grid.getByRole("row", { name: new RegExp(TASK) }).first()).toBeVisible();
 });
 
-test("shows a line whose task is dated two years after the year of reference, with an inflation of 2 %, 4,04 % above its amount at the rates of the year of reference, and no budgeted amount @shared [WF-DEV-0050-A]", async ({
+test("shows a line whose task is dated two years after the year of reference, with an inflation of 2 %, 4,04 % above its amount at the rates of the year of reference, and no budgeted amount, the header of the re-estimated amount naming the year of reference and the rate @shared [WF-DEV-0050-A] [WF-IHM-0140-A]", async ({
   page,
   browser,
   request,
@@ -230,4 +230,11 @@ test("shows a line whose task is dated two years after the year of reference, wi
   // 1 000,00 x 1,02 x 1,02: 4,04 % above.
   await expect(cellOf(line, at.reestimated)).toHaveText(/1\s040,40\s€/);
   await expect(grid.getByRole("columnheader", { name: /Montant budgété/ })).toHaveCount(0);
+  // The tooltip of the header says the year of reference and the rate of the revision read, the
+  // project's 2 %: what the service holds, not what the fake back's example does.
+  const header = grid.getByRole("columnheader", { name: /Montant réestimé/ });
+  await header.hover();
+  const tooltip = page.locator("[data-slot=tooltip-content]");
+  await expect(tooltip).toContainText(`année de référence (${String(seeded.referenceYear)})`);
+  await expect(tooltip).toContainText(/taux d’inflation de la révision \(2\s%/);
 });

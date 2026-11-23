@@ -9,8 +9,12 @@ structure, whatever a reading returns of it (``Node.row_number``, WF-PLA-0080); 
 alone, read without the nodes they bear (``read_task_rows``), is numbered from how many each bears
 (``numbered``, US-2280). A task is a
 summary when it bears a subtask (WF-PLA-0040), a milestone when it is a leaf of nought duration
-(WF-PLA-0050); its lines do not make it a summary. The summaries an own line holds open are read
-with the tree (``held``, US-1590/L1): those whose subordinates are all completed and one of whose
+(WF-PLA-0050); its lines do not make it a summary. The lines of provision of the structure are read
+with the tree (``provisions``), which the estimate tells by their category
+(``FacetHooks.provisions``) and the planning never judges by the risk a node came from (EP-08, "Ce
+qui reconnaît une ligne de provision"): a line an occurrence merged is work. The summaries an own
+line holds open are read with the tree too (``held``, US-1590/L1): those whose subordinates are all
+completed and one of whose
 lines, the provisions left out, keeps a remaining to commit, which the estimate tells
 (``register_open_lines``); a summary is completed only once none does (WF-PLA-0040), on every path
 that derives its state.
@@ -35,6 +39,7 @@ from sqlalchemy import and_, inspect, or_, select
 
 from waterfall.core.planning.interface.open_lines import held_open
 from waterfall.core.planning.tables import Node, Task, TaskLink, TrackingEntry
+from waterfall.core.planning.tallying import provision_lines
 from waterfall.platform.database import among
 
 if TYPE_CHECKING:
@@ -146,9 +151,9 @@ _LINK_COLUMNS = (
 class Tree[N: NodeColumns = Node, T: TaskColumns = Task]:
     """A structure read whole: its nodes, their facet task, and the order of the plan.
 
-    ``held`` the summaries an own line holds open as the tree is read (``read_tree``); a tree built
-    from another's nodes carries that one's. Its nodes and tasks are objects of the session, or rows
-    for a reading (``read_rows``).
+    ``held`` the summaries an own line holds open as the tree is read (``read_tree``),
+    ``provisions`` its lines of provision; a tree built from another's nodes carries that one's.
+    Its nodes and tasks are objects of the session, or rows for a reading (``read_rows``).
     """
 
     nodes: dict[UUID, N]
@@ -159,10 +164,19 @@ class Tree[N: NodeColumns = Node, T: TaskColumns = Task]:
     level: dict[UUID, int] = field(default_factory=dict[UUID, int])
     position: dict[UUID, int] = field(default_factory=dict[UUID, int])
     held: frozenset[UUID] = frozenset()
+    provisions: frozenset[UUID] = frozenset()
 
     def with_nodes(self, nodes: dict[UUID, N], tasks: dict[UUID, T]) -> Tree[N, T]:
-        """Give the tree of other nodes and tasks, which holds open the summaries this one does."""
-        return Tree(nodes, tasks, held=self.held)
+        """Give the tree of other nodes and tasks, which holds what this one's lines tell.
+
+        What its lines tell is not read again: a line it holds that this one does not is no
+        provision to it, and an own line. The traced grounds of a preview add a task
+        (``traced_creation``) or a line a paste creates (``_traced_line``), which is never of a
+        category of provision — the paste refuses it (``PROVISION_CATEGORY_RESERVED``). A path that
+        would add one must read the tree again (``reheld``). A ``Tree`` built without ``reheld`` has
+        no provision, and no summary held open, either.
+        """
+        return Tree(nodes, tasks, held=self.held, provisions=self.provisions)
 
     def __post_init__(self) -> None:
         """Order the nodes: under each parent, the lines then the subtasks, each by its rank."""
@@ -188,6 +202,10 @@ class Tree[N: NodeColumns = Node, T: TaskColumns = Task]:
     def lines(self, node_id: UUID) -> list[UUID]:
         """Give the lines a task bears, in their order."""
         return [child for child in self.children.get(node_id, []) if child not in self.tasks]
+
+    def own_lines(self, node_id: UUID) -> list[UUID]:
+        """Give the lines a task bears besides the provisions, in their order (WF-PLA-0040)."""
+        return [each for each in self.lines(node_id) if each not in self.provisions]
 
     def is_summary(self, node_id: UUID) -> bool:
         """Tell whether a task bears a subtask: its dates, duration and state are derived."""
@@ -234,16 +252,24 @@ def read_tree(session: Session, project_id: UUID, structure_id: UUID) -> Tree:
     ).all()
     tasks = {node.id: task for node, task in rows if node.kind == TASK}
     tree = Tree({node.id: node for node, _ in rows}, tasks)
-    reheld(session, project_id, tree)
+    reheld(session, (project_id, structure_id), tree)
     return tree
 
 
-def reheld(session: Session, project_id: UUID, tree: Tree) -> None:
-    """Read the summaries an own line holds open, as the tree now stands (``held``).
+def reheld[N: NodeColumns, T: TaskColumns](
+    session: Session, structure: tuple[UUID, UUID], tree: Tree[N, T]
+) -> None:
+    """Read what the lines of a tree tell it, as it now stands (``provisions``, ``held``).
 
-    At the reading of the tree, and again once a write has written (``reshaped``): a state or a
-    remaining to commit it wrote changes them (US-2250).
+    ``structure`` is its project and itself. At the reading of the tree, and again once a write has
+    written (``reshaped``): a state, a category or a remaining to commit it wrote changes them
+    (US-2250). A tree of the tasks alone bears no line, and asks nothing.
     """
+    project_id, structure_id = structure
+    if all(node.kind == TASK for node in tree.nodes.values()):
+        tree.provisions, tree.held = frozenset(), frozenset()
+        return
+    tree.provisions = provision_lines(session, project_id, structure_id)
     tree.held = held_open(session, project_id, _closing(tree))
 
 
@@ -305,7 +331,7 @@ def reshaped(session: Session, project_id: UUID, structure_id: UUID, tree: Tree)
             if node.kind == TASK:
                 tasks[node.id] = task
     rebuilt = Tree(nodes, tasks)
-    reheld(session, project_id, rebuilt)
+    reheld(session, (project_id, structure_id), rebuilt)
     return rebuilt
 
 
@@ -342,7 +368,7 @@ def read_rows(session: Session, project_id: UUID, structure_id: UUID) -> Tree[No
     the session: what a reading of six thousand nodes spent most in building (#3174).
     """
     tree = Tree(*_columns_of(session, project_id, structure_id))
-    tree.held = held_open(session, project_id, _closing(tree))
+    reheld(session, (project_id, structure_id), tree)
     return tree
 
 
@@ -389,7 +415,7 @@ def read_inert(
     nodes.update(objects)
     tasks.update(facets)
     tree = Tree(nodes, tasks)
-    tree.held = held_open(session, project_id, _closing(tree))
+    reheld(session, (project_id, structure_id), tree)
     return InertTree(tree, objects, facets)
 
 
@@ -459,12 +485,12 @@ def completed_below[N: NodeColumns, T: TaskColumns](tree: Tree[N, T]) -> list[UU
 def _closing[N: NodeColumns, T: TaskColumns](tree: Tree[N, T]) -> dict[UUID, list[UUID]]:
     """Give the summaries whose subtasks are all completed, each with its own lines to ask.
 
-    The lines a risk provides for left out (WF-RIS-0010), and a summary without another line too:
-    nothing holds it.
+    The lines of provision left out (WF-PLA-0040), and a summary without another line too: nothing
+    holds it.
     """
     found: dict[UUID, list[UUID]] = {}
     for node_id in completed_below(tree):
-        lines = [each for each in tree.lines(node_id) if tree.nodes[each].origin_risk_id is None]
+        lines = tree.own_lines(node_id)
         if lines:
             found[node_id] = lines
     return found

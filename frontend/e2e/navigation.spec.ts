@@ -88,28 +88,31 @@ test("a user who opened no project reaches the administration and the status scr
   await expect(page.getByRole("link", { name: "Retour au projet" })).toHaveCount(0);
 });
 
-// Against the fake back only: it leads to the remaining and to the risks of PRJ-001, screens the
-// service serves with EP-08 (listed as not replayed in the guide).
-test("the way back to the previous project from a function outside any project finds the same context [WF-IHM-0010-A]", async ({
+// Played in service too (`@shared`, EP-08): it leads to the risks of PRJ-001, which the service
+// serves, and leaves the project by a function the service serves too — the settings of costs, the
+// portfolio being EP-11's.
+test("the way back to the previous project from a function outside any project finds the same context [WF-IHM-0010-A] @shared", async ({
   page,
 }) => {
-  // The screens of their own reached by a click, compiled first (`e2e/compile.ts`).
-  await compile(page.request, "/portfolio/projects", `${IN_PROJECT}/risks`);
-  await page.goto(`${IN_PROJECT}/remaining${CONTEXT}`);
-  await open(page, "Gestion des risques");
-  await expect(page).toHaveURL(`${IN_PROJECT}/risks${CONTEXT}`);
+  // From the risks, not from the remaining to commit: the remaining of PRJ-001 is the slowest read
+  // of the service (#4326), which the path does not need, and which took it from 26 to 37 s, past
+  // the 30 s of a test, under `test.slow` (#4714). The screen of its own reached by a click,
+  // compiled first (`e2e/compile.ts`).
+  await compile(page.request, "/reference/costs");
+  await page.goto(`${IN_PROJECT}/risks${CONTEXT}`);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Gestion des risques");
   await expect(page).toHaveTitle(
     "Gestion des risques · Modernisation du poste de commande — Waterfall",
   );
 
-  await open(page, "Portefeuille de projets", "Portefeuille");
+  await open(page, "Paramètres de coûts", "Paramètres applicatifs");
   await page.getByRole("link", { name: "Retour au projet" }).click();
   await expect(page).toHaveURL(`${IN_PROJECT}/risks${CONTEXT}`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Gestion des risques");
 
   // The context outlives the page: a new visit to a function outside any project leads
   // back to it, from the cookie of the front.
-  await page.goto("/system");
+  await page.goto("/reference/costs");
   await page.getByRole("link", { name: "Retour au projet" }).click();
   await expect(page).toHaveURL(`${IN_PROJECT}/risks${CONTEXT}`);
 });

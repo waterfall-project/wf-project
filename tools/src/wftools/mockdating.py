@@ -16,7 +16,7 @@ tasks over the budget of its subtree, is not found here: ``wftools.mockcore`` co
 
 import functools
 import heapq
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Context, Decimal
 from fractions import Fraction
@@ -45,6 +45,7 @@ from wftools.mockwitness import (
     CORE,
     PLANNING_START,
     Line,
+    Link,
     Task,
     default_calendar,
     role_calendars,
@@ -161,8 +162,16 @@ def _schedule(roots: tuple[Task, ...], planning_start: date) -> Mapping[int, Dat
         )
         for task in tasks
     }
-    for task in linked:
+    for task in dating_order(tasks):
         if task.children:
+            # A summary has its own calendar, that of the lines it bears: its duration is the work
+            # between its dates on it (WF-PLA-0040), not on those of its subordinates. It is dated
+            # once they are, and before the tasks it precedes: a link whose predecessor is a
+            # summary starts from the dates it spans (WF-PLA-0040).
+            placed = [dated[child.number] for child in task.children]
+            start = min(each.start for each in placed)
+            finish = max(each.finish for each in placed)
+            dated[task.number] = Dated(task, calendars[task.number], start, finish)
             continue
         calendar = calendars[task.number]
         if task.manual is not None:
@@ -187,16 +196,21 @@ def _schedule(roots: tuple[Task, ...], planning_start: date) -> Mapping[int, Dat
         ]
         start, finish = follow(calendar, predecessors, to_hours(task.days, task.unit), origin)
         dated[task.number] = Dated(task, calendar, start, finish)
-    for task in reversed(tasks):
-        if task.children:
-            # A summary has its own calendar, that of the lines it bears: its duration is the work
-            # between its dates on it (WF-PLA-0040), not on those of its subordinates.
-            placed = [dated[child.number] for child in task.children]
-            start = min(each.start for each in placed)
-            finish = max(each.finish for each in placed)
-            dated[task.number] = Dated(task, calendars[task.number], start, finish)
     _backward(dated, linked)
     return dated
+
+
+def dating_order(tasks: list[Task]) -> list[Task]:
+    """Return the tasks so that each follows its predecessors, a summary its subordinates too.
+
+    A summary is dated from its subordinates, and what it precedes from it (WF-PLA-0040).
+    """
+    spanning = [
+        replace(task, links=(*task.links, *(Link(child.number) for child in task.children)))
+        for task in tasks
+    ]
+    by_number = {task.number: task for task in tasks}
+    return [by_number[task.number] for task in in_link_order(spanning)]
 
 
 def in_link_order(tasks: list[Task]) -> list[Task]:

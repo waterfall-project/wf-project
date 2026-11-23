@@ -14,7 +14,6 @@ from sqlalchemy.engine import URL
 
 from waterfall.core.planning.interface import Place
 from waterfall.core.projects.interface import (
-    ALL_PROJECTS_READ,
     ContributorFilters,
     ContributorSort,
     ProjectFilters,
@@ -28,6 +27,7 @@ from waterfall.core.projects.interface import (
 from waterfall.core.revisions.interface import MAIN, list_cost_structures, read_revision
 from waterfall.platform.cache import IndicatorsCache
 from waterfall.platform.database import Database, create_database_engine
+from waterfall.platform.permissions import ALL_PROJECTS_READ
 
 if TYPE_CHECKING:
     from uuid import UUID

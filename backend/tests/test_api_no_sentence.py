@@ -71,6 +71,22 @@ DATA = {
     "IndexHistoryScope.label": "a label",
     "IndexHistoryPoint.version_name": "a name",
     "WorkloadPlan.org_node_label": "a label",
+    # What the list of the portfolio names: the label and the code of a project, as a person gave
+    # them (``getPortfolioProjects``, US-2690).
+    "PortfolioProjectRow.label": "a label",
+    "PortfolioProjectRow.code": "a code",
+    # The label of the organisation node a view of the portfolio is asked for, kept as it was given.
+    "PortfolioScope.org_node_label": "a label",
+    # The label of the project a signal of the health of the control names, and that of its overdue
+    # milestone, as a person gave them (``getPortfolioPilotHealth``, US-2750).
+    "PilotHealth.signals.project_label": "a label",
+    "PilotHealth.signals.params.milestone_label": "a label",
+    # The label of a role of resources, as a person gave it (``getPortfolioWorkload``, US-2700).
+    "PortfolioWorkload.roles.label": "a label",
+    # The heaviest risks of the portfolio name the risk and its project as a person wrote them
+    # (``getPortfolioRisks``, US-2730).
+    "PortfolioRisks.heaviest.label": "a label",
+    "PortfolioRisks.heaviest.project_label": "a label",
     "CalculationContext.scope": "a scope",
     # The label a person gave an element of the work breakdown, and that of the task that bears it.
     "WorkPackageReading.label": "a label",
@@ -247,6 +263,17 @@ DATA = {
     "CostStructure.label": "a label",
     # The reason a person gave when she took a project out of its cycle, as she wrote it.
     "StateTransition.reason": "a reason",
+    # The identity of a risk as the person who declared it gave it, and the labels of what bears
+    # its provision, as given to them (US-2570/L1).
+    "Risk.label": "a label",
+    "Risk.description": "a text",
+    "Risk.mitigation_notes": "a text",
+    "Risk.provision_cost_category_label": "a label",
+    "Risk.provision_subproject_label": "a label",
+    # The label of a risk and of its subproject, as the matrix places them.
+    "RiskMatrixPoint.label": "a label",
+    "RiskMatrixPoint.project_label": "a label",
+    "ProvisionTask.label": "a label",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
 # refusal, and of each field it refuses, which name its condition by codes and values, the ones

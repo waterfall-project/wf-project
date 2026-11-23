@@ -36,6 +36,8 @@ from witness_support import PRJ_001, example, read
 
 from waterfall.core.planning.interface import (
     LinkLoad,
+    ParentAbsentError,
+    ParentageLoopError,
     Place,
     TaskLoad,
     TasksLoad,
@@ -59,24 +61,37 @@ pytestmark = pytest.mark.requirement("WF-QUA-0040-A")
 
 REVISIONS = {100: REVISION_100, 101: REVISION_101, 102: REVISION_102}
 # The events that open the revisions in the chronology (sequence numbers), and the planning start.
-OPENED = {100: 3, 101: 5, 102: 9}
-# The events the engine last replays the structure at: the opening, the update of the rates for 101.
-REPLAYED = {100: 3, 101: 6, 102: 9}
+OPENED = {100: 3, 101: 5, 102: 13}
+# The events that write a task into a revision after its opening: the merge of the amendment 1 into
+# the 101, the occurrence of 752 into the 102, by the project manager (EP-08).
+MERGED, OCCURRED = 12, 15
+MANAGER = UUID("01926f3a-7c00-7000-8000-000000000301")
+# The events the engine last replays the main structure at: the opening of the 100, the merge for
+# the 101, the occurrence for the 102.
+REPLAYED = {100: 3, 101: MERGED, 102: OCCURRED}
 PLANNING_START = date(2026, 3, 2)
 CORE = "01926f3a-7c00-7000-8000-000000000521"
 POPULAR_TIMELINE = "01926f3a-7c00-7000-8000-000000001000"
 # The amounts, the budget and the physical progress come from the lines (EP-07).
 AMOUNTS = {"base_amount", "budgeted_amount", "reestimated_amount", "physical_progress"}
-# What an example of the service answers beside the tasks, by the lines or the reading: the origin
-# risk of a provision task (EP-08), the row numbers of the lines (EP-07), a state laid counting one
-# write of the task (US-1410).
-BESIDE = {"origin_risk_id", "row_number", "lock_version"}
+# What an example of the service answers beside the tasks, by the lines or the reading: the row
+# numbers of the lines (EP-07), a state laid counting one write of the task (US-1410).
+BESIDE = {"row_number", "lock_version"}
 # What every task differs in, the core too, by the way the example is written, not by the dates: the
 # example names no calendar for a task on the default one, which the service names (DEFAULT), and
 # finish_overdue is read at the day of the reading (the instant the engine scheduled the revision).
 DEFAULT = "01926f3a-7c00-7000-8000-000000000481"
 # The tasks the engine dated otherwise than the file at the stage of the tasks, before the lines.
 TASKS_OF_2594 = 401
+# The structures the loader fills, in their order, with the tasks it dates so: the offer, filled
+# from nothing; the amendment 1, which carries the content of the 101, the main structure of the
+# 102 and its amendment 2, copies of structures whose lines gave the tasks their calendars (EP-08).
+FILLED = [
+    (100, "main", TASKS_OF_2594),
+    (101, "amendment", 0),
+    (102, "main", 0),
+    (102, "amendment", 0),
+]
 
 
 def described() -> dict[str, Any]:
@@ -101,11 +116,15 @@ def structure_of(session: Session, revision: UUID) -> UUID:
 
 
 def rows(session: Session, revision: UUID) -> dict[UUID, tuple[Node, Task]]:
-    """Give the lineage of each node of a revision with its node and its task."""
+    """Give the lineage of each task of the main structure of a revision with its node and facet.
+
+    The amendments and the own estimates of the risks hold the same lineages (EP-08): the main
+    structure alone is the revision's content the file describes.
+    """
     found = session.execute(
         select(Node, Task)
         .join(Task, (Task.project_id == Node.project_id) & (Task.node_id == Node.id))
-        .where(Node.revision_id == revision)
+        .where(Node.structure_id == structure_of(session, revision))
     ).all()
     return {node.lineage_id: (node, task) for node, task in found}
 
@@ -219,7 +238,7 @@ def test_the_links_are_those_of_the_file_by_the_lineage_of_their_predecessor(
                     link.lag_unit,
                 )
                 for link in session.scalars(
-                    select(TaskLink).where(TaskLink.revision_id == revision)
+                    select(TaskLink).where(TaskLink.structure_id == structure_of(session, revision))
                 )
             }
             expected = {
@@ -271,8 +290,7 @@ def test_the_planning_start_of_each_structure_is_that_of_the_file_and_its_dates_
             expected = next(e for e in described()["revisions"] if e["revision"] == number)
             assert structure.planning_start_on == date.fromisoformat(expected["planning_start_on"])
             assert structure.planning_start_on == PLANNING_START
-            # The engine replayed at the instant of the event that opens the revision, and of the
-            # one that accepts the rates on the 101 (the lines are priced again).
+            # The engine replayed at the instant of the last event that writes the structure.
             assert structure.scheduled_at == instant(REPLAYED[number])
 
 
@@ -294,13 +312,23 @@ def test_the_inscriptions_follow_each_lineage_as_the_file_says_for_the_revision_
 def test_every_row_is_written_by_the_platform_at_the_instant_of_the_event_of_its_revision(
     witness: Database,
 ) -> None:
+    # The copy at the opening, the merge of the amendment 1 for the tasks it adds to the 101 and
+    # those it changes, the occurrence of 752, by the project manager, for those it grafts into the
+    # 102, whose states he lays then (EP-08).
     with witness.transaction() as session:
         for number, revision in REVISIONS.items():
             opened = instant(OPENED[number])
+            written: set[tuple[object, ...]] = set()
             for node, _ in rows(session, revision).values():
-                assert (node.created_at, node.created_by) == (opened, None)
-                assert node.updated_by is None
-                assert node.updated_at == opened
+                written.add((node.created_at, node.created_by, node.updated_at, node.updated_by))
+            expected = {(opened, None, opened, None)}
+            if number == 101:
+                merged = instant(MERGED)
+                expected |= {(opened, None, merged, None), (merged, None, merged, None)}
+            if number == 102:
+                occurred = instant(OCCURRED)
+                expected |= {(occurred, MANAGER, occurred, MANAGER)}
+            assert written == expected, number
 
 
 def closure(volume: list[dict[str, Any]]) -> set[str]:
@@ -342,12 +370,13 @@ def dated_otherwise(session: Session, number: int) -> list[str]:
 
 
 def test_the_dates_differ_from_the_file_only_for_the_tasks_a_calendar_of_a_line_reaches(
-    logs: Logs, witness_loaded: Database
+    witness: Database,
 ) -> None:
     # The computed is the expected: once the lines are loaded (US-1570/L2), the engine dates every
     # task of the three revisions as the file does, the tasks the 4x10 calendars of the lines reach,
     # their successors and their summaries included (#2594). Before them, at the stage of the
-    # tasks, TASKS_OF_2594 of them were dated otherwise, which the loader notes.
+    # tasks, TASKS_OF_2594 of them were dated otherwise, which the loader notes: the next test reads
+    # it.
     volume = example("volume/nodes_thousand")["items"]
     reached = closure(volume)
     lineages_reached = {item["lineage_id"] for item in volume if item["node_id"] in reached}
@@ -355,7 +384,7 @@ def test_the_dates_differ_from_the_file_only_for_the_tasks_a_calendar_of_a_line_
     core_lineages = {item["lineage_id"] for item in volume if item["node_id"] in core}
     assert core_lineages
     differing_counts: dict[int, int] = {}
-    with witness_loaded.transaction() as session:
+    with witness.transaction() as session:
         for number in REVISIONS:
             differing = dated_otherwise(session, number)
             assert len(set(differing)) == len(differing)
@@ -363,9 +392,6 @@ def test_the_dates_differ_from_the_file_only_for_the_tasks_a_calendar_of_a_line_
             assert not set(differing) & core_lineages
             differing_counts[number] = len(differing)
     assert differing_counts == dict.fromkeys(REVISIONS, 0)
-    # The loader notes how many, revision after revision.
-    noted = {r["revision"]: r["tasks"] for r in logs.named("witness.tasks_dated_before_the_lines")}
-    assert noted == dict.fromkeys(REVISIONS, TASKS_OF_2594)
 
 
 def core_items() -> list[dict[str, Any]]:
@@ -378,12 +404,16 @@ def core_items() -> list[dict[str, Any]]:
 
 
 def test_the_loading_notes_for_each_revision_how_many_tasks_the_engine_dated_otherwise(
-    logs: Logs, witness_loaded: Database
+    logs: Logs, witness_logged: Database
 ) -> None:
-    del witness_loaded
+    # Structure after structure: the offer, filled from nothing; the others, copies of a structure
+    # whose lines gave its tasks their calendars, none (EP-08).
+    del witness_logged  # asked for its side effect: the records of the loading, in ``logs``
+    # The one guard of #4350: the records must say the command loaded, whether kept or written
+    # again, and not hold only a "held" record, or the list below would be empty.
+    assert logs.named("witness.loaded"), "the records of the loading do not say it loaded"
     noted = logs.named("witness.tasks_dated_before_the_lines")
-    assert sorted(record["revision"] for record in noted) == [100, 101, 102]
-    assert [record["tasks"] for record in noted] == [TASKS_OF_2594] * 3
+    assert [(each["revision"], each["structure"], each["tasks"]) for each in noted] == FILLED
 
 
 READS = {
@@ -422,7 +452,7 @@ def difference(read_node: dict[str, Any], expected: dict[str, Any], read_on: dat
             found.append(key)
     ours, theirs = read_node["task"], expected["task"]
     for key in set(ours) | set(theirs):
-        if key in AMOUNTS | {"tracking", "origin_risk_id"}:
+        if key in AMOUNTS | {"tracking"}:
             continue
         if key == "finish_overdue":
             finish = date.fromisoformat(ours["finish"]["date"])
@@ -478,18 +508,21 @@ def test_the_readings_of_the_loaded_witness_are_the_examples_but_for_what_it_doe
                 found = []
         assert not found, (name, item["task"]["label"], found)
     # The order of the plan and the meta the reading answers, but for the amounts (EP-07) and the
-    # instant of the engine: the opening of the revision in progress, not the example's.
+    # instant of the engine: the last that wrote the revision in progress, the occurrence of 752,
+    # not the example's.
     if name != "nodes_summaries":
         assert list(got) == list(wanted)
-    assert body["meta"]["scheduled_at"] == instant(OPENED[102]).isoformat().replace("+00:00", "Z")
+    assert body["meta"]["scheduled_at"] == instant(REPLAYED[102]).isoformat().replace("+00:00", "Z")
     if name in {"nodes_planning", "nodes_timeline", "volume/nodes_thousand"}:
         assert body["totals"]["task_count"] == expected["totals"]["task_count"]
     if name == "volume/nodes_thousand":
-        # Only the origin risk, the calendar and what they move differ: three provision tasks bear
-        # a risk (EP-08), a hundred and three a calendar of ten hours (EP-07).
-        risky = [i for i in expected["items"] if i["kind"] == "task" and i["origin_risk_id"]]
+        # The three tasks the occurrence of 752 grafted bear it (EP-08), a hundred and three a
+        # calendar of ten hours (EP-07).
+        risky = {
+            i["node_id"] for i in expected["items"] if i["kind"] == "task" and i["origin_risk_id"]
+        }
         assert len(risky) == 3
-        assert all(i["origin_risk_id"] is None for i in body["items"])
+        assert {i["node_id"] for i in body["items"] if i["origin_risk_id"]} == risky
         ten = [i for i in wanted.values() if i["task"]["calendar_hours"]["monday"] == "10"]
         assert len(ten) == 103
 
@@ -576,8 +609,9 @@ def test_a_second_loading_finds_the_tasks_there_and_writes_nothing(
     before = counts()
     assert load(service_database_url) == 0
     assert counts() == before
-    # The nodes of the tasks and, since the slice of the lines, those of the lines.
-    assert before[0] == (997 + 997 + 1000) + (4997 + 4997 + 4999)
+    # The nodes of the tasks and, since the slice of the lines, those of the lines, of the main
+    # structures and, since EP-08, of the amendments, their bases and the own estimates.
+    assert before[0] > (997 + 997 + 1000) + (4997 + 4997 + 4999)
 
 
 def loaded_tasks(number: int) -> tuple[TaskLoad, ...]:
@@ -753,19 +787,54 @@ def test_a_created_child_described_before_its_created_parent_is_written_after_it
         assert after[parent.lineage_id][0].id == parent.node_id
 
 
-def test_tasks_each_the_parent_of_the_other_are_refused_with_an_explicit_error(
-    witness: Database,
-) -> None:
-    # A parentage cycle in load.tasks must fail loudly, not loop without end.
-    tasks = loaded_tasks(102)
-    first, second = tasks[0], tasks[1]
+def _cycle(tasks: tuple[TaskLoad, ...], shape: str) -> tuple[tuple[TaskLoad, ...], set[UUID]]:
+    """Give the tasks with a parentage cycle of the shape, and the lineages in the cycle."""
+    first, second, third = tasks[0], tasks[1], tasks[2]
+    if shape == "itself":
+        return (replace(first, parent_lineage_id=first.lineage_id), *tasks[1:]), {first.lineage_id}
     one = replace(first, parent_lineage_id=second.lineage_id)
     other = replace(second, parent_lineage_id=first.lineage_id)
+    cycle = {first.lineage_id, second.lineage_id}
+    if shape == "two":
+        return (one, other, *tasks[2:]), cycle
+    # A descendant of the cycle, outside it, comes first: the walk starts from it, and the refusal
+    # must name a task of the cycle, not it (#2883).
+    below = replace(third, parent_lineage_id=first.lineage_id)
+    return (below, one, other, *tasks[3:]), cycle
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.parametrize("shape", ["itself", "two", "below"])
+def test_tasks_with_a_parentage_cycle_are_refused_naming_a_task_of_the_cycle(
+    witness: Database, shape: str
+) -> None:
+    # A parentage cycle in load.tasks must fail loudly, not loop without end (#2883).
+    tasks, cycle = _cycle(loaded_tasks(102), shape)
     with witness.transaction() as session:
         place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
         act = Act(author=None, at=instant(OPENED[102]))
-        with pytest.raises(ValueError, match="loops on itself"):
-            load_tasks(session, place, TasksLoad(PLANNING_START, (one, other, *tasks[2:])), act)
+        with pytest.raises(ParentageLoopError, match="loops on itself") as refused:
+            load_tasks(session, place, TasksLoad(PLANNING_START, tasks), act)
+    assert sum(str(each) in str(refused.value) for each in cycle) == 1
+    if shape == "below":
+        assert str(tasks[0].lineage_id) not in str(refused.value)
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+def test_a_task_whose_parent_is_not_described_is_refused_naming_both(witness: Database) -> None:
+    # A parent_lineage_id absent from load.tasks is no raw KeyError: the error names the task and
+    # the parent that is missing (#2884).
+    tasks = loaded_tasks(102)
+    absent = UUID("01926f3a-7c00-7000-8000-00000000f9f9")
+    orphan = replace(tasks[1], parent_lineage_id=absent)
+    with witness.transaction() as session:
+        place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
+        act = Act(author=None, at=instant(OPENED[102]))
+        described = TasksLoad(PLANNING_START, (tasks[0], orphan, *tasks[2:]))
+        with pytest.raises(ParentAbsentError) as refused:
+            load_tasks(session, place, described, act)
+    assert str(orphan.lineage_id) in str(refused.value)
+    assert str(absent) in str(refused.value)
 
 
 def test_a_task_kept_under_another_identifier_is_written_again_with_its_lineage_its_links_and_state(
@@ -811,7 +880,7 @@ def test_a_task_kept_under_another_identifier_is_written_again_with_its_lineage_
                 link.lag_unit,
             )
             for link in session.scalars(
-                select(TaskLink).where(TaskLink.revision_id == REVISION_102)
+                select(TaskLink).where(TaskLink.structure_id == place.structure_id)
             )
         }
         expected = {

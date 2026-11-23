@@ -18,6 +18,7 @@ from waterfall.api import (
     access_roles,
     actual_cost_mapping,
     actual_costs,
+    amendments,
     audit,
     avatars,
     backup_schedule,
@@ -40,13 +41,23 @@ from waterfall.api import (
     indicator_curves,
     lifecycle,
     me,
+    merges,
     milestone_tracking,
     nodes,
     org_nodes,
+    portfolio_cost_curve,
+    portfolio_cost_structure,
+    portfolio_performance,
+    portfolio_pilot_health,
+    portfolio_projects,
+    portfolio_risks,
+    portfolio_value,
+    portfolio_workload,
     progress,
     project_indicators,
     projects,
     rate_update,
+    rebases,
     reference,
     reference_settings,
     remaining_indicators,
@@ -54,6 +65,12 @@ from waterfall.api import (
     resource_roles,
     restores,
     revisions,
+    risk_coverage,
+    risk_occurrences,
+    risk_provisions,
+    risk_register,
+    risk_reviews,
+    risks,
     scheduling,
     skeleton,
     spending,
@@ -77,6 +94,8 @@ from waterfall.core.exchanges import interface as exchanges_interface
 from waterfall.core.history import interface as history_interface
 from waterfall.core.indicators import interface as indicators_interface
 from waterfall.core.planning import interface as planning_interface
+from waterfall.core.portfolio import interface as portfolio_interface
+from waterfall.core.risks import interface as risks_interface
 from waterfall.platform.metrics import Capacities
 
 if TYPE_CHECKING:
@@ -100,6 +119,8 @@ EXTENDING = (
     history_interface,
     indicators_interface,
     planning_interface,
+    portfolio_interface,
+    risks_interface,
 )
 
 
@@ -228,4 +249,31 @@ def create_app(
         milestone_tracking.router,
     ):
         app.include_router(indicators_router, prefix=PREFIX)
+    # The amendments and the risks (EP-08): a router per story, each registered here from the start.
+    for risks_router in (
+        amendments.router,
+        merges.router,
+        # The update of a differential from the main structure (US-3050/L3).
+        rebases.router,
+        # The routes named under ``/risks`` (``matrix``, ``coverage``) before ``/risks/{risk_id}``.
+        risk_register.router,
+        risk_coverage.router,
+        risks.router,
+        risk_provisions.router,
+        risk_reviews.router,
+        risk_occurrences.router,
+    ):
+        app.include_router(risks_router, prefix=PREFIX)
+    # The portfolio (EP-11): a router per view, each registered here from the start.
+    for portfolio_router in (
+        portfolio_projects.router,
+        portfolio_value.router,
+        portfolio_workload.router,
+        portfolio_performance.router,
+        portfolio_cost_structure.router,
+        portfolio_risks.router,
+        portfolio_cost_curve.router,
+        portfolio_pilot_health.router,
+    ):
+        app.include_router(portfolio_router, prefix=PREFIX)
     return app

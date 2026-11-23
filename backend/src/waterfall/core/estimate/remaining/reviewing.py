@@ -179,23 +179,34 @@ def was_reviewed(session: Session, project_id: UUID, revision_id: UUID) -> bool:
 
 
 def revision_remaining(
-    session: Session, project_id: UUID, revision_id: UUID
+    session: Session, project_id: UUID, revision_id: UUID, *, provisions: bool = False
 ) -> tuple[Decimal, dict[UUID, Decimal]]:
-    """Give the remaining to commit of a revision, and each line's, at the state of its tasks."""
-    return remaining_of_placed(session, placed_lines(session, project_id, revision_id))
+    """Give the remaining to commit of a revision, and each line's, at the state of its tasks.
+
+    The provisions of the risks identified with it if ``provisions`` is asked (``remaining_sum``).
+    """
+    return remaining_of_placed(
+        session, placed_lines(session, project_id, revision_id), provisions=provisions
+    )
 
 
 def remaining_of_placed(
-    session: Session, placed: Sequence[Placed]
+    session: Session, placed: Sequence[Placed], *, provisions: bool = False
 ) -> tuple[Decimal, dict[UUID, Decimal]]:
-    """Give the remaining to commit of the lines of a revision placed already on their tasks."""
-    provisions = provisions_of(session, [each.line for each in placed])
+    """Give the remaining to commit of the lines of a revision placed already on their tasks.
+
+    The provisions of the risks identified with it if ``provisions`` is asked (``remaining_sum``).
+    """
+    held = provisions_of(session, [each.line for each in placed])
     return remaining_sum(
-        LineAmount(
-            each.line.node_id,
-            each.line.reestimated_amount,
-            each.is_completed,
-            each.line.node_id in provisions,
-        )
-        for each in placed
+        (
+            LineAmount(
+                each.line.node_id,
+                each.line.reestimated_amount,
+                each.is_completed,
+                each.line.node_id in held,
+            )
+            for each in placed
+        ),
+        provisions=provisions,
     )

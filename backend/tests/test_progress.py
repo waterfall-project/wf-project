@@ -13,6 +13,7 @@ of the project is put around the service, as EP-04 did (``put_in_state``).
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -29,6 +30,7 @@ from nodes_support import (
 from planning_support import node_row
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
+from risks_support import material_line, provision_category
 from sqlalchemy import insert, select, update
 
 from waterfall.core.planning import writing
@@ -224,10 +226,18 @@ def test_a_completion_without_date_is_refused_for_a_task_started_in_the_future(
 @pytest.mark.requirement("WF-PLA-0130-A")
 def test_a_task_started_is_completed_with_no_line_at_the_date_of_the_gesture(tree: Tree) -> None:
     # « Une tâche démarrée qui ne porte aucune ligne hors lignes de provision » is completed
-    # directly (WF-RAE-0030); a provision line, written for information, does not hold it back.
+    # directly (WF-RAE-0030); a provision line, written for information, does not hold it back: a
+    # line of the category of provision, as the estimate tells (EP-08, US-2550/L1).
     node = tree.made("Câblage")
     started = moved(tree, node, "started", occurred_on=JUNE_THIRD)
-    line(tree.stage, tree, started, origin_risk_id=uuid4())
+    place = (
+        UUID(tree.stage.project["project_id"]),
+        UUID(tree.revision["revision_id"]),
+        UUID(tree.structure_id),
+        UUID(started["node_id"]),
+    )
+    with tree.stage.owner.begin() as connection:
+        material_line(connection, place, provision_category(connection), Decimal("40.00"))
     done = moved(tree, started, "completed", occurred_on=JUNE_TENTH)
     assert done["task"]["completed_on"] == JUNE_TENTH
 

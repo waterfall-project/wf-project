@@ -21,12 +21,14 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Literal
+from uuid import UUID
 
 from sqlalchemy import ColumnElement, SQLColumnExpression, case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from waterfall.core.cost_settings.interface import (
     missing_prerequisites,
+    provision_category_active,
     read_actual_cost_mapping,
 )
 from waterfall.core.projects.commands import (
@@ -39,7 +41,7 @@ from waterfall.core.projects.commands import (
 from waterfall.core.projects.interface.contributors import require_project_manager
 from waterfall.core.projects.interface.estimate_facts import hold_estimate, reinflate_estimate
 from waterfall.core.projects.interface.lifecycle import advance
-from waterfall.core.projects.interface.skeleton import opening_with_tasks
+from waterfall.core.projects.interface.skeleton import opening_main_with_tasks
 from waterfall.core.projects.interface.work_breakdown import BORN_LOCK_VERSION, follow_project_label
 from waterfall.core.projects.tables import (
     STATES,
@@ -65,12 +67,12 @@ from waterfall.platform.errors import (
     UnprocessableError,
 )
 from waterfall.platform.identifiers import new_id
+from waterfall.platform.permissions import ALL_PROJECTS_READ
 from waterfall.platform.tasks import projects_with_task_pending
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Generator, Iterable, Mapping
     from datetime import date, datetime
-    from uuid import UUID
 
     from sqlalchemy.orm import Session
 
@@ -84,6 +86,7 @@ ALREADY_EXISTS = "ALREADY_EXISTS"
 REFERENCE_INCOMPLETE = "REFERENCE_INCOMPLETE"
 # Who may import the actual costs of a project: its mapping is read for the command (WF-REF-0190).
 ACTUAL_COSTS_WRITE = "actual_costs.write"
+RISKS_WRITE = "risks.write"
 # The unique index of the code of a project (migration of the tables of the projects).
 CODE_INDEX = "uq_project_code"
 RATIOS = ("win_probability", "inflation_rate")
@@ -102,9 +105,6 @@ MODIFIABLE = (
     "order_received_on",
 )
 
-
-# The permission that opens to consultation the projects its holder does not contribute to.
-ALL_PROJECTS_READ = "all_projects_read"
 # The states a list keeps unless it names some: the projects in progress alone.
 DEFAULT_STATES: frozenset[str] = frozenset({"in_progress"})
 
@@ -126,6 +126,11 @@ class Viewer:
     def sees_all(self) -> bool:
         """Whether every project that exists is open to the reader (``all_projects_read``)."""
         return ALL_PROJECTS_READ in self.permissions
+
+
+# Who reads for a computation that is no one's: no account, no permission. The reader of the
+# commands of a project, of a revision or of a risk the computation does not return (#4295).
+NOBODY = Viewer(UUID(int=0), frozenset())
 
 
 @dataclass(frozen=True, slots=True)
@@ -335,19 +340,28 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
     rows = list(projects)
     kinds = _kinds(session, viewer.user_id, [row.id for row in rows])
     busy = projects_with_task_pending(session, [row.id for row in rows])
-    # Only a project without a current revision judges the skeleton on the revision it would open.
+    # Only a project without a current revision judges the skeleton, and the declaration of a risk,
+    # on the revision it would open.
     asking = (
         [row.id for row in rows if row.current_revision_id is None and row.state not in TERMINAL]
-        if "planning.write" in viewer.permissions
+        if "planning.write" in viewer.permissions or RISKS_WRITE in viewer.permissions
         else []
     )
-    opening: frozenset[UUID] = opening_with_tasks(session, asking) if asking else frozenset()
+    opening_main: frozenset[UUID] = (
+        opening_main_with_tasks(session, asking) if asking else frozenset()
+    )
     # The mapping of the installation is read once, for who may import the actual costs of a
     # project that lists its commands (WF-REF-0190).
     mapping_complete = (
         read_actual_cost_mapping(session).is_complete
         if ACTUAL_COSTS_WRITE in viewer.permissions
         and any(row.state not in TERMINAL for row in rows)
+        else True
+    )
+    # The category of provision the declaration of a risk asks, read once (WF-RIS-0010).
+    provision_active = (
+        provision_category_active(session)
+        if RISKS_WRITE in viewer.permissions and any(row.state not in TERMINAL for row in rows)
         else True
     )
     return [
@@ -372,8 +386,9 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
                     row.current_revision_id,
                     running=Running(
                         no_task_running=row.id not in busy,
-                        opening_has_tasks=row.id in opening,
+                        opening_has_main_task=row.id in opening_main,
                         mapping_complete=mapping_complete,
+                        provision_category_active=provision_active,
                     ),
                 )
             ),

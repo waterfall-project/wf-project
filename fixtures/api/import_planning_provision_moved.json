@@ -22,7 +22,7 @@
           "change": "updated",
           "target": "estimate_line",
           "lineage_id": "01926f3a-7c00-7000-8000-000000000655",
-          "label": "Provision — risque de reprise du câblage",
+          "label": "Provision — Risque de reprise du câblage",
           "predecessor_label": null,
           "fields": [
             "parent"

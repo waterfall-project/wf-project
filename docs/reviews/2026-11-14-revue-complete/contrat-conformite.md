@@ -63,6 +63,7 @@ Aucun.
 
 ### CTC-01 — `getIdentitySyncSchedule` et `setIdentitySyncSchedule` : au contrat, servies par personne, dues par aucun EPIC, exigence close
 
+- **Suite** : sans issue propre, vérifié le 2026-11-21 — tombera avec US-3040, issue #4065 (EP-13).
 - **Où** : `docs/api/paths/access.yaml:708` (`/identity-sync-schedule`, GET et PUT) ;
   `backend/src/waterfall/api/identity_syncs.py` (deux routes seulement : `startIdentitySync`
   l. 43, `getLatestIdentitySync` l. 56) ; `frontend/src/app/admin/users/page.tsx:172-176` ;
@@ -102,6 +103,7 @@ Aucun.
 
 ### CTC-02 — `undoLastChange` et `redoLastUndo` peuvent répondre 422, que le contrat ne déclare pas
 
+- **Issue** : #4466 (EP-38), ouverte le 2026-11-21, avec CTA-08, CTA-09, CTB-08.
 - **Où** : `backend/src/waterfall/core/planning/restoring.py:475` et `:524`
   (`redated_structure`) → `core/planning/rescheduling.py:113-119` (`horizon_exceeded`) et
   `core/planning/dating.py:102`, `:156`, `:158` ; routes `backend/src/waterfall/api/history.py:119`
@@ -130,6 +132,7 @@ Aucun.
 
 ### CTC-03 — le 413 de `previewPaste` ne peut pas être rendu : le service ne borne aucun corps JSON
 
+- **Issue** : #4464 (EP-38), ouverte le 2026-11-21, avec 7 autres constats.
 - **Où** : `docs/api/paths/revisions.yaml:2427` (`'413': PayloadTooLarge`) ;
   `docs/api/components/schemas/revisions.yaml:2441` (« The block has no limit of height but the
   size of the request (413) ») ; `docs/roadmap/EP-06-planification.md:767-768` (« Aucune borne
@@ -154,6 +157,12 @@ Aucun.
 
 ### CTC-04 — `getProjectWorkload` répond 500 dès qu'un rôle actif a une capacité inférieure à 0,000001 h
 
+- **Suite** : sans objet depuis la revue, vérifié le 2026-11-21 — depuis US-2410 (EP-10, sur
+  `main`), la capacité mensuelle d'un rôle ne s'écrit plus : la colonne
+  `resource_role.monthly_hours` est supprimée, seul l'effectif est saisi, et les heures sont
+  calculées en SQL puis arrondies au centième (`func.round(…, 2)`). Le `str()` de `workload.py:57`
+  demeure, mais ne reçoit plus qu'un décimal à deux chiffres, que `str()` n'écrit jamais en notation
+  scientifique.
 - **Où** : `backend/src/waterfall/api/workload.py:41` (`"capacity_monthly_hours":
   str(role.capacity_monthly_hours)`) ; `core/estimate/workloading.py:297-302` ;
   `core/resource_settings/tables.py:140` (`monthly_hours: Numeric`, sans précision) ;
@@ -179,6 +188,7 @@ Aucun.
 
 ### CTC-05 — les corps redéclarés à la main ne sont tenus au contrat par aucun test
 
+- **Issue** : #4452 (EP-36), ouverte le 2026-11-21.
 - **Où** : `backend/src/waterfall/api/projects.py:103-121` (`ProjectCreateBody`,
   `ProjectUpdateBody`), `subprojects.py:72-90` (`SubprojectWriteBody`, `SubprojectUpdateBody`),
   `reference_settings_write.py:35-63` (`ThresholdsWrite`, `SettingsWrite`), et les corps que le
@@ -205,17 +215,35 @@ Aucun.
   `limit` et `offset` ; les neuf filtres et tris du contrat (`from`, `to`, `is_retained`,
   `origins`, `size_bytes_min/max`, `verifications`, `sort_by`, `sort_order`) sont ignorés sans
   refus. Majeur, **déjà connu (#2231, EP-13)**.
+  **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — sur EP-13, `BackupsQuery` porte
+  `from`, `to`, `origins`, `verifications`, `is_retained`, `size_bytes_min/max`, `sort_by`,
+  `sort_order`, jugés par `backup_filters` (422 sur une borne inversée) et passés à `list_backups`
+  (US-2910/L2, 1686e66ae). Pas encore sur `main`.
 - **CTC-07** — `backups.py:129` et `:142-160` : les 409 déclarés de `startBackup` et de
   `downloadBackup` (sauvegarde non vérifiée, sauvegarde en cours) ne sont jamais levés ; une
   archive non vérifiée se télécharge. Majeur, **déjà connu (#1035, EP-13)**.
+  **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — sur EP-13, `startBackup` prend les
+  deux verrous puis `refuse_if_lacking(backup_start_lacks(…))`, et `downloadBackup` appelle
+  `refuse_if_lacking(download_lacks(view.verification))` avant de lire l'archive : une archive non
+  vérifiée n'est plus copiée (US-2910/L2, 1686e66ae).
 - **CTC-08** — `backups.py:66-88` : les commandes `retain`/`release` sont annoncées disponibles
   alors que `retainBackup` n'est pas servi. Mineur, **déjà connu (#2241, EP-13)**.
+  **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — sur EP-13, `retainBackup` est servie
+  (`PATCH /backups/{backup_id}`), et la commande de marquage n'est listée que sous la permission de
+  modifier, avec `marking_lacks(platform)` pour condition manquante (US-2910/L2, 1686e66ae).
 - **CTC-09** — huit paramètres de requête bornés au contrat et lus en texte par le service
   (`rate_*`, `headcount_*`, `monthly_hours_*`, `correlation_id`, `actions`). Mineur, **déjà connu
   (#2303, EP-13)**.
+  **Suite** : sans issue propre, vérifié le 2026-11-21 — tombera avec issue #2303 (EP-13, ouverte),
+  US-3020/L3 (#4109).
 - **CTC-10** — parcours joués contre le seul faux back sous quarantaine nommée :
   `frontend/e2e/revisions.spec.ts:132` (#3192, EP-27), `structure.spec.ts:344` (#3087, EP-26),
   `reference-costs.spec.ts:382` et `:486` (#3190, #3191, EP-25). Mineur, **déjà connu**.
+  **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — les constantes `QUARANTINED_3192`,
+  `_3087`, `_3190` et `_3191` et leurs `test.skip(inService, …)` ont disparu : « quarantin » ne se
+  trouve plus dans `frontend/e2e` sur aucune des quatre branches, et `structure.spec.ts:337` dit le
+  parcours « Played against the service again (US-2290, #3087) ». Les quatre issues sont fermées (du
+  2026-11-14 au 2026-11-18).
 
 ## Points forts
 

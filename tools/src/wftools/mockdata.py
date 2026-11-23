@@ -29,7 +29,10 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
   automatic mode it redates (``wftools.mockplanning``, WF-PLA-0020);
 - ``portfolio_projects.json``, ``getPortfolioProjects``: the projects of the portfolio, the
   witness project and the offer of the other examples first, and ``portfolio_projects_page.json``,
-  its second page of fifty;
+  its second page of fifty, and ``portfolio_projects_filtered.json``, read with column filters
+  (``portfolio_projects_bounds_inverted.json`` and
+  ``portfolio_projects_marking_period_inverted.json``, the refusals of its bounds and of its period
+  of marking, are written by ``wftools.mockportfolio``);
 - ``portfolio_value.json``, ``portfolio_performance.json``, ``portfolio_cost_structure.json``
   and ``portfolio_risks.json``, of ``getPortfolioValue``, ``getPortfolioPerformance``,
   ``getPortfolioCostStructure`` and ``getPortfolioRisks``: the views of the same projects,
@@ -77,7 +80,6 @@ named example missing or outdated fails too.
 """
 
 import argparse
-import json
 import sys
 from dataclasses import replace
 from datetime import date
@@ -98,21 +100,26 @@ from wftools import (
     mockcosts,
     mockcycle,
     mockdeclared,
+    mockdifferentials,
     mockexchanges,
     mockgestures,
     mockhistory,
     mockkanban,
     mocklists,
     mocknonworking,
+    mockportfolio,
     mockportfoliotime,
     mockproject,
     mockrates,
+    mockrebase,
     mockreference,
     mockrefusals,
+    mockrender,
     mockreview,
     mockrevisionminors,
     mockriskwrites,
     mockservedrefusals,
+    mocksliceviews,
     mocksnapshot,
     mocksort,
     mockspendingrefusals,
@@ -122,6 +129,7 @@ from wftools import (
     mockwitness,
     mockwitnesscostfile,
     mockwitnesslines,
+    mockwitnessrisksfile,
     mockwitnesstasks,
     mockwrites,
     paths,
@@ -130,7 +138,6 @@ from wftools.mockids import universe
 from wftools.mockstructure import (
     ELECTRICAL_RATE,
     JsonObject,
-    JsonValue,
     described,
 )
 from wftools.mockwitness import (
@@ -186,9 +193,10 @@ def named() -> dict[str, JsonObject]:
     the subprojects and the contributors (``mocklists``), the contributors once an account is
     anonymised (``mockanonymized``); the exit of the witness (``mockproject``); the refusals of one
     form each (``mockrefusals``), those the contract declared without a code, a condition nor an
-    example (``mockdeclared``), those of the administration (``mockadminrefusals``), those served
-    undeclared (``mockservedrefusals``); the majors of the review (``mockreview``); the loaders'
-    (``mockwitness*``, ``mockchronology``).
+    example (``mockdeclared``), of the administration (``mockadminrefusals``), served undeclared
+    (``mockservedrefusals``), of the differentials (``mockdifferentials``); the update of the
+    amendment 2 (``mockrebase``); the majors of the
+    review (``mockreview``); the loaders' (``mockwitness*``, ``mockchronology``).
     """
     marked = mocksnapshot.revisions(mockrates.categories())
     return {
@@ -208,6 +216,7 @@ def named() -> dict[str, JsonObject]:
         **mocktoday.examples(),
         **mockcosts.examples(),
         **mockportfoliotime.examples(),
+        **mockportfolio.refusals(),
         **mockaudit.examples(),
         **mockauditadmin.examples(),
         **mockreference.named(),
@@ -219,12 +228,15 @@ def named() -> dict[str, JsonObject]:
         **mockdeclared.examples(),
         **mockreview.examples(),
         **mockrevisionminors.examples(),
+        **mockdifferentials.examples(),
+        **mockrebase.examples(),
         **mockservedrefusals.examples(),
         **mockspendingrefusals.examples(),
         **mockchronology.examples(),
         **mockwitnesstasks.examples(),
         **mockwitnesslines.examples(),
         **mockwitnesscostfile.examples(),
+        **mockwitnessrisksfile.examples(),
     }
 
 
@@ -529,38 +541,9 @@ def readings() -> dict[str, JsonObject]:
 # --- Writing and checking ------------------------------------------------------------------
 
 
-# The envelope of an example and its value are laid out; below them, one line per item.
-_EXPANDED_DEPTH = 2
-# Below them, an object that holds a list longer than this is laid out too, the list one line per
-# item, even within an item: a point of the portfolio matrix, a task of a role (#1053, #3181).
-_LONG_LIST = 50
-
-
 def render(example: JsonObject) -> str:
-    """Return the text of an example: one line for each item of its lists, for readable diffs."""
-    return _render(example, 0) + "\n"
-
-
-def _render(value: JsonValue, depth: int) -> str:
-    indent = "  " * depth
-    inner = indent + "  "
-    if isinstance(value, list) and value:
-        items = ",\n".join(inner + _render(item, depth + 1) for item in value)
-        return f"[\n{items}\n{indent}]"
-    if isinstance(value, dict) and (depth < _EXPANDED_DEPTH or _holds_long_list(value)):
-        fields = ",\n".join(
-            f"{inner}{_compact(key)}: {_render(item, depth + 1)}" for key, item in value.items()
-        )
-        return f"{{\n{fields}\n{indent}}}"
-    return _compact(value)
-
-
-def _holds_long_list(value: JsonObject) -> bool:
-    return any(isinstance(item, list) and len(item) > _LONG_LIST for item in value.values())
-
-
-def _compact(value: JsonValue) -> str:
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    """Return the text of an example: one line for each item of its lists (``mockrender``)."""
+    return mockrender.render(example)
 
 
 def write(fixtures: Path) -> list[Path]:
@@ -582,7 +565,8 @@ def write(fixtures: Path) -> list[Path]:
         written.append(_write(directory / name, text))
     for name, example in named().items():
         written.append(_write(fixtures / name, render(example)))
-    return written
+    # The slice of the portfolio, its description and its readings, beside the examples (US-2770).
+    return [*written, *mocksliceviews.write(mocksliceviews.directory_of(fixtures))]
 
 
 def _write(path: Path, text: str) -> Path:
@@ -611,7 +595,7 @@ def check(fixtures: Path, declared: Iterable[str] | None = None) -> list[str]:
         for name in (declared_names() if declared is None else declared)
         if name not in examples
     )
-    return problems
+    return [*problems, *mocksliceviews.check(mocksliceviews.directory_of(fixtures))]
 
 
 BY = "make mock-data"

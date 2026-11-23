@@ -22,9 +22,9 @@ from project_rows import (
     insert_project,
     insert_revision,
     insert_structure,
-    lifted_kind_check,
     projects_with_partitions,
     revision_row,
+    risk_row,
     structure_row,
 )
 from sqlalchemy import Engine, delete, insert, select, text, update
@@ -42,6 +42,7 @@ from waterfall.core.projects.tables import (
     WorkPackage,
 )
 from waterfall.core.revisions.tables import CostStructure, Revision
+from waterfall.core.risks.tables import Risk
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Base, Database
 
@@ -278,12 +279,40 @@ REFUSALS: list[Refusal] = [
     (Revision, {"project_id": uuid4()}, "fk_revision_project_id_project"),
     (Revision, {"source_revision_id": uuid4()}, "fk_revision_project_id_revision"),
     (Revision, {"id": SELF, "source_revision_id": SELF}, "ck_revision_source_not_self"),
-    (CostStructure, {"kind": "amendment"}, "ck_cost_structure_kind_known"),
+    (CostStructure, {"kind": "baseline"}, "ck_cost_structure_kind_known"),
+    # The risk of an own estimate, there for that kind alone, and known with its project (EP-08).
+    (CostStructure, {"kind": "risk"}, "ck_cost_structure_risk_of_its_kind"),
+    (
+        CostStructure,
+        {"kind": "amendment", "main_lock_version": 1, "risk_id": uuid4()},
+        "ck_cost_structure_risk_of_its_kind",
+    ),
+    (CostStructure, {"kind": "risk", "risk_id": uuid4()}, "fk_cost_structure_project_id_risk"),
+    # The differential of a base, there for that kind alone, of its revision; the counter of the
+    # main structure a differential's base was taken at, for that kind alone (US-3050).
+    (CostStructure, {"kind": "base"}, "ck_cost_structure_differential_of_its_kind"),
+    (CostStructure, {"differential_id": uuid4()}, "ck_cost_structure_differential_of_its_kind"),
+    (
+        CostStructure,
+        {"kind": "base", "differential_id": uuid4()},
+        "fk_cost_structure_project_id_cost_structure",
+    ),
+    (CostStructure, {"kind": "amendment"}, "ck_cost_structure_main_counter_of_its_kind"),
+    (CostStructure, {"main_lock_version": 1}, "ck_cost_structure_main_counter_of_its_kind"),
+    (
+        CostStructure,
+        {"kind": "amendment", "main_lock_version": -1},
+        "ck_cost_structure_main_counter_not_negative",
+    ),
     *bounds(CostStructure, "label", 300),
     (CostStructure, {"revision_id": uuid4()}, "fk_cost_structure_project_id_revision"),
 ]
-# The main structure tried in the revision of the second project, which has one already.
+# The main structure tried in the revision of the second project, which has one already; the own
+# estimate of a risk tried twice in a revision.
 MAIN = "uq_cost_structure_main"
+RISK = "uq_cost_structure_risk"
+# A second base of a differential (US-3050).
+BASE = "uq_cost_structure_base"
 
 
 def held(table: type[Base], parents: Parents) -> Executable | None:
@@ -352,54 +381,64 @@ def test_the_database_refuses_a_second_main_structure_in_a_revision(
     assert parent == MAIN
 
 
-def test_the_check_on_the_kind_of_a_structure_is_restored_when_the_body_that_lifted_it_fails(
-    database: Database, owner: Engine, parents: Parents
+@pytest.mark.requirement("WF-DAT-0090-A")
+def test_the_database_refuses_a_second_own_estimate_of_a_risk_in_a_revision(
+    database: Database, parents: Parents
 ) -> None:
-    # A test of the tool that lifts the check, which covers no requirement. The body leaves its
-    # structure in place and fails: the check is back all the same, and the error is the body's.
-    kind = "ck_cost_structure_kind_known"
+    # One own estimate at most by risk and by revision (EP-08): a second one of the same risk is
+    # refused by the index of the partition, whose parent is the index of the table; another risk
+    # has its own.
+    risk, other = uuid4(), uuid4()
+    with database.engine.begin() as connection:
+        connection.execute(
+            insert(Risk), [risk_row(parents.project, id=each) for each in (risk, other)]
+        )
+        connection.execute(row(CostStructure, parents, kind="risk", risk_id=risk))
+        connection.execute(row(CostStructure, parents, kind="risk", risk_id=other))
+    refused = refusal(database.engine, row(CostStructure, parents, kind="risk", risk_id=risk))
+    with database.engine.connect() as connection:
+        parent = connection.execute(
+            text(
+                "SELECT inhparent::regclass::text FROM pg_inherits "
+                "WHERE inhrelid = to_regclass(:index)"
+            ),
+            {"index": refused},
+        ).scalar_one()
+    assert parent == RISK
 
-    def fail_in_the_body() -> None:
-        with lifted_kind_check(owner):
-            with owner.begin() as connection:
-                connection.execute(
-                    insert_structure(parents.project, parents.revision, kind="amendment")
-                )
-            message = "forced"
-            raise RuntimeError(message)
 
-    with pytest.raises(RuntimeError, match="forced"):
-        fail_in_the_body()
-    differential = insert_structure(parents.project, parents.revision, kind="amendment")
-    assert refusal(database.engine, differential) == kind
-
-
-def test_a_body_that_succeeds_leaving_a_structure_of_another_kind_fails_at_the_validation(
-    database: Database, owner: Engine, parents: Parents
+@pytest.mark.requirement("WF-DAT-0090-A")
+def test_the_database_refuses_a_second_base_of_a_differential(
+    database: Database, parents: Parents
 ) -> None:
-    # A test of the tool that lifts the check, which covers no requirement (#2622). The body ends
-    # well but forgets its differential: the check comes back ``NOT VALID``, and its validation
-    # refuses the row left, failing the test; the check holds meanwhile for every row written.
-    kind = "ck_cost_structure_kind_known"
-    forgotten = insert_structure(parents.project, parents.revision, kind="amendment")
-    with (
-        pytest.raises(IntegrityError, match=kind),
-        lifted_kind_check(owner),
-        owner.begin() as connection,
-    ):
-        connection.execute(forgotten)
-    differential = insert_structure(parents.project, parents.revision, kind="amendment")
-    assert refusal(database.engine, differential) == kind
-    with owner.begin() as connection:
-        connection.execute(delete(CostStructure).where(CostStructure.kind == "amendment"))
-        connection.execute(text(f"ALTER TABLE cost_structure VALIDATE CONSTRAINT {kind}"))
+    # One base at most by differential (US-3050): a second one is refused by the index of the
+    # partition, whose parent is the index of the table; another differential has its own.
+    differentials = [uuid4(), uuid4()]
+    with database.engine.begin() as connection:
+        for each in differentials:
+            connection.execute(
+                row(CostStructure, parents, id=each, kind="amendment", main_lock_version=1)
+            )
+            connection.execute(row(CostStructure, parents, kind="base", differential_id=each))
+    second = row(CostStructure, parents, kind="base", differential_id=differentials[0])
+    refused = refusal(database.engine, second)
+    with database.engine.connect() as connection:
+        parent = connection.execute(
+            text(
+                "SELECT inhparent::regclass::text FROM pg_inherits "
+                "WHERE inhrelid = to_regclass(:index)"
+            ),
+            {"index": refused},
+        ).scalar_one()
+    assert parent == BASE
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")
 def test_every_named_constraint_of_the_projects_and_revisions_has_its_refusal_tried() -> None:
     # The unique indexes count, as the constraints do; what a key names — a revision with its
-    # project, a structure with its revision (EP-06), a subproject with its project (EP-07) — is
-    # unique as its key is, and is never broken without it.
+    # project, a structure with its revision (EP-06), a subproject with its project (EP-07), an
+    # own estimate with its revision and its risk (EP-08) — is unique as its key is, and is never
+    # broken without it.
     tables = [Base.metadata.tables[table.__tablename__] for table in TABLES]
     named = {
         str(constraint.name)
@@ -407,8 +446,13 @@ def test_every_named_constraint_of_the_projects_and_revisions_has_its_refusal_tr
         for constraint in table.constraints
         if constraint.name is not None and not str(constraint.name).startswith("pk_")
     } | {str(index.name) for table in tables for index in table.indexes if index.unique}
-    tried = {MAIN} | {constraint for _, _, constraint in (*REFUSALS, *audit_refusals())}
-    named_by_a_key = {"uq_revision_project_id", "uq_cost_structure_project_id", "uq_subproject_id"}
+    tried = {MAIN, RISK, BASE} | {constraint for _, _, constraint in (*REFUSALS, *audit_refusals())}
+    named_by_a_key = {
+        "uq_revision_project_id",
+        "uq_cost_structure_project_id",
+        "uq_cost_structure_risk_id",
+        "uq_subproject_id",
+    }
     assert named - named_by_a_key == tried
 
 

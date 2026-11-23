@@ -174,5 +174,7 @@ def test_a_marking_failed_by_its_indicators_is_asked_again_and_keeps_them(
     task = api.get(f"{TASKS}/{again}", headers=stage.manager.headers).json()
     assert task["status"] == "succeeded", task
     status, documents, journal = written(database, revision_id)
-    # The estimate of the project and of the lines out of any subproject, and the remaining.
-    assert (status, documents, journal) == ("marked", 3, 1)
+    # The estimate of the project and of the lines out of any subproject, and the remaining; and
+    # what the portfolio keeps of an offer, its workload, its costs and its curves (US-2680/L2),
+    # and its risks (US-2680/L3).
+    assert (status, documents, journal) == ("marked", 7, 1)

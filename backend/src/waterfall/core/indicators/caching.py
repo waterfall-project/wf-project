@@ -5,7 +5,9 @@
 The key of the day of a project is the fingerprint of what its indicators of the day depend on,
 read at each reading by the interfaces of the modules (EP-10, "Le cache"): the state, the current
 revision, the reference and the counter of the project; the revision computed and its reference;
-the counter and the instant of the dates of its main structure; the number of its nodes, of its
+the counter and the instant of the dates of its main structure, and the counter of every structure
+of the revision; the number of the risks of the project and the sum of their counters (a review,
+an occurrence, a change of the provision of a risk, US-2630/L1); the number of its nodes, of its
 tasks, of its links and of its lines, and the last instant one was written; the number of the
 imports of the actual costs of the project and the last, the number of its lines of cost, the
 last one written and the sum of their counters; its subprojects; the day, in the time zone of the
@@ -51,7 +53,8 @@ from waterfall.core.projects.interface import (
     stored_lock_version,
     subproject_ids,
 )
-from waterfall.core.revisions.interface import aimed_structure, structure_facts
+from waterfall.core.revisions.interface import aimed_structure, structure_counters, structure_facts
+from waterfall.core.risks.interface import risks_stamp
 from waterfall.platform.cache import Unavailable
 
 if TYPE_CHECKING:
@@ -64,11 +67,12 @@ if TYPE_CHECKING:
     from waterfall.core.indicators.computing import Basis
     from waterfall.core.indicators.interface.documents import Document
     from waterfall.core.indicators.shaping import Context
+    from waterfall.core.projects.interface import ProjectFacts
     from waterfall.platform.cache import IndicatorsCache
 
 # The form of an entry: a change of what an entry holds changes it, and the entries of the form
 # before are no longer read, without waiting for their validity to end.
-FORM = "2"
+FORM = "3"
 # The length of the fingerprint kept in the key: 128 bits of the SHA-256 of the canonical text.
 FINGERPRINT_LENGTH = 32
 
@@ -87,24 +91,34 @@ def _text(value: object) -> str:
     return str(isoformat()) if callable(isoformat) else str(value)
 
 
-def day_key(session: Session, basis: Basis, context: Context, subprojects: Sequence[UUID]) -> str:
+def day_key(
+    session: Session,
+    basis: Basis,
+    context: Context,
+    subprojects: Sequence[UUID],
+    facts: ProjectFacts | None = None,
+) -> str:
     """Give the key of the day of a project: its identifier, then the fingerprint.
 
     ``subprojects`` are those of the project, as its scopes are drawn. The entry of a scope is kept
-    under this key followed by the scope (``scope_key``).
+    under this key followed by the scope (``scope_key``). ``facts`` are those of the project when
+    the caller has read them already: they are read here otherwise.
     """
     project_id, revision_id = basis.project_id, basis.revision_id
-    facts = project_facts(session, project_id)
+    facts = project_facts(session, project_id) if facts is None else facts
     main = aimed_structure(session, project_id, revision_id, None)
     structure = None if main is None else structure_facts(session, project_id, main, lock=False)
     content = revision_content_stamp(session, project_id, revision_id)
     lines = lines_stamp(session, project_id, revision_id)
     costs = costs_stamp(session, project_id)
+    counters = structure_counters(session, project_id, revision_id)
+    risks = risks_stamp(session, project_id)
     # The instants are those of the start of each act, not of its commit: a write that started
     # first and commits last leaves their maximum where it was. The key holds by the counters
     # that grow in the transaction of each write, in the order of the commits: every write of the
     # tree, a line and its remaining to commit included, advances the counter of its structure
-    # under its lock (``structure_rescheduled``) — the main one is the only structure until EP-08 —;
+    # under its lock (``structure_rescheduled``), whatever the structure — the main one, a
+    # differential, the own estimate of a risk —, every one of which the key reads;
     # an import adds its entry; a change of state, a marking, an abandonment, a designation
     # advance the counter of the project; an exclusion, a reinstatement or an imputation advances
     # the counter of the lines of cost, whose sum the key reads (``costs_stamp``); a line an import
@@ -118,6 +132,8 @@ def day_key(session: Session, basis: Basis, context: Context, subprojects: Seque
             "structure",
             (None, None) if structure is None else (structure.lock_version, structure.scheduled_at),
         ),
+        ("structures", tuple(f"{each}:{counter}" for each, counter in counters)),
+        ("risks", (risks.count, risks.versions)),
         ("content", (content.nodes, content.tasks, content.links, content.updated_at)),
         ("lines", (lines.count, lines.updated_at)),
         (

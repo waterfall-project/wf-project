@@ -77,7 +77,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production kube-tools lint-chart test-chart chart-trial check-chart \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
-	requirements-release screens readmes reuse lint-workflows \
+	requirements-release screens implementations readmes reuse lint-workflows \
 	lint-shell check slot slot-release e2e-down slots test-services test-services-down \
 	check-all check-repo check-repo-tools check-spec \
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
@@ -248,7 +248,7 @@ mock-spec: lint-openapi ## Derive from the contract the variant the fake back se
 	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(abspath $(MOCK_SPEC)) >/dev/null
 	@$(WFTOOLS).mock $(MOCK_SPEC)
 
-mock-data: ## Regenerate the volumes of §4.6.2 and the readings and writes of the witness the fake back serves (fixtures/api)
+mock-data: ## Regenerate the volumes of §4.6.2 and the readings and writes of the witness the fake back serves (fixtures/api, fixtures/witness)
 	@$(WFTOOLS).mockdata
 
 mock-data-up-to-date: ## The versioned volumes and witness readings and writes are the ones the generator writes
@@ -304,6 +304,9 @@ requirements-release: ## Same, and fail on an F0 requirement no test covers
 
 screens: ## Each leaf of the FBS has its route in the table of the front, answered by a page (EP-02/L3)
 	@$(WFTOOLS).screens
+
+implementations: ## Each calculation of WF-ARC-0010 has one implementation, in its module of the core (US-2780/L3)
+	@$(WFTOOLS).implementations
 
 readmes: ## Each README-fr.md of docs/ has its English README.md, their headings one for one (#1711)
 	@$(WFTOOLS).readmes
@@ -363,7 +366,7 @@ service-install: ## Bootstrap the installation of the service platform, started,
 
 # The witness (EP-05), once the platform is bootstrapped: the examples of the contract written on it
 # by `waterfall-api load-witness`, as the role of the service; run again, it writes nothing.
-service-witness: ## Load the witness, the examples of the contract (fixtures/api), on the service platform, started and bootstrapped
+service-witness: ## Load the witness, the examples of the contract (fixtures/api and fixtures/witness), on the service platform, started and bootstrapped
 	@$(COMPOSE_SERVICE) build --quiet witness
 	@$(COMPOSE_SERVICE) run --rm --no-TTY witness
 
@@ -383,8 +386,8 @@ service-purge: ## Deposit the purge of what expired on the service platform, sta
 # changes nothing of the next. It never fails on a duration and the chain does not run it. RUNS
 # identical runs of the whole read, the cell entered and the revision opened (5; the profile and the
 # waves of reads make one pass), ONLY=<part> one of read, profile, parallel, write, revision, kept,
-# current, indicators (several by repeating: ONLY="read write"), JSON=<file> the report also written
-# as JSON. A lot that corrects the back measures before and after it in one pass: ONLY and RUNS the
+# current, indicators, merge, occurrence (several by repeating: ONLY="read write"), JSON=<file> the
+# report also written as JSON. A lot that corrects the back measures before and after it in one pass: ONLY and RUNS the
 # same, two commands in one.
 .PHONY: measure-core measure-core-run measure-fresh-witness measure-secrets
 # The secrets of service-up, asked before the workstation is taken: the Compose file refuses to
@@ -393,7 +396,7 @@ $(call slot-export,measure-secrets,$(SLOT_SERVICE))
 measure-secrets:
 	@$(COMPOSE_SERVICE) --profile install --profile witness config --quiet
 
-measure-core: measure-secrets ## Measure the core in process, the workstation for itself alone, on a witness freshly loaded of the service platform (needs the secrets of service-up): whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened, a marked revision read as kept, the marking, the comparison of two marked ones and the filtered readings against the document (US-2270), the comparison of the current revision in its parts and its nodes differing (US-2390), the entry of the cache of the indicators of the day (US-2420); RUNS, ONLY="read profile parallel write revision kept current indicators", JSON=<file>
+measure-core: measure-secrets ## Measure the core in process, the workstation for itself alone, on a witness freshly loaded of the service platform (needs the secrets of service-up): whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened, a marked revision read as kept, the marking, the comparison of two marked ones and the filtered readings against the document (US-2270), the comparison of the current revision in its parts and its nodes differing (US-2390), the entry of the cache of the indicators of the day (US-2420), the merge of a differential and the occurrence of a risk, read without an objective (US-2650/L2); RUNS, ONLY="read profile parallel write revision kept current indicators merge occurrence", JSON=<file>
 	@$(exclusive) $(MAKE) --no-print-directory measure-core-run
 
 $(call slot-export,measure-core-run,$(SLOT_SERVICE))
@@ -561,7 +564,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 check-all: check-repo check-repo-tools check-spec check-contract check-back check-front check-front-image check-roadmap check-measures check-keycloak check-service check-production check-chart ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
-	requirements screens readmes ## Checks that run on any change
+	requirements screens implementations readmes ## Checks that run on any change
 
 check-repo-tools: lint-tools typecheck-tools test-tools ## The tools of the repository: lint, types, tests
 
@@ -578,7 +581,7 @@ check-back: check-back-static check-back-tests ## The back: lint, types, boundar
 # The chain runs the back apart, as the front (back.yml): check-back-static on one runner,
 # check-back-tests SHARD=i/N on each of the others, and in the full tier the measures of their parts
 # gathered (coverage-back-merge). A part is the i-th of N of the tests, one in N in the order of their
-# collection (four in the chain, SHARD=1/4 to 4/4): the files that load the witness, the longest,
+# collection (six in the chain, SHARD=1/6 to 6/6): the files that load the witness, the longest,
 # are spread over all the parts.
 check-back-static: lint-back typecheck-back imports-back ## The back but its tests: lint, types, boundaries
 

@@ -32,6 +32,7 @@ from wftools.mockportfolio import (
     WATCH_THRESHOLD,
     portfolio,
     portfolio_cost_structure,
+    portfolio_filtered,
     portfolio_page,
     portfolio_performance,
     portfolio_risks,
@@ -108,6 +109,7 @@ def volumes() -> dict[str, JsonObject]:
             f"{_count(PAGE + 1)} à {_count(2 * PAGE)} sur {_count(PROJECT_COUNT)} (WF-PTF-0040).",
             portfolio_page(projects),
         ),
+        "portfolio_projects_filtered.json": portfolio_filtered(projects),
         "portfolio_value.json": _example(
             f"La valeur du portefeuille du §4.6.2 au {_day(TODAY.date())}, les projets en "
             "chiffrage ajoutés par la requête au périmètre par défaut, les projets en cours "

@@ -17,7 +17,8 @@ a reading that writes nothing read once as rows, their figures and their facets 
 US-2220/L1), and what the lines of each task count, read grouped, for a reading of the tasks alone
 (``line_tallies``, ``tallying``; US-2280/L1), which of them are of a provision (``line_provisions``;
 US-1680), and the fields of a line whose write can move no date
-nor change an amount (``LINE_INERT``; US-2250).
+nor change an amount (``LINE_INERT``; US-2250), and the lines a graft copies, judged then written at
+a budgeted amount of nought (``judge_grafted_lines``, ``graft_lines``, ``grafting``; US-2620/L1).
 
 The copy of a line keeps its figures and its amounts, and takes for its budgeted amount that of the
 line of the same lineage in the reference revision, nought without one; null on a project without a
@@ -35,6 +36,7 @@ from sqlalchemy import delete, inspect, select
 from waterfall.core.cost_settings.interface import share_natures
 from waterfall.core.estimate.copying import copy_lines
 from waterfall.core.estimate.costing import judge_working_hours
+from waterfall.core.estimate.grafting import graft_lines, judge_grafted_lines
 from waterfall.core.estimate.pasting import judge_line_cell, write_line_cell
 from waterfall.core.estimate.pricing import Amount, dependencies_of
 from waterfall.core.estimate.reading import (
@@ -275,5 +277,7 @@ LINE_FACET = FacetHooks(
     columns=line_columns,
     tally=line_tallies,
     provisions=line_provisions,
+    judge_graft=judge_grafted_lines,
+    graft=graft_lines,
     inert=LINE_INERT,
 )

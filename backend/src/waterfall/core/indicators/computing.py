@@ -15,9 +15,10 @@ WF-IND-0030, WF-IND-0020; #3569):
   hold neither, and a line of a task created by an occurred risk is not earned;
 - the actual cost, the tracked lines of the scope dated on or before the day
   (``actual_costs_until_by_subproject``, ``scope_cost``);
-- the remaining to commit, that of each line of R (``remaining_of_lines``) whose subproject in R
-  is the scope: a line moved from a subproject to another since the reference earns in the first
-  and counts its remaining in the second.
+- the remaining to commit, that of each line of R (``remaining_of_lines``), the provisions of the
+  risks identified included, whatever the state of their task, whose subproject in R is the scope:
+  a line moved from a subproject to another since the reference earns in the first and counts its
+  remaining in the second.
 
 Nothing is rounded here but the planned value, whose share of each line is rounded by the
 spreading, so that the scopes sum to the project (WF-IND-0020-A); the formulas round the rest
@@ -45,7 +46,7 @@ from waterfall.core.projects.interface import current_day
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Mapping
-    from datetime import date
+    from datetime import date, datetime
     from decimal import Decimal
     from uuid import UUID
 
@@ -61,11 +62,16 @@ COMPLETED = "completed"
 
 @dataclass(frozen=True, slots=True)
 class Basis:
-    """What a computation reads: a project, its revision computed, and its reference if any."""
+    """What a computation reads: a project, its revision computed, and its reference if any.
+
+    ``designated_at`` the instant of the marking when the revision computed is the reference being
+    designated by it, a merge, whose designation the journal does not yet say (US-2630/L2).
+    """
 
     project_id: UUID
     revision_id: UUID
     reference_id: UUID | None
+    designated_at: datetime | None = None
 
 
 def in_scope(scope: CostScope, subproject_id: UUID | None) -> bool:
@@ -86,14 +92,16 @@ def read_lines(
 ) -> tuple[tuple[IndicatorTask, ...], tuple[IndicatorLine, ...], tuple[IndicatorLine, ...]]:
     """Read the tasks of the revision computed, its lines, and those of the reference, once.
 
-    The reference is empty without one, and the lines of the revision when it is the reference.
+    The lines of the revision are those of its tasks and its provision lines, which the remaining
+    to commit and the projection count; the reference is empty without one, and the lines of the
+    revision, provisions left out, when it is the reference.
     """
     project_id, revision_id, reference_id = basis.project_id, basis.revision_id, basis.reference_id
     tasks = tasks_for_indicators(session, project_id, revision_id)
-    lines = lines_for_indicators(session, project_id, revision_id, tasks)
+    lines = lines_for_indicators(session, project_id, revision_id, tasks, provisions=True)
     reference: tuple[IndicatorLine, ...] = ()
     if reference_id == revision_id:
-        reference = lines
+        reference = tuple(line for line in lines if not line.is_provision)
     elif reference_id is not None:
         reference = lines_for_indicators(session, project_id, reference_id)
     return tasks, lines, reference

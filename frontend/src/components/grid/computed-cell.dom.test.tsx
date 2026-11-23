@@ -420,7 +420,7 @@ describe("a value of a grid the server computes", () => {
   it("marks the quantity and the unit disbursement of a provision, which come from its risk", async () => {
     const client = serve({ [DEPENDENCIES]: "dependencies_provision" });
     renderGrid("estimate");
-    const provision = "Provision — risque de reprise du câblage";
+    const provision = "Provision — Risque de reprise du câblage";
     for (const position of [QUANTITY, DISBURSEMENT]) {
       expect(cell(provision, position)).toHaveClass("bg-muted");
       expect(cell("Borniers", position)).not.toHaveAttribute("aria-haspopup");
@@ -457,7 +457,7 @@ describe("a value of a grid the server computes", () => {
     // (`dependencies_provision_subproject`).
     const client = serve({ [DEPENDENCIES]: "dependencies_provision_subproject" });
     renderGrid("estimate");
-    const provision = cell("Provision — risque de reprise du câblage", SUBPROJECT);
+    const provision = cell("Provision — Risque de reprise du câblage", SUBPROJECT);
     // Out of any sub-project, computed all the same: shaded, marked Σ and named so.
     expect(provision).toHaveClass("bg-muted");
     expect(provision).toHaveAccessibleName(/^Calculé/);
@@ -478,7 +478,7 @@ describe("a value of a grid the server computes", () => {
     expect((await said()).rows).toEqual([
       "10Raccordement des borniers",
       "11Borniers",
-      "12Provision — risque de reprise du câblage",
+      "12Provision — Risque de reprise du câblage",
     ]);
     expect(asked(client).map(([, field]) => field)).toEqual(["task.base_amount"]);
   });

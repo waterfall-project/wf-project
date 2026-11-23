@@ -1222,6 +1222,9 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
 - écart : `WF-DAT-0090-A` — « La suppression d’une tâche de la révision en cours entraîne ses lignes et ses liaisons, et rien d’autre. » : EP-06.
 - écart : `WF-DAT-0090-A` — « La suppression d’un poste cité par une révision marquée le marque supprimé, retire le rattachement de la tâche de la révision en cours et laisse celui de la révision marquée. » : le lotissement arrive en EP-04 et le
   rattachement en EP-06 ; EP-07, qui clôt l'exigence, le constate.
+- écart : `WF-DAT-0090-A` — « L'abandon d'un différentiel sur lequel un import a été analysé
+  supprime le compte rendu de cet import. » : ajouté par la spécification 1.0.8 (#4331) ; EP-08 le
+  tient (US-3060/L5, #4269).
 - propre à l'US : sur les tables de cet EPIC, toute relation est une clé étrangère déclarée
   en refus par défaut, l'état d'un compte est une contrainte de vérification, et l'unicité de
   l'adresse électronique est déclarée en base : deux comptes de même adresse sont rejetés par
@@ -1784,9 +1787,9 @@ réglages — sur une autre machine.
 - `WF-ADM-0150-A` — « Une sauvegarde déclenchée apparaît dans la liste avec sa date, sa taille et une vérification réussie. »
 - `WF-ADM-0150-A` — « Elle peut être téléchargée ou copiée vers un emplacement externe. » : par le téléchargement ; la copie vers un
   emplacement externe paramétré relève de la planification — EP-13.
-- écart : `WF-ADM-0160-A` — « Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur, hors le journal d’audit, la liste des sauvegardes et leur planification, qui gardent leurs inscriptions, leurs sauvegardes et leurs réglages ; le journal nomme la restauration. » : constaté ici pour les comptes, les rôles, la liste des sauvegardes
+- écart : `WF-ADM-0160-A` — « Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur, hors le journal d’audit, la liste des sauvegardes et leur planification, qui gardent leurs inscriptions, leurs sauvegardes et leurs réglages, et la périodicité de la lecture des comptes, qui reste celle réglée avant la restauration ; le journal nomme la restauration. » : constaté ici pour les comptes, les rôles, la liste des sauvegardes
   et le référentiel présent ; la planification conservée est de la spécification 1.0.2 (#1741)
-  et du service en EP-13 (#1743) ; les projets et les révisions arrivent en EP-04, qui clôt
+  et du service en EP-13 (#1743) ; la périodicité de la lecture des comptes, conservée de même, est de la spécification 1.0.8 (#4126) et d'EP-13 (US-3040) ; les projets et les révisions arrivent en EP-04, qui clôt
   l'exigence.
 - `WF-ADM-0160-A` — « La confirmation nomme la date de la sauvegarde. »
 - `WF-ADM-0160-A` — « Aucune restauration partielle n’est proposée. »

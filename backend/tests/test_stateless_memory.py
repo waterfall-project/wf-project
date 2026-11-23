@@ -30,6 +30,7 @@ REGISTRY = (
 DECLARED = {
     "core/cost_settings/employment.py:_EMPLOYMENTS": REGISTRY,
     "core/estimate/interface/remaining_indicators.py:_COVERAGE": REGISTRY,
+    "core/history/interface/undoable.py:_UNDOABLE": REGISTRY,
     "core/estimate/reading.py:_editable": "a pure function of its arguments, which it keeps the "
     "answers of: it gives the same answer cached or not",
     "core/exchanges/interface/exports.py:_EXPORTERS": REGISTRY,
@@ -38,21 +39,29 @@ DECLARED = {
     "core/planning/interface/open_lines.py:_OPEN_LINES": REGISTRY,
     "core/planning/interface/open_lines.py:_ZEROED_AT": REGISTRY,
     "core/planning/interface/physical_progress.py:_PHYSICAL_PROGRESS": REGISTRY,
+    "core/planning/provisioning.py:_OWNERS": REGISTRY,
     "core/planning/task_tree_image.py:_font_bytes": "the bytes of a font file of the package, "
     "read-only: they are the same in every process of a version",
     "core/projects/interface/attachments.py:_ATTACHMENTS": REGISTRY,
     "core/projects/interface/estimate_facts.py:_FACTS": REGISTRY,
-    "core/projects/interface/skeleton.py:_OPENING": REGISTRY,
+    "core/projects/interface/skeleton.py:_OPENING_MAIN": REGISTRY,
+    "core/projects/interface/risk_designations.py:_DESIGNATIONS": REGISTRY,
     "core/projects/interface/subprojects.py:_COSTS": REGISTRY,
     "core/resource_settings/interface/extensions.py:_GUARDS": REGISTRY,
     "core/resource_settings/interface/extensions.py:_RECALCULATIONS": REGISTRY,
     "core/revisions/interface/closing.py:_CLOSINGS": REGISTRY,
     "core/revisions/interface/marking.py:_INDICATORS": REGISTRY,
     "core/revisions/interface/marking.py:_MARKINGS": REGISTRY,
+    "core/revisions/interface/merging.py:_ENDS": REGISTRY,
+    "core/revisions/interface/merging.py:_MERGES": REGISTRY,
     "core/revisions/interface/rates.py:_PROPOSALS": REGISTRY,
+    "core/revisions/interface/rebasing.py:_ENDS": REGISTRY,
+    "core/revisions/interface/rebasing.py:_REBASES": REGISTRY,
     "core/revisions/interface/reference.py:_DESIGNATIONS": REGISTRY,
+    "core/revisions/interface/reference.py:_MAIN_TASK": REGISTRY,
     "core/revisions/interface/reference.py:_TASKS_AND_LINES": REGISTRY,
     "core/revisions/interface/revisions.py:_COPIES": REGISTRY,
+    "core/revisions/interface/structures.py:_OWN_ESTIMATES": REGISTRY,
     "platform/cache.py:_reported": "the causes already logged, to write one record per cause: it "
     "changes the logs, and a read of the cache that fails is answered as a miss, whoever logged",
     "platform/registry.py:_REGISTRIES": "the registries by name, listed for the tests of the "

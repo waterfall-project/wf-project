@@ -15,23 +15,28 @@ without one is refused by 403 ``SESSION_ID_MISSING``. An undoing or a redoing as
 permission the write it turns asked for, which the planning judges once it knows the entry
 (#2774): one at least of the three for a node created, deleted, moved or pasted that writes no
 column of a task, ``planning.write`` for one that does, ``estimate.write`` for a cell of a line,
-``remaining.write`` for the state of a task.
+``remaining.write`` for the state of a task and for a paste of its execution (#2905),
+``risks.write`` for an entry of a risk (US-2590/L2), whose answer names the risks and writes no
+node.
 """
 
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import PasteApply, PastePreview
 from waterfall.api.evaluation import Acting, RequiresProject
-from waterfall.api.nodes import STRUCTURE, Placed, Writing, written_of
+from waterfall.api.nodes import STRUCTURE, Placed, Writing, node_body, written_in
+from waterfall.api.numbering import removed_in, rows_of
 from waterfall.core.planning.interface import (
     ENTRIES,
     PasteBlock,
     PasteConfirmation,
     PasteRefusal,
+    Place,
     UndoDone,
     apply_paste,
     preview_paste,
@@ -42,6 +47,8 @@ from waterfall.core.planning.interface import (
 router = APIRouter(tags=["revisions"])
 
 CONSULT = "planning.read"
+# What lets a caller undo or redo: the permission of any kind of entry; the service judges it.
+UNDOING = (*ENTRIES, "risks.write")
 REVISION = "/projects/{project_id}/revisions/{revision_id}"
 
 
@@ -55,15 +62,25 @@ def _refused(each: PasteRefusal) -> dict[str, Any]:
     return refusal
 
 
-def _undone(done: UndoDone) -> dict[str, Any]:
-    """Write what an undoing or a redoing did as the contract does (``UndoResult``)."""
+def _undone(
+    session: Session, project_id: UUID, revision_id: UUID, done: UndoDone
+) -> dict[str, Any]:
+    """Write what an undoing or a redoing did as the contract does (``UndoResult``).
+
+    ``written`` is numbered as the structure of the entry is read (``written_in``); null for an
+    entry of a risk, which names its risks instead (``risk_ids``, #2538).
+    """
+    written = None
+    if done.written is not None and done.structure_id is not None:
+        place = Place(project_id, revision_id, done.structure_id)
+        written = written_in(session, place, done.written)
     return {
         "undone": {
             "kind": done.kind,
             "node_ids": [str(each) for each in done.node_ids],
-            "risk_ids": [],
+            "risk_ids": [str(each) for each in done.object_ids],
         },
-        "written": written_of(done.written),
+        "written": written,
         "remaining_depth": done.remaining_depth,
     }
 
@@ -82,6 +99,7 @@ def post_paste_preview(
         target_node_id=body.target_node_id.root,
         target_column=body.target_column.value,
         rows=tuple(tuple(cells) for cells in body.rows),
+        removed=removed_in(rows_of(session, place, node_body)),
     )
     planned = preview_paste(session, place, block, writer, actor.permissions)
     return {
@@ -105,7 +123,7 @@ def post_paste(
     confirmation = PasteConfirmation(body.paste_id.root, body.lock_version.root)
     applied = apply_paste(session, place, confirmation, writer, actor.permissions)
     return {
-        **written_of(applied.written),
+        **written_in(session, place, applied.written),
         "rejected": [_refused(each) for each in applied.rejected],
     }
 
@@ -113,7 +131,7 @@ def post_paste(
 @router.post(
     f"{REVISION}/undo",
     operation_id="undoLastChange",
-    dependencies=[Depends(RequiresProject(CONSULT, one_of=ENTRIES))],
+    dependencies=[Depends(RequiresProject(CONSULT, one_of=UNDOING))],
     response_model=None,
 )
 def post_undo(
@@ -121,13 +139,13 @@ def post_undo(
 ) -> dict[str, Any]:
     """Undo the last change of the caller in a revision, one by one, in reverse order."""
     done = undo_last_change(session, project_id, revision_id, writer, actor.permissions)
-    return _undone(done)
+    return _undone(session, project_id, revision_id, done)
 
 
 @router.post(
     f"{REVISION}/redo",
     operation_id="redoLastUndo",
-    dependencies=[Depends(RequiresProject(CONSULT, one_of=ENTRIES))],
+    dependencies=[Depends(RequiresProject(CONSULT, one_of=UNDOING))],
     response_model=None,
 )
 def post_redo(
@@ -135,4 +153,4 @@ def post_redo(
 ) -> dict[str, Any]:
     """Redo the last undoing of the caller in a revision, in the order of the changes."""
     done = redo_last_undo(session, project_id, revision_id, writer, actor.permissions)
-    return _undone(done)
+    return _undone(session, project_id, revision_id, done)

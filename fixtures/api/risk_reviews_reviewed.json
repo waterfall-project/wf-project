@@ -5,6 +5,7 @@
     {"reviewed_on":"2026-06-03","probability":"0.4","severity":"1250000.00","state":"identified","actor":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},
     {"reviewed_on":"2026-03-02","probability":"0.4","severity":"1250000.00","state":"identified","actor":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},
     {"reviewed_on":"2026-02-02","probability":"0.25","severity":"1250000.00","state":"identified","actor":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},
-    {"reviewed_on":"2026-01-12","probability":"0.25","severity":"1000000.00","state":"identified","actor":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}}
+    {"reviewed_on":"2026-01-12","probability":"0.25","severity":"1000000.00","state":"identified","actor":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},
+    {"reviewed_on":"2026-01-12","probability":"0.25","severity":"0.00","state":"identified","actor":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}}
   ]
 }

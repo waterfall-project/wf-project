@@ -10,7 +10,14 @@ import { findOffer } from "@/components/commands/offer";
 import type { Revision } from "@/components/context/read-only";
 import { forgetMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  held,
+  reached,
+} from "@/test/fixtures";
 import { APPLY, BLOCK, cell, copied, FIRST, pasteOn, PREVIEW, renderGrid } from "@/test/paste-grid";
 
 import type { NodeList, NodeSortColumn } from "./nodes";
@@ -195,7 +202,8 @@ describe("a grid busy with any of its writes", () => {
     });
     await indent(MOUNTING);
     await screen.findByText(/indentée\.$/);
-    expect(moves(client)).toMatchObject([{ lock_version: 2 }]);
+    expect(reached("nodes_indented")).not.toBe(VERSION);
+    expect(moves(client)).toMatchObject([{ lock_version: reached("nodes_indented") }]);
   });
 
   it("holds the gestures while the predecessors entered are under way, and moves with the version they reached once answered (#1224)", async () => {
@@ -229,7 +237,7 @@ describe("a grid busy with any of its writes", () => {
     // siblings, so that the gesture is made on the task after it, « Mise en service ».
     await indent(COMMISSIONING);
     await screen.findByText(/indentée\.$/);
-    expect(moves(client)).toMatchObject([{ lock_version: 2 }]);
+    expect(moves(client)).toMatchObject([{ lock_version: reached("nodes_indented") }]);
   });
 
   it("holds the gestures while the skeleton generated is under way (#1224)", async () => {
@@ -324,9 +332,9 @@ describe("a grid busy with any of its writes", () => {
   });
 
   it("keeps the version the other structure moved on to by its own writes when a late answer of the first arrives (#1224)", async () => {
-    // A move sent in the main structure, held, answered at its version 3 (`nodes_moved`), once the
-    // amendment shown moved on to its version 2 by a move of its own (`nodes_indented`): the
-    // amendment keeps its 2, the main structure takes its 3.
+    // A move sent in the main structure, held, answered at the version of `nodes_moved`, once the
+    // amendment shown moved on to that of `nodes_indented` by a move of its own: the amendment
+    // keeps its own, the main structure takes the one of the late answer.
     const hold = held();
     const client = fakeClient(
       { [MOVE]: ["nodes_moved", "nodes_indented"] },
@@ -354,14 +362,16 @@ describe("a grid busy with any of its writes", () => {
     await vi.waitFor(() => {
       expect(moves(client)).toHaveLength(3);
     });
-    expect(moves(client)[2]).toMatchObject({ lock_version: 2 });
+    // The versions read differ from each other and from the page's: else these checks would not tell them apart.
+    expect(new Set([VERSION, reached("nodes_indented"), reached("nodes_moved")]).size).toBe(3);
+    expect(moves(client)[2]).toMatchObject({ lock_version: reached("nodes_indented") });
     // Back on the main structure, the next move carries the version its own answer reached.
     view.rerender(grid());
     await indent(MOUNTING);
     await vi.waitFor(() => {
       expect(moves(client)).toHaveLength(4);
     });
-    expect(moves(client)[3]).toMatchObject({ lock_version: 3 });
+    expect(moves(client)[3]).toMatchObject({ lock_version: reached("nodes_moved") });
   });
 
   it("follows no row moved in a structure left once back on it (#1224)", async () => {

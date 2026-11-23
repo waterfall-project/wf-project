@@ -1,0 +1,6 @@
+{
+  "summary": "Un montant de 0,10 additionné dix fois donne exactement 1,00, et un montant calculé de 75,705 est présenté 75,71 (WF-DAT-0100).",
+  "examples": ["WF-DAT-0100-A#2ce6d54b40a4", "WF-DAT-0100-A#a2d83cfac195"],
+  "added": {"amount": "0.10", "times": 10, "total": "1.00"},
+  "rounded": {"computed": "75.705", "presented": "75.71"}
+}

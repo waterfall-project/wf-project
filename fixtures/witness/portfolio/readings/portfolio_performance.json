@@ -1,0 +1,33 @@
+{
+  "summary": "Ce que getPortfolioPerformance doit répondre sur le témoin chargé avec la tranche du portefeuille, lu au 2026-06-03 par as_of : chaque projet par ce que sa dernière révision marquée à cette date a conservé (WF-PTF-0010, WF-DAT-0040, WF-QUA-0040).",
+  "description": "Lecture attendue engendrée par `make mock-data` (`wftools.mocksliceviews`) : elle ne se retouche pas.",
+  "operation": "getPortfolioPerformance",
+  "query": {
+    "as_of": "2026-06-03",
+    "states": "in_progress,pricing,completed"
+  },
+  "value": {
+    "scope": {"states":["in_progress","pricing","completed"],"as_of":"2026-06-03","from":"2025-06-04","to":"2026-06-03","org_node_id":null,"org_node_label":null,"project_count":5},
+    "reference_budget": "70447996.56",
+    "cost_index": {"value":{"is_computable":true,"value":"0.8791","reason":null},"zone":"watch"},
+    "schedule_index": {"value":{"is_computable":true,"value":"0.9823","reason":null},"zone":"nominal"},
+    "cost_variance": "-11465.00",
+    "schedule_variance": "-1500.00",
+    "projections": {"at_budget":"70459461.56","project_manager":"69448874.05","at_observed_rate":{"is_computable":true,"value":"80140038.09","reason":null},"variance_at_budget":"11465.00","variance_project_manager":"-999122.51","variance_at_observed_rate":"9692041.53"},
+    "zone_distribution": [
+      {"index":"cost","zone":"nominal","project_count":3},
+      {"index":"cost","zone":"watch","project_count":0},
+      {"index":"cost","zone":"alert","project_count":1},
+      {"index":"schedule","zone":"nominal","project_count":3},
+      {"index":"schedule","zone":"watch","project_count":1},
+      {"index":"schedule","zone":"alert","project_count":0}
+    ],
+    "quarterly": [
+      {"quarter":"2025-Q2","cost_index":{"is_computable":false,"value":null,"reason":"no_actual_cost"},"schedule_index":{"is_computable":false,"value":null,"reason":"no_planned_value"}},
+      {"quarter":"2025-Q3","cost_index":{"is_computable":false,"value":null,"reason":"no_actual_cost"},"schedule_index":{"is_computable":false,"value":null,"reason":"no_planned_value"}},
+      {"quarter":"2025-Q4","cost_index":{"is_computable":true,"value":"0.8932","reason":null},"schedule_index":{"is_computable":true,"value":"1","reason":null}},
+      {"quarter":"2026-Q1","cost_index":{"is_computable":true,"value":"0.8691","reason":null},"schedule_index":{"is_computable":true,"value":"1","reason":null}},
+      {"quarter":"2026-Q2","cost_index":{"is_computable":true,"value":"0.8791","reason":null},"schedule_index":{"is_computable":true,"value":"0.9823","reason":null}}
+    ]
+  }
+}

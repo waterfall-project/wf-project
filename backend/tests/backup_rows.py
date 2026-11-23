@@ -63,7 +63,7 @@ def recorded(database: Database, taken_at: datetime, row: Row | None = None) -> 
                 is_retained=row.is_retained,
                 object_key=row.key or f"backup-{uuid4()}.tar",
                 application_version="test",
-                schema_revision="0038",
+                schema_revision="0047",
                 task_id=task_id,
             )
         )

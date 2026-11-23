@@ -48,8 +48,10 @@ ADMINISTRATOR = (
     "installation.write",
     "platform_restore",
 )
+# The project manager does not read the portfolio: WF-INTF-0010 names no view of it among his uses,
+# and the list would show him the budget and the indices of every project he does not open
+# (author's decision of 2026-11-18, #3355; EP-11, US-2690).
 PROJECT_MANAGER = (
-    "portfolio_projects.read",
     "cost_settings.read",
     "resource_settings.read",
     "risk_settings.read",

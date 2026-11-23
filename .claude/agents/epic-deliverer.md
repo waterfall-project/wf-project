@@ -178,7 +178,16 @@ relances la vérification.
      — `gh pr merge` ne sait pas le faire tant que la fusion automatique est désactivée sur
      le dépôt. Le palier complet tourne dans la file, sur le résultat de la fusion. Attends
      que la pull request soit réellement fusionnée (`gh pr view <n> --json state`) ; si la
-     file la rejette, reprends à l'étape 4. Supprime ensuite la branche du lot
+     file la rejette sur un défaut de ton lot, reprends à l'étape 4.
+     Si elle la rejette sur un échec que ton lot n'a pas causé, avant de la remettre en file
+     (`docs/dev/agents.md`, « Une instabilité de la file ») :
+     - commente l'issue du constat de ce test (passage, job, ligne, durée, message), ou
+       ouvre-la si aucune ne le suit ;
+     - écris son entrée dans `tools/queue-known.toml`, ou ajoute le passage à ses `runs`, dans
+       un commit de la branche du lot ;
+     - si l'instabilité a déjà été vue dans un autre passage, mets-la en avant dans ton
+       relevé : « instabilité vue deux fois : #n ».
+     Supprime ensuite la branche du lot
      (`git push origin --delete lot/<identifiant>`).
    - Sinon, lance d'abord le palier complet sur la branche du lot
      (`gh workflow run chain --ref lot/<identifiant> -f tier=full`), attends qu'il passe,

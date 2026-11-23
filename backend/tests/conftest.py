@@ -4,7 +4,8 @@
 
 import json
 import os
-from typing import TYPE_CHECKING, cast
+from pathlib import Path
+from typing import TYPE_CHECKING, Protocol, cast
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
@@ -17,7 +18,7 @@ from installations import Installation, Take, installed, taker
 from installed_reference import install
 from migrations_support import scratch_database
 from openapi_core import Config, OpenAPI
-from project_rows import empty_database, unguarded
+from project_rows import drop_every_partition, empty_database, unguarded
 from pydantic import SecretStr
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, insert, text
@@ -41,7 +42,17 @@ from support import (
     service_role,
 )
 from task_handlers import deposit
-from witness_rows import WitnessRows, copied, laid
+from witness_template import (
+    TEMPLATE,
+    TEST_DATABASE_VARIABLE,
+    WORKER_INPUT,
+    Template,
+    built,
+    cloned,
+    dropped,
+    finished,
+    start,
+)
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -80,27 +91,76 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
+# The fixtures whose tests are given a copy of the template.
+ON_THE_WITNESS = ("witness", "witness_logged")
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Name the template of the witness of the run, or read the name the controller gave."""
+    given = cast("dict[str, str] | None", getattr(config, "workerinput", None))
+    config.stash[TEMPLATE] = (
+        Template.read(Path(given[WORKER_INPUT])) if given is not None else Template.planned()
+    )
+
+
+class Node(Protocol):
+    """What the hook of pytest-xdist reads of a process it starts (``WorkerController``)."""
+
+    config: pytest.Config
+    workerinput: dict[str, object]
+
+
+@pytest.hookimpl(optionalhook=True)
+def pytest_configure_node(node: Node) -> None:
+    """Hand each process of pytest-xdist the directory of the template of the run."""
+    node.workerinput[WORKER_INPUT] = str(node.config.stash[TEMPLATE].directory)
+
+
+def pytest_unconfigure(config: pytest.Config) -> None:
+    """Wait for the loading this process started, until its deadline; the run's process drops all.
+
+    Neither waits past the deadline of the loading (``witness_template``): pytest-timeout bounds
+    the tests, not this hook.
+    """
+    finished()
+    if not hasattr(config, "workerinput"):
+        dropped(config.stash[TEMPLATE], os.environ.get(TEST_DATABASE_VARIABLE))
+
+
+def on_the_witness(item: pytest.Item) -> bool:
+    """Tell whether a test is given a copy of the template of the witness."""
+    names = cast("list[str]", getattr(item, "fixturenames", []))
+    return any(name in names for name in ON_THE_WITNESS)
+
+
 @pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Keep, under ``--shard i/N``, the tests at the positions that are i modulo N, from 1.
+    """Keep the part of ``--shard``, the tests on the witness last; start loading the template.
 
-    The order of the collection is the same in every process of pytest-xdist, which compare what
-    they collected: each keeps the same part. One in N, rather than N runs of files, spreads the
-    files that load the witness, the longest, over all the parts.
+    Under ``--shard i/N``, the tests at the positions that are i modulo N, from 1. The order of the
+    collection is the same in every process of pytest-xdist, which compare what they collected:
+    each keeps the same part. One in N, rather than N runs of files, spreads the files that load the
+    witness, the longest, over all the parts.
+
+    The tests given a copy of the template of the witness run after the others, while it loads: the
+    first process to see one starts the loading, unless the run only collects.
     """
     shard = cast("str | None", config.getoption("shard"))
-    if shard is None:
-        return
-    part, _, parts = shard.partition("/")
-    if not (part.isdigit() and parts.isdigit() and 1 <= int(part) <= int(parts)):
-        message = f"--shard must be i/N, 1 <= i <= N, not {shard!r}"
-        raise pytest.UsageError(message)
-    kept: list[pytest.Item] = []
-    left: list[pytest.Item] = []
-    for index, item in enumerate(items):
-        (kept if index % int(parts) == int(part) - 1 else left).append(item)
-    config.hook.pytest_deselected(items=left)
-    items[:] = kept
+    if shard is not None:
+        part, _, parts = shard.partition("/")
+        if not (part.isdigit() and parts.isdigit() and 1 <= int(part) <= int(parts)):
+            message = f"--shard must be i/N, 1 <= i <= N, not {shard!r}"
+            raise pytest.UsageError(message)
+        kept: list[pytest.Item] = []
+        left: list[pytest.Item] = []
+        for index, item in enumerate(items):
+            (kept if index % int(parts) == int(part) - 1 else left).append(item)
+        config.hook.pytest_deselected(items=left)
+        items[:] = kept
+    witnessed = [item for item in items if on_the_witness(item)]
+    items[:] = [item for item in items if not on_the_witness(item)] + witnessed
+    if witnessed and os.environ.get(TEST_DATABASE_VARIABLE) and not config.option.collectonly:
+        start(config.stash[TEMPLATE])
 
 
 @pytest.fixture(autouse=True)
@@ -223,9 +283,6 @@ def client(contract: OpenAPI, services: Services) -> ContractClient:
     return ContractClient(TestClient(create_app(services), raise_server_exceptions=False), contract)
 
 
-TEST_DATABASE_VARIABLE = "WATERFALL_TEST_DATABASE_URL"
-
-
 @pytest.fixture
 def empty_engine(database_url: str) -> Iterator[Engine]:
     """Give an engine on a database of its own, without a table."""
@@ -234,8 +291,8 @@ def empty_engine(database_url: str) -> Iterator[Engine]:
 
 
 @pytest.fixture(scope="session")
-def database_url() -> Iterator[str]:
-    """Create, for this run, a database of the PostgreSQL server the tests are given, migrated.
+def process_database_url() -> Iterator[str]:
+    """Create, for this process, a database of the PostgreSQL server the tests are given, migrated.
 
     ``WATERFALL_TEST_DATABASE_URL`` designates a server and a superuser, who may create databases
     and roles. Without it the tests that need a database fail and say so: PostgreSQL is the
@@ -264,21 +321,23 @@ def database_url() -> Iterator[str]:
 
 
 @pytest.fixture(scope="session")
-def service_database_url(database_url: str) -> Iterator[str]:
-    """Give the address of the test database as the service reaches it, by a role of the service.
+def process_service_database_url(process_database_url: str) -> Iterator[str]:
+    """Give the address of the database of this process as the service reaches it.
 
-    A role made for this run, that may sign in, member of the role of the service of the test
+    By a role made for this process, that may sign in, member of the role of the service of the
     database and holding nothing else: what the tables do not grant the service, the tests cannot
     do either.
     """
     name, password = f"waterfall_test_{uuid4().hex}", uuid4().hex
-    service = service_role(engine_url(database_url))
-    server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
+    service = service_role(engine_url(process_database_url))
+    server = create_database_engine(process_database_url).execution_options(
+        isolation_level="AUTOCOMMIT"
+    )
     with server.connect() as connection:
         connection.execute(
             text(f'CREATE ROLE "{name}" LOGIN PASSWORD \'{password}\' IN ROLE "{service}"')
         )
-    url = engine_url(database_url).set(username=name, password=password)
+    url = engine_url(process_database_url).set(username=name, password=password)
     yield url.render_as_string(hide_password=False)
     with server.connect() as connection:
         connection.execute(
@@ -289,15 +348,51 @@ def service_database_url(database_url: str) -> Iterator[str]:
     server.dispose()
 
 
+@pytest.fixture
+def database_url(request: pytest.FixtureRequest, process_database_url: str) -> Iterator[str]:
+    """Give the address of the database of the test, as the superuser.
+
+    That of the process (``process_database_url``), but for a test on the witness (``witness``,
+    ``witness_logged``): a copy of the template of the witness of the run, its own, dropped after it
+    (``witness_template``).
+    """
+    if not any(name in request.fixturenames for name in ON_THE_WITNESS):
+        yield process_database_url
+        return
+    template = request.config.stash[TEMPLATE]
+    built(template)
+    with cloned(template, process_database_url) as url:
+        yield url
+
+
+@pytest.fixture
+def service_database_url(
+    request: pytest.FixtureRequest,
+    database_url: str,
+    process_database_url: str,
+    process_service_database_url: str,
+) -> str:
+    """Give the address of the database of the test as the service reaches it.
+
+    On a copy of the template of the witness, by the role that signs in on its copies, member of the
+    role of the service of the template alone, whose rights the copy keeps.
+    """
+    if database_url == process_database_url:
+        return process_service_database_url
+    return request.config.stash[TEMPLATE].as_service(database_url)
+
+
 @pytest.fixture(scope="session")
-def backup_role(database_url: str) -> Iterator[tuple[str, str]]:
+def backup_role(process_database_url: str) -> Iterator[tuple[str, str]]:
     """Create, for this run, a role of the backup as the platform does (#895): its name, password.
 
     A member of ``pg_read_all_data``, which reads every table of every database of the server and
     can neither write nor turn a trigger off; it owns nothing.
     """
     name, password = f"waterfall_test_backup_{uuid4().hex}", uuid4().hex
-    server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
+    server = create_database_engine(process_database_url).execution_options(
+        isolation_level="AUTOCOMMIT"
+    )
     with server.connect() as connection:
         connection.execute(
             text(f"CREATE ROLE \"{name}\" LOGIN PASSWORD '{password}' IN ROLE pg_read_all_data")
@@ -313,23 +408,31 @@ def backup_role(database_url: str) -> Iterator[tuple[str, str]]:
 
 
 @pytest.fixture
-def database(database_url: str, service_database_url: str) -> Iterator[Database]:
-    """Give the migrated database as the service sees it, emptied afterwards of every row.
+def database(
+    database_url: str, process_database_url: str, service_database_url: str
+) -> Iterator[Database]:
+    """Give the migrated database of the test as the service sees it, emptied afterwards.
 
-    The rows of every table the code declares are deleted by the owner, the journal of audit
-    included: its triggers, which refuse any deletion, are off for that transaction alone — what
-    only a superuser may do, and the service never. A table the migrations fill — the catalogue
-    of permissions — keeps its rows, as an installation does, and a schedule is written back at its
-    shipped values (``empty_database``).
+    A copy of the template of the witness goes with the test (``database_url``). The database of
+    the process is emptied of every row: those of every table the code declares are deleted by the
+    owner, the journal of audit included — its triggers, which refuse any deletion, are off for
+    that transaction alone, what only a superuser may do, and the service never. A table the
+    migrations fill — the catalogue of permissions — keeps its rows, as an installation does, and a
+    schedule is written back at its shipped values (``empty_database``).
+
+    The partitions a project brings with it (WF-DAT-0050) outlive its rows, and a creation refuses
+    a project that has its partitions: dropped first, project after project, a transaction each,
+    so that no transaction holds the locks of them all (#4051).
     """
     db = Database(create_database_engine(service_database_url))
     yield db
     db.dispose()
+    if database_url != process_database_url:
+        return
     owner = create_database_engine(database_url)
+    drop_every_partition(owner)
     with owner.begin() as connection:
-        # The guards of the journal and of the revised tables off for this transaction alone. The
-        # partitions a project brings with it (WF-DAT-0050) outlive its rows: the witness imposes
-        # its identifiers, and a creation refuses a project that has its partitions.
+        # The guards of the journal and of the revised tables off for this transaction alone.
         unguarded(connection)
         empty_database(connection)
     owner.dispose()
@@ -511,44 +614,46 @@ def installation_api(
 
 
 @pytest.fixture
-def witness(database: Database, owner: Engine, service_database_url: str) -> Database:
-    """Install the database as the bootstrap does, load the witness by the command; give it.
+def witness(database: Database) -> Database:
+    """Give the database of the test, a copy of the template of the witness of the run; its own.
 
-    The row of the installation and the reference the bootstrap writes — the settings, the units,
-    the mapping, the default calendar, the provision —, as the owner of the tables, then the
-    witness as the service (#2143): the slices that set what the bootstrap wrote have it to set.
-    Emptied with the database after the test, as any row. Loaded once by each process: the tests
-    after the first find its rows laid again (``witness_rows``); a test that reads what the
-    command says asks for ``witness_loaded``.
+    The template is the database installed as the bootstrap does, the witness loaded by the command
+    (``witness_template``): the row of the installation and the reference the bootstrap writes — the
+    settings, the units, the mapping, the default calendar, the provision —, as the owner of the
+    tables, then the witness as the service (#2143): the slices that set what the bootstrap wrote
+    have it to set. Dropped after the test (``database_url``). A test that reads what the command
+    says asks for ``witness_logged``, one that changes how the command loads it for
+    ``witness_loaded``.
     """
-    rows = WITNESS_ROWS.get(service_database_url)
-    if rows is None:
-        WITNESS_ROWS[service_database_url] = loaded(owner, service_database_url)
-    else:
-        laid(owner, rows)
+    return database
+
+
+@pytest.fixture
+def witness_logged(database: Database, request: pytest.FixtureRequest, logs: Logs) -> Database:
+    """Give the witness and, in ``logs``, the records the command wrote when it loaded it.
+
+    Those of the loading of the template: the command, the description and the platform are the
+    same for every test, so are its records, which say it loaded the witness — a loading that says
+    otherwise fails, and the template with it.
+    """
+    logs.stream.write(built(request.config.stash[TEMPLATE]))
     return database
 
 
 @pytest.fixture
 def witness_loaded(database: Database, owner: Engine, service_database_url: str) -> Database:
-    """Give the database the witness was loaded on by the command in this very test."""
-    rows = loaded(owner, service_database_url)
-    WITNESS_ROWS.setdefault(service_database_url, rows)
-    return database
+    """Give the database the witness was loaded on by the command in this very test.
 
-
-def loaded(owner: Engine, service_database_url: str) -> WitnessRows:
-    """Install the database, load the witness by the command; give the rows it wrote, copied."""
+    For a test that changes how the command loads it, a filler registered for instance: one that
+    only reads what the command says asks for ``witness_logged``. Its loading is never shared: a
+    modified one would be the witness the other tests are given.
+    """
     install(owner)
     settings = WitnessSettings(
         database_url=SecretStr(service_database_url), witness_path=str(WITNESS)
     )
     assert load_witness(settings) == 0
-    return copied(owner)
-
-
-# The rows of the witness, by the database of the process that loaded them.
-WITNESS_ROWS: dict[str, WitnessRows] = {}
+    return database
 
 
 @pytest.fixture
@@ -578,13 +683,15 @@ def reference_sessions(database: Database, realm: TestRealm) -> ReferenceSession
 
 
 @pytest.fixture(scope="session")
-def provider_url(database_url: str) -> Iterator[str]:
+def provider_url(process_database_url: str) -> Iterator[str]:
     """Create, for this run, a database that stands for the identity provider's, with a realm."""
     name = f"waterfall_test_idp_{uuid4().hex}"
-    server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
+    server = create_database_engine(process_database_url).execution_options(
+        isolation_level="AUTOCOMMIT"
+    )
     with server.connect() as connection:
         connection.execute(text(f'CREATE DATABASE "{name}"'))
-    url = engine_url(database_url).set(database=name).render_as_string(hide_password=False)
+    url = engine_url(process_database_url).set(database=name).render_as_string(hide_password=False)
     provider = create_database_engine(url)
     with provider.begin() as connection:
         stand_in_realm(connection)

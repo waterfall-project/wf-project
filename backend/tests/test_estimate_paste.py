@@ -284,6 +284,25 @@ def test_a_category_of_provision_is_reserved_to_the_risks(
 
 
 @pytest.mark.requirement("WF-IHM-0050-A")
+def test_a_line_a_paste_creates_is_never_of_a_category_of_provision(
+    tree: Tree, lines: Lines, costs: Costing, who: Person, stage: Scene
+) -> None:
+    # The preview traces a line it creates on a tree whose provisions are those read before it
+    # (``Tree.with_nodes``): it holds it for an own line of its task. It may, as no line a paste
+    # creates is a provision — refused at its category, the line created with nothing.
+    task = tree.made("Étude", who=who)
+    cable = lines.made(task, who, **material(costs, label="Câble"))["nodes"][0]
+    label = category_label(stage, costs.provision)
+    block = [["Câble"], ["Provision", label, "", "1", "", "10"]]
+    plan = planned(tree, cable, "label", block, who)
+    assert (plan["accepted"], plan["created"]) == (1, 0)
+    assert reasons(plan) == [(1, "cost_category", "PROVISION_CATEGORY_RESERVED")]
+    body = applied(tree, plan, who)
+    assert reasons(body) == reasons(plan)
+    assert line_labels(tree) == ["Câble"]
+
+
+@pytest.mark.requirement("WF-IHM-0050-A")
 def test_every_refusal_of_a_row_is_named_at_once_in_the_order_of_the_columns(
     tree: Tree, lines: Lines, costs: Costing, who: Person
 ) -> None:

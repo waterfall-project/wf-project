@@ -18,12 +18,16 @@ rates — US-1500 —), with their conditions, and the exports to ``EXPORT_RULES
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final, Literal
 
 from waterfall.core.projects.interface import (
+    ACTIVE_PROVISION_CATEGORY,
+    AT_LEAST_ONE_TASK,
     BEFORE_IN_PROGRESS,
     NO_BACKGROUND_TASK_RUNNING,
     PROJECT_BEFORE_IN_PROGRESS,
+    PROJECT_NOT_TERMINAL,
+    RISK_ENTRIES,
     TERMINAL,
 )
 
@@ -40,6 +44,24 @@ REVISION_MARKED = "revision_marked"
 REVISION_HAS_TASKS_AND_LINES = "revision_has_tasks_and_lines"
 REFERENCE_CORRECTABLE = "reference_correctable"
 RATE_UPDATE_AVAILABLE = "rate_update_available"
+UNMERGED_AMENDMENT_EXISTS = "unmerged_amendment_exists"
+MAY_CREATE_REVISION = "may_create_revision"
+MAIN_STRUCTURE = "main_structure"
+STRUCTURE_OUT_OF_DATE = "structure_out_of_date"
+STRUCTURE_UP_TO_DATE = "structure_up_to_date"
+# The merge of a differential (WF-REV-0050), a command of the revision; and whoever may create a
+# revision, which the merge of a differential of a marked revision does.
+MERGE_STRUCTURE = "merge_structure"
+CREATE_REVISION = "revisions.write"
+# What the commands of a structure read of its nature: the main one, a differential not merged.
+MAIN_NATURE: Final = "main"
+DIFFERENTIAL_NATURE: Final = "differential"
+# A differential not merged and up to date, which has nothing to carry over (US-3050).
+UP_TO_DATE_NATURE: Final = "up_to_date_differential"
+# The natures a structure is read as: the main one, a differential not merged, else its kind.
+StructureNature = Literal["main", "differential", "up_to_date_differential", "amendment", "risk"]
+# The natures of a differential that is not merged.
+DIFFERENTIAL_NATURES = frozenset({DIFFERENTIAL_NATURE, UP_TO_DATE_NATURE})
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +80,18 @@ REVISION_RULES: tuple[Rule, ...] = (
     Rule("generate_skeleton", "planning.write"),
     Rule("edit_estimate", "estimate.write"),
     Rule("edit_remaining", "remaining.write"),
+    # The entry of the risks and the declaration of one, listed on a revision in progress
+    # alone: a marked revision is immutable, and carries neither (WF-DAT-0020).
+    Rule("edit_risks", "risks.write"),
+    Rule("declare_risk", "risks.write"),
+    # The opening of a differential (WF-REV-0100): a write of the revision, guarded as its rate
+    # update and its creation are, by the management of the revisions, and lacking the conditions
+    # of the state of the revision alone (``createCostStructure``).
+    Rule("create_structure", "revisions.write"),
+    # The merge of a differential, a structuring action of its own permission, reserved to the
+    # project managers (WF-ADM-0100, WF-PRJ-0060), whose conditions are those of the merge itself
+    # (``merge_conditions``, US-2560/L2).
+    Rule(MERGE_STRUCTURE, "structure_merge", manager=True),
     # A write of the revision, guarded by the permission to manage the revisions, that of
     # ``createRevision``, which applies it at the creation (WF-REV-0060; US-1500).
     Rule("apply_rate_update", "revisions.write"),
@@ -77,12 +111,18 @@ EXPORT_RULES: tuple[Rule, ...] = (
     Rule("export_task_tree_image", "planning.read"),
 )
 # In the order of ``StructureCommand``: each guarded by the permission of the command of the same
-# name of the revision.
+# name of the revision; the abandonment of a differential (``delete``, US-2550/L4) and its update
+# from the main structure (``rebase``, US-3050/L2) by that of the opening of one
+# (``create_structure``), listed on a differential that is not merged alone.
 STRUCTURE_RULES: tuple[Rule, ...] = (
     Rule("edit_planning", "planning.write"),
     Rule("edit_estimate", "estimate.write"),
     Rule("edit_remaining", "remaining.write"),
+    Rule("delete", "revisions.write"),
+    Rule("rebase", "revisions.write"),
 )
+# The commands listed on a differential that is not merged alone.
+DIFFERENTIAL_COMMANDS = frozenset({"delete", "rebase"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,15 +130,22 @@ class RevisionState:
     """What the conditions of a revision read: its status, its facts, its project's.
 
     ``rate_update_available`` whether its proposal of rates presents a category (US-1500), judged
-    on a current revision alone.
+    on a current revision alone; ``provision_category_active`` whether an active category of the
+    provision kind exists, which the declaration of a risk asks (WF-RIS-0010), read for a revision
+    in progress alone. ``source`` whether it is the last marked revision of a project without a
+    current revision, and ``unmerged_differential`` whether it holds a differential not merged:
+    what the merge of one of its differentials asks (``merge_structure``, US-2560/L2).
     """
 
     marked: bool
     no_task_running: bool
     has_tasks_and_lines: bool
     reference_correctable: bool
-    has_tasks: bool = False
+    has_main_task: bool = False
     rate_update_available: bool = False
+    provision_category_active: bool = True
+    source: bool = False
+    unmerged_differential: bool = False
 
 
 def quality_conditions(kind: str | None, *, manager: bool) -> list[str]:
@@ -117,7 +164,9 @@ def revision_conditions(command: str, revision: RevisionState) -> list[str]:
     which asks it marked, lacks ``revision_marked`` on the current one, then what it asks of it:
     tasks and lines, a designation still correctable, no background task (WF-CYC-0030, WF-REV-0040).
     The skeleton lacks, on a draft, a main structure without tasks before the background task; the
-    update of the rates, a proposal that presents a category (WF-REV-0060, #1351).
+    update of the rates, a proposal that presents a category (WF-REV-0060, #1351). The declaration
+    of a risk lacks, in the order ``createRisk`` judges them, the background task, a main
+    structure without a task, then no active category of provision (WF-RIS-0010).
     """
     if command == "designate_reference":
         missing = [] if revision.marked else [REVISION_MARKED]
@@ -130,8 +179,14 @@ def revision_conditions(command: str, revision: RevisionState) -> list[str]:
         return missing
     if revision.marked:
         return [REVISION_DRAFT]
+    if command == "declare_risk":
+        return [
+            *([] if revision.no_task_running else [NO_BACKGROUND_TASK_RUNNING]),
+            *([] if revision.has_main_task else [AT_LEAST_ONE_TASK]),
+            *([] if revision.provision_category_active else [ACTIVE_PROVISION_CATEGORY]),
+        ]
     # The skeleton asks a main structure without tasks first, its own condition (WF-PRJ-0030).
-    skeleton = command == "generate_skeleton" and revision.has_tasks
+    skeleton = command == "generate_skeleton" and revision.has_main_task
     missing = [MAIN_STRUCTURE_WITHOUT_TASKS] if skeleton else []
     if command == "apply_rate_update" and not revision.rate_update_available:
         missing.append(RATE_UPDATE_AVAILABLE)
@@ -163,20 +218,43 @@ def revision_commands(
     ]
     if state in TERMINAL:
         return exports
+    # A marked revision carries no entry of the risks: only the current one does.
     return [
         *(
             (
                 rule.command,
                 (
                     *quality_conditions(kind, manager=rule.manager),
-                    *revision_conditions(rule.command, revision),
+                    *(
+                        _merge_conditions_of(revision, permissions)
+                        if rule.command == MERGE_STRUCTURE
+                        else revision_conditions(rule.command, revision)
+                    ),
                 ),
             )
             for rule in REVISION_RULES
             if rule.permission in permissions
+            and not (rule.command in RISK_ENTRIES and revision.marked)
         ),
         *exports,
     ]
+
+
+def _merge_conditions_of(revision: RevisionState, permissions: Collection[str]) -> list[str]:
+    """Name the conditions the merge of a differential of a revision lacks, as the merge names them.
+
+    The command is the revision's: ``unmerged_amendment_exists`` while it holds no differential
+    to merge; whether one is up to date, its structure says (``structure_up_to_date``, #4186).
+    """
+    state = MergeState(
+        terminal=False,
+        current=not revision.marked,
+        source=revision.source,
+        no_task_running=revision.no_task_running,
+        mergeable=revision.unmerged_differential,
+        creates=CREATE_REVISION in permissions,
+    )
+    return merge_conditions(state)
 
 
 def structure_commands_of(
@@ -185,13 +263,19 @@ def structure_commands_of(
     state: str,
     revision: RevisionState,
     *,
-    main: bool,
+    nature: StructureNature,
 ) -> list[tuple[str, tuple[str, ...]]]:
     """List the commands a caller holds on a structure, each with the conditions it lacks.
 
-    Only the main structure has a remaining to commit (WF-RAE-0040): the other kinds, EP-08's,
-    never list it.
+    ``nature`` is ``MAIN_NATURE``, ``DIFFERENTIAL_NATURE`` — a differential that is not merged —,
+    ``UP_TO_DATE_NATURE`` — one that is up to date besides — or the kind of the structure
+    otherwise. Only the main structure has a remaining to commit
+    (WF-RAE-0040): the other kinds, EP-08's, never list it. Only a differential not merged lists
+    its abandonment and its update: they would never become available on another structure
+    (WF-REV-0100). The update lacks, last, ``structure_out_of_date`` on a differential up to date,
+    which has nothing to carry over (US-3050).
     """
+    main = nature == MAIN_NATURE
     if state in TERMINAL:
         return []
     return [
@@ -201,8 +285,97 @@ def structure_commands_of(
                 *quality_conditions(kind, manager=rule.manager),
                 *phase_conditions(rule.command, state, main=main),
                 *revision_conditions(rule.command, revision),
+                *(
+                    [STRUCTURE_OUT_OF_DATE]
+                    if rule.command == "rebase" and nature == UP_TO_DATE_NATURE
+                    else []
+                ),
             ),
         )
         for rule in STRUCTURE_RULES
-        if rule.permission in permissions and (main or rule.command != "edit_remaining")
+        if rule.permission in permissions
+        and (main or rule.command != "edit_remaining")
+        and (nature in DIFFERENTIAL_NATURES or rule.command not in DIFFERENTIAL_COMMANDS)
     ]
+
+
+@dataclass(frozen=True, slots=True)
+class MergeState:
+    """What the merge of a structure judges: its project, its revision, the structure, the caller.
+
+    ``current`` whether the revision is the current one; ``source`` whether it is the last marked
+    revision of a project without a current revision, whose merge creates the current revision
+    (#790); ``mergeable`` whether the structure is a differential not merged; ``creates`` whether
+    the caller may create a revision (``revisions.write``); ``up_to_date`` whether the differential
+    is up to date with the main structure (US-3050), which the command of the revision does not
+    judge.
+    """
+
+    terminal: bool
+    current: bool
+    source: bool
+    no_task_running: bool
+    mergeable: bool
+    creates: bool
+    up_to_date: bool = True
+
+
+def merge_conditions(state: MergeState) -> list[str]:
+    """Name the conditions the merge of a structure lacks, in the order of ``merge_structure``.
+
+    ``project_not_terminal`` first; on a marked revision but the last of a project without a
+    current revision, ``revision_draft`` alone; else ``no_background_task_running``,
+    ``unmerged_amendment_exists``, then ``may_create_revision`` where the merge would create the
+    current revision (``RevisionCommand.merge_structure``, WF-REV-0050; #790), and last
+    ``structure_up_to_date`` for a differential out of date, which the merge requires up to date
+    (US-3050/L1, #4186).
+    """
+    if state.terminal:
+        return [PROJECT_NOT_TERMINAL]
+    if not state.current and not state.source:
+        return [REVISION_DRAFT]
+    missing = [] if state.no_task_running else [NO_BACKGROUND_TASK_RUNNING]
+    if not state.mergeable:
+        missing.append(UNMERGED_AMENDMENT_EXISTS)
+    if not state.current and not state.creates:
+        missing.append(MAY_CREATE_REVISION)
+    if state.mergeable and not state.up_to_date:
+        missing.append(STRUCTURE_UP_TO_DATE)
+    return missing
+
+
+@dataclass(frozen=True, slots=True)
+class RebaseState:
+    """What the update of a structure judges: its project, its revision, the structure.
+
+    ``current`` whether the revision is the current one; ``differential`` whether the structure is
+    a differential not merged; ``out_of_date`` whether the main structure has moved since its base
+    was taken (US-3050).
+    """
+
+    terminal: bool
+    current: bool
+    no_task_running: bool
+    differential: bool
+    out_of_date: bool
+
+
+def rebase_conditions(state: RebaseState) -> list[str]:
+    """Name the conditions the update of a structure lacks, in the order of its command ``rebase``.
+
+    Those of the abandonment of a differential, in its order — ``project_not_terminal``, then
+    ``revision_draft`` on a revision that is not the current one, ``no_background_task_running``,
+    ``unmerged_amendment_exists`` —, then ``structure_out_of_date`` for a differential up to date,
+    which has nothing to carry over (``rebaseCostStructure``, US-3050). The update is offered on
+    the current revision alone, as the opening of a differential is.
+    """
+    if state.terminal:
+        return [PROJECT_NOT_TERMINAL]
+    if not state.current:
+        return [REVISION_DRAFT]
+    missing = [] if state.no_task_running else [NO_BACKGROUND_TASK_RUNNING]
+    if not state.differential:
+        missing.append(UNMERGED_AMENDMENT_EXISTS)
+    elif not state.out_of_date:
+        missing.append(STRUCTURE_OUT_OF_DATE)
+    return missing

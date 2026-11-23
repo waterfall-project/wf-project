@@ -436,6 +436,13 @@ export default defineConfig([
     },
   },
   {
+    // The load of k6 (bench/load.ts): the types of k6 declare a scenario as a class, BaseScenario,
+    // where k6 reads a plain object and makes none, so the options of a load are object literals by
+    // their nature. The rule against an object literal in the place of an instance is off here only.
+    files: ["bench/load.ts"],
+    rules: { "@typescript-eslint/no-unsafe-class-instance-assignment": "off" },
+  },
+  {
     // The point of metrics of the front (src/metrics/serve.ts, US-2870/L2): Prometheus collects
     // the metrics over HTTP on a port of their own, so the module is a server of HTTP, and it
     // observes the servers of Node, Next's among them; its test stands up the servers it observes.

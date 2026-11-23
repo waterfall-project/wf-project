@@ -14,17 +14,17 @@ is negotiated over months, the baseline moves only by contract, and the question
 still where we said we would be? » has to be answerable years after the people who
 answered it first have left.
 
-> **Status: the service serves the product from the reference data to the actual costs; the
-> indicators, the risks and the portfolio not yet.** The specification and the interface
+> **Status: the service serves the product from the reference data to the actual costs, and the
+> portfolio; the indicators and the risks not yet.** The specification and the interface
 > contract, frozen at 1.0.0, come first; the repository also carries the tooling and the chain
 > every line of product code passes through, and a front that shows every screen against a
 > simulated contract (EP-02). The service serves accounts, authentication and access (EP-03), the
 > company reference data (EP-05), projects and their revisions (EP-04), the schedule and the round
 > trip with MS Project (EP-06), costing and the estimate (EP-07), the actual costs imported from
-> the ERP and the estimate to complete (EP-09). The screens of the indicators (EP-10), of
-> amendments and risks (EP-08) and of the portfolio (EP-11) still run against the fake back. They
-> come next, in that order, as [`docs/roadmap`](docs/roadmap/README.md) plans it, along with
-> operations and production (EP-13).
+> the ERP and the estimate to complete (EP-09), and the seven views of the portfolio (EP-11), read
+> at the date of calculation of your choice. The screens of the indicators (EP-10) and of
+> amendments and risks (EP-08) still run against the fake back. They come next, in that order, as
+> [`docs/roadmap`](docs/roadmap/README.md) plans it, along with operations and production (EP-13).
 
 ## What makes it different
 

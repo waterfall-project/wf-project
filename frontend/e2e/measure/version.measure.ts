@@ -35,6 +35,7 @@ import { dirname } from "node:path";
 
 import { type APIRequestContext, type Browser, test } from "@playwright/test";
 
+import { LOADED } from "../bounds";
 import { frontToken, type LocalPerson, resetGridPreferences } from "../service/realm";
 import { settle } from "../usable";
 import { administratorReady, contributorsOf, measureUsers } from "./accounts";
@@ -49,16 +50,7 @@ import {
 } from "./load-check";
 import { placeAndTasks, prepareLoad, startLoad, stopLoad } from "./load-users";
 import type { Interval } from "./report";
-import {
-  journey,
-  LOADED,
-  type Player,
-  PROJECT,
-  REVISION,
-  signedIn,
-  type Target,
-  targets,
-} from "./steps";
+import { journey, type Player, PROJECT, REVISION, signedIn, type Target, targets } from "./steps";
 import { type Measured, OPERATION_OF_STEP, type VersionReport, versionReport } from "./version";
 import {
   INDICATORS_STEP,

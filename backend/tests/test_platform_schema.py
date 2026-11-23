@@ -3,7 +3,7 @@
 """The schema ``platform``: the maintenance of a restoration and its state, out of ``public``.
 
 Its two tables hold one row each at most, which the owner alone writes and the role of the service
-reads (migration 0035, ``waterfall.platform.maintenance``). A backup dumps ``public`` alone, and a
+reads (migration 0044, ``waterfall.platform.maintenance``). A backup dumps ``public`` alone, and a
 restoration replaces it alone: the maintenance it holds is there once ``public`` is replaced, and a
 backup taken before the schema was made is restored with the migration applied again, without
 effect on it, as is one of whole databases, which the backups dumped before EP-13. Nothing of the
@@ -234,12 +234,12 @@ def test_a_backup_dumps_public_alone_and_a_restoration_leaves_the_maintenance_in
 def test_a_backup_taken_before_the_schema_platform_is_restored_and_the_migration_leaves_it_be(
     installation: Installation, take: Take, queue: TaskQueue, held_on: Maintenance, tmp_path: Path
 ) -> None:
-    # The backup is taken at 0034, before the schema ``platform``: the worker, which reads the
-    # maintenance, finds none there. The restoration replaces ``public`` by it, then applies 0035
+    # The backup is taken at 0043, before the schema ``platform``: the worker, which reads the
+    # maintenance, finds none there. The restoration replaces ``public`` by it, then applies 0044
     # again: the schema, the maintenance it holds and the rights of the service stay as they were,
     # and ``public`` admits the kinds of the schedule.
     owner = create_database_engine(installation.owner["waterfall"])
-    downgrade(owner, "0034")
+    downgrade(owner, "0043")
     with before_the_schedule_of_the_backups():
         backup_task = take()
     upgrade(owner)
@@ -271,7 +271,7 @@ def taken_whole(installation: Installation, folder: Path) -> UUID:
     folder.mkdir()
     dumps = [whole(name, installation.backup[name], folder) for name in DATABASES]
     path = folder / "backup.tar"
-    archive(path, manifest(utc_now(), "0034", dumps, Inventory(0, 0, 0, 0)), dumps)
+    archive(path, manifest(utc_now(), "0043", dumps, Inventory(0, 0, 0, 0)), dumps)
     backup_task = uuid4()
     installation.bucket.upload(f"backup-{backup_task}.tar", path)
     return backup_task
@@ -294,11 +294,11 @@ def labels(installation: Installation) -> list[str]:
 def test_a_backup_of_whole_databases_taken_before_ep13_is_restored_with_the_maintenance_in_place(
     installation: Installation, queue: TaskQueue, held_on: Maintenance, tmp_path: Path
 ) -> None:
-    # The backups taken before EP-13 dumped each database whole, at 0034: no schema ``platform``,
+    # The backups taken before EP-13 dumped each database whole, at 0043: no schema ``platform``,
     # and ``public`` left to the database. Restored, each database holds what it held then and
     # nothing written since; the maintenance held in ``platform`` stays, and the service reads it.
     owner = create_database_engine(installation.owner["waterfall"])
-    downgrade(owner, "0034")
+    downgrade(owner, "0043")
     before = labels(installation)
     role(installation.database, "Sauvegardé")
     provided(installation, "INSERT INTO realm VALUES ('backed-up')")
@@ -494,7 +494,7 @@ def test_the_migration_completes_a_schema_made_by_hand_without_its_tables(
     # before it applies them, and which this database still holds.
     owner = create_database_engine(installation.owner["waterfall"])
     try:
-        downgrade(owner, "0034")
+        downgrade(owner, "0043")
         with owner.begin() as connection:
             connection.execute(text("CREATE SCHEMA platform"))
         upgrade(owner)
@@ -502,8 +502,8 @@ def test_the_migration_completes_a_schema_made_by_hand_without_its_tables(
         assert read.current() is None
         Maintenance.of(Database(owner), queue).hold(HELD)
         with owner.begin() as connection:
-            connection.execute(text("UPDATE alembic_version SET version_num = '0034'"))
-        upgrade(owner, "0035")
+            connection.execute(text("UPDATE alembic_version SET version_num = '0043'"))
+        upgrade(owner, "0044")
         assert read.current() == HELD
     finally:
         owner.dispose()
