@@ -319,24 +319,41 @@ class State:
     completed_on: date | None
 
 
-def _derived(states: list[State], own: tuple[bool, date | None] = (False, None)) -> State:
+def _derived(
+    states: list[State],
+    own: tuple[bool, date | None] = (False, None),
+    kept: date | None = None,
+) -> State:
     """Give the state of a summary: started as soon as one is, completed when all are (0040).
 
     ``own`` is what its own lines tell: whether one holds it open, and the day they were set to
     nought, if that completed it. Held, it stays started when all its subordinates are completed.
-    Its start date is the first of its subordinates', its completion date the last of theirs and
-    of that day (WF-PLA-0130).
+    ``kept`` is the start its facet keeps (``kept_start``): a leaf started or completed that
+    received a subtask stays started at least, until its subordinates and its own lines complete
+    it. Its start date is the first of its subordinates' and of that one, its completion date the
+    last of theirs and of the day its lines closed it (WF-PLA-0130).
     """
     held, closed_on = own
     started = [state.started_on for state in states if state.started_on is not None]
-    first = min(started, default=None)
+    first = min([*started, kept] if kept is not None else started, default=None)
     if not held and all(state.progress == COMPLETED for state in states):
         completed = [state.completed_on for state in states if state.completed_on is not None]
         completed += [closed_on] if closed_on is not None else []
         return State(COMPLETED, first, max(completed, default=None))
-    if any(state.progress != NOT_STARTED for state in states):
+    if kept is not None or any(state.progress != NOT_STARTED for state in states):
         return State(STARTED, first, None)
     return State(NOT_STARTED, None, None)
+
+
+def kept_start[N: NodeColumns, T: TaskColumns](tree: Tree[N, T], node_id: UUID) -> date | None:
+    """Give the start a summary keeps on its facet, none when its facet says it not started.
+
+    A leaf started or completed that receives a subtask keeps its start (WF-PLA-0040): its facet,
+    which the reading of a leaf reads, is read as the summary's own state, as it stands, whatever
+    wrote it — no migration rewrites the facets of the summaries (EP-32, US-3310).
+    """
+    task = tree.tasks[node_id]
+    return None if task.progress == NOT_STARTED else task.started_on
 
 
 def own_lines[N: NodeColumns, T: TaskColumns](
@@ -357,11 +374,13 @@ def own_lines[N: NodeColumns, T: TaskColumns](
 def state_of[N: NodeColumns, T: TaskColumns](tree: Tree[N, T], node_id: UUID) -> State:
     """Give the state of a task of a tree: its own for a leaf, derived for a summary (0040).
 
-    A summary's, from its subordinates and from its own lines (``own_lines``).
+    A summary's, from its subordinates, from its own lines (``own_lines``) and from the start its
+    facet keeps (``kept_start``).
     """
     below = tree.subtasks(node_id)
     if below:
-        return _derived([state_of(tree, child) for child in below], own_lines(tree, node_id))
+        states = [state_of(tree, child) for child in below]
+        return _derived(states, own_lines(tree, node_id), kept_start(tree, node_id))
     task = tree.tasks[node_id]
     return State(task.progress, task.started_on, task.completed_on)
 
@@ -371,8 +390,9 @@ def states_without(
 ) -> dict[UUID, State]:
     """Give the state each ancestor of tasks will have once they and their subtrees are gone.
 
-    Derived from the subordinates left (WF-PLA-0040), and from what ``own`` tells of the own lines
-    of a summary — held open, and the day they closed it —, ``own_lines`` for one it does not name.
+    Derived from the subordinates left (WF-PLA-0040), from what ``own`` tells of the own lines of a
+    summary — held open, and the day they closed it —, ``own_lines`` for one it does not name, and
+    from the start its facet keeps (``kept_start``).
     A summary left without subordinate becomes a leaf in the state it had (``emptied``). The
     deepest first, so that a summary reads the state its subordinates will have.
     """
@@ -385,7 +405,7 @@ def states_without(
             found[each] = state_of(tree, each)
             continue
         states = [found[sub] if sub in found else state_of(tree, sub) for sub in below]
-        found[each] = _derived(states, own.get(each, own_lines(tree, each)))
+        found[each] = _derived(states, own.get(each, own_lines(tree, each)), kept_start(tree, each))
     return found
 
 
@@ -408,8 +428,9 @@ def derived_states[N: NodeColumns, T: TaskColumns](
 ) -> dict[UUID, State]:
     """Give the state of each task of a tree: its own for a leaf, derived for a summary (0040).
 
-    The deepest first, each summary from its subordinates and from what ``own`` tells of its own
-    lines (``own_lines``, ``tallied_own_lines``): what a reading derives, and what the indicators
+    The deepest first, each summary from its subordinates, from what ``own`` tells of its own lines
+    (``own_lines``, ``tallied_own_lines``) and from the start its facet keeps (``kept_start``): what
+    a reading derives, and what the indicators
     read of the tasks alone (#3902).
     """
     states: dict[UUID, State] = {}
@@ -418,7 +439,8 @@ def derived_states[N: NodeColumns, T: TaskColumns](
             continue
         below = tree.subtasks(node_id)
         if below:
-            states[node_id] = _derived([states[child] for child in below], own(node_id))
+            below_states = [states[child] for child in below]
+            states[node_id] = _derived(below_states, own(node_id), kept_start(tree, node_id))
         else:
             task = tree.tasks[node_id]
             states[node_id] = State(task.progress, task.started_on, task.completed_on)

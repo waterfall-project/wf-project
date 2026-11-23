@@ -360,6 +360,31 @@ def test_a_summary_whose_subordinates_are_all_completed_is_a_card_only_while_its
     }
 
 
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_a_leaf_started_given_a_subtask_keeps_its_start_on_the_card_that_awaits_its_own_line(
+    review: Review,
+) -> None:
+    # « Une feuille démarrée qui reçoit une sous-tâche non démarrée est une récapitulative
+    # démarrée, à sa date de démarrage » (US-3310) : l'assemblage, démarré le lundi, reçoit une
+    # sous-tâche ; récapitulative, il n'est une carte que lorsqu'il n'attend plus que sa ligne
+    # propre (#1851), et cette carte est dans la colonne des tâches démarrées, à sa date, non à
+    # celle de sa sous-tâche.
+    tree = review.tree
+    moved(tree, "Montage", "started", DAY)
+    assembly = task_named(tree, "Montage")
+    tree.made("Pose", parent_id=assembly["node_id"])
+    columns = board(tree)
+    assert "Montage" not in labels(columns)["started"] + labels(columns)["not_started"]
+    assert "Pose" in labels(columns)["not_started"]
+    moved(tree, "Pose", "started", TUESDAY)
+    moved(tree, "Pose", "completed", FRIDAY)
+    columns = board(tree)
+    card = card_of(columns, "Montage")
+    assert card in columns["started"]
+    assert card["task"]["awaiting_own_lines"] is True
+    assert (card["task"]["progress"], card["task"]["started_on"]) == ("started", DAY.isoformat())
+
+
 @pytest.mark.requirement("WF-PLA-0050-A")
 def test_the_card_of_a_milestone_bearing_a_line_lacks_task_without_lines_and_enters_the_remaining(
     review: Review,
