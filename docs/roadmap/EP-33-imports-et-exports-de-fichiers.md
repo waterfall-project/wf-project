@@ -802,7 +802,7 @@ cadrage.
 
 ## US-3240 — Déposer un fichier demande une permission d'import, et un compte ne garde pas plus de vingt dépôts en attente
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0020-A`, `WF-DAT-0120-A`
 - **opérations** : `uploadFile`
 - **issue** : #4536

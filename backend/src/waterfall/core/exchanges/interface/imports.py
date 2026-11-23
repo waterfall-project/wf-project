@@ -83,7 +83,9 @@ from waterfall.core.revisions.interface import aimed_structure, last_marked_revi
 from waterfall.platform.database import unique_violated
 from waterfall.platform.errors import (
     NOT_FOUND,
+    STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
+    ConflictError,
     FieldError,
     NotFoundError,
     PayloadTooLargeError,
@@ -93,7 +95,14 @@ from waterfall.platform.errors import (
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.registry import Registry
 from waterfall.platform.tasks import PROJECT, BackgroundTask, submit
-from waterfall.platform.uploads import IMPORT, FileUpload, Whole, record_whole
+from waterfall.platform.uploads import (
+    IMPORT,
+    MOST_PENDING,
+    FileUpload,
+    Whole,
+    pending_imports,
+    record_whole,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -113,6 +122,7 @@ type ExchangeKind = Literal["ms_project_schedule", "estimate", "remaining", "act
 
 FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
 FILE_TOO_LARGE = "FILE_TOO_LARGE"
+PENDING_UPLOADS_BELOW_LIMIT = "pending_uploads_below_limit"
 UPLOAD_PURPOSE_MISMATCH = "UPLOAD_PURPOSE_MISMATCH"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 VALUE_REQUIRED = "VALUE_REQUIRED"
@@ -380,8 +390,10 @@ def judge_deposit(purpose: str, filename: str | None, size_bytes: int) -> None:
     """Refuse a file deposited for an import before it is kept, nothing written.
 
     A backup is deposited by parts, never here (422 ``/purpose``, ``UPLOAD_PURPOSE_MISMATCH``); a
-    file beyond 10 MiB is refused (413 ``FILE_TOO_LARGE``); an empty file, or one without a name or
-    with a name longer than a deposit keeps, is refused on ``/file`` (422).
+    file beyond 10 MiB is refused (413 ``FILE_TOO_LARGE``); an empty file, or one without a name,
+    is refused on ``/file`` (422 ``VALUE_REQUIRED``), as a name longer than a deposit keeps
+    (``VALUE_TOO_LONG``, ``max_length`` as every ``VALUE_TOO_LONG``, #4732) and a name that holds
+    the NUL character, refused as every text that holds it (``VALIDATION_FAILED``; BEX-08, #4426).
     """
     if purpose != IMPORT:
         mismatch = FieldError("/purpose", UPLOAD_PURPOSE_MISMATCH)
@@ -391,8 +403,29 @@ def judge_deposit(purpose: str, filename: str | None, size_bytes: int) -> None:
     if not filename or size_bytes == 0:
         raise UnprocessableError(VALIDATION_FAILED, fields=(FieldError("/file", VALUE_REQUIRED),))
     if len(filename) > LONGEST_NAME:
-        too_long = FieldError("/file", VALUE_TOO_LONG, {"maximum": LONGEST_NAME})
+        too_long = FieldError("/file", VALUE_TOO_LONG, {"max_length": LONGEST_NAME})
         raise UnprocessableError(VALIDATION_FAILED, fields=(too_long,))
+    if "\x00" in filename:
+        nul = FieldError("/file", VALIDATION_FAILED)
+        raise UnprocessableError(VALIDATION_FAILED, fields=(nul,))
+
+
+def judge_room(session: Session, act: Act) -> None:
+    """Refuse a deposit to an account that keeps as many pending as it may (409), nothing written.
+
+    A deposit is pending while no import used it and it has not expired: an import that opens on
+    one, or the purge that deletes one at its term, frees a place. Counted without a lock, before
+    the file is written (US-3240, #4423): the bound guards against a loop, and is no invariant.
+    """
+    if act.author is None:
+        msg = "a file is deposited by an account"
+        raise ValueError(msg)
+    # A NULL in a NOT IN list would empty it: the column is NOT NULL today, and the count
+    # does not rely on it.
+    used = select(ImportReport.upload_id).where(ImportReport.upload_id.is_not(None))
+    if pending_imports(session, act.author, act.at, used) >= MOST_PENDING:
+        conflict = {"missing_condition": PENDING_UPLOADS_BELOW_LIMIT, "maximum": MOST_PENDING}
+        raise ConflictError(STATE_FORBIDS_OPERATION, conflict)
 
 
 def deposit(
