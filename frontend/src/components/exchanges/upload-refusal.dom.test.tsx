@@ -79,7 +79,7 @@ beforeEach(() => {
 });
 
 describe("the refusals of the deposit of a file [US-3240]", () => {
-  it("tells the twenty pending deposits in the words of the catalogue, under the form [US-3240]", async () => {
+  it("tells the twenty pending deposits in the words of the catalogue, under the form [WF-DAT-0120-A]", async () => {
     const client = serve({
       [UPLOAD]: { problem: example("file_upload_pending_limit") as Problem & { status: 409 } },
     });
@@ -87,18 +87,19 @@ describe("the refusals of the deposit of a file [US-3240]", () => {
     const told = within(form).getByRole("alert");
     expect(told).toHaveTextContent(CATALOGUES.fr.errors.STATE_FORBIDS_OPERATION);
     expect(told).toHaveTextContent("moins de vingt imports en attente pour le compte");
+    expect(told).toHaveTextContent("Valeur maximale : 20.");
     expect(client.calls.map((call) => call.route)).toEqual([UPLOAD]);
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("tells the twenty pending deposits in English [US-3240]", async () => {
+  it("tells the twenty pending deposits in English [WF-DAT-0120-A]", async () => {
     serve({
       [UPLOAD]: { problem: example("file_upload_pending_limit") as Problem & { status: 409 } },
     });
     const form = await deposit("costs.xlsx", "en");
-    expect(within(form).getByRole("alert")).toHaveTextContent(
-      "fewer than twenty pending imports for the account",
-    );
+    const told = within(form).getByRole("alert");
+    expect(told).toHaveTextContent("fewer than twenty pending imports for the account");
+    expect(told).toHaveTextContent("Maximum value: 20.");
   });
 
   it("tells a name that holds the NUL character as an invalid datum, under the form [US-3240]", async () => {
@@ -112,11 +113,13 @@ describe("the refusals of the deposit of a file [US-3240]", () => {
     expect(client.calls.map((call) => call.route)).toEqual([UPLOAD]);
   });
 
-  it("tells a deposit refused for the lack of the permission, under the form [US-3240]", async () => {
-    serve({ [UPLOAD]: { problem: { code: "PERMISSION_MISSING", status: 403 } } });
+  it("tells a deposit refused for the lack of the permission, and names it [WF-ADM-0020-A]", async () => {
+    serve({
+      [UPLOAD]: { problem: example("file_upload_permission_missing") as Problem & { status: 403 } },
+    });
     const form = await deposit("couts.xlsx");
-    expect(within(form).getByRole("alert")).toHaveTextContent(
-      CATALOGUES.fr.errors.PERMISSION_MISSING,
-    );
+    const told = within(form).getByRole("alert");
+    expect(told).toHaveTextContent(CATALOGUES.fr.errors.PERMISSION_MISSING);
+    expect(told).toHaveTextContent("Permission requise : Modifier la planification.");
   });
 });
