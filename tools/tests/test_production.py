@@ -115,7 +115,7 @@ def test_the_platform_is_complete_on_one_machine_its_data_in_named_volumes() -> 
         # The authority of the platform and what it issues (US-2840, test_transport_trial.py).
         "authority",
         "trust",
-        *(f"certificates-{name}" for name in transport.SERVED),
+        *(f"certificates-{name}" for name in transport.COMPOSE.hosts().values()),
     }
     for name, kept in {
         "postgres": "/var/lib/postgresql",
@@ -262,7 +262,8 @@ def test_the_console_of_keycloak_and_its_realm_master_are_not_served() -> None:
 
 def test_every_route_of_the_front_under_auth_is_served_to_it_or_kept_inside_the_platform() -> None:
     # Keycloak is under /auth, and so are three routes of the front: those the browser opens pass
-    # to the front; its back channel, which Keycloak reaches at front:3443, is not served (#731).
+    # to the front; its back channel, which Keycloak reaches at front-proxy:3443, is not served
+    # (#731).
     routes = {path.name for path in (REPOSITORY / "frontend/src/app/auth").iterdir()}
     served = re.search(r"@front path ([^\n]+)", CADDYFILE.read_text(encoding="utf-8"))
     assert served is not None
@@ -270,7 +271,7 @@ def test_every_route_of_the_front_under_auth_is_served_to_it_or_kept_inside_the_
         "backchannel-logout"
     }
     realm = environment("keycloak-realm")
-    assert realm["WATERFALL_FRONT_BACKCHANNEL"] == "https://front:3443"
+    assert realm["WATERFALL_FRONT_BACKCHANNEL"] == "https://front-proxy:3443"
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")

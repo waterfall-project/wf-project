@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # The proxy in TLS of the front (US-2840, WF-SEC-0010, #4508): the standalone server of Next does
-# not encrypt by itself, and listens on the loopback alone (HOSTNAME=127.0.0.1), in the network of
-# this proxy, which it shares — the service front-proxy of compose.prod.yaml, the pod of the front in
-# the chart. The door, the ingress and Keycloak, on its back channel (TFX-17), reach the front here,
-# at port 3443, with the certificate the authority of the platform issues for its name; nothing
-# listens in the clear outside the loopback, but the port of the metrics, which the server of the
-# front opens on its own (TFX-09). The host of a request goes through unchanged.
+# not encrypt by itself, and listens where no other service reaches it — under the Compose, on the
+# network front, which it shares with this proxy alone (compose.prod.yaml, front-proxy), at
+# WATERFALL_FRONT_UPSTREAM; in the pod of the front of the chart, which gives none, on the loopback.
+# The door, the ingress and Keycloak, on its back channel (TFX-17), reach the front here, at port
+# 3443, with the certificate the authority of the platform issues for its name; nothing listens in
+# the clear elsewhere, but the port of the metrics, which the server of the front opens on its own
+# (TFX-09). The host of a request goes through unchanged.
 {
 	# Nothing changes the configuration once started.
 	admin off
@@ -20,5 +21,5 @@
 
 https://:3443 {
 	tls /tls/tls.crt /tls/tls.key
-	reverse_proxy 127.0.0.1:3000
+	reverse_proxy {$WATERFALL_FRONT_UPSTREAM:127.0.0.1:3000}
 }

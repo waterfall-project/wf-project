@@ -104,11 +104,14 @@ def test_the_authority_issues_the_certificate_of_each_server_for_it_alone() -> N
     authority = services()["authority"]
     command = authority["command"]
     assert command[0] == "waterfall-authority"
-    served = {each.split(":")[0] for each in command if re.fullmatch(r"[a-z]+:\d+:\d+", each)}
-    assert served == set(transport.SERVED) == set(SERVERS)
+    served = {each.split(":")[0] for each in command if re.fullmatch(r"[a-z-]+:\d+:\d+", each)}
+    # Each for the name the probe and the clients reach it at.
+    names = transport.COMPOSE.hosts()
+    assert set(names) == set(transport.SERVED) == set(SERVERS)
+    assert served == set(names.values())
     for name, server in SERVERS.items():
-        volume = f"certificates-{name}"
-        assert f"{volume}:/certificates/{name}" in authority["volumes"]
+        volume = f"certificates-{names[name]}"
+        assert f"{volume}:/certificates/{names[name]}" in authority["volumes"]
         mounting = [
             service
             for service, found in services().items()
@@ -181,25 +184,36 @@ def test_postgresql_redis_keycloak_and_the_api_serve_in_tls_alone() -> None:
 
 @pytest.mark.requirement("WF-SEC-0010-A")
 def test_the_front_grafana_and_alertmanager_serve_in_tls_alone() -> None:
-    # #4508, all in TLS: the front behind its proxy, which holds its network, the server of Next on
-    # its loopback alone; Grafana and Alertmanager with the certificate the authority issues them.
+    # #4508, all in TLS: the front behind its proxy, the server of Next listening on the network
+    # front alone, which they alone share, as Garage and its proxy share theirs (M3 of the review
+    # of US-2840/L2: in the network of its proxy, the front was cut off by a restart of the proxy);
+    # Grafana and Alertmanager with the certificate the authority issues them.
     found = services()
     front = found["front"]
-    assert front["network_mode"] == "service:front-proxy"
-    assert environment("front")["HOSTNAME"] == "127.0.0.1"
-    assert "networks" not in front
+    assert "network_mode" not in front
+    assert front["networks"] == {"default": {}, "front": {"aliases": ["front-next"]}}
+    assert environment("front")["HOSTNAME"] == "front-next"
+    assert "front-next:3000" in front["healthcheck"]["test"][-1]
     assert "ports" not in front
+    assert compose()["networks"]["front"] == {"internal": True}
+    joining = [name for name, service in found.items() if "front" in service.get("networks", {})]
+    assert sorted(joining) == ["front", "front-proxy"]
     proxy = found["front-proxy"]
-    assert proxy["networks"] == {"default": {"aliases": ["front"]}}
+    assert proxy["networks"] == {"default": {}, "front": {}}
+    assert proxy["depends_on"]["front"] == {"condition": "service_healthy"}
     assert "./Caddyfile.front:/etc/caddy/Caddyfile.front:ro" in proxy["volumes"]
+    assert proxy["environment"]["WATERFALL_FRONT_UPSTREAM"] == "front-next:3000"
     served = (COMPOSE / "Caddyfile.front").read_text(encoding="utf-8")
+    # The upstream the Compose gives, the loopback of the pod in the chart, which gives none.
     assert re.search(
-        r"^https://:3443 \{\s*tls /tls/tls.crt /tls/tls.key\s*reverse_proxy 127.0.0.1:3000\s*\}",
+        r"^https://:3443 \{\s*tls /tls/tls.crt /tls/tls.key\s*"
+        r"reverse_proxy \{\$WATERFALL_FRONT_UPSTREAM:127\.0\.0\.1:3000\}\s*\}",
         served,
         re.MULTILINE,
     )
     # Keycloak tells the front of a closed session in HTTPS, trusting the root (TFX-17).
-    assert environment("keycloak-realm")["WATERFALL_FRONT_BACKCHANNEL"] == "https://front:3443"
+    backchannel = environment("keycloak-realm")["WATERFALL_FRONT_BACKCHANNEL"]
+    assert backchannel == "https://front-proxy:3443"
     assert environment("keycloak")["KC_TRUSTSTORE_PATHS"] == ROOT
     assert TRUST in found["keycloak"]["volumes"]
     grafana = environment("grafana")
@@ -214,7 +228,7 @@ def test_the_front_grafana_and_alertmanager_serve_in_tls_alone() -> None:
     (manager,) = collected["alerting"]["alertmanagers"]
     assert (manager["scheme"], manager["tls_config"]) == ("https", {"ca_file": "/tls/ca.crt"})
     assert {"front", "grafana", "alertmanager"} <= set(transport.SERVED)
-    assert "front-http" in transport.CLOSED
+    assert {"front-http", "front-next"} <= set(transport.CLOSED)
 
 
 def instructions(dockerfile: str) -> list[tuple[str, str]]:
@@ -363,7 +377,7 @@ def test_every_client_reaches_its_server_encrypted_and_checks_it_against_the_roo
     )
     upstreams = re.findall(r"reverse_proxy (\S+) \{\s*import trusted\s*\}", door)
     assert sorted(upstreams) == [
-        "https://front:3443",
+        "https://front-proxy:3443",
         "https://grafana:3000",
         "https://keycloak:8443",
     ]

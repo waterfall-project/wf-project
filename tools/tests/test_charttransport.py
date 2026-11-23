@@ -125,6 +125,11 @@ def test_no_server_listens_in_the_clear(objects: Objects) -> None:
     # The front and Garage on the loopback of their pods, behind their proxies in TLS.
     front = environment(named(of_kind(objects, "Deployment")["front"], "front"))
     assert front["HOSTNAME"] == "127.0.0.1"
+    # Its proxy is given no upstream: the Caddyfile of the Compose falls back on the loopback.
+    proxy = named(of_kind(objects, "Deployment")["front"], "front-proxy")
+    assert "WATERFALL_FRONT_UPSTREAM" not in environment(proxy)
+    served = of_kind(objects, "ConfigMap")["front"]["data"]["Caddyfile.front"]
+    assert "reverse_proxy {$WATERFALL_FRONT_UPSTREAM:127.0.0.1:3000}" in served
     garage = of_kind(objects, "ConfigMap")["storage"]["data"]
     assert 'api_bind_addr = "127.0.0.1:3902"' in garage["garage.toml"]
     assert 'rpc_bind_addr = "127.0.0.1:3901"' in garage["garage.toml"]

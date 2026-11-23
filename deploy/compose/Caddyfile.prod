@@ -38,7 +38,7 @@
 
 # The front, behind its proxy in TLS (Caddyfile.front).
 (front) {
-	reverse_proxy https://front:3443 {
+	reverse_proxy https://front-proxy:3443 {
 		import trusted
 	}
 }

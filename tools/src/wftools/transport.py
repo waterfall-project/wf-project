@@ -72,6 +72,11 @@ class Plan:
         """Return the names of the servers that must refuse the clear and serve in TLS."""
         return ("postgres", "redis", *self.served)
 
+    def hosts(self) -> dict[str, str]:
+        """Return the name each server is reached at, its certificate's, by its verdict."""
+        served = {name: host for name, (host, _) in self.served.items()}
+        return {"postgres": self.postgres[0], "redis": self.redis[0], **served}
+
     def expected(self) -> dict[str, str]:
         """Return the verdict each listener of the plan must be given."""
         return {
@@ -91,7 +96,7 @@ COMPOSE = Plan(
         "prometheus": ("prometheus", 9090),
         "alertmanager": ("alertmanager", 9093),
         "grafana": ("grafana", 3000),
-        "front": ("front", 3443),
+        "front": ("front-proxy", 3443),
     },
     closed={
         "keycloak-http": ("keycloak", 8080),
@@ -100,13 +105,16 @@ COMPOSE = Plan(
         "keycloak-cluster-detection": ("keycloak", 57800),
         "garage": ("garage", 3900),
         "front-http": ("front", 3000),
+        "front-next": ("front-next", 3000),
     },
     metrics=("api", 8000),
 )
 """The production Compose, reached by the names of its services.
 
 Keycloak's cluster is closed: alone, with caches of its own, it opens neither the port of its
-cluster, 7800, nor the one where JGroups detects the failure of a peer in the clear, 57800.
+cluster, 7800, nor the one where JGroups detects the failure of a peer in the clear, 57800. The
+server of Next listens on the network it shares with its proxy alone, at front-next: neither its
+name in the network of the platform, front, nor that one reaches it there.
 """
 
 SERVED = COMPOSE.servers()

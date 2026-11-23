@@ -105,14 +105,15 @@ l'API, Keycloak, Prometheus — que l'API et Grafana lisent en HTTPS (TFX-14,
 (`alertmanager-web.yml`) — et Grafana ne servent qu'en TLS, le stockage objet derrière un
 mandataire TLS (`storage-proxy`, `Caddyfile.storage`) — Garage, qui ne chiffre pas, n'est joint que
 par lui, sur un réseau qu'ils sont seuls à partager —, et le front de même (`front-proxy`,
-`Caddyfile.front`) : le serveur de Next n'écoute que sur la boucle locale du réseau de son
-mandataire, qu'il partage, et la porte, comme Keycloak sur son canal arrière (TFX-17), le joint à
-`https://front:3443` (#4508). Chaque client — la porte comprise, vers le front, Keycloak et Grafana
-— vérifie le certificat du serveur et son nom contre la racine de l'autorité de la plateforme ; une
-connexion en clair est refusée. Keycloak, seule
-instance, garde ses caches pour lui (`KC_CACHE=local`) : il n'ouvre aucun port de grappe, ni 7800
-ni 57800, où JGroups parlerait en clair. Seuls les
-points de métriques restent en HTTP, sur un port que la porte ne route pas (TFX-09).
+`Caddyfile.front`) : le serveur de Next n'écoute que sur le réseau `front`, qu'il est seul à partager
+avec son mandataire, à son nom sur ce réseau, `front-next`, et la porte, comme Keycloak sur son
+canal arrière (TFX-17), le joint à `https://front-proxy:3443` (#4508). Chacun des deux redémarre
+seul : le mandataire retrouve le front par ce nom. Chaque client — la porte comprise, vers le front,
+Keycloak et Grafana — vérifie le certificat du serveur et son nom contre la racine de l'autorité de
+la plateforme ; une connexion en clair est refusée. Keycloak, seule instance, garde ses caches pour
+lui (`KC_CACHE=local`) : il n'ouvre aucun port de grappe, ni 7800 ni 57800, où JGroups parlerait en
+clair. Seuls les points de métriques restent en HTTP, sur un port que la porte ne route pas
+(TFX-09).
 
 Cette autorité est celle de l'exploitant s'il la fournit : son certificat, `ca.crt` — suivi au
 besoin de ceux qui mènent à la racine —, et sa clé, `ca.key`, non chiffrée, dans le répertoire

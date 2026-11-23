@@ -301,6 +301,7 @@ def test_every_root_a_mounted_configuration_reads_is_mounted_too(path: Path) -> 
     assert unmounted_roots(services(path)) == []
 
 
+@pytest.mark.story("US-2840")
 def test_a_configuration_mounted_without_its_root_is_named() -> None:
     found = services(SERVICE)
     taken = {

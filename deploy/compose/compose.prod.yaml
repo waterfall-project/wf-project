@@ -129,7 +129,7 @@ services:
       - prometheus:65534:65534
       - alertmanager:65534:65534
       - grafana:472:0
-      - front:0:0
+      - front-proxy:0:0
     volumes:
       - ${WATERFALL_AUTHORITY_DIRECTORY:-./authority}:/authority/provided:ro
       - authority:/authority/kept
@@ -142,7 +142,7 @@ services:
       - certificates-prometheus:/certificates/prometheus
       - certificates-alertmanager:/certificates/alertmanager
       - certificates-grafana:/certificates/grafana
-      - certificates-front:/certificates/front
+      - certificates-front-proxy:/certificates/front-proxy
     restart: "no"
 
   # The only door: 80, which Let's Encrypt asks and which sends to HTTPS, and 443. It answers for
@@ -174,34 +174,43 @@ services:
           - ${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}
     restart: unless-stopped
 
-  # The front in TLS (#4508, Caddyfile.front): its proxy holds the network the front shares, under
-  # the name front, and serves it at https://front:3443 with the certificate the authority issues for
-  # that name; the server of Next listens on the loopback of that network alone. The port of the
-  # metrics of the front is the front's own, in HTTP, published nowhere (TFX-09).
+  # The front in TLS (#4508, Caddyfile.front): its proxy serves it at https://front-proxy:3443, with
+  # the certificate the authority issues for that name, and reaches the server of Next on the network
+  # front, which they alone share, as storage-proxy reaches Garage: each restarts alone, and the proxy
+  # finds the front again by its name there.
   front-proxy:
     image: ${WATERFALL_MIRROR:-}caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
     command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.front", "--adapter", "caddyfile"]
+    environment:
+      WATERFALL_FRONT_UPSTREAM: front-next:3000
     volumes:
       - ./Caddyfile.front:/etc/caddy/Caddyfile.front:ro
-      - certificates-front:/tls:ro
+      - certificates-front-proxy:/tls:ro
     networks:
-      default:
-        aliases: [front]
+      default: {}
+      front: {}
     restart: unless-stopped
     depends_on:
       authority: *done
+      front: *healthy
     healthcheck:
       test: ["CMD", "nc", "-z", "127.0.0.1", "3443"]
       interval: 2s
       timeout: 3s
       retries: 30
 
+  # The server of Next listens on the network front alone, at its name there, front-next, which no
+  # other network knows: no port of it is reached in the clear from the network of the platform,
+  # which it joins to reach the API, Redis and Keycloak. The port of the metrics of the front is its
+  # own, in HTTP, on every interface, published nowhere (TFX-09).
   front:
     image: ghcr.io/waterfall-project/front:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
-    # In the network of its proxy, on its loopback alone: no port of it is reached in the clear.
-    network_mode: service:front-proxy
+    networks:
+      default: {}
+      front:
+        aliases: [front-next]
     environment:
-      HOSTNAME: 127.0.0.1
+      HOSTNAME: front-next
       # The API and Redis in TLS (TFX-02, TFX-04), their certificates checked against the root of
       # the platform, which NODE_EXTRA_CA_CERTS adds to the authorities the server of Next knows.
       WATERFALL_API_ADDRESS: https://api:8443
@@ -221,13 +230,12 @@ services:
     volumes:
       - *trust
     depends_on:
-      front-proxy: *healthy
       api: *healthy
       redis: *healthy
       keycloak-realm: *healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/', {headers: {'user-agent': 'waterfall-healthcheck'}}).then(r => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://front-next:3000/', {headers: {'user-agent': 'waterfall-healthcheck'}}).then(r => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -641,10 +649,11 @@ services:
 
   # Applies the realm of the image at each start: a setting changed by hand in the console comes back
   # to what the realm says. Keycloak tells the front of a closed session on its back channel, inside
-  # the network of the platform (#731), in HTTPS, through the proxy of the front (TFX-17). Then stays, and applies it again when the service of the
-  # restoration asks, over the database it has restored (#955): as a temporary administrator it
-  # makes on the database of Keycloak (realm-service), the administrator of master being then the
-  # backup's, whose password it gives back.
+  # the network of the platform (#731), in HTTPS, through the proxy of the front (TFX-17). Then
+  # stays, and applies it again when the service of the restoration asks, over the database it has
+  # restored (#955): as a temporary administrator it makes on the database of Keycloak
+  # (realm-service), the administrator of master being then the backup's, whose password it gives
+  # back.
   keycloak-realm:
     image: *keycloak-image
     entrypoint: ["/opt/keycloak/bin/realm-service", "/opt/keycloak/bin/apply-realm"]
@@ -656,7 +665,7 @@ services:
       KEYCLOAK_USER: admin
       KEYCLOAK_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?set WATERFALL_KEYCLOAK_ADMIN_PASSWORD in .env}
       WATERFALL_FRONT_ADDRESS: *address
-      WATERFALL_FRONT_BACKCHANNEL: https://front:3443
+      WATERFALL_FRONT_BACKCHANNEL: https://front-proxy:3443
       WATERFALL_FRONT_CLIENT_SECRET: ${WATERFALL_FRONT_CLIENT_SECRET:?set WATERFALL_FRONT_CLIENT_SECRET in .env}
       WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?set WATERFALL_SERVICE_CLIENT_SECRET in .env}
       WATERFALL_INSTALLATION_CLIENT_SECRET: ${WATERFALL_INSTALLATION_CLIENT_SECRET:?set WATERFALL_INSTALLATION_CLIENT_SECRET in .env}
@@ -789,6 +798,9 @@ networks:
   # Where Garage listens in the clear: its proxy in TLS alone joins it, and nothing leaves it.
   storage:
     internal: true
+  # Where the server of Next listens in the clear: it and its proxy in TLS alone join it.
+  front:
+    internal: true
 
 volumes:
   caddy-data:
@@ -811,7 +823,7 @@ volumes:
   certificates-prometheus:
   certificates-alertmanager:
   certificates-grafana:
-  certificates-front:
+  certificates-front-proxy:
   # Where the service of the restoration asks keycloak-realm to apply the realm again, and reads the
   # answer: in memory, theirs alone, written by the user of both images.
   realm-requests:
