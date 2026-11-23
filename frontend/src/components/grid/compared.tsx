@@ -135,7 +135,6 @@ const DELTAS: readonly Delta[] = [
   { column: "started_on", label: "deltaStartedOn", kind: "days", task: "started_on" },
   { column: "completed_on", label: "deltaCompletedOn", kind: "days", task: "completed_on" },
   { column: "duration", label: "deltaDuration", kind: "duration", task: "duration" },
-  { column: "total_float", label: "deltaTotalFloat", kind: "duration", task: "total_float" },
   {
     column: "unit_disbursement",
     label: "deltaUnitDisbursement",
