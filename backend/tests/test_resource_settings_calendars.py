@@ -750,9 +750,12 @@ def test_the_witness_loads_the_calendars_and_designates_its_default_one(
     api: ContractClient,
     database: Database,
     owner: Engine,
-    sessions: PartSessions,
+    reference_sessions: ReferenceSessions,
     service_database_url: str,
 ) -> None:
+    # The sessions are signed once the witness is loaded, which takes minutes under load: signed
+    # before, they would have expired (#4856).
+    #
     # `load-witness` writes `calendars_with_inactive.json` with its identifiers and its default
     # calendar, the one the platform held losing the designation, then deactivates the one it says
     # deactivated (#2131); the list reads back the example of the contract, the audit columns
@@ -760,6 +763,7 @@ def test_the_witness_loads_the_calendars_and_designates_its_default_one(
     install(owner)
     held = seed(database, "Installé", default=True)
     assert load(service_database_url) == 0
+    sessions = reference_sessions("resource_settings")
     example = example_items()
     wanted = {each["calendar_id"] for each in example}
     read = listing(api, sessions.changing, "include_inactive=true")["items"]
