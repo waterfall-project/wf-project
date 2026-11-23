@@ -75,7 +75,7 @@ _NUMBER_HEADERS = (QUANTITY_HEADER, HOURS_HEADER, DISBURSEMENT_HEADER, PAYMENT_D
 _ALL_HEADERS = _TEXT_HEADERS + _NUMBER_HEADERS
 # The columns a tab of lines cannot lack, in the order of the writer: without them an import would
 # create or remove lines, or set amounts, on a column it cannot read (#4421).
-REQUIRED_HEADERS = (QUANTITY_HEADER, HOURS_HEADER, DISBURSEMENT_HEADER, LINEAGE_HEADER)
+_REQUIRED_HEADERS = (QUANTITY_HEADER, HOURS_HEADER, DISBURSEMENT_HEADER, LINEAGE_HEADER)
 _READ_HEADERS = frozenset(_ALL_HEADERS)
 # A tab of lines is the one that carries both of these, on whichever row.
 _KEY_HEADERS = frozenset({TASK_HEADER, ROLE_OR_CATEGORY_HEADER})
@@ -257,7 +257,7 @@ def check_workbook(content: bytes) -> None:
     """
     check_header(content)
     refuse_missing_columns(
-        read_workbook(content).missing_headers, REQUIRED_HEADERS, FORMAT_KIND, FORMAT_VERSION
+        read_workbook(content).missing_headers, _REQUIRED_HEADERS, FORMAT_KIND, FORMAT_VERSION
     )
 
 
