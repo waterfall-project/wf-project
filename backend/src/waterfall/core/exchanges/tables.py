@@ -4,8 +4,11 @@
 
 An import of a project and its report: its opening, the file deposited for it, where it stands,
 its report in codes and parameters (``ImportReport``), the last background task that ran for it,
-and, for a planning of MS Project in calendar gap, the rule its durations are converted by
-(``duration_rule``, US-2000; null otherwise).
+for a planning of MS Project in calendar gap, the rule its durations are converted by
+(``duration_rule``, US-2000; null otherwise), and the counter of the structure its last analysis
+read (``structure_lock_version``, US-3210), which the application compares: null for an extraction
+of actual costs, for an import analysed without a structure, and for a report analysed before the
+column, which applies without comparison.
 A deposit serves one import; the report outlives the file, which the purge or the abandonment
 deletes (WF-DAT-0120). The purge deletes its row, report included, in the pass that finds the
 import ``analysed`` with its report expired, or ``abandoned`` (WF-DAT-0080-A, US-3250): the state
@@ -29,6 +32,7 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
     Text,
     UniqueConstraint,
 )
@@ -80,6 +84,7 @@ class ImportReport(Base):
             "duration_rule IS NULL OR kind = 'ms_project_schedule'",
             name="duration_rule_of_a_planning",
         ),
+        CheckConstraint("structure_lock_version >= 0", name="structure_lock_version_not_negative"),
         # A deposit serves one import.
         UniqueConstraint("upload_id"),
         # The structure aimed at and the revision written in, with their project: the import goes
@@ -118,3 +123,4 @@ class ImportReport(Base):
     expires_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     applied_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     duration_rule: Mapped[str | None] = mapped_column(Text)
+    structure_lock_version: Mapped[int | None] = mapped_column(Integer)

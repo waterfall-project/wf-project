@@ -71,6 +71,7 @@ from waterfall.core.exchanges.states import (
     status_read,
 )
 from waterfall.core.exchanges.tables import ImportReport
+from waterfall.core.exchanges.unchanged import judge_unchanged, written_at_request
 from waterfall.core.projects.interface import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
@@ -750,8 +751,10 @@ def apply_import(
     reading of its kind (404, #2473), its permission and the quality of contributor (403); an
     import no longer ``analysed`` — applied or being applied, abandoned, expired, failed, refused —
     (409 ``import_awaiting_decision``), the import unchanged; then a report that rejects the whole
-    file (409 ``import_file_accepted``), and the conditions of the opening judged again, those of
-    the exchanges then those of the kind (409), and the structure aimed at, which the current
+    file (409 ``import_file_accepted``), a structure written since the analysis (409
+    ``import_structure_unchanged``, US-3210, read under the lock of the project: the task judges it
+    again under the lock of the structure), and the conditions of the opening judged again, those
+    of the exchanges then those of the kind (409), and the structure aimed at, which the current
     revision may no longer hold (404). A condition that passes — a background task of the project,
     the permission to create the revision the import would create (``PASSING``) — refuses it and
     leaves it ``analysed``, its file kept: it is applied again once the condition holds, without a
@@ -780,6 +783,9 @@ def apply_import(
         if lacking:
             raise refused(lacking[0])
         standing = Standing(project_id, lock_project(session, project_id), form.scope)
+        if form.scope == "structure":
+            current = standing.facts.current_revision_id
+            judge_unchanged(session, row, written_at_request(session, row, current))
 
         def judge_format() -> None:
             form.judge(session, _applied_target(session, row, standing))
@@ -832,6 +838,8 @@ def set_duration_rule(
         payload[REVISION_KEY] = revision
     row.duration_rule = rule
     row.report = None
+    # The new analysis keeps the counter it reads; the one of the last is set aside (US-3210).
+    row.structure_lock_version = None
     row.status = "analysing"
     row.analysed_at = None
     row.expires_at = None

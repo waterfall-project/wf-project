@@ -28,6 +28,12 @@ holds, read once under the lock (#2492), at the counter of its redating, not rea
 ``load_differential`` the same for the loader of the witness, under the identifiers it imposes on
 the differential and on the copies of its nodes, its base drawn (US-2650/L1).
 
+``hold_structure`` takes the lock of a structure as a write of its tree takes it, and
+``unwritten_since_opening`` tells whether a structure of a revision opened is as its opening left
+it: what the exchanges ask of the structure an import applies to, which they compare with the one
+its report read (US-3210, #4420), registered in them (``register_structure_guard``), the exchanges
+reading no planning.
+
 Declared by US-1380/L1; ``reschedule`` filled by US-1380/L2, handed what a write already holds by
 US-1380/L3, ``update_cost_structure`` filled by US-1390/L2, its structure after built by US-1380/L5.
 """
@@ -35,17 +41,28 @@ US-1380/L3, ``update_cost_structure`` filled by US-1390/L2, its structure after 
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
+from sqlalchemy import select
+
 from waterfall.core.history.interface import ObjectState
 from waterfall.core.planning.calendars import default_calendar
 from waterfall.core.planning.interface.copying import copy_structure_nodes
 from waterfall.core.planning.rescheduling import Holding, replayed
-from waterfall.core.planning.writing import Place, facts_of, judge_revision, writing
+from waterfall.core.planning.tables import Node
+from waterfall.core.planning.writing import (
+    Place,
+    facts_of,
+    hold_before_lock,
+    judge_revision,
+    writing,
+)
 from waterfall.core.revisions.interface import (
     CopyImposed,
     DifferentialName,
     RevisionCopy,
     aimed_structure,
     create_differential,
+    last_marked_revision,
+    structure_facts,
     write_structure,
 )
 from waterfall.platform.errors import (
@@ -72,6 +89,9 @@ if TYPE_CHECKING:
     from waterfall.platform.audit import Act
 
 NON_WORKING_DAY = "NON_WORKING_DAY"
+# The counter of a structure at its creation, its own or a copy's: every resource is born at 1
+# (``LockVersion`` of the contract; E-16, #2542).
+FIRST_VERSION = 1
 
 
 def reschedule(
@@ -238,3 +258,41 @@ def _opened(
         )
         copy_structure_nodes(copy)
     return opened.structure_id
+
+
+def hold_structure(session: Session, project_id: UUID, structure_id: UUID) -> None:
+    """Lock a structure as a write of its tree does: what the facets hold first, then it (#2615)."""
+    hold_before_lock(session)
+    structure_facts(session, project_id, structure_id, lock=True)
+
+
+def unwritten_since_opening(
+    session: Session, project_id: UUID, structure_id: UUID, source_id: UUID | None
+) -> bool:
+    """Tell whether a structure of a revision opened is as its opening left it (US-3210).
+
+    ``source_id`` is the structure it copies, of the last marked revision; ``None`` for the main
+    structure of the first revision, which copies none. The structure is the copy only while its
+    revision copies the revision of ``source_id``: the last marked one, which no marking can change
+    while a revision is current; and the first revision when there is none. Its counter is then the
+    one its opening left: ``FIRST_VERSION``, advanced once by the redating of a copy that holds a
+    node (``redate_copy``) — the source holding one —; any write of its tree since has advanced it
+    again (WF-ARC-0100). An opening that counts the copy more than that — its lines priced again
+    at a reference year changed, a provision a risk wrote again — leaves it judged written: the
+    import is refused and deposited again, never applied on what its report did not read.
+    To be called under the lock of the structure when its judgment decides a write.
+    """
+    facts = structure_facts(session, project_id, structure_id, lock=False)
+    if source_id is None:
+        marked = last_marked_revision(session, project_id)
+        return marked is None and facts.lock_version == FIRST_VERSION
+    source = structure_facts(session, project_id, source_id, lock=False)
+    if last_marked_revision(session, project_id) != source.revision_id:
+        return False
+    held = session.scalar(
+        select(Node.id)
+        .where(Node.project_id == project_id, Node.structure_id == source_id)
+        .limit(1)
+    )
+    redated = 0 if held is None else 1
+    return facts.lock_version == FIRST_VERSION + redated

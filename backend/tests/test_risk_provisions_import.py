@@ -21,12 +21,13 @@ from nodes_support import Tree, opened
 from projects_support import Scene
 from projects_support import scene as make_scene
 from risks_support import Costed, Risks
-from sqlalchemy import select
+from sqlalchemy import select, update
 from support import ContractClient
 from test_msproject_import import analysed, applied, opening, planning, task
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.planning.tables import Node
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 
@@ -202,9 +203,17 @@ def test_a_provision_declared_after_the_report_fails_the_application_by_the_same
     api: ContractClient, risks: Risks, stage: Scene, worker: Worker
 ) -> None:
     # The report accepted before any provision, a risk declared before the application: it judges
-    # again under the lock, fails by the same reason, and leaves the structure as it was.
+    # again under the lock, fails by the same reason, and leaves the structure as it was. The
+    # provision line written since refuses the import from US-3210 on: the rule is tried on a report
+    # without the counter of its structure, analysed before it was kept, applied without comparison.
     found = analysed(api, stage, worker, NO_TASK_LEFT)
     assert found["report"]["refusals"] == []
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(ImportReport)
+            .where(ImportReport.id == UUID(found["import_id"]))
+            .values(structure_lock_version=None)
+        )
     risk = risks.declared_costed()
     before = risks.project.tree.items()
     answer = applying(api, stage, found)
@@ -217,6 +226,27 @@ def test_a_provision_declared_after_the_report_fails_the_application_by_the_same
         "PROVISION_WITHOUT_TASK",
         {"risks": [{"risk_id": risk["risk_id"], "label": risk["label"]}]},
     )
+    assert risks.project.tree.items() == before
+
+
+@pytest.mark.requirement("WF-ARC-0100-A")
+def test_a_provision_declared_after_the_report_refuses_the_import_with_its_counter_kept(
+    api: ContractClient, risks: Risks, stage: Scene, worker: Worker
+) -> None:
+    # The twin of the test above, the counter of the report kept: « Entre l'analyse et la
+    # confirmation, aucune donnée du projet n'a changé. » The provision line written since refuses
+    # the application (409 ``import_structure_unchanged``): the import is refused, nothing written.
+    found = analysed(api, stage, worker, NO_TASK_LEFT)
+    assert found["report"]["refusals"] == []
+    risks.declared_costed()
+    before = risks.project.tree.items()
+    answer = applying(api, stage, found)
+    assert refusal(answer) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "import_structure_unchanged"},
+    )
+    assert read(api, stage, found["import_id"])["status"] == "refused"
     assert risks.project.tree.items() == before
 
 
