@@ -223,6 +223,13 @@ Constats relevés à la livraison d'US-3190/L1 et d'US-3180, tranchés par l'aut
 - #4766 — back : une constante d'unité nulle ou négative d'un fichier MS Project finit en
   `INTERNAL_ERROR` → US-3180b, refusée par `FILE_FORMAT_UNREADABLE`, sans borne haute.
 
+Constat d'EP-32 reporté le 2026-11-23 (décision de l'auteur : le fichier d'EP-32 laisse l'import
+d'un planning MS Project à EP-33, qui écrit `core/planning/importing.py`) :
+
+- #4799 — contrat : l'import MS Project rend 500 sur une tâche créée sans heure travaillée, le
+  contrat ne sait pas la nommer → US-3180c, après la livraison d'EP-32 dans `main`, qui apporte
+  `TASK_WITHOUT_WORKING_HOURS` (US-3330).
+
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
 qui réalisera #3966, à nommer par le cadreur ») → US-3270.
@@ -271,7 +278,8 @@ lot (EP-08 et EP-13 en portent chacune de leur côté).
   des lignées (US-3170) ; les bornes dans `msproject/reader.py` et le repli de `calendar_of` sur
   « Standard » (US-3180) ; le retrait de plusieurs lignes dans l'écriture de `write_lines`, que
   l'interface du planning expose à `core/estimate` (US-3220) ; une fonction de l'interface qui dit
-  si une structure n'a pas été écrite depuis sa copie (US-3210).
+  si une structure n'a pas été écrite depuis sa copie (US-3210) ; `_replayed` traduit le refus
+  d'une tâche sans heure travaillée dans les `refusals` du compte rendu (US-3180c, #4799).
 - `core/estimate` : les deux lecteurs Excel rendent leurs colonnes manquantes à `parse_header`
   (US-3200) ; `applying.py` ne boucle plus sur `delete_node` (US-3220) ; `remaining/analysing.py`
   signale le montant écrit (US-3230) ; l'onglet d'un sous-projet nommé d'après son code, le code en
@@ -294,6 +302,9 @@ pour la famille des échanges, l'autre pour #3966 ; chacune a son entrée dans
   exemple, `import_apply_structure_changed` (US-3210).
 - `CommandCondition` gagne `pending_uploads_below_limit` : `uploadFile` déclare 403
   (`PERMISSION_MISSING`) et 409 `STATE_FORBIDS_OPERATION`, `params.maximum` à 20 (US-3240).
+- `ProblemImportedTask.lineage_id` devient nullable pour une tâche que le fichier crée, comme
+  `ImportDifference` l'accepte : le refus `TASK_WITHOUT_WORKING_HOURS` d'EP-32 nomme une tâche
+  créée à l'import, qui n'a encore ni nœud ni lignée (US-3180c, #4799).
 - `ImportDetail.task` devient `BackgroundTaskRef` ou nul ; `listImports`, `getImport`,
   `abandonImport` et les états `expired` et `abandoned` disent la suppression à la passe de purge ;
   les exemples de liste et le témoin ne portent plus d'import expiré ni abandonné (US-3250).
