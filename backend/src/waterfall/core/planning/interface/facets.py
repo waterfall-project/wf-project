@@ -281,7 +281,9 @@ class FacetHooks:
     ``read`` the facet of each node named, by node, the task bearing it given; ``copy`` copies the
     facets of the source into the revision opened, the nodes copied found in ``copy.identifiers``;
     ``delete`` deletes the facets of nodes deleted; ``calendars`` gives the calendars of the roles
-    of the nodes of the kind under each task named; ``create`` writes the facet of a node created;
+    of the nodes of the kind under each task named, and ``roles`` the roles themselves, which the
+    refusal of a task without an hour names (US-3330); ``create`` writes the facet of a node
+    created;
     ``snapshot`` gives the facets as the history keeps them, ``restore`` writes them back;
     ``reinflate`` prices again the nodes on the dates of their tasks and gives those whose amounts
     or year moved, refusing one carried past a column (``RepricedBeyondColumnError``); ``totals``
@@ -317,6 +319,7 @@ class FacetHooks:
     copy: Callable[[RevisionCopy], None]
     delete: Callable[[Session, UUID, Collection[UUID]], None]
     calendars: Callable[[Session, UUID, Collection[UUID]], Mapping[UUID, Collection[UUID]]]
+    roles: Callable[[Session, UUID, Collection[UUID]], Mapping[UUID, Collection[UUID]]]
     create: Callable[[FacetCreation], None]
     snapshot: Callable[[Session, UUID, Collection[UUID]], Mapping[UUID, FacetState]]
     restore: Callable[[Session, UUID, Mapping[UUID, JsonValue], Act], None]
@@ -366,6 +369,19 @@ def named_calendars(
     for hooks in facets().values():
         for task_id, calendars in hooks.calendars(session, project_id, task_ids).items():
             named.setdefault(task_id, set()).update(calendars)
+    return named
+
+
+def named_roles(
+    session: Session, project_id: UUID, task_ids: Collection[UUID]
+) -> dict[UUID, set[UUID]]:
+    """Give the roles the facets of the kinds registered name under each task, asked once."""
+    named: dict[UUID, set[UUID]] = {task_id: set() for task_id in task_ids}
+    if not task_ids:
+        return named
+    for hooks in facets().values():
+        for task_id, roles in hooks.roles(session, project_id, task_ids).items():
+            named.setdefault(task_id, set()).update(roles)
     return named
 
 

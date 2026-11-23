@@ -297,8 +297,9 @@ une récapitulative dont la facette est « non démarrée ».
   (`Holding.repriced`) : calendrier de rôle, calendrier par défaut et constantes d'unités passent
   par elle.
 - `dated` traduit `TaskWithoutWorkingHoursError` en 422 `TASK_WITHOUT_WORKING_HOURS`, la tâche
-  nommée par son nœud et son libellé, ses rôles par ceux de ses lignes de main-d'œuvre, que le
-  crochet des calendriers du devis sait déjà lire. Les opérations d'EP-08 qui attrapent l'exception
+  nommée par son nœud et son libellé, ses rôles par ceux de ses lignes de main-d'œuvre, que lit
+  `named_roles`, par un crochet `roles` que `FacetHooks` gagne (le devis le remplit, comme il remplit
+  celui des calendriers) ; `dated` prend pour cela la session. Les opérations d'EP-08 qui attrapent l'exception
   avant elle (`grafting`, `merging`, `rebasing`) gardent leur traduction.
 - `redate_copy` ne change pas : le refus remonte de `dated`, et l'ouverture, qui est une
   transaction, n'écrit rien.
@@ -315,8 +316,9 @@ privée commune, que `closing._delete_where` appelle aussi — pour l'abandon d'
 la structure qui part avec son propriétaire. `task_tree.py` et `views.py` lisent le jour par
 `current_day`, de l'interface des projets, que le planning importe déjà.
 
-**Ce que chacun expose aux autres.** Rien de nouveau : aucune interface de module ne change de
-signature, hors `LinkConflict` et `ConflictView`, qui gagnent la tâche manuelle.
+**Ce que chacun expose aux autres.** `LinkConflict` et `ConflictView` gagnent la tâche manuelle ;
+`FacetHooks` gagne le crochet `roles`, que `named_roles` expose de l'interface du planning ; et
+`dated` prend la session. Aucune autre interface de module ne change de signature.
 
 ### Le contrat
 
@@ -592,7 +594,7 @@ L'ordre des verrous est celui d'EP-06 : le référentiel, la ligne, puis les str
 
 ## US-3330 — Une tâche sans heure travaillée refuse l'ouverture d'une révision en la nommant, au lieu d'une erreur inattendue
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0010-A`
 - **opérations** : `createRevision`, `createNode`
 - **issue** : #4553

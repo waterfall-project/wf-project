@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import delete, insert, select, tuple_
 
+from waterfall.core.planning.interface.facets import named_roles
 from waterfall.core.planning.scheduling import (
     Duration,
     Lag,
@@ -27,6 +28,7 @@ from waterfall.core.planning.scheduling import (
     LinkForbiddenError,
     Schedule,
     Structure,
+    TaskWithoutWorkingHoursError,
     UnitConstants,
     WorkInstant,
     decimal_of,
@@ -35,7 +37,7 @@ from waterfall.core.planning.scheduling import (
 from waterfall.core.planning.scheduling import Task as Planned
 from waterfall.core.planning.tables import TaskLinkConflict
 from waterfall.core.planning.tree import Conflict, read_links
-from waterfall.core.resource_settings.interface import get_duration_units
+from waterfall.core.resource_settings.interface import get_duration_units, read_roles
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
@@ -63,6 +65,7 @@ DAYS = "d"
 PROJECT_HORIZON_EXCEEDED = "PROJECT_HORIZON_EXCEEDED"
 LINK_CYCLE = "LINK_CYCLE"
 LINK_FORBIDDEN = "LINK_FORBIDDEN"
+TASK_WITHOUT_WORKING_HOURS = "TASK_WITHOUT_WORKING_HOURS"
 
 
 def constants_of(session: Session) -> UnitConstants:
@@ -150,13 +153,37 @@ def _planned(replay: Replay, node_id: UUID) -> Planned:
     )
 
 
-def dated(replay: Replay, origin: Origin = None) -> Schedule:
+def hourless(session: Session, replay: Replay, task_id: UUID) -> UnprocessableError:
+    """Give the refusal of a task whose calendar grants no hour, the task and its roles named.
+
+    The task by its project, its node and its label (``params.tasks``), its roles by those of its
+    labour lines (``params.resource_roles``: identifier, code and label), none for a task without
+    a line, which falls on the default calendar (WF-PLA-0010, #4413).
+    """
+    project_id = replay.place[0]
+    held = named_roles(session, project_id, (task_id,))[task_id]
+    roles = [
+        {"resource_role_id": str(role.resource_role_id), "code": role.code, "label": role.label}
+        for role in read_roles(session, held, may_change=False)
+    ]
+    task = {
+        "project_id": str(project_id),
+        "node_id": str(task_id),
+        "label": replay.tree.tasks[task_id].label,
+    }
+    params: dict[str, object] = {"resource_roles": roles, "tasks": [task]}
+    return UnprocessableError(TASK_WITHOUT_WORKING_HOURS, params)
+
+
+def dated(session: Session, replay: Replay, origin: Origin = None) -> Schedule:
     """Run the engine on the structure; beyond the horizon, the schedule names the task.
 
     A loop of links is refused naming its tasks, from ``origin`` — the task whose predecessors
     are entered —, by their node and their label (422 ``LINK_CYCLE``, ``params.cycle``); a link
     between a summary and its subordinate without a parameter (422 ``LINK_FORBIDDEN``,
-    WF-PLA-0030, WF-PLA-0040).
+    WF-PLA-0030, WF-PLA-0040). A task whose calendar grants no hour in a week is refused naming it
+    and its roles (422 ``TASK_WITHOUT_WORKING_HOURS``, ``hourless``), whatever the write that
+    replays the engine: this is the one call of the engine for all of them (US-3330, #4413).
     """
     tree = replay.tree
     links = tuple(
@@ -177,6 +204,8 @@ def dated(replay: Replay, origin: Origin = None) -> Schedule:
         raise UnprocessableError(LINK_CYCLE, {"cycle": cycle}) from None
     except LinkForbiddenError:
         raise UnprocessableError(LINK_FORBIDDEN) from None
+    except TaskWithoutWorkingHoursError as idle:
+        raise hourless(session, replay, idle.task_id) from None
 
 
 def _ends(conflicts: Collection[Conflict]) -> dict[UUID, set[Conflict]]:
