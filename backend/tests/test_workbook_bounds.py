@@ -26,6 +26,7 @@ from actual_costs_import_support import extraction, line
 from estimate_import_support import workbook as estimate_workbook
 from lxml import etree
 from openpyxl import load_workbook
+from openpyxl.chartsheet import Chartsheet
 from remaining_import_support import workbook as remaining_workbook
 from workbook_bombs import (
     CALM,
@@ -34,6 +35,7 @@ from workbook_bombs import (
     Rows,
     announcing,
     appended,
+    charted,
     compressed_by,
     crowded,
     duplicated,
@@ -450,7 +452,7 @@ def test_a_vml_drawing_not_well_formed_is_read_where_excel_names_it_and_refused_
 ) -> None:
     # Excel names a VML drawing in the relations of a worksheet, which openpyxl parses read-only
     # without following them; the relations of the workbook it follows, whatever their type, and
-    # from a chartsheet every relation of the drawings and charts it reaches.
+    # from a chartsheet every relation of the drawings it reaches.
     base, read = _base("estimate"), estimate_reader.read_workbook
     sheet = tab(base, "1 Études")
     worksheet = {sheet: "vmlDrawing ../drawings/vmlDrawing1.vml"}
@@ -467,6 +469,29 @@ def test_a_vml_drawing_not_well_formed_is_read_where_excel_names_it_and_refused_
     )
     charted = with_relations(charted, {}, {"xl/drawings/drawing1.xml": "chart vmlDrawing1.vml"})
     assert _refused(read, charted)
+
+
+RELATIONS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+
+
+@pytest.mark.story("US-3190")
+@pytest.mark.parametrize("element", ["legacyDrawing", "legacyDrawingHF"])
+def test_a_vml_drawing_not_well_formed_of_a_chartsheet_is_read(element: str) -> None:
+    # Excel names in the relations of a chartsheet the VML drawing of its form controls
+    # (legacyDrawing) and of its header and footer (legacyDrawingHF); of those relations, openpyxl
+    # parses the drawings alone, and the VML drawing is no refusal (#4837). Its chart is still read.
+    base = charted(_base("estimate"), "Graphique")
+    chart = "xl/chartsheets/sheet1.xml"
+    with zipfile.ZipFile(BytesIO(base)) as archive:
+        xml = archive.read(chart)
+    legacy = f'<{element} xmlns:r="{RELATIONS}" r:id="rIdAdded"/></chartsheet>'
+    content = with_relations(
+        base,
+        {chart: xml.replace(b"</chartsheet>", legacy.encode()), VML: EXCEL_VML},
+        {chart: "vmlDrawing ../drawings/vmlDrawing1.vml"},
+    )
+    assert isinstance(load_workbook(BytesIO(content), read_only=True)["Graphique"], Chartsheet)
+    assert estimate_reader.read_workbook(content).lines == ()
 
 
 @pytest.mark.story("US-3190")

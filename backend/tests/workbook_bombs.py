@@ -8,9 +8,9 @@ of spaces in its theme in some 68 kB; a member that announces 1 GiB; an archive 
 members; a member compressed by another method than deflate; an archive in ZIP64, honest or
 announcing 5 GiB through its ZIP64 field. A tab grown past its rows or columns, and a tab that ends
 with rows of empty cells, as the workbook of #4734 holds a row of 2 000 000 ``<c/>`` in some 13 kB;
-a member added, with relations naming it; a tab moved to another name. Each is written by streams
-of a mebibyte at most, so that writing one does not take the memory the test then measures. And
-the measure: the peak of what Python allocates during a call.
+a member added, with relations naming it; a tab moved to another name; a chartsheet added. Each is
+written by streams of a mebibyte at most, so that writing one does not take the memory the test then
+measures. And the measure: the peak of what Python allocates during a call.
 """
 
 import re
@@ -21,9 +21,10 @@ import zlib
 from contextlib import contextmanager
 from dataclasses import dataclass
 from io import BytesIO
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from openpyxl import load_workbook
+from openpyxl.chart import BarChart, Reference
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
@@ -306,6 +307,22 @@ def grown(base: bytes, sheet: str, row: int, column: int) -> bytes:
     book = load_workbook(BytesIO(base))
     tab = book[sheet] if sheet in book.sheetnames else book.create_sheet(sheet)
     tab.cell(row=row, column=column, value="x")
+    out = BytesIO()
+    book.save(out)
+    return out.getvalue()
+
+
+def charted(base: bytes, title: str) -> bytes:
+    """Give the workbook with a chartsheet more, ``title``, as openpyxl writes one.
+
+    Its chart, drawn from the first cells of the first tab, lies in a drawing its relations name:
+    ``xl/chartsheets/sheet1.xml``, ``xl/drawings/drawing1.xml``, ``xl/charts/chart1.xml``.
+    """
+    book = load_workbook(BytesIO(base))
+    # The stubs of openpyxl leave the chart a method takes untyped.
+    chart = cast("Any", BarChart())
+    chart.add_data(Reference(book.worksheets[0], min_col=1, min_row=1, max_row=2))
+    cast("Any", book.create_chartsheet(title)).add_chart(chart)
     out = BytesIO()
     book.save(out)
     return out.getvalue()

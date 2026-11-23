@@ -28,13 +28,14 @@ reading is read no further when it does not start as XML does (an image, a binar
 starts as XML and is not well formed, or that the hardened parser refuses (a value of more than
 10 MB in an attribute, which openpyxl's parser reads past), is refused — but a VML drawing, which
 Excel writes not well formed and openpyxl does not parse where Excel names it, in the relations of a
-worksheet. Its error is kept, not judged on its name: openpyxl reads a tab wherever the relations of
-the workbook put it, ``sheet3.vml`` as ``sheet3.xml``. Once every member is read, the parts openpyxl
-may parse are found as it finds them — the content types, the relations of the workbook and those
-of each part they name, every relation reached from a chartsheet, their targets resolved as
-``get_dependents`` does and compared as zipfile names its members —, the parts naming others read
-by the hardened parser without a tree, keeping only names of members; a VML drawing among them is
-refused on its error. Only then is the workbook opened, read-only and by values.
+worksheet or of a chartsheet. Its error is kept, not judged on its name: openpyxl reads a tab
+wherever the relations of the workbook put it, ``sheet3.vml`` as ``sheet3.xml``. Once every member
+is read, the parts openpyxl may parse are found as it finds them — the content types, the relations
+of the workbook and those of each part they name, the drawings of a chartsheet and what their
+relations name, their targets resolved as ``get_dependents`` does and compared as zipfile names its
+members —, the parts naming others read by the hardened parser without a tree, keeping only names
+of members; a VML drawing among them is refused on its error. Only then is the workbook opened,
+read-only and by values.
 
 An archive in ZIP64 — the sizes and the offsets of its members in their extra field, the end of its
 directory in a record of 64 bits — is judged as any other, and none is refused for it: zipfile reads
@@ -65,6 +66,7 @@ import posixpath
 import zipfile
 import zlib
 from contextlib import contextmanager
+from enum import Enum
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
 
@@ -77,6 +79,7 @@ from openpyxl.xml.constants import (
     ARC_STYLE,
     ARC_THEME,
     ARC_WORKBOOK,
+    REL_NS,
     SHARED_STRINGS,
     XLSM,
     XLSX,
@@ -122,15 +125,31 @@ _HEAD = 4096
 _VML = ".vml"
 # What openpyxl's opening finds a part by (``openpyxl.reader.excel``): the content types, the fixed
 # names it reads, the content types it looks the workbook and its shared strings up by, and the
-# word that makes a relation of the workbook a chartsheet, whose drawings and charts it reads.
+# word that makes a relation of the workbook a chartsheet, and the type of the relations of a
+# chartsheet it reads, its drawings (``SpreadsheetDrawing._rel_type``), whose charts it reads.
 _CONTENT_TYPES = ARC_CONTENT_TYPES
 _WORKBOOK = ARC_WORKBOOK
 _FIXED = frozenset({ARC_CONTENT_TYPES, ARC_CORE, ARC_CUSTOM, ARC_STYLE, ARC_THEME, ARC_WORKBOOK})
 _WORKBOOKS = frozenset({XLSX, XLSM, XLTX, XLTM})
 _LOOKED_UP = _WORKBOOKS | {SHARED_STRINGS}
 _CHARTSHEET = "chartsheet"
+_DRAWING = f"{REL_NS}/drawing"
 
-type _Named = Callable[[dict[str, str]], tuple[str, bool] | None]
+
+class _Relations(Enum):
+    """Whose relations a part's are, as openpyxl's opening follows them.
+
+    Those of a workbook name the parts it parses, and the chartsheets whose relations it follows;
+    those of a chartsheet, its drawings alone, whose relations it follows; those of a drawing, the
+    charts and images it reads, whose relations it parses and does not follow.
+    """
+
+    WORKBOOK = "workbook"
+    CHARTSHEET = "chartsheet"
+    DRAWING = "drawing"
+
+
+type _Named = Callable[[dict[str, str]], tuple[str, _Relations | None] | None]
 
 
 class WorkbookOutOfBoundsError(ValueError):
@@ -212,23 +231,24 @@ class _Naming(_Target):
     """The target of the reading of a part that names others: keeps the members it names.
 
     ``named`` gives, from the attributes of an element, the member it names, as openpyxl finds it,
-    and whether openpyxl reads the parts the relations of that member name; ``None`` for an element
-    that names none. A name no member bears is not kept: what is kept is at most the archive.
+    and whose relations those of that member are when openpyxl follows them, ``None`` when it does
+    not; ``None`` for an element that names no member openpyxl parses. A name no member bears is
+    not kept: what is kept is at most the archive.
     """
 
     def __init__(self, named: _Named, members: Container[str]) -> None:
         self.named = named
         self.members = members
         self.parts: set[str] = set()
-        self.followed: set[str] = set()
+        self.followed: set[tuple[str, _Relations]] = set()
 
     def start(self, _tag: str, attributes: dict[str, str], /) -> None:
-        """Keep the member an element names, if any, and whether its relations are followed."""
+        """Keep the member an element names, if any, and whose relations it has if followed."""
         found = self.named(attributes)
         if found is not None and found[0] in self.members:
             self.parts.add(found[0])
-            if found[1]:
-                self.followed.add(found[0])
+            if found[1] is not None:
+                self.followed.add((found[0], found[1]))
 
 
 class _Reading:
@@ -372,7 +392,7 @@ def _relations_of(part: str) -> str:
     return posixpath.join(folder, "_rels", f"{name}.rels")
 
 
-def _content_type(attributes: dict[str, str]) -> tuple[str, bool] | None:
+def _content_type(attributes: dict[str, str]) -> tuple[str, _Relations | None] | None:
     """Give the part an override of the content types names, if openpyxl looks it up by its type.
 
     openpyxl takes its name past its first character, and follows the relations of a workbook.
@@ -380,28 +400,46 @@ def _content_type(attributes: dict[str, str]) -> tuple[str, bool] | None:
     kind, part = attributes.get("ContentType"), attributes.get("PartName")
     if kind not in _LOOKED_UP or part is None:
         return None
-    return part[1:], kind in _WORKBOOKS
+    return part[1:], _Relations.WORKBOOK if kind in _WORKBOOKS else None
 
 
-def _relation(relations: str, *, followed: bool) -> _Named:
+def _followed(kind: str, of: _Relations) -> tuple[bool, _Relations | None]:
+    """Give whether openpyxl parses the target of a relation of ``kind``, and follows its relations.
+
+    It parses every target the relations of a workbook or of a drawing name, and follows the
+    relations of a chartsheet; of the relations of a chartsheet, it parses and follows its drawings
+    alone, as ``read_chartsheet`` does, and not its VML drawings (``legacyDrawing``,
+    ``legacyDrawingHF``).
+    """
+    match of:
+        case _Relations.WORKBOOK:
+            return True, _Relations.CHARTSHEET if _CHARTSHEET in kind else None
+        case _Relations.CHARTSHEET:
+            drawing = kind == _DRAWING
+            return drawing, _Relations.DRAWING if drawing else None
+        case _Relations.DRAWING:
+            return True, None
+
+
+def _relation(relations: str, of: _Relations) -> _Named:
     """Give how an element of ``relations`` names a member, as openpyxl's ``get_dependents`` does.
 
     A target is taken as it is when external, past its slash when absolute, and joined to the folder
-    of the part otherwise, then normalised. A chartsheet's relations are followed, and all those of
-    a part reached from it when ``followed``.
+    of the part otherwise, then normalised; it is named when openpyxl parses it (``_followed``).
     """
     folder = posixpath.dirname(posixpath.dirname(relations))
 
-    def named(attributes: dict[str, str]) -> tuple[str, bool] | None:
+    def named(attributes: dict[str, str]) -> tuple[str, _Relations | None] | None:
         target = attributes.get("Target")
-        if target is None:
+        parsed, followed = _followed(attributes.get("Type", ""), of)
+        if target is None or not parsed:
             return None
         external = attributes.get("TargetMode") == "External"
         if not external and target.startswith("/"):
             target = target[1:]
         elif not external:
             target = posixpath.normpath(posixpath.join(folder, target))
-        return target, followed or _CHARTSHEET in attributes.get("Type", "")
+        return target, followed
 
     return named
 
@@ -411,9 +449,10 @@ def _parsed_parts(content: bytes, members: list[zipfile.ZipInfo]) -> set[str]:
 
     openpyxl finds them by fixed names, by the content types (the workbook and its shared strings),
     by the relations of the workbook (its tabs, read as tabs whatever their name, the relations of
-    each, the other parts it names) and, from a chartsheet, by every relation of what it reaches;
-    the relations of a worksheet, where Excel names its VML drawings, it parses but does not follow.
-    Each part that names others is read by the hardened parser, without a tree, at most twice.
+    each, the other parts it names) and, from a chartsheet, by its drawings and what their relations
+    name; the relations of a worksheet and of a chartsheet, where Excel names its VML drawings, it
+    parses without parsing those. Each part that names others is read by the hardened parser,
+    without a tree, at most once for each kind of relations it may hold.
     """
     by_name = {member.filename: member for member in members}
 
@@ -429,17 +468,17 @@ def _parsed_parts(content: bytes, members: list[zipfile.ZipInfo]) -> set[str]:
 
     found = named_by(_CONTENT_TYPES, _content_type)
     parsed = {*_FIXED, *found.parts}
-    pending = [(part, False) for part in {*found.followed, _WORKBOOK}]
-    seen: set[tuple[str, bool]] = set()
+    pending = [*found.followed, (_WORKBOOK, _Relations.WORKBOOK)]
+    seen: set[tuple[str, _Relations]] = set()
     while pending:
-        part, followed = pending.pop()
+        part, of = pending.pop()
         relations = _relations_of(part)
-        if (relations, followed) in seen:
+        if (relations, of) in seen:
             continue
-        seen.add((relations, followed))
-        found = named_by(relations, _relation(relations, followed=followed))
+        seen.add((relations, of))
+        found = named_by(relations, _relation(relations, of))
         parsed |= {relations, *found.parts, *map(_relations_of, found.parts)}
-        pending.extend((part, True) for part in found.followed)
+        pending.extend(found.followed)
     return parsed
 
 
