@@ -205,6 +205,13 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
   // command waits while it runs, and is given back at its end.
   const [marking, setMarking] = useState<string>();
   const found = useRunningTask(markAim(revision));
+  // The task found stays the one the screen names the risks of once it has ended: it is no longer
+  // running then, and the tracker finds none, but the failure is the screen's to tell.
+  const [seen, setSeen] = useState(found);
+  if (found !== undefined && found !== seen) {
+    // Adjusted while rendering, as React admits for a state derived from what changes.
+    setSeen(found);
+  }
   const running = useTaskRunning(marking ?? found);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   // A marking lost once sent: the screen is read anew before it can be asked again (US-2240) — read
@@ -251,7 +258,7 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
         />
       ) : null}
       <OwnEstimatesOutOfDate
-        taskId={marking ?? found}
+        taskId={marking ?? seen}
         projectId={revision.project_id}
         revisionId={revision.revision_id}
       />

@@ -526,3 +526,33 @@ describe("the contractualisation of an amendment", () => {
     reader.unmount();
   });
 });
+
+describe("the merge whose task fails for own estimates out of date [US-3140] [WF-RIS-0070-A]", () => {
+  it("names the risks the task failed on and leads to the detail of each, nothing having been written", async () => {
+    serve({
+      [REPORT]: "structure_merge_report",
+      [MERGE]: { example: "task_merge_queued", status: 202 },
+      [TASK]: ["task_mark_own_estimates_failed"],
+    });
+    open(merging());
+    const form = await openMerge();
+    await within(form).findByRole("list", { name: "Écarts par objet" });
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "Nom de version" }),
+      "Avenant 2",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Confirmer la fusion" }));
+    await tick();
+    await tick();
+    const named = screen.getByRole("alert", { name: "Devis propres à mettre à jour" });
+    expect(named).toHaveTextContent(/rien n’a été écrit/);
+    expect(
+      within(named).getByRole("link", {
+        name: "Lire le compte rendu de « Risque de reprise du câblage »",
+      }),
+    ).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT}/revisions/${REVISION}/risks?risk=01926f3a-7c00-7000-8000-000000000751`,
+    );
+  });
+});
