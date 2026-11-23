@@ -6,13 +6,19 @@
  * of its own to In progress — the reference is read-only, the risks are declared on the current
  * revision, opened as a copy — and identifies the risk from the register, as a user does.
  */
-import { type APIRequestContext, type Browser, expect, type Page } from "@playwright/test";
+import {
+  type APIRequestContext,
+  type Browser,
+  expect,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 
 import { WORKING } from "./bounds";
 import { openHydrated } from "./hydration";
 import { bringInProgress } from "./in-progress";
 import { openRevision } from "./own-project";
-import { type Seeded, seedPlanning } from "./planning-seed";
+import { SEEDED, type Seeded, seedPlanning } from "./planning-seed";
 import type { LocalPerson } from "./service/realm";
 
 /** What a path keeps of the risk it identified. */
@@ -47,4 +53,26 @@ export async function identifyRisk(
   await identify.getByRole("button", { name: "Créer" }).click();
   await expect(page).toHaveURL(/\/estimate\?.*structure=/, { timeout: WORKING });
   return { seeded, risks, own: page.url() };
+}
+
+/**
+ * Add a task to the own estimate of a risk open in its grid, and give its row. The own estimate is
+ * born whole, the copy of the main structure (US-3070, WF-RIS-0030-A): the grid holds the planning
+ * seeded, and offers no « Insérer une tâche » of an empty grid. The task goes below the last one
+ * seeded, from the menu of its cell, at the first level, after the line that task bears.
+ */
+export async function addOwnTask(page: Page, grid: Locator, label: string): Promise<Locator> {
+  // The cell of a task that bears a line offers its fold in its name.
+  const last = grid.getByRole("gridcell", { name: new RegExp(`^(Plier )?Tâche ${SEEDED[6]}$`) });
+  await last.click();
+  await last.click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "Menu de la cellule" })
+    .getByRole("menuitem", { name: "Insérer au-dessous" })
+    .click();
+  const creation = page.getByRole("dialog", { name: "Insérer au-dessous" });
+  await creation.getByRole("textbox", { name: "Libellé" }).fill(label);
+  await creation.getByRole("button", { name: "Créer" }).click();
+  await expect(page.getByText(`« ${label} » créée.`)).toBeVisible({ timeout: WORKING });
+  return grid.getByRole("row", { name: new RegExp(`^\\d+ .*${label}`) });
 }
