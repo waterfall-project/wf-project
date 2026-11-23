@@ -215,6 +215,9 @@ from waterfall.core.exchanges.interface.workbooks import (
 from waterfall.core.exchanges.interface.xml import (
     hardened_parser as hardened_parser,
 )
+from waterfall.core.exchanges.interface.xml import (
+    hardened_target_parser as hardened_target_parser,
+)
 
 # ``judgments`` (US-2000/L2): the rule of the durations of an MS Project schedule in calendar gap,
 # its two values those of the target of an import.

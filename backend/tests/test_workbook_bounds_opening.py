@@ -2,14 +2,15 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """A workbook beyond the bounds is refused by ``openImport``, for the three formats Excel.
 
-US-3190/L1.
+US-3190/L1, and L1b.
 
 Through the service, each answer checked against the contract: the workbook of #4419 — a member
-that inflates to 64 MiB in some 68 kB —, and an archive whose member announces 1 GiB, deposited
-then opened by the manager of the project. The opening refuses them by the refusal of the format,
-without openpyxl opening them and without the memory of the process rising; the project is
-unchanged, no import is opened nor task deposited, and the deposit stays usable. The readers
-themselves are ``test_workbook_bounds``'s.
+that inflates to 64 MiB in some 68 kB —, an archive whose member announces 1 GiB, and the workbook
+of #4734 — a row of 2 000 000 empty cells in some 13 kB, which openpyxl took 583 MiB to read —,
+deposited then opened by the manager of the project. The opening refuses them by the refusal of
+the format, without openpyxl opening them and without the memory of the process rising; the
+project is unchanged, no import is opened nor task deposited, and the deposit stays usable. The
+readers themselves are ``test_workbook_bounds``'s.
 """
 
 from functools import cache
@@ -25,7 +26,7 @@ from projects_support import scene as make_scene
 from remaining_import_support import workbook as remaining_workbook
 from sqlalchemy import func, select
 from support import ContractClient
-from workbook_bombs import CALM, announcing, lying, measured
+from workbook_bombs import CALM, Rows, announcing, appended, lying, measured
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -61,6 +62,10 @@ BASES: dict[str, Callable[[], bytes]] = {
 BOMBS: dict[str, Callable[[bytes], bytes]] = {
     "inflates-64-MiB": lying,
     "announces-1-GiB": announcing,
+    # The first tab, whose header each format reads at the opening.
+    "a-row-of-2-000-000-cells": lambda base: appended(
+        base, "xl/worksheets/sheet1.xml", Rows(cells=2_000_000)
+    ),
 }
 
 
@@ -126,8 +131,10 @@ def test_a_workbook_beyond_the_bounds_is_refused_at_the_opening_and_the_project_
     # refusé par openImport, 422 FILE_FORMAT_UNREADABLE, le format attendu nommé, sans avoir été
     # ouvert par le lecteur de classeurs : éprouvé sur un classeur de 68 515 octets dont un membre
     # se décompresse en 64 Mio, et sur une archive dont un membre annonce 1 Gio, la mémoire du
-    # processus ne montant pas » — « Le projet est inchangé. » : et rien n'est mis en file : aucun
-    # import n'est ouvert, le dépôt reste utilisable.
+    # processus ne montant pas » ; « un classeur de 13 705 octets dont une ligne porte 2 000 000 de
+    # cellules vides est refusé sans que la mémoire du processus ne monte » (US-3190/L1b) — « Le
+    # projet est inchangé. » : et rien n'est mis en file : aucun import n'est ouvert, le dépôt
+    # reste utilisable.
     _ready(stage, kind)
     content = _bomb(kind, bomb)
     upload_id = deposited(api, stage.manager, content)

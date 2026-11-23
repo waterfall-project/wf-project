@@ -5,6 +5,8 @@
 US-3190/L1: the opener of the exchanges (``opened_workbook``) judges the archive — its members,
 their sizes declared, then what each inflates to — before openpyxl reads any of it, and each reader
 materialises the tabs its format reads alone, each within its rows and columns (``bounded_rows``).
+US-3190/L1b: the opener reads ahead the XML of every member, without a tree, and refuses a member of
+more rows, or a row of more cells, empty or not, than the bounds, before openpyxl opens it (#4734).
 Tried here on the three readers of a workbook, by what the opening, the analysis and the
 application call: the header, the whole reading, the preparation of the application. The refusals
 through ``openImport`` are ``test_workbook_bounds_opening``'s; the round trips of the exports, and
@@ -27,7 +29,9 @@ from workbook_bombs import (
     CALM,
     GIBIBYTE,
     MEBIBYTE,
+    Rows,
     announcing,
+    appended,
     compressed_by,
     crowded,
     duplicated,
@@ -37,6 +41,8 @@ from workbook_bombs import (
     lying,
     measured,
     swollen,
+    tab,
+    with_member,
 )
 
 from waterfall.core.costs import extraction as costs_reader
@@ -134,15 +140,15 @@ def _refused(call: Callable[[bytes], Any], content: bytes) -> dict[str, Any]:
     return dict(raised.value.params)
 
 
+def _never_opened(*_: object, **__: object) -> None:
+    msg = "the workbook was opened"
+    raise AssertionError(msg)
+
+
 @pytest.fixture
 def unopened(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fail the test if openpyxl is asked to open a workbook."""
-
-    def opened(*_: object, **__: object) -> None:
-        msg = "the workbook was opened"
-        raise AssertionError(msg)
-
-    monkeypatch.setattr(workbooks, "load_workbook", opened)
+    monkeypatch.setattr(workbooks, "load_workbook", _never_opened)
 
 
 # --- The archive, judged before any opening ------------------------------------------------------
@@ -320,3 +326,101 @@ def test_a_tab_read_at_its_bounds_and_a_tab_not_read_past_them_are_read(name: st
     for sheet in reading.unread:
         past = grown(_base(name), sheet, MOST_ROWS + 1, 1)
         reading.whole(grown(past, sheet, 1, MOST_COLUMNS + 1))
+
+
+# --- The XML of the members, read ahead of the opening (US-3190/L1b) -----------------------------
+
+# The workbook of #4734: a row of 2 000 000 empty cells, 8 MB of XML declared honestly.
+CELLS_OF_4734 = 2_000_000
+
+
+@cache
+def _with_row(name: str, cells: int, cell: bytes = b"<c/>") -> bytes:
+    """Give the workbook of a format whose first tab read ends with a row of ``cells`` cells."""
+    base = _base(name)
+    return appended(base, tab(base, READINGS[name].read[0]), Rows(cells=cells, cell=cell))
+
+
+@pytest.mark.story("US-3190")
+@pytest.mark.usefixtures("unopened")
+@pytest.mark.parametrize("name", list(READINGS))
+def test_the_workbook_of_4734_is_refused_before_the_opening_without_the_memory_rising(
+    name: str,
+) -> None:
+    # « lignes et cellules, vides comprises, se comptent avant l'ouverture, et un classeur de
+    # 13 705 octets dont une ligne porte 2 000 000 de cellules vides est refusé sans que la mémoire
+    # du processus ne monte » : openpyxl took 583 MiB to read it (#4734); at the opening (the
+    # header), at the analysis and at the application, the format named.
+    reading, content = READINGS[name], _with_row(name, CELLS_OF_4734)
+    assert len(content) < 16_000
+    with zipfile.ZipFile(BytesIO(content)) as archive:
+        assert sum(item.file_size for item in archive.infolist()) > 4 * CELLS_OF_4734
+    for call in (reading.header, reading.whole, reading.prepare):
+        with measured() as peak:
+            assert _refused(call, content) == reading.params
+        assert peak.allocated < CALM
+
+
+@pytest.mark.story("US-3190")
+@pytest.mark.parametrize("name", list(READINGS))
+def test_a_row_of_501_empty_cells_is_refused_before_the_opening_and_one_of_500_read(
+    name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Every element a row holds is a cell to openpyxl, an empty one as another, whatever its tag.
+    reading = READINGS[name]
+    reading.whole(_with_row(name, MOST_COLUMNS))
+    reading.prepare(_with_row(name, MOST_COLUMNS, b"<x/>"))
+    monkeypatch.setattr(workbooks, "load_workbook", _never_opened)
+    for cell in (b"<c/>", b"<x/>"):
+        content = _with_row(name, MOST_COLUMNS + 1, cell)
+        assert _refused(reading.whole, content) == reading.params
+        assert _refused(reading.prepare, content) == reading.params
+
+
+@pytest.mark.story("US-3190")
+def test_a_tab_of_more_rows_than_the_bound_is_refused_before_the_opening(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Its rows counted as they lie in the XML, empty ones included: at the bound, the tab is read.
+    base = _base("actual_costs")
+    member = tab(base, "Extraction")
+    with zipfile.ZipFile(BytesIO(base)) as archive:
+        held = archive.read(member).count(b"<row ")
+    at_bound = appended(base, member, Rows(MOST_ROWS - held, dimension=False))
+    assert len(costs_reader.sheet_rows(at_bound)) == MOST_ROWS
+    monkeypatch.setattr(workbooks, "load_workbook", _never_opened)
+    past = appended(base, member, Rows(MOST_ROWS - held + 1, dimension=False))
+    assert _refused(costs_reader.sheet_rows, past) == READINGS["actual_costs"].params
+
+
+@pytest.mark.story("US-3190")
+@pytest.mark.usefixtures("unopened")
+@pytest.mark.parametrize("name", list(READINGS))
+def test_a_row_past_its_cells_in_a_tab_the_format_does_not_read_is_refused_too(
+    name: str,
+) -> None:
+    # openpyxl, opening a workbook, parses every tab up to its dimension, to its end when it has
+    # none: a tab the format does not read took 154 MiB at the reading of the header alone.
+    reading, base = READINGS[name], grown(_base(name), "Annexe", 1, 1)
+    content = appended(base, tab(base, "Annexe"), Rows(cells=CELLS_OF_4734, dimension=False))
+    with measured() as peak:
+        assert _refused(reading.header, content) == reading.params
+    assert peak.allocated < CALM
+
+
+@pytest.mark.story("US-3190")
+def test_a_member_that_is_no_xml_is_left_and_a_member_of_damaged_xml_refused() -> None:
+    base, read = _base("estimate"), estimate_reader.read_workbook
+    for other in (b"\x89PNG\r\n\x1a\n" + bytes(range(256)) * 64, b"", b" \n" * 100):
+        assert read(with_member(base, "xl/media/image1.png", other)).lines == ()
+    for damaged in (b"<a><b></a>", b"\xef\xbb\xbf  <a>", b"\xff\xfe<\x00a\x00", b" " * 5000):
+        assert _refused(read, with_member(base, "xl/media/x.xml", damaged))
+
+
+@pytest.mark.story("US-3190")
+@pytest.mark.usefixtures("unopened")
+def test_a_tab_the_hardened_parser_refuses_is_refused_though_openpyxl_reads_it() -> None:
+    # openpyxl's parser reads past a value of 11 MB in an attribute, which the hardened parser
+    # refuses: the reading ahead cannot leave the tab there, and let what follows pass unread.
+    content = _with_row("estimate", 1, b'<c a="' + b"a" * 11_000_000 + b'"/>')
+    assert _refused(estimate_reader.read_workbook, content) == READINGS["estimate"].params

@@ -6,11 +6,14 @@ A workbook of the format given, swollen afterwards: a member that inflates to 64
 declares 7 000 bytes, its CRC that of its first 7 000 bytes, as the workbook of #4419 holds 64 MiB
 of spaces in its theme in some 68 kB; a member that announces 1 GiB; an archive of too many
 members; a member compressed by another method than deflate; an archive in ZIP64, honest or
-announcing 5 GiB through its ZIP64 field. And a tab grown past its rows or columns. Each is written
-by streams of a mebibyte at most, so that writing one does not take the memory the test then
-measures. And the measure: the peak of what Python allocates during a call.
+announcing 5 GiB through its ZIP64 field. A tab grown past its rows or columns, and a tab that ends
+with rows of empty cells, as the workbook of #4734 holds a row of 2 000 000 ``<c/>`` in some 13 kB;
+a member added. Each is written by streams of a mebibyte at most, so that writing one does not
+take the memory the test then measures. And the measure: the peak of what Python allocates during
+a call.
 """
 
+import re
 import tracemalloc
 import warnings
 import zipfile
@@ -177,6 +180,62 @@ def duplicated(
             warnings.simplefilter("ignore", UserWarning)
             for _ in range(copies):
                 target.writestr(HUGE, b" " * size, compress_type=method)
+    return out.getvalue()
+
+
+def tab(base: bytes, title: str) -> str:
+    """Give the member of the tab ``title`` of a workbook openpyxl wrote: sheetN, N its rank."""
+    return f"xl/worksheets/sheet{load_workbook(BytesIO(base)).sheetnames.index(title) + 1}.xml"
+
+
+@dataclass(frozen=True)
+class Rows:
+    """Rows appended to a tab: ``count`` rows of ``cells`` cells each, every cell ``cell``.
+
+    The rows have no number: openpyxl numbers them after the last. The tab keeps its
+    ``<dimension>``, which openpyxl cuts the rows and the width to, unless ``dimension`` is false.
+    """
+
+    count: int = 1
+    cells: int = 0
+    cell: bytes = b"<c/>"
+    dimension: bool = True
+
+
+def appended(base: bytes, member: str, rows: Rows) -> bytes:
+    """Give the workbook whose tab ``member`` ends with ``rows``, written by streams of a MiB."""
+    out = BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as target:
+        _copied(base, target, but=member)
+        with zipfile.ZipFile(BytesIO(base)) as source:
+            xml = source.read(member).replace(b"<sheetData/>", b"<sheetData></sheetData>")
+        if not rows.dimension:
+            xml = re.sub(rb"<dimension [^>]*/>", b"", xml)
+        before, after = xml.split(b"</sheetData>")
+        per_write = max(1, MEBIBYTE // len(rows.cell))
+        with target.open(member, "w") as written:
+            written.write(before)
+            if rows.cells > per_write:
+                for _ in range(rows.count):
+                    written.write(b"<row>")
+                    for start in range(0, rows.cells, per_write):
+                        written.write(rows.cell * min(per_write, rows.cells - start))
+                    written.write(b"</row>")
+            else:
+                row = b"<row>" + rows.cell * rows.cells + b"</row>"
+                rows_per_write = max(1, MEBIBYTE // len(row))
+                for start in range(0, rows.count, rows_per_write):
+                    written.write(row * min(rows_per_write, rows.count - start))
+            written.write(b"</sheetData>" + after)
+    return out.getvalue()
+
+
+def with_member(base: bytes, name: str, data: bytes) -> bytes:
+    """Give the workbook with one member more, ``name``, holding ``data``."""
+    out = BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target:
+        _copied(base, target)
+        target.writestr(name, data)
     return out.getvalue()
 
 
