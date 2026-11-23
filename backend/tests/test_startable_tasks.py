@@ -63,9 +63,10 @@ TERMINAL = ["completed", "lost", "abandoned"]
 NOT_STARTED = ["task_is_milestone", "task_without_lines"]
 # The statements the Kanban takes, measured at 35 on 2026-11-19 and again after the corrections of
 # the review (the state of a revision reads its main structure for the declaration of a risk,
-# ``has_main_task``, US-2570; #4002): a bound of 37, a margin of 2, as it has always kept — tight
-# enough to catch one more a task, which the test grows by 12.
-BOUND = 37
+# ``has_main_task``, US-2570; #4002), at 38 on 2026-11-23 with the conflicts of the structure, read
+# in a statement of their own (``task_link_conflict``, US-3300/L3): a bound of 40, a margin of 2, as
+# it has always kept — tight enough to catch one more a task, which the test grows by 12.
+BOUND = 40
 
 
 @pytest.fixture
