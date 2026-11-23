@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { NodeList } from "@/components/grid/nodes";
 import { example } from "@/test/fixtures";
 
-import { finishTime, ganttLayout, startTime } from "./layout";
+import { finishTime, ganttLayout, type GanttRow, startTime } from "./layout";
 
 // The studies of the witness, without their lines: the summary from 2 March to 24 April 2026, the
 // detailed studies, the desks in manual mode, the review after the studies, the reception at its
@@ -99,5 +99,137 @@ describe("the layout of the Gantt", () => {
     expect(layout.bar(undated)).toBeUndefined();
     expect(layout.links("unknown")).toEqual([]);
     expect(ganttLayout([undated]).ticks).toEqual([]);
+  });
+
+  describe("at the hour", () => {
+    // The contract example, its two tasks linked from finish to start brought to one day of 8
+    // hours, Monday 13 April: A (the detailed studies) works the first four, B (the review) the
+    // last four.
+    const same = (task: typeof detailed, from: string, to: string) =>
+      task?.task === undefined || task.task === null
+        ? undefined
+        : {
+            ...task,
+            task: {
+              ...task.task,
+              start: { date: "2026-04-13", hours: from },
+              finish: { date: "2026-04-13", hours: to },
+            },
+          };
+    const a = same(detailed, "0", "4");
+    const b = same(review, "4", "8");
+
+    it("places a task at its day plus its hours over those of the day on its calendar [WF-PLA-0090-A]", () => {
+      expect(a?.task.calendar_hours.monday).toBe("8");
+      const calendar = a?.task.calendar_hours;
+      expect(startTime({ date: "2026-04-13", hours: "4" }, calendar)).toBe(
+        day("2026-04-13") + 43_200_000,
+      );
+      expect(finishTime({ date: "2026-04-13", hours: "8" }, calendar)).toBe(day("2026-04-14"));
+      expect(finishTime({ date: "2026-04-13", hours: "0" }, calendar)).toBe(day("2026-04-13"));
+      // Without a calendar, or on a day without hours, the placement stays at the day.
+      expect(finishTime({ date: "2026-04-13", hours: "4" })).toBe(day("2026-04-14"));
+      expect(startTime({ date: "2026-04-13", hours: "4" })).toBe(day("2026-04-13"));
+      const sunday = { date: "2026-04-12", hours: "4" };
+      expect(finishTime(sunday, calendar)).toBe(day("2026-04-13"));
+    });
+
+    it("bounds the share of the day to 0 and 1, and reads a decimal of hours exactly [WF-PLA-0090-A]", () => {
+      const calendar = a?.task.calendar_hours;
+      // More hours than the day has: the end of the day. Negative hours: its start.
+      expect(finishTime({ date: "2026-04-13", hours: "10" }, calendar)).toBe(day("2026-04-14"));
+      expect(startTime({ date: "2026-04-13", hours: "10" }, calendar)).toBe(day("2026-04-14"));
+      expect(finishTime({ date: "2026-04-13", hours: "-2" }, calendar)).toBe(day("2026-04-13"));
+      expect(startTime({ date: "2026-04-13", hours: "-2" }, calendar)).toBe(day("2026-04-13"));
+      // 2.5 hours of 8 take 0.3125 of the day.
+      expect(startTime({ date: "2026-04-13", hours: "2.5" }, calendar)).toBe(
+        day("2026-04-13") + 0.3125 * 86_400_000,
+      );
+    });
+
+    it("puts the bar of A on the first half of the day, that of B on the second, the link reaching to the right [WF-PLA-0090-A]", () => {
+      const rows = [a, b].filter((row) => row !== undefined);
+      const layout = ganttLayout(rows);
+      const noon = (date: string) => layout.at(day(date) + 43_200_000);
+      const [barA, barB] = rows.map((row) => layout.bar(row));
+      expect(barA?.from).toBe(layout.at(day("2026-04-13")));
+      expect(barA?.to).toBe(noon("2026-04-13"));
+      expect(barB?.from).toBe(noon("2026-04-13"));
+      expect(barB?.to).toBe(layout.at(day("2026-04-14")));
+      const link = layout.links(b?.node_id ?? "").find(({ part }) => part === "arrives");
+      expect(link?.out).toBe(noon("2026-04-13"));
+      expect(link?.in).toBe(noon("2026-04-13"));
+      expect((link?.in ?? 0) >= (link?.out ?? 1)).toBe(true);
+    });
+  });
+
+  describe("the links across a run of rows folded away", () => {
+    it("gives the stretch of each link with an end before the run and one after it, and none for the others [WF-PLA-0090-A]", () => {
+      const row = (id: string, from: string, predecessor?: string): GanttRow => ({
+        node_id: id,
+        predecessors:
+          predecessor === undefined
+            ? []
+            : [
+                {
+                  predecessor_node_id: predecessor,
+                  predecessor_row_number: 1,
+                  link_type: "finish_to_start",
+                  lag: { value: "0", unit: "d" },
+                },
+              ],
+        task: {
+          start: { date: from, hours: "0" },
+          finish: { date: from, hours: "8" },
+          is_summary: false,
+          is_milestone: false,
+        },
+      });
+      const rows = [
+        row("a", "2026-04-13"),
+        row("b", "2026-04-14"),
+        row("c", "2026-04-15"),
+        row("d", "2026-04-16", "a"),
+        row("e", "2026-04-17", "d"),
+      ];
+      const layout = ganttLayout(rows);
+      // Index 0 is before « a »: no link has an end before it.
+      // Indexes 1, 2 and 3 are before « b », « c » and « d »: « a » to « d » passes there.
+      // Index 4 is before « e »: « d » to « e » passes there, « a » to « d » having ended.
+      // Index 5 is after « e »: no link has an end after it.
+      expect(layout.crossing(1).map(({ part, down }) => [part, down])).toEqual([["passes", true]]);
+      expect(layout.crossing(3)).toHaveLength(1);
+      expect(layout.crossing(4)).toHaveLength(1);
+      expect(layout.crossing(0)).toEqual([]);
+      expect(layout.crossing(5)).toEqual([]);
+    });
+
+    it("gives a stretch going up for a link whose predecessor is under its successor [WF-PLA-0090-A]", () => {
+      const task = (from: string) => ({
+        start: { date: from, hours: "0" },
+        finish: { date: from, hours: "8" },
+        is_summary: false,
+        is_milestone: false,
+      });
+      const rows: GanttRow[] = [
+        {
+          node_id: "s",
+          predecessors: [
+            {
+              predecessor_node_id: "p",
+              predecessor_row_number: 3,
+              link_type: "finish_to_start",
+              lag: { value: "0", unit: "d" },
+            },
+          ],
+          task: task("2026-04-16"),
+        },
+        { node_id: "m", predecessors: [], task: task("2026-04-14") },
+        { node_id: "p", predecessors: [], task: task("2026-04-13") },
+      ];
+      const layout = ganttLayout(rows);
+      expect(layout.crossing(1).map(({ part, down }) => [part, down])).toEqual([["passes", false]]);
+      expect(layout.crossing(2).map(({ part, down }) => [part, down])).toEqual([["passes", false]]);
+    });
   });
 });

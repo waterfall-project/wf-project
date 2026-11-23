@@ -68,7 +68,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.calendars import Applicable
     from waterfall.core.planning.scheduling import LagUnit, LinkType
-    from waterfall.core.planning.tree import NodeRow, TaskRow, Tree
+    from waterfall.core.planning.tree import Conflict, NodeRow, TaskRow, Tree
     from waterfall.core.revisions.interface import StructureRebasing
 
 type Json = dict[str, Any]
@@ -226,7 +226,8 @@ class RebasePlan:
     ``kept`` the tasks the rules 2 and 3 keep, signalled; ``links`` the links the update leaves,
     and ``link_changes`` what it does of each — its change, its pair, its fields. ``nodes`` the
     node of each task in the differential, given by the application as it writes (a task the main
-    structure adds takes a new one), empty while the report reads.
+    structure adds takes a new one), empty while the report reads; ``conflicts`` those of the
+    differential before the application wrote its links (``kept``), read as it starts to write.
     """
 
     base: Side
@@ -248,6 +249,7 @@ class RebasePlan:
     )
     summaries: set[UUID] = field(default_factory=set[UUID])
     nodes: dict[UUID, UUID] = field(default_factory=dict[UUID, UUID])
+    conflicts: frozenset[Conflict] = frozenset()
 
     def holds(self, lineage: UUID | None) -> bool:
         """Tell whether the update leaves a task of the lineage — the first level always."""

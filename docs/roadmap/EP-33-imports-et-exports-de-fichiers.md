@@ -266,6 +266,16 @@ l'auteur le 2026-11-23 :
   US-3210b : l'export écrit les constantes d'unité à 1 au moins ; la saisie n'est pas bornée ;
 - #4830 — tests : la citation du Vérif des constantes d'unité non littérale → US-3210b.
 
+Constats relevés à la livraison d'US-3230 et d'US-3240, tranchés par l'auteur le 2026-11-23 :
+
+- #4849 — back : l'application du reste à engager relit le compteur de chaque ligne qui termine sa
+  tâche, une par une (`remaining/applying.py`), le défaut que BCH-05 a retiré du devis → US-3230b ;
+- #4850 — back : un dépôt dont l'import abandonné est purgé redevient libre et compte de nouveau
+  dans le plafond de vingt → US-3240b : le dépôt marqué échu à l'abandon et à la purge de son
+  import (WF-DAT-0120) ;
+- #4854 — front : le refus du plafond redit « Valeur maximale : 20 » après « moins de vingt » →
+  US-3280, un libellé propre à la condition.
+
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
 qui réalisera #3966, à nommer par le cadreur ») → US-3270.
@@ -425,13 +435,19 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
   `read_only`, l'écart ne coûte pas de mémoire et évite de résoudre d'abord les onglets lus
   (décision de l'auteur du 2026-11-23). Les autres vecteurs, mesurés par US-3190/L2b et bornés
   par décision de l'auteur du 2026-11-23 : 1 000 000 de chaînes partagées, 65 536 éléments (runs)
-  par chaîne, et 32 Mio de texte décompressé dans `sharedStrings.xml` (le texte coûte quatre fois
-  sa taille en mémoire) ; dans `styles.xml`, `numFmts` 1 000, `fonts`, `fills`, `borders`,
-  `tableStyles` et `colors` 1 024 chacune, `cellStyleXfs`, `cellXfs`, `cellStyles` et `dxfs`
-  65 490 chacune, les limites d'Excel, pour qu'un classeur qu'Excel écrit ne soit jamais refusé ;
-  10 000 noms définis. La pré-lecture les compte et refuse avant l'ouverture. Le produit lignes ×
-  colonnes coûte 8,3 octets par cellule et 140 par ligne explicite (790 Mio pour 200 000 × 500,
-  d'un fichier de 7,9 Ko) : les onglets lus sont bornés en cumul à 200 000 lignes **et**
+  par chaîne, et 32 Mio de texte décompressé dans `sharedStrings.xml`, comptés en caractères (le
+  texte coûte jusqu'à quatre fois sa taille en mémoire) ; dans `styles.xml`, `numFmts` 1 000,
+  `fonts`, `fills`, `borders`, `tableStyles` et `colors` 1 024 chacune, `cellStyleXfs`, `cellXfs`,
+  `cellStyles` et `dxfs` 65 490 chacune, les limites d'Excel, pour qu'un classeur qu'Excel écrit ne
+  soit jamais refusé (les items d'une liste sont ses enfants ; ceux de `colors`, les couleurs de ses
+  listes, comptées avec elles) ; 10 000 noms définis. La pré-lecture les compte et refuse avant
+  l'ouverture. Les listes de `styles.xml` et les noms définis se comptent par nom local, enfants
+  directs de la racine du membre, comme openpyxl les lit, commentaires et instructions de
+  traitement compris (openpyxl en fait des items) ; une partie qu'openpyxl lit et qui déclare un
+  type de document (DOCTYPE) est refusée, une entité non déclarée sous un DOCTYPE externe
+  échappant à la pré-lecture. Le produit lignes × colonnes coûte 8,3 octets par cellule et 140 par ligne
+  explicite (790 Mio pour 200 000 × 500, d'un fichier de 7,9 Ko) : les onglets lus sont bornés en
+  cumul à 200 000 lignes **et**
   10 000 000 de cellules, comptées dans `bounded_rows` à mesure que les lignes arrivent ; le refus
   vient donc après l'ouverture, la mémoire tenue dans la borne (≈ 105 Mio). Écarté : compter les
   `<c>` à la pré-lecture, plus lent (10 à 30 %) et au risque d'un écart avec ce qu'openpyxl
@@ -543,7 +559,7 @@ quatrième valeur hostile de BEX-08, que `uploadFile` refuse avec sa permission 
 
 ## US-3190 — Un classeur téléversé est borné avant d'être ouvert, et son en-tête se lit hors du verrou du projet
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-INTF-0070-A`
 - **opérations** : `openImport`, `getImport`, `applyImport`
 - **issue** : #4527
@@ -793,7 +809,8 @@ attendue. Pour #4428, décision de l'auteur du 2026-11-21 : dire l'écart au com
 étant de la conception. Écartés : ramener la quantité à 1, que la Conception d'EP-09 a déjà écartée ;
 ne corriger que la phrase. La phrase de la décision #2797 dans le fichier d'EP-09 (« Le débours d'une
 tâche à cheval sur deux années rend le montant saisi ») est corrigée par la pull request de ce
-cadrage.
+cadrage. US-3230b (#4849, ajouté le 2026-11-23) : l'application lit en une fois les compteurs des
+lignes qui terminent leur tâche, sur le modèle de BCH-05.
 
 **Hors périmètre.** L'export du reste à engager d'une révision marquée au taux du jour (BCH-08,
 #4441, EP-35).
@@ -835,7 +852,9 @@ remplisse pas le stockage objet, qui porte aussi les sauvegardes (#4423).
 dépôts en attente par compte (200 Mio). Écarté : la permission seule, qui laisse la boucle à un
 compte habilité. La forme du refus du plafond (son code et son statut) est de la conception. Le
 plafond se juge avant l'écriture au stockage, que la route fait aujourd'hui avant d'enregistrer le
-dépôt.
+dépôt. US-3240b (#4850, ajouté le 2026-11-23) : à l'abandon d'un import, et à sa suppression par
+la purge, le dépôt qu'il employait est marqué échu dans la même transaction ; un dépôt employé une
+fois ne redevient jamais libre (WF-DAT-0120), ni pour `openImport` ni pour le plafond.
 
 **Hors périmètre.** Le dépôt par morceaux d'une sauvegarde, déjà sous `platform_restore` ; la
 qualité de contributeur, que `openImport` juge sur son projet.

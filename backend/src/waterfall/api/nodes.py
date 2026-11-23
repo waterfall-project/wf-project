@@ -162,8 +162,8 @@ TASK = NodeKind.task.value
 # The format of the body of a structure read whole, as this code writes it: a reading kept of
 # another is ignored and made again (US-2270). A field added to a node changes it, and a value
 # written otherwise: ``FORMAT_SHAPES`` and ``FORMAT_BODIES`` of the tests fail until it does. 2: the
-# physical progress of the summaries computed (US-1680), not computable before.
-FORMAT = 2
+# summaries' physical progress computed (US-1680); 3: the manual task of a conflict (US-3300).
+FORMAT = 3
 
 
 class NodeQuery(BaseModel):
@@ -370,6 +370,7 @@ def _conflicts(conflicts: tuple[ConflictView, ...]) -> list[dict[str, Any]]:
         {
             "predecessor_node_id": str(each.predecessor_id),
             "successor_node_id": str(each.successor_id),
+            "manual_node_id": str(each.manual_node_id),
             "link_type": each.link_type,
         }
         for each in conflicts

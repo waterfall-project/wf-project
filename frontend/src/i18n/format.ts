@@ -324,6 +324,35 @@ export function compareDecimals(left: Decimal, right: Decimal): number {
   return difference < 0n ? -1 : difference > 0n ? 1 : 0;
 }
 
+/**
+ * The part of a whole that a `Decimal` of the contract takes, from 0 to 1, as a number to place on
+ * an axis: `2.5` of `8` is `0.3125`. The bounds are found by the exact comparison — below zero is 0,
+ * the whole or more is 1 —, between them the digits of both, made whole numbers of the same scale,
+ * are divided as integers, to nine places; only that result becomes a number, no `Decimal` going
+ * through a float. `undefined` for a text that is no decimal of the contract, or a whole that is
+ * not above zero.
+ */
+export function shareOfDecimal(part: string, whole: string): number | undefined {
+  if (!isDecimal(part, DECIMAL) || !isDecimal(whole, DECIMAL) || compareDecimals(whole, "0") <= 0) {
+    return undefined;
+  }
+  if (compareDecimals(part, "0") <= 0) {
+    return 0;
+  }
+  if (compareDecimals(part, whole) >= 0) {
+    return 1;
+  }
+  const [partWhole = "", partFraction = ""] = part.split(".");
+  const [wholeWhole = "", wholeFraction = ""] = whole.split(".");
+  const places = Math.max(partFraction.length, wholeFraction.length);
+  const numerator = BigInt(partWhole + partFraction.padEnd(places, "0"));
+  const denominator = BigInt(wholeWhole + wholeFraction.padEnd(places, "0"));
+  return Number((numerator * SHARE_SCALE) / denominator) / Number(SHARE_SCALE);
+}
+
+/** The scale of `shareOfDecimal`: nine places, far below the width of a pixel. */
+const SHARE_SCALE = 1_000_000_000n;
+
 /** A text of a pattern, as a regular expression matches it literally. */
 function literal(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

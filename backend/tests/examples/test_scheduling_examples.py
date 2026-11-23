@@ -504,7 +504,7 @@ def test_a_predecessor_unable_to_finish_before_a_manual_task_floats_negative_and
     # une marge négative, apparaît sur le chemin critique et est signalé. »
     tasks = [task(1, "5"), task(2, manual=(day(3), day(4, 8)))]
     dated = planned(tasks, [link(1, 2)])
-    conflict = LinkConflict(ident(1), ident(2), "finish_to_start")
+    conflict = LinkConflict(ident(1), ident(2), ident(2), "finish_to_start")
     assert (of(dated, 1).total_float, of(dated, 1).is_critical) == (Decimal(-2), True)
     assert of(dated, 1).link_conflicts == of(dated, 2).link_conflicts == (conflict,)
     assert dated.link_conflicts == (conflict,)
@@ -540,7 +540,7 @@ def test_a_predecessor_start_to_start_that_cannot_start_before_a_manual_task_is_
     dated = planned(tasks, [link(1, 2), link(2, 3, "start_to_start")])
     assert of(dated, 2).start == day(7)
     assert (of(dated, 2).total_float, of(dated, 2).is_critical) == (Decimal(-3), True)
-    conflict = LinkConflict(ident(2), ident(3), "start_to_start")
+    conflict = LinkConflict(ident(2), ident(3), ident(3), "start_to_start")
     assert of(dated, 2).link_conflicts == of(dated, 3).link_conflicts == (conflict,)
     assert of(dated, 1).total_float == Decimal(-3)
 

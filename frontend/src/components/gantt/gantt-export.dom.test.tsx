@@ -17,7 +17,7 @@ import { formatTimestamp } from "@/i18n/format";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { dayOffBands } from "./days-off";
-import { exportGanttPng, type GanttColours, ganttOverflow, namesWidth } from "./gantt-image";
+import { exportGanttPng, type GanttColours, ganttOverflow, namesWidth, ROW } from "./gantt-image";
 import { ganttLayout } from "./layout";
 
 vi.mock("./days-off", async (original) => {
@@ -157,6 +157,32 @@ function image(): Drawn {
     throw new Error(`${String(taken.length)} images taken, not one`);
   }
   return drawn;
+}
+
+/** The horizontal strokes a canvas drew, each a `moveTo` and the `lineTo` that follows, level. */
+function levelStrokes(drawn: Drawn): { out: number; arrival: number }[] {
+  const strokes = drawn.calls.filter(([name]) => name === "moveTo" || name === "lineTo");
+  return strokes.flatMap(([name, args], index) => {
+    const to = strokes[index + 1]?.[1];
+    return name === "moveTo" && to !== undefined && to[1] === args[1]
+      ? [{ out: args[0] as number, arrival: to[0] as number }]
+      : [];
+  });
+}
+
+/**
+ * The link of B to A is drawn level with the middle of a row, from the end of the bar of A, where
+ * it leaves, to the start of that of B, where it arrives: not to the left of its departure.
+ */
+function expectLinkRightward(drawn: Drawn, bars: readonly number[][]) {
+  const [first = [], second = []] = bars;
+  const endOfA = (first[0] ?? 0) + (first[2] ?? 0);
+  // The other level strokes are the rules of the axis and of the rows, across the drawing.
+  const found = levelStrokes(drawn).filter(({ out }) => Math.abs(out - endOfA) < 0.001);
+  expect(found).toHaveLength(1);
+  const [level] = found;
+  expect(level?.arrival).toBeGreaterThanOrEqual(level?.out ?? Number.POSITIVE_INFINITY);
+  expect(level?.arrival).toBeCloseTo(second[0] ?? Number.NaN);
 }
 
 /** What a canvas wrote. */
@@ -465,6 +491,56 @@ describe("the export of the Gantt", () => {
       exportGanttPng(drawing, colours, { title: "Gantt", subtitle: "r", fileName: "g.png" }),
     ).toBeUndefined();
     expect(vi.mocked(dayOffBands)).toHaveBeenCalledTimes(2);
+  });
+
+  it("draws the bars of two tasks of 4 hours the same day one after the other, as the screen places them [WF-PLA-0090-A]", () => {
+    // The contract example, its detailed studies (A) and its review (B), linked from finish to
+    // start, brought to the Monday 13 April of 8 hours: A works the first four, B the last four.
+    const [, studies, , review] = planning.items;
+    const same = (item: typeof studies, from: string, to: string) =>
+      item?.task === undefined || item.task === null
+        ? []
+        : [
+            {
+              ...item,
+              task: {
+                ...item.task,
+                start: { date: "2026-04-13", hours: from },
+                finish: { date: "2026-04-13", hours: to },
+              },
+            },
+          ];
+    const rows = [...same(studies, "0", "4"), ...same(review, "4", "8")];
+    expect(rows).toHaveLength(2);
+    const layout = ganttLayout(rows);
+    const drawing = {
+      rows,
+      layout,
+      width: 1000,
+      lower: [],
+      upper: [],
+      labels: { upper: [], lower: [] },
+      dayWidth: 24,
+      legend: undefined,
+    };
+    const colours = { font: "sans-serif" } as GanttColours;
+    canvases.drawn.length = 0;
+    expect(
+      exportGanttPng(drawing, colours, { title: "Gantt", subtitle: "r", fileName: "g.png" }),
+    ).toBeUndefined();
+    // Each bar is a rectangle a half row high; the image draws them where the layout places them.
+    const bars = image()
+      .calls.filter(([name, args]) => name === "fillRect" && args[3] === 0.5 * ROW)
+      .map(([, args]) => args as number[]);
+    const half =
+      1000 *
+      (layout.at(Date.parse("2026-04-13T12:00:00Z")) -
+        layout.at(Date.parse("2026-04-13T00:00:00Z")));
+    expect(bars).toHaveLength(2);
+    expect(bars[0]?.[2]).toBeCloseTo(half);
+    expect(bars[1]?.[2]).toBeCloseTo(half);
+    expect((bars[1]?.[0] ?? 0) - (bars[0]?.[0] ?? 0)).toBeCloseTo(half);
+    expectLinkRightward(image(), bars);
   });
 
   it("saves no file when the canvas gives no picture", async () => {

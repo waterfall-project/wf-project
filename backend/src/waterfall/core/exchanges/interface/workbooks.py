@@ -28,13 +28,14 @@ reading is read no further when it does not start as XML does (an image, a binar
 starts as XML and is not well formed, or that the hardened parser refuses (a value of more than
 10 MB in an attribute, which openpyxl's parser reads past), is refused — but a VML drawing, which
 Excel writes not well formed and openpyxl does not parse where Excel names it, in the relations of a
-worksheet. Its error is kept, not judged on its name: openpyxl reads a tab wherever the relations of
-the workbook put it, ``sheet3.vml`` as ``sheet3.xml``. Once every member is read, the parts openpyxl
-may parse are found as it finds them — the content types, the relations of the workbook and those
-of each part they name, every relation reached from a chartsheet, their targets resolved as
-``get_dependents`` does and compared as zipfile names its members —, the parts naming others read
-by the hardened parser without a tree, keeping only names of members; a VML drawing among them is
-refused on its error. Only then is the workbook opened, read-only and by values.
+worksheet or of a chartsheet. Its error is kept, not judged on its name: openpyxl reads a tab
+wherever the relations of the workbook put it, ``sheet3.vml`` as ``sheet3.xml``. Once every member
+is read, the parts openpyxl may parse are found as it finds them — the content types, the relations
+of the workbook and those of each part they name, the drawings of a chartsheet and what their
+relations name, their targets resolved as ``get_dependents`` does and compared as zipfile names its
+members —, the parts naming others read by the hardened parser without a tree, keeping only names
+of members; a VML drawing among them is refused on its error. Only then is the workbook opened,
+read-only and by values.
 
 An archive in ZIP64 — the sizes and the offsets of its members in their extra field, the end of its
 directory in a record of 64 bits — is judged as any other, and none is refused for it: zipfile reads
@@ -53,20 +54,38 @@ openpyxl reads in 650 ms, some three million cells a second (measured on rows of
 200 MiB of empty cells. The bound of the sizes is a worst case, which a user may reach only by
 depositing a file that is refused anyway, and no bound could be had without inflating.
 
-A reader then materialises the tabs its format reads, and those alone, by ``bounded_rows``: a tab
-of more than ``MOST_ROWS`` rows or ``MOST_COLUMNS`` columns, as openpyxl gives them — the rows a
-gap leaves, and the width the places of the cells give —, is refused.
+The same reading counts the other vectors a workbook amplifies by (US-3190/L2b; EP-33, "Les bornes
+des classeurs"), each bounded by the author on the measures of ``measure/workbooks.py``: the shared
+strings — their number, the elements of one, the characters of their text —, wherever they lie, as
+openpyxl's reader of them finds them; the items of each list of ``styles.xml``, which openpyxl
+builds an object of each; the defined names of ``workbook.xml``. openpyxl reads these two parts by
+the local names of their elements, whatever their namespace, and builds an item of a comment or an
+instruction a list holds, or of an entity a document type leaves unresolved: the lists are counted
+by their local names, where it reads them, comments and instructions included, and a part it may
+parse that declares a document type is refused. Past a bound, the workbook is refused before it is
+opened.
+
+A reader then materialises the tabs its format reads, and those alone, by the ``bounded_rows`` of
+the workbook opened: a row of more than ``MOST_COLUMNS`` columns, as openpyxl gives them — the width
+the places of the cells give —, is refused, and so are the tabs read past ``MOST_ROWS`` rows or
+``MOST_CELLS`` cells in all, the rows a gap leaves included, counted as they come. That refusal
+comes after the opening: the rows are those openpyxl gives, which the reading ahead would have to
+reproduce, and none is held past the bounds.
 
 Every refusal raises ``WorkbookOutOfBoundsError``, which ``DAMAGES`` lists: each reader turns it
-into the refusal of its format, ``FILE_FORMAT_UNREADABLE``, as it does a damaged file.
+into the refusal of its format, ``FILE_FORMAT_UNREADABLE``, as it does a damaged file. A
+``TypeError`` openpyxl raises at the opening or at the reading of the rows, for a part of the wrong
+kind, raises ``WorkbookDamagedError``, a ``ValueError`` that ``DAMAGES`` lists too (#4848).
 """
 
 import posixpath
 import zipfile
 import zlib
 from contextlib import contextmanager
+from enum import Enum
 from io import BytesIO
-from typing import TYPE_CHECKING, Any
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Never
 
 from lxml import etree
 from openpyxl import load_workbook
@@ -77,6 +96,7 @@ from openpyxl.xml.constants import (
     ARC_STYLE,
     ARC_THEME,
     ARC_WORKBOOK,
+    REL_NS,
     SHARED_STRINGS,
     XLSM,
     XLSX,
@@ -87,7 +107,7 @@ from openpyxl.xml.constants import (
 from waterfall.core.exchanges.interface.xml import hardened_target_parser
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Container, Generator, Iterable, Iterator
+    from collections.abc import Callable, Container, Generator, Iterable, Iterator, Mapping
 
     from lxml.etree._parser import CustomTargetParser
     from openpyxl.workbook.workbook import Workbook
@@ -99,6 +119,32 @@ LARGEST_INFLATED = 200 * 1024 * 1024
 MOST_MEMBERS = 1_000
 MOST_ROWS = 200_000
 MOST_COLUMNS = 500
+# The other vectors, measured by US-3190/L2b and bounded by the author on 2026-11-23 (EP-33, "Les
+# bornes des classeurs"). The tabs read, in cumul: 200 000 rows, and 10 000 000 cells, 8.3 bytes
+# each to openpyxl. The shared strings: their number, the elements of one (its runs and what they
+# hold), and their text, which Python holds up to four bytes a character, counted in characters.
+MOST_CELLS = 10_000_000
+MOST_STRINGS = 1_000_000
+MOST_STRING_ELEMENTS = 65_536
+LONGEST_TEXT = 32 * 1024 * 1024
+# The items of each list of ``styles.xml``: the limits of Excel, so that a workbook Excel writes is
+# never refused; ``colors``, the colours its lists hold, counted with them. The defined names of
+# ``workbook.xml``.
+STYLE_LISTS: Mapping[str, int] = MappingProxyType(
+    {
+        "numFmts": 1_000,
+        "fonts": 1_024,
+        "fills": 1_024,
+        "borders": 1_024,
+        "tableStyles": 1_024,
+        "colors": 1_024,
+        "cellStyleXfs": 65_490,
+        "cellXfs": 65_490,
+        "cellStyles": 65_490,
+        "dxfs": 65_490,
+    }
+)
+MOST_NAMES = 10_000
 
 # The steps of the inflation of a member: what is fed, and the most that one step gives.
 _FED = 64 * 1024
@@ -110,8 +156,21 @@ _LOCAL_LENGTH = 30
 _NAME_LENGTH_AT = 26
 _EXTRA_LENGTH_AT = 28
 _ENCRYPTED = 0x1
-# The row of SpreadsheetML, as openpyxl finds it wherever it lies (ECMA-376, §18.3.1.73).
-_ROW = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}row"
+# The row of SpreadsheetML, as openpyxl finds it wherever it lies (ECMA-376, §18.3.1.73); a shared
+# string (§18.4.8), which it finds so too, by its tag, namespace included. The lists whose items are
+# bounded, by their local name, where openpyxl reads them — a child of the root of the member, in
+# any namespace or none, as ``Serialisable.from_tree`` reads ``styles.xml`` and ``workbook.xml`` —:
+# their bound, and whether all they hold is counted (``colors``) or their children alone.
+_MAIN = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+_ROW = f"{_MAIN}row"
+_STRING = f"{_MAIN}si"
+_COLORS = "colors"
+_LISTS = {
+    name: (most, name == _COLORS)
+    for name, most in {**STYLE_LISTS, "definedNames": MOST_NAMES}.items()
+}
+# The depth of a list openpyxl reads, the root of the member being at depth 1: a child of the root.
+_LISTED_AT = 2
 # How an XML document starts, past a UTF-8 byte order mark and blanks: its first tag, or the byte
 # order mark or the first tag of UTF-16 (XML 1.0, appendix F). What the head of a member that
 # libxml2 cannot start reading is judged on, as far as its first bytes go.
@@ -122,19 +181,44 @@ _HEAD = 4096
 _VML = ".vml"
 # What openpyxl's opening finds a part by (``openpyxl.reader.excel``): the content types, the fixed
 # names it reads, the content types it looks the workbook and its shared strings up by, and the
-# word that makes a relation of the workbook a chartsheet, whose drawings and charts it reads.
+# word that makes a relation of the workbook a chartsheet, and the type of the relations of a
+# chartsheet it reads, its drawings (``SpreadsheetDrawing._rel_type``), whose charts it reads.
 _CONTENT_TYPES = ARC_CONTENT_TYPES
 _WORKBOOK = ARC_WORKBOOK
 _FIXED = frozenset({ARC_CONTENT_TYPES, ARC_CORE, ARC_CUSTOM, ARC_STYLE, ARC_THEME, ARC_WORKBOOK})
 _WORKBOOKS = frozenset({XLSX, XLSM, XLTX, XLTM})
 _LOOKED_UP = _WORKBOOKS | {SHARED_STRINGS}
 _CHARTSHEET = "chartsheet"
+_DRAWING = f"{REL_NS}/drawing"
 
-type _Named = Callable[[dict[str, str]], tuple[str, bool] | None]
+
+class _Relations(Enum):
+    """Whose relations a part's are, as openpyxl's opening follows them.
+
+    Those of a workbook name the parts it parses, and the chartsheets whose relations it follows;
+    those of a chartsheet, its drawings alone, whose relations it follows; those of a drawing, the
+    charts and images it reads, whose relations it parses and does not follow.
+    """
+
+    WORKBOOK = "workbook"
+    CHARTSHEET = "chartsheet"
+    DRAWING = "drawing"
+
+
+type _Named = Callable[[dict[str, str]], tuple[str, _Relations | None] | None]
 
 
 class WorkbookOutOfBoundsError(ValueError):
     """A workbook, or a tab of it, beyond a bound: refused as a damaged workbook is."""
+
+
+class WorkbookDamagedError(ValueError):
+    """A workbook whose parts openpyxl rejects by a ``TypeError``: refused as a damaged one is.
+
+    openpyxl's descriptors raise it for an element of the wrong kind, a ``<fill/>`` that holds no
+    pattern (#4848). It is caught at the opening and at the reading of the rows alone, so that an
+    error of a reader's own code is not taken for a damaged file.
+    """
 
 
 class _Target:
@@ -172,10 +256,35 @@ class _Target:
         """Leave a document type: the hardened parser loads none."""
 
 
-class _Tally(_Target):
-    """The target of the reading of a member: counts its rows, and the cells of each row.
+class _Listing:
+    """A list of bounded items open: its name, its depth, its bound, what it counts."""
 
-    A row may lie in a row, as openpyxl reads it: each row open keeps its depth and its cells.
+    __slots__ = ("deep", "depth", "most", "name")
+
+    def __init__(self, name: str, depth: int, most: int, *, deep: bool) -> None:
+        self.name = name
+        self.depth = depth
+        self.most = most
+        self.deep = deep
+
+
+def _local(tag: str) -> str:
+    """Give the local name of a tag, past its namespace, as openpyxl's ``localname`` does."""
+    return tag.rpartition("}")[2]
+
+
+class _Tally(_Target):
+    """The target of the reading of a member: counts what a bound is judged on.
+
+    Its rows, and the cells of each row: a row may lie in a row, as openpyxl reads it, so each row
+    open keeps its depth and its cells. Its shared strings, wherever they lie, as openpyxl finds
+    them; the elements of each, those of a string in it included; and the characters of their text.
+    The items of a list bounded — of ``styles.xml``, the defined names —, a child of the root of
+    whatever member, by its local name: its children, or all it holds for ``colors``, its comments
+    and its processing instructions among them, which openpyxl's lxml gives as children and builds
+    an item of (``NestedSequence``); a list in a list is an item of the first. The items of a list
+    met twice add up. Whether the member declares a document type, under which an entity left
+    unresolved is one more child to openpyxl and none to the reading.
     """
 
     def __init__(self, name: str) -> None:
@@ -184,9 +293,22 @@ class _Tally(_Target):
         self.depth = 0
         self.rows = 0
         self.open_rows: list[list[int]] = []
+        self.strings = 0
+        # The depth of the outermost string open, 0 out of any.
+        self.string_at = 0
+        self.string_elements = 0
+        self.text = 0
+        self.listing: _Listing | None = None
+        self.items: dict[str, int] = {}
+        self.typed = False
+
+    def _refuse(self, what: str, most: int) -> Never:
+        """Refuse the member past a bound: it holds more than ``most`` of ``what``."""
+        msg = f"{self.name!r} holds more than {most} {what}"
+        raise WorkbookOutOfBoundsError(msg)
 
     def start(self, tag: str, _attributes: dict[str, str], /) -> None:
-        """Count an element: a cell of the row it lies in, if any, and a row if it is one."""
+        """Count an element: as a cell, a row, a string, an element of one, an item of a list."""
         self.started = True
         self.depth += 1
         if self.open_rows and self.open_rows[-1][0] == self.depth - 1:
@@ -197,14 +319,65 @@ class _Tally(_Target):
         if tag == _ROW:
             self.rows += 1
             if self.rows > MOST_ROWS:
-                msg = f"{self.name!r} holds more than {MOST_ROWS} rows"
-                raise WorkbookOutOfBoundsError(msg)
+                self._refuse("rows", MOST_ROWS)
             self.open_rows.append([self.depth, 0])
+        if self.string_at or tag == _STRING:
+            self._count_strings(tag)
+        if self.listing is not None:
+            self._count_item(self.depth - 1)
+        elif self.depth == _LISTED_AT and (bounded := _LISTS.get(_local(tag))) is not None:
+            self.listing = _Listing(_local(tag), self.depth, bounded[0], deep=bounded[1])
+
+    def _count_item(self, parent: int) -> None:
+        """Count a node of the list open whose parent lies at ``parent``, if it is an item."""
+        listing = self.listing
+        if listing is not None and (listing.deep or listing.depth == parent):
+            count = self.items.get(listing.name, 0) + 1
+            self.items[listing.name] = count
+            if count > listing.most:
+                self._refuse(f"items in {listing.name}", listing.most)
+
+    def _count_strings(self, tag: str) -> None:
+        """Count a shared string, and an element of the string open."""
+        if tag == _STRING:
+            self.strings += 1
+            if self.strings > MOST_STRINGS:
+                self._refuse("shared strings", MOST_STRINGS)
+        if self.string_at:
+            self.string_elements += 1
+            if self.string_elements > MOST_STRING_ELEMENTS:
+                self._refuse("elements in a shared string", MOST_STRING_ELEMENTS)
+        elif tag == _STRING:
+            self.string_at = self.depth
+            self.string_elements = 0
+
+    def data(self, text: str, /) -> None:
+        """Count the characters of the text of a shared string; leave any other."""
+        if self.string_at:
+            self.text += len(text)
+            if self.text > LONGEST_TEXT:
+                self._refuse("characters of text in shared strings", LONGEST_TEXT)
+
+    def comment(self, _text: str, /) -> None:
+        """Count a comment as an item of the list open: openpyxl builds one of it."""
+        self._count_item(self.depth)
+
+    def pi(self, _target: str, _data: str, /) -> None:
+        """Count a processing instruction as an item of the list open, as a comment."""
+        self._count_item(self.depth)
+
+    def doctype(self, _root: str | None, _public_id: str | None, _system_id: str | None, /) -> None:
+        """Keep that the member declares a document type."""
+        self.typed = True
 
     def end(self, _tag: str, /) -> None:
-        """Close an element, and the row it is."""
+        """Close an element, and the row, the string or the list it is."""
         if self.open_rows and self.open_rows[-1][0] == self.depth:
             self.open_rows.pop()
+        if self.string_at == self.depth:
+            self.string_at = 0
+        if self.listing is not None and self.listing.depth == self.depth:
+            self.listing = None
         self.depth -= 1
 
 
@@ -212,23 +385,24 @@ class _Naming(_Target):
     """The target of the reading of a part that names others: keeps the members it names.
 
     ``named`` gives, from the attributes of an element, the member it names, as openpyxl finds it,
-    and whether openpyxl reads the parts the relations of that member name; ``None`` for an element
-    that names none. A name no member bears is not kept: what is kept is at most the archive.
+    and whose relations those of that member are when openpyxl follows them, ``None`` when it does
+    not; ``None`` for an element that names no member openpyxl parses. A name no member bears is
+    not kept: what is kept is at most the archive.
     """
 
     def __init__(self, named: _Named, members: Container[str]) -> None:
         self.named = named
         self.members = members
         self.parts: set[str] = set()
-        self.followed: set[str] = set()
+        self.followed: set[tuple[str, _Relations]] = set()
 
     def start(self, _tag: str, attributes: dict[str, str], /) -> None:
-        """Keep the member an element names, if any, and whether its relations are followed."""
+        """Keep the member an element names, if any, and whose relations it has if followed."""
         found = self.named(attributes)
         if found is not None and found[0] in self.members:
             self.parts.add(found[0])
-            if found[1]:
-                self.followed.add(found[0])
+            if found[1] is not None:
+                self.followed.add((found[0], found[1]))
 
 
 class _Reading:
@@ -354,16 +528,17 @@ def _inflated(content: bytes, member: zipfile.ZipInfo) -> Iterator[bytes | memor
         yield step
 
 
-def _judge_member(content: bytes, member: zipfile.ZipInfo) -> etree.XMLSyntaxError | None:
+def _judge_member(content: bytes, member: zipfile.ZipInfo) -> _Reading:
     """Refuse a member beyond its declared size, or whose XML holds a row past a bound.
 
-    Gives the syntax error a VML drawing was left on, if any.
+    Gives its reading: the syntax error a VML drawing was left on, if any, and whether it declares
+    a document type.
     """
     reading = _Reading(member.filename)
     for step in _inflated(content, member):
         reading.feed(bytes(step))
     reading.close()
-    return reading.left
+    return reading
 
 
 def _relations_of(part: str) -> str:
@@ -372,7 +547,7 @@ def _relations_of(part: str) -> str:
     return posixpath.join(folder, "_rels", f"{name}.rels")
 
 
-def _content_type(attributes: dict[str, str]) -> tuple[str, bool] | None:
+def _content_type(attributes: dict[str, str]) -> tuple[str, _Relations | None] | None:
     """Give the part an override of the content types names, if openpyxl looks it up by its type.
 
     openpyxl takes its name past its first character, and follows the relations of a workbook.
@@ -380,28 +555,46 @@ def _content_type(attributes: dict[str, str]) -> tuple[str, bool] | None:
     kind, part = attributes.get("ContentType"), attributes.get("PartName")
     if kind not in _LOOKED_UP or part is None:
         return None
-    return part[1:], kind in _WORKBOOKS
+    return part[1:], _Relations.WORKBOOK if kind in _WORKBOOKS else None
 
 
-def _relation(relations: str, *, followed: bool) -> _Named:
+def _followed(kind: str, of: _Relations) -> tuple[bool, _Relations | None]:
+    """Give whether openpyxl parses the target of a relation of ``kind``, and follows its relations.
+
+    It parses every target the relations of a workbook or of a drawing name, and follows the
+    relations of a chartsheet; of the relations of a chartsheet, it parses and follows its drawings
+    alone, as ``read_chartsheet`` does, and not its VML drawings (``legacyDrawing``,
+    ``legacyDrawingHF``).
+    """
+    match of:
+        case _Relations.WORKBOOK:
+            return True, _Relations.CHARTSHEET if _CHARTSHEET in kind else None
+        case _Relations.CHARTSHEET:
+            drawing = kind == _DRAWING
+            return drawing, _Relations.DRAWING if drawing else None
+        case _Relations.DRAWING:
+            return True, None
+
+
+def _relation(relations: str, of: _Relations) -> _Named:
     """Give how an element of ``relations`` names a member, as openpyxl's ``get_dependents`` does.
 
     A target is taken as it is when external, past its slash when absolute, and joined to the folder
-    of the part otherwise, then normalised. A chartsheet's relations are followed, and all those of
-    a part reached from it when ``followed``.
+    of the part otherwise, then normalised; it is named when openpyxl parses it (``_followed``).
     """
     folder = posixpath.dirname(posixpath.dirname(relations))
 
-    def named(attributes: dict[str, str]) -> tuple[str, bool] | None:
+    def named(attributes: dict[str, str]) -> tuple[str, _Relations | None] | None:
         target = attributes.get("Target")
-        if target is None:
+        parsed, followed = _followed(attributes.get("Type", ""), of)
+        if target is None or not parsed:
             return None
         external = attributes.get("TargetMode") == "External"
         if not external and target.startswith("/"):
             target = target[1:]
         elif not external:
             target = posixpath.normpath(posixpath.join(folder, target))
-        return target, followed or _CHARTSHEET in attributes.get("Type", "")
+        return target, followed
 
     return named
 
@@ -411,9 +604,10 @@ def _parsed_parts(content: bytes, members: list[zipfile.ZipInfo]) -> set[str]:
 
     openpyxl finds them by fixed names, by the content types (the workbook and its shared strings),
     by the relations of the workbook (its tabs, read as tabs whatever their name, the relations of
-    each, the other parts it names) and, from a chartsheet, by every relation of what it reaches;
-    the relations of a worksheet, where Excel names its VML drawings, it parses but does not follow.
-    Each part that names others is read by the hardened parser, without a tree, at most twice.
+    each, the other parts it names) and, from a chartsheet, by its drawings and what their relations
+    name; the relations of a worksheet and of a chartsheet, where Excel names its VML drawings, it
+    parses without parsing those. Each part that names others is read by the hardened parser,
+    without a tree, at most once for each kind of relations it may hold.
     """
     by_name = {member.filename: member for member in members}
 
@@ -429,17 +623,17 @@ def _parsed_parts(content: bytes, members: list[zipfile.ZipInfo]) -> set[str]:
 
     found = named_by(_CONTENT_TYPES, _content_type)
     parsed = {*_FIXED, *found.parts}
-    pending = [(part, False) for part in {*found.followed, _WORKBOOK}]
-    seen: set[tuple[str, bool]] = set()
+    pending = [*found.followed, (_WORKBOOK, _Relations.WORKBOOK)]
+    seen: set[tuple[str, _Relations]] = set()
     while pending:
-        part, followed = pending.pop()
+        part, of = pending.pop()
         relations = _relations_of(part)
-        if (relations, followed) in seen:
+        if (relations, of) in seen:
             continue
-        seen.add((relations, followed))
-        found = named_by(relations, _relation(relations, followed=followed))
+        seen.add((relations, of))
+        found = named_by(relations, _relation(relations, of))
         parsed |= {relations, *found.parts, *map(_relations_of, found.parts)}
-        pending.extend((part, True) for part in found.followed)
+        pending.extend(found.followed)
     return parsed
 
 
@@ -449,50 +643,89 @@ def _judge_archive(content: bytes) -> None:
     Raises ``WorkbookOutOfBoundsError`` for the bounds, ``zipfile.BadZipFile`` or ``zlib.error``
     for a file that is no zip or whose member is damaged, ``etree.XMLSyntaxError`` for a member
     whose XML is damaged, a VML drawing included when openpyxl may parse it: all of them in
-    ``DAMAGES``.
+    ``DAMAGES``. A part openpyxl may parse that declares a document type is refused by the bounds:
+    Excel writes none, and an entity it leaves unresolved, which the reading does not see, is an
+    item to openpyxl's lxml in a list of ``styles.xml``.
     """
     with zipfile.ZipFile(BytesIO(content)) as archive:
         members = archive.infolist()
     _judge_directory(members)
     left: dict[str, etree.XMLSyntaxError] = {}
+    typed: set[str] = set()
     for member in members:
-        error = _judge_member(content, member)
-        if error is not None:
-            left.setdefault(member.filename, error)
-    if left:
-        for name in left.keys() & _parsed_parts(content, members):
+        reading = _judge_member(content, member)
+        if reading.left is not None:
+            left.setdefault(member.filename, reading.left)
+        if reading.tally.typed:
+            typed.add(member.filename)
+    if left or typed:
+        parsed = _parsed_parts(content, members)
+        for name in left.keys() & parsed:
             raise left[name]
+        for name in typed & parsed:
+            msg = f"{name!r} declares a document type"
+            raise WorkbookOutOfBoundsError(msg)
+
+
+class OpenedWorkbook:
+    """A workbook ``opened_workbook`` opened: its tabs, and the rows read of them, in cumul."""
+
+    def __init__(self, workbook: Workbook) -> None:
+        self._workbook = workbook
+        self.rows = 0
+        self.cells = 0
+
+    @property
+    def worksheets(self) -> list[Any]:
+        """Give the tabs of the workbook, in their order: openpyxl's read-only worksheets."""
+        return self._workbook.worksheets
+
+    def bounded_rows(self, rows: Iterable[tuple[Any, ...]]) -> list[tuple[Any, ...]]:
+        """Materialise the rows of a tab, refused past a row of ``MOST_COLUMNS`` columns.
+
+        The rows are those openpyxl gives (``iter_rows(values_only=True)``), each as wide as the tab
+        says it is. They are counted with those of every tab read before them from this workbook:
+        past ``MOST_ROWS`` rows or ``MOST_CELLS`` cells in all, the row is refused as it comes,
+        before the next is read, so that what is held stays within the bounds (EP-33, "Les bornes
+        des classeurs"). A ``TypeError`` of openpyxl while it reads them is a damaged workbook.
+        """
+        kept: list[tuple[Any, ...]] = []
+        try:
+            for row in rows:
+                if len(row) > MOST_COLUMNS:
+                    msg = f"a row of more than {MOST_COLUMNS} cells in a tab read"
+                    raise WorkbookOutOfBoundsError(msg)
+                self.rows += 1
+                self.cells += len(row)
+                if self.rows > MOST_ROWS:
+                    msg = f"the tabs read hold more than {MOST_ROWS} rows in cumul"
+                    raise WorkbookOutOfBoundsError(msg)
+                if self.cells > MOST_CELLS:
+                    msg = f"the tabs read hold more than {MOST_CELLS} cells in cumul"
+                    raise WorkbookOutOfBoundsError(msg)
+                kept.append(row)
+        except TypeError as error:
+            msg = f"openpyxl rejects a row: {error}"
+            raise WorkbookDamagedError(msg) from error
+        return kept
 
 
 @contextmanager
-def opened_workbook(content: bytes) -> Generator[Workbook]:
+def opened_workbook(content: bytes) -> Generator[OpenedWorkbook]:
     """Open a workbook deposited, read-only and by values, once its archive is judged; close it.
 
     Whatever the judgment or openpyxl raises is the caller's to turn into its refusal, by
     ``DAMAGES``: in read-only mode the XML of a tab is parsed while iterating, so the reading of the
-    rows belongs inside the ``with``.
+    rows, by ``bounded_rows``, belongs inside the ``with``. A ``TypeError`` of openpyxl at the
+    opening is a damaged workbook (#4848).
     """
     _judge_archive(content)
-    workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
     try:
-        yield workbook
+        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+    except TypeError as error:
+        msg = f"openpyxl rejects a part: {error}"
+        raise WorkbookDamagedError(msg) from error
+    try:
+        yield OpenedWorkbook(workbook)
     finally:
         workbook.close()
-
-
-def bounded_rows(rows: Iterable[tuple[Any, ...]]) -> list[tuple[Any, ...]]:
-    """Materialise the rows of a tab, refused past ``MOST_ROWS`` rows or ``MOST_COLUMNS`` columns.
-
-    The rows are those openpyxl gives (``iter_rows(values_only=True)``), each as wide as the tab
-    says it is: a row past a bound is refused as it comes, before the next is read.
-    """
-    kept: list[tuple[Any, ...]] = []
-    for row in rows:
-        if len(kept) == MOST_ROWS:
-            msg = f"a tab of more than {MOST_ROWS} rows"
-            raise WorkbookOutOfBoundsError(msg)
-        if len(row) > MOST_COLUMNS:
-            msg = f"a tab of more than {MOST_COLUMNS} columns"
-            raise WorkbookOutOfBoundsError(msg)
-        kept.append(row)
-    return kept

@@ -265,8 +265,9 @@ Problem:
         label (`cost_category_id`, `code`, `label`), in the order of their code — to be attached
         first to another cost type of the same kind (WF-IHM-0090; EP-14/L42s); `tasks` for an
         entry in a revision — `createNode`, `updateEstimateLine`, `moveNodes`,
-        `mergeCostStructure`, and the reason of a pasted or imported line — that would leave a
-        task without a working hour (`TASK_WITHOUT_WORKING_HOURS`): the tasks involved, each by
+        `mergeCostStructure`, and the reason of a pasted or imported line — or the opening of a
+        revision, by its copy (`createRevision`, #4413), that would leave a task without a
+        working hour (`TASK_WITHOUT_WORKING_HOURS`): the tasks involved, each by
         its project, its node and its label (`project_id`, `node_id`, `label`), the author of
         the entry consulting their project — in the reason of an imported line, by its lineage
         and its label (`lineage_id`, `label`), as the report names its objects (#768, point 2);
@@ -922,9 +923,10 @@ ProblemParams:
     tasks:
       type: array
       description: >-
-        The tasks that an entry in a revision, a merge, a pasted or imported line would
-        leave without a working hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010): by their
-        project, their node and their label for an entry, a paste or a merge; by their
+        The tasks that an entry in a revision, a merge, a pasted or imported line, or the
+        opening of a revision, would leave without a working hour (`TASK_WITHOUT_WORKING_HOURS`,
+        WF-PLA-0010): by their project, their node and their label for an entry, a paste, a
+        merge or an opening — the node of the copy, for an opening (`createRevision`, #4413); by their
         lineage and their label in the report of an import, which names its objects this way
         (`ImportDifference`) and may concern a project without a current revision, of which no
         node exists yet (WF-INTF-0090; #768, point 2); by its lineage and its label also, for a
@@ -1017,8 +1019,8 @@ ProblemTask:
   additionalProperties: false
   required: [project_id, node_id, label]
   description: >-
-    A task named by the refusal of an entry, a paste or a merge, the author consulting
-    its project (`ProblemParams.tasks`). Closed: no lineage beside its node, which would make
+    A task named by the refusal of an entry, a paste, a merge or the opening of a revision,
+    the author consulting its project (`ProblemParams.tasks`). Closed: no lineage beside its node, which would make
     it an imported task as well (`ProblemImportedTask`, #2635).
   properties:
     project_id: { $ref: '#/Uuid' }

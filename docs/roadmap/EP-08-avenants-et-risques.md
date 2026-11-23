@@ -686,7 +686,9 @@ Les routes des imports ne gardent plus que la visibilité du projet ; le genre e
 
 Dans `core/indicators`, sur ce qu'EP-10 a prévu (« Ce que le cadrage laisse à EP-08 ») : `steps`
 se calcule des références successives du projet, chacune en vigueur de son marquage à celui de la
-suivante ; la projection et les décaissements comptent les lignes de provision à leur date, sans
+suivante (corrigé par la spécification 1.0.10 : seul un avenant produit une marche, la référence
+désignée à la main, ou celle qui la corrige, vaut depuis l'origine de la courbe — WF-IND-0100,
+#4260 ; le code suit en EP-35, #4815) ; la projection et les décaissements comptent les lignes de provision à leur date, sans
 délai de paiement ; l'exclusion des tâches de survenance de la valeur acquise est déjà dans la
 sélection des lignes, et reçoit son test ; la couverture entre dans le document `remaining`
 conservé au marquage. L'empreinte du cache lit le compteur de toutes les structures de la révision,
@@ -1430,6 +1432,12 @@ font peser sur le projet se lise là où il se lirait s'ils survenaient.
   être aplati. » : tenu par EP-06, non touché ici ;
 - `WF-PLA-0040-A` — « Un déplacement qui placerait un nœud sous lui-même ou sous l'un de ses
   subordonnés est refusé. » : tenu par EP-06, non touché ici ;
+- écart : `WF-PLA-0040-A` — « Une feuille démarrée qui reçoit une sous-tâche non démarrée est une
+  récapitulative démarrée, à sa date de démarrage ; privée de cette sous-tâche, elle redevient une
+  feuille démarrée à cette date. » : ajouté par la spécification 1.0.10 (#4564) ; EP-32 (US-3310) ;
+- écart : `WF-PLA-0040-A` — « Une feuille terminée qui reçoit une sous-tâche non terminée est une
+  récapitulative démarrée, à sa date de démarrage. » : ajouté par la spécification 1.0.10 (#4564) ;
+  EP-32 (US-3310) ;
 - `WF-PLA-0050-A` — « Une tâche feuille de durée nulle ne peut recevoir de sous-tâche. » : tenu par
   EP-06, non touché ici ;
 - `WF-PLA-0050-A` — « Une récapitulative dont la seule subordonnée est un jalon a une durée nulle et
@@ -1926,6 +1934,9 @@ référence.
 - `WF-IND-0100-A` — « La somme des décaissements à venir égale le reste à engager, provisions des
   risques identifiés comprises. » : la somme des `forecast` de `cash_out_by_month` égale
   `remaining`, provisions des risques identifiés comprises, au centime ;
+- écart : `WF-IND-0100-A` — « Un projet dont l'offre v2, désignée par erreur, est remplacée par v3
+  avant tout coût réel présente la courbe du budget de v3 seule, sans marche. » : ajouté par la
+  spécification 1.0.10 (#4260) ; EP-35 (#4815) ;
 - `WF-DEV-0080-A` — « Sur un projet dont le budget de référence est de 1 000, la valeur planifiée
   vaut 1 000 à la date de fin de la dernière tâche de la référence, et 0 avant le début de la
   première. » : tenu par EP-07 et EP-10, non touché ici ;

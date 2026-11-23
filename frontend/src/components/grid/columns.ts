@@ -161,6 +161,12 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    * `value` then serves the sort offered alone.
    */
   readonly render?: (row: Row) => ReactNode;
+  /**
+   * What its cell draws in the row that stands for a run of rows folded away (`FoldedRunRow`), given
+   * the index of the row shown just after it — the stretch of the links of the Gantt that cross it —; none,
+   * and the cell is blank. Read of a column pinned at the end alone.
+   */
+  readonly runCell?: (before: number) => ReactNode;
   /** What it reads of the totals of the answer, for the totals row; none, and it is blank. */
   readonly total?: (totals: Totals) => CellValue;
   /**
