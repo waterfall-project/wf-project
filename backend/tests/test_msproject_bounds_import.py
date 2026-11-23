@@ -110,8 +110,9 @@ def test_a_file_beyond_the_bounds_of_the_reader_fails_its_analysis_as_an_unreada
     # « Au-delà de 10 000 tâches ou de 50 niveaux, l'import échoue à l'analyse sur
     # FILE_FORMAT_UNREADABLE, expected_format à ms_project_schedule, sans que le moteur ne soit
     # rejoué. De même une durée que le lecteur ne peut pas porter (PT999…H) et un entier au-delà de
-    # la borne de chiffres du lecteur, dont un UID que external_id ne garderait pas. Aucun de ces
-    # fichiers ne finit en INTERNAL_ERROR, et aucun n'échoue après un compte rendu accepté. »
+    # la borne de chiffres du lecteur, dont un UID que external_id ne garderait pas, et une
+    # constante d'unité — MinutesPerDay, MinutesPerWeek, DaysPerMonth — nulle ou négative. Aucun de
+    # ces fichiers ne finit en INTERNAL_ERROR, et aucun n'échoue après un compte rendu accepté. »
     opened(api, stage)
     response = opening(api, stage, HOSTILE[hostile])
     assert response.status_code == 202, response.text
