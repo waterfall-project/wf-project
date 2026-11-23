@@ -244,6 +244,28 @@ d'un planning MS Project à EP-33, qui écrit `core/planning/importing.py`) :
   contrat ne sait pas la nommer → US-3210b, après la livraison d'EP-32 dans `main`, qui apporte
   `TASK_WITHOUT_WORKING_HOURS` (US-3330).
 
+Constats relevés à la livraison d'US-3170, US-3180, US-3180b, US-3200 et US-3210, tranchés par
+l'auteur le 2026-11-23 :
+
+- #4759 — back : un fichier tiers qui range de vrais UUID dans `Text1` est pris pour un export de
+  Waterfall — limite acceptée, rejouée à la recette de l'aller-retour MS Project ;
+- #4779, #4813 — instabilités de la file (Keycloak, `test_partitions`), vues une fois — on attend ;
+  vues deux fois, le pilote ouvre le lot correctif ;
+- #4784 — back : un onglet de lignes qui perd « Tâche » ou « Rôle ou catégorie » n'est ni refusé ni
+  lu, et ses lignes se lisent absentes → US-3200b : la liste de #4421 s'étend aux deux clés ;
+- #4785 — contrat : aucun exemple d'un devis refusé pour une colonne absente → US-3280, un exemple
+  engendré, sans changement de forme ;
+- #4786 — back : le devis et le reste à engager lus deux fois à l'ouverture — écarté, hors verrou,
+  la mémoire tenue par les bornes, de l'ordre de 0,4 s sur 10 000 lignes ;
+- #4787 — front : une accolade ou une apostrophe dans le refus des colonnes absentes → US-3280, un
+  test ;
+- #4791 — back : la copie d'une révision ouverte qui rechiffre ses lignes fait refuser à tort un
+  import analysé dans la révision marquée → faux refus accepté, du côté sûr, figé par un test dans
+  US-3210b ; ni colonne ni migration ;
+- #4826 — back : une constante d'installation infime s'exporte à 0, que le lecteur refuse →
+  US-3210b : l'export écrit les constantes d'unité à 1 au moins ; la saisie n'est pas bornée ;
+- #4830 — tests : la citation du Vérif des constantes d'unité non littérale → US-3210b.
+
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
 qui réalisera #3966, à nommer par le cadreur ») → US-3270.
@@ -374,7 +396,11 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
 - **La comparaison se fait deux fois** : à la demande, pour refuser sans tâche, et à l'exécution
   sous le verrou de la structure. Une structure analysée dans la révision marquée et écrite dans sa
   copie est jugée « non écrite depuis sa copie », par l'interface du planning ; la révision que la
-  tâche crée elle-même n'est pas comparée. Un compte rendu au compteur nul — analysé avant la
+  tâche crée elle-même n'est pas comparée. Une ouverture de la copie qui avance son compteur
+  au-delà de la redatation (des lignes rechiffrées, une provision réécrite) la fait juger écrite :
+  l'import est refusé à tort, en 409, et l'utilisateur redépose — faux refus accepté, du côté sûr
+  (#4791, décision de l'auteur du 2026-11-23), figé par un test (US-3210b). Écarté : garder le
+  compteur de la copie à son ouverture, une colonne et une migration de plus. Un compte rendu au compteur nul — analysé avant la
   colonne, ou par un worker d'avant pendant une mise à jour — s'applique sans comparaison, pendant
   les vingt-quatre heures qu'il vit. Écarté : le refuser, sous une condition qui mentirait.
 - **La purge supprime dans la passe qui constate l'échéance** (US-3250) : elle ne passe plus par
@@ -615,7 +641,9 @@ mises à jour ordinaires (#4421).
 Écarté : rejeter au compte rendu chaque ligne de l'onglet, qui rend des milliers de rejets pour une
 seule cause. Les deux lecteurs calculent déjà `missing_headers` et `unread_sheets`, que rien ne
 lit ; la liste des colonnes dont l'absence refuse le fichier est celle de #4421, que la conception
-arrête. La lecture des en-têtes de tous les onglets se fait dans l'étape hors verrou d'US-3190.
+arrête, étendue le 2026-11-23 aux deux clés d'un onglet de lignes, « Tâche » et « Rôle ou
+catégorie » : un onglet qui porte au moins un en-tête lu du format sans elles est refusé, un onglet
+sans aucun en-tête lu reste ignoré (US-3200b, #4784). La lecture des en-têtes de tous les onglets se fait dans l'étape hors verrou d'US-3190.
 
 **Hors périmètre.** Les colonnes d'une extraction de coûts réels, déjà refusées (EP-09).
 
