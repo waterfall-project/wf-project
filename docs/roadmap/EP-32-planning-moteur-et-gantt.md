@@ -31,7 +31,7 @@ US-3350.
 - le conflit d'une tâche manuelle sous une récapitulative liée, signalé (spécification 1.0.7), et la
   passe arrière calculée une fois par liaison ;
 - l'état d'une feuille démarrée ou terminée qui reçoit une sous-tâche : elle le garde (décision de
-  l'auteur du 2026-11-21, que la spécification 1.0.9 écrit) ;
+  l'auteur du 2026-11-21, que la spécification 1.0.10 écrit) ;
 - le redatage et le rechiffrage des révisions en cours quand un calendrier de rôle change, ou qu'un
   rôle change de calendrier ;
 - « tâche sans heure travaillée » traduite en refus nommé, à l'ouverture d'une révision comme
@@ -68,7 +68,7 @@ les constate. Leur portée reste celle des EPIC qui les ouvrent et les closent :
 `WF-REF-0130-A` (EP-10), `WF-IHM-0100-A` (EP-14).
 
 US-3310 réalise une règle que la spécification n'écrit pas encore : WF-PLA-0040 est amendée par la
-1.0.9, et les deux phrases que l'US cite comme « texte proposé » deviennent des citations à sa
+1.0.10, et les deux phrases que l'US cite comme « texte proposé » deviennent des citations à sa
 fusion ; les US d'EP-06, EP-08, EP-09, EP-17 et EP-22 qui citent WF-PLA-0040 les reçoivent alors en
 écart.
 
@@ -103,7 +103,7 @@ validé, et ses issues sont ouvertes sur GitHub »), écrit ici pour qu'il ne se
 oubli ; l'EPIC passe `en cours` quand l'auteur le décide.
 
 La règle de #3336 est tranchée (2026-11-21) : la feuille garde son état. US-3310, et elle seule,
-attend la fusion de la spécification 1.0.9, qui amende WF-PLA-0040 ; les autres US ne l'attendent
+attend la fusion de la spécification 1.0.10, qui amende WF-PLA-0040 ; les autres US ne l'attendent
 pas.
 
 US-3290 se fusionne avant US-3000 (EP-13), qui branche `make requirements-release` sur la
@@ -126,7 +126,7 @@ Vague 1 de la ventilation du 2026-11-21. Créneaux utiles sur le poste, qui port
 - deux récapitulatives de 500 feuilles reliées se calculent en un nombre de bornes de l'ordre de
   leur somme ; les dates du corpus MS Project et du témoin n'ont pas changé ;
 - une feuille démarrée qui reçoit une sous-tâche se lit démarrée à sa date, refuse sa suppression,
-  et retrouve son état en redevenant feuille ; la spécification 1.0.9 le dit, et l'US la cite ;
+  et retrouve son état en redevenant feuille ; la spécification 1.0.10 le dit, et l'US la cite ;
 - `updateCalendar` sur un calendrier qui n'est pas le calendrier par défaut, et `updateResourceRole`
   qui change le calendrier d'un rôle, redatent et rechiffrent les révisions en cours dans leur
   transaction, et laissent intacte une révision marquée ;
@@ -180,7 +180,7 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 Ouverts au cadrage du 2026-11-21, avec les issues de l'EPIC :
 
 - #4564 — spec : WF-PLA-0040, une feuille démarrée ou terminée qui reçoit une sous-tâche garde son
-  état — bloque US-3310, jusqu'à la fusion de la spécification 1.0.9
+  état — bloque US-3310, jusqu'à la fusion de la spécification 1.0.10
 - #4565 — contrat : `LinkConflict` nomme la tâche manuelle en cause
 - #4566 — contrat : `createRevision` déclare le refus d'une tâche sans heure travaillée
 - #4567 — contrat : `updateResourceRole` déclare les refus du redatage
@@ -196,6 +196,9 @@ Relevés à la livraison, arbitrés le 2026-11-23 :
   reporté → EP-35, à vérifier d'abord par un test de service
 - #4789 — back : aucun test ne couvre le 409 du code tenu à la mise à jour d'un rôle, avant et après
   le redatage — reporté → EP-35, qui touche `resource_roles.py`
+- #4799 — contrat : l'import MS Project rend 500 sur une tâche créée sans heure travaillée, le
+  contrat ne sait pas la nommer — reporté → EP-33 (US-3210b), qui écrit l'import MS Project ; il
+  attend la livraison d'EP-32, qui apporte `TASK_WITHOUT_WORKING_HOURS`
 
 ## Conception
 
@@ -210,7 +213,7 @@ Sept décisions de l'auteur du 2026-11-21, chacune avec l'option écartée :
 | Sujet | Retenu | Écarté, et pourquoi |
 |---|---|---|
 | une feuille démarrée qui reçoit une sous-tâche (#3336) | elle garde son état, qui entre dans l'état dérivé | refuser la sous-tâche (422, comme `MILESTONE_HAS_NO_SUBTASK`) : on ne détaillerait plus une tâche démarrée, et le refus se répéterait à chaque entrée — création, déplacement, collage, import, fusion, greffe et mise à jour d'un différentiel |
-| la spécification de cette règle | un constat de spécification, porté par la 1.0.9 ; seul le lot d'US-3310 attend sa fusion | faire attendre tout l'EPIC, comme EP-30 : les bloquants du moteur n'ont rien à voir avec elle ; livrer sans attendre : la spécification précède le code |
+| la spécification de cette règle | un constat de spécification, porté par la 1.0.10 ; seul le lot d'US-3310 attend sa fusion | faire attendre tout l'EPIC, comme EP-30 : les bloquants du moteur n'ont rien à voir avec elle ; livrer sans attendre : la spécification précède le code |
 | une tâche sans heure à l'ouverture (#4413) | `createRevision` refuse, 422 `TASK_WITHOUT_WORKING_HOURS` | étendre la garde de la modification d'un calendrier à la dernière révision marquée des projets au repos : au-delà de WF-PLA-0010 (« d'une révision en cours »), et un projet au repos depuis des mois bloquerait le référentiel |
 | le niveau des heures du Gantt (FPL-04) | les barres et les liaisons placées à l'heure, à tous les niveaux | retirer le niveau des heures : la flèche en arrière de deux tâches du même jour restait aux autres niveaux |
 | l'axe zoomé (FPL-05) | corrigé sans mesure, prouvé par un compte d'éléments | mesurer d'abord : la mesure prend le poste entier, et le placement à l'heure touche déjà ce dessin ; abandonner |
@@ -361,7 +364,7 @@ autres sont des refus que les écrans montrent déjà par leur message.
    aussi ; l'abandon et le jour (US-3340), qui n'attendent pas le contrat.
 5. Le Gantt (US-3350), après le contrat, sans dépendre du back : le placement, puis l'axe et le
    clavier, puis la ligne de marque.
-6. US-3310 en dernier, quand la spécification 1.0.9 est fusionnée.
+6. US-3310 en dernier, quand la spécification 1.0.10 est fusionnée.
 
 ### Les EPIC voisins
 
@@ -510,13 +513,13 @@ indicateurs, et que la tâche ne devienne pas supprimable (#3336, bloquant B2 de
 - écart : `WF-PLA-0040-A` — « Un déplacement qui placerait un nœud sous lui-même ou sous l'un de ses subordonnés est refusé. » : constaté par EP-06 (US-1380), EP-09 (US-1590) et EP-08 (US-2580), inchangé.
 - écart : `WF-PLA-0070-A` — « La suppression d'une récapitulative supprime ses subordonnées et leurs lignes, et le devis diminue d'autant. » : constaté par EP-06 (US-1380), inchangé.
 - `WF-PLA-0070-A` — « La suppression d'une tâche démarrée est refusée, et l'utilisateur est renvoyé vers la mise à zéro de son reste à engager. » : sa forme pour une récapitulative née d'une feuille démarrée : P, feuille démarrée, reçoit une sous-tâche non démarrée ; `deleteNode(P)` est refusé (409, `task_not_started`), et ni P, ni sa sous-tâche, ni ses lignes ne sont supprimées.
-- propre à l'US, texte proposé pour `WF-PLA-0040-A` (spécification 1.0.9) : « Une feuille démarrée
+- propre à l'US, texte proposé pour `WF-PLA-0040-A` (spécification 1.0.10) : « Une feuille démarrée
   qui reçoit une sous-tâche non démarrée est une récapitulative démarrée, à sa date de démarrage ;
   privée de cette sous-tâche, elle redevient une feuille démarrée à cette date. » : par `createNode`
   sous P comme par `moveNodes` vers P (indentation), `listNodes` rend P `started`, `started_on` au
   1er mars 2026 ; P reste dans la colonne des tâches démarrées du Kanban, et `finish_overdue` est
   jugé sur elle.
-- propre à l'US, texte proposé pour `WF-PLA-0040-A` (spécification 1.0.9) : « Une feuille terminée
+- propre à l'US, texte proposé pour `WF-PLA-0040-A` (spécification 1.0.10) : « Une feuille terminée
   qui reçoit une sous-tâche non terminée est une récapitulative démarrée, à sa date de démarrage. »
   : la terminaison, périmée, est effacée comme elle l'est aujourd'hui (#2769) ; la date de démarrage
   est gardée, et P redevient terminée quand sa sous-tâche l'est et que le reste à engager de ses
@@ -533,8 +536,8 @@ indicateurs, et que la tâche ne devienne pas supprimable (#3336, bloquant B2 de
 écarté : refuser la sous-tâche par un 422 sur le modèle de `MILESTONE_HAS_NO_SUBTASK`, qui
 interdirait de détailler une tâche démarrée et se répéterait à chaque entrée, fusion d'un
 différentiel comprise. La phrase de WF-PLA-0040 « tire de ses subordonnées […] son état » est
-amendée par un constat de spécification, que la 1.0.9 porte : **le lot de cette US attend la fusion
-de la 1.0.9**, et elle seule dans l'EPIC (décision du même jour) ; les deux phrases proposées
+amendée par un constat de spécification, que la 1.0.10 porte : **le lot de cette US attend la fusion
+de la 1.0.10**, et elle seule dans l'EPIC (décision du même jour) ; les deux phrases proposées
 deviennent alors des citations. Les fonctions en cause : `state_of` et `_derived`
 (`core/planning/views.py`), `emptied` et `closed_above` (`shaping.py`), la garde de `deleteNode`.
 
