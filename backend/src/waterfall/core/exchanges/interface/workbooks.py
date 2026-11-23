@@ -58,8 +58,12 @@ The same reading counts the other vectors a workbook amplifies by (US-3190/L2b; 
 des classeurs"), each bounded by the author on the measures of ``measure/workbooks.py``: the shared
 strings — their number, the elements of one, the characters of their text —, wherever they lie, as
 openpyxl's reader of them finds them; the items of each list of ``styles.xml``, which openpyxl
-builds an object of each; the defined names of ``workbook.xml``. Past a bound, the workbook is
-refused before it is opened.
+builds an object of each; the defined names of ``workbook.xml``. openpyxl reads these two parts by
+the local names of their elements, whatever their namespace, and builds an item of a comment or an
+instruction a list holds, or of an entity a document type leaves unresolved: the lists are counted
+by their local names, where it reads them, comments and instructions included, and a part it may
+parse that declares a document type is refused. Past a bound, the workbook is refused before it is
+opened.
 
 A reader then materialises the tabs its format reads, and those alone, by the ``bounded_rows`` of
 the workbook opened: a row of more than ``MOST_COLUMNS`` columns, as openpyxl gives them — the width
@@ -153,16 +157,20 @@ _NAME_LENGTH_AT = 26
 _EXTRA_LENGTH_AT = 28
 _ENCRYPTED = 0x1
 # The row of SpreadsheetML, as openpyxl finds it wherever it lies (ECMA-376, §18.3.1.73); a shared
-# string (§18.4.8), which it finds so too; the lists whose items are bounded, by their tag: their
-# name, their bound, and whether all they hold is counted (``colors``) or their children alone.
+# string (§18.4.8), which it finds so too, by its tag, namespace included. The lists whose items are
+# bounded, by their local name, where openpyxl reads them — a child of the root of the member, in
+# any namespace or none, as ``Serialisable.from_tree`` reads ``styles.xml`` and ``workbook.xml`` —:
+# their bound, and whether all they hold is counted (``colors``) or their children alone.
 _MAIN = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 _ROW = f"{_MAIN}row"
 _STRING = f"{_MAIN}si"
 _COLORS = "colors"
 _LISTS = {
-    f"{_MAIN}{name}": (name, most, name == _COLORS)
+    name: (most, name == _COLORS)
     for name, most in {**STYLE_LISTS, "definedNames": MOST_NAMES}.items()
 }
+# The depth of a list openpyxl reads, the root of the member being at depth 1: a child of the root.
+_LISTED_AT = 2
 # How an XML document starts, past a UTF-8 byte order mark and blanks: its first tag, or the byte
 # order mark or the first tag of UTF-16 (XML 1.0, appendix F). What the head of a member that
 # libxml2 cannot start reading is judged on, as far as its first bytes go.
@@ -249,16 +257,20 @@ class _Target:
 
 
 class _Listing:
-    """A list of bounded items open: its name, its depth, its bound, what it counts, its count."""
+    """A list of bounded items open: its name, its depth, its bound, what it counts."""
 
-    __slots__ = ("count", "deep", "depth", "most", "name")
+    __slots__ = ("deep", "depth", "most", "name")
 
     def __init__(self, name: str, depth: int, most: int, *, deep: bool) -> None:
         self.name = name
         self.depth = depth
         self.most = most
         self.deep = deep
-        self.count = 0
+
+
+def _local(tag: str) -> str:
+    """Give the local name of a tag, past its namespace, as openpyxl's ``localname`` does."""
+    return tag.rpartition("}")[2]
 
 
 class _Tally(_Target):
@@ -267,8 +279,12 @@ class _Tally(_Target):
     Its rows, and the cells of each row: a row may lie in a row, as openpyxl reads it, so each row
     open keeps its depth and its cells. Its shared strings, wherever they lie, as openpyxl finds
     them; the elements of each, those of a string in it included; and the characters of their text.
-    The items of a list bounded — of ``styles.xml``, the defined names —, its children, or all it
-    holds for ``colors``; a list in a list is an item of the first, as openpyxl reads none of it.
+    The items of a list bounded — of ``styles.xml``, the defined names —, a child of the root of
+    whatever member, by its local name: its children, or all it holds for ``colors``, its comments
+    and its processing instructions among them, which openpyxl's lxml gives as children and builds
+    an item of (``NestedSequence``); a list in a list is an item of the first. The items of a list
+    met twice add up. Whether the member declares a document type, under which an entity left
+    unresolved is one more child to openpyxl and none to the reading.
     """
 
     def __init__(self, name: str) -> None:
@@ -283,6 +299,8 @@ class _Tally(_Target):
         self.string_elements = 0
         self.text = 0
         self.listing: _Listing | None = None
+        self.items: dict[str, int] = {}
+        self.typed = False
 
     def _refuse(self, what: str, most: int) -> Never:
         """Refuse the member past a bound: it holds more than ``most`` of ``what``."""
@@ -305,14 +323,18 @@ class _Tally(_Target):
             self.open_rows.append([self.depth, 0])
         if self.string_at or tag == _STRING:
             self._count_strings(tag)
+        if self.listing is not None:
+            self._count_item(self.depth - 1)
+        elif self.depth == _LISTED_AT and (bounded := _LISTS.get(_local(tag))) is not None:
+            self.listing = _Listing(_local(tag), self.depth, bounded[0], deep=bounded[1])
+
+    def _count_item(self, parent: int) -> None:
+        """Count a node of the list open whose parent lies at ``parent``, if it is an item."""
         listing = self.listing
-        if listing is None:
-            bounded = _LISTS.get(tag)
-            if bounded is not None:
-                self.listing = _Listing(bounded[0], self.depth, bounded[1], deep=bounded[2])
-        elif listing.deep or listing.depth == self.depth - 1:
-            listing.count += 1
-            if listing.count > listing.most:
+        if listing is not None and (listing.deep or listing.depth == parent):
+            count = self.items.get(listing.name, 0) + 1
+            self.items[listing.name] = count
+            if count > listing.most:
                 self._refuse(f"items in {listing.name}", listing.most)
 
     def _count_strings(self, tag: str) -> None:
@@ -335,6 +357,18 @@ class _Tally(_Target):
             self.text += len(text)
             if self.text > LONGEST_TEXT:
                 self._refuse("characters of text in shared strings", LONGEST_TEXT)
+
+    def comment(self, _text: str, /) -> None:
+        """Count a comment as an item of the list open: openpyxl builds one of it."""
+        self._count_item(self.depth)
+
+    def pi(self, _target: str, _data: str, /) -> None:
+        """Count a processing instruction as an item of the list open, as a comment."""
+        self._count_item(self.depth)
+
+    def doctype(self, _root: str | None, _public_id: str | None, _system_id: str | None, /) -> None:
+        """Keep that the member declares a document type."""
+        self.typed = True
 
     def end(self, _tag: str, /) -> None:
         """Close an element, and the row, the string or the list it is."""
@@ -494,16 +528,17 @@ def _inflated(content: bytes, member: zipfile.ZipInfo) -> Iterator[bytes | memor
         yield step
 
 
-def _judge_member(content: bytes, member: zipfile.ZipInfo) -> etree.XMLSyntaxError | None:
+def _judge_member(content: bytes, member: zipfile.ZipInfo) -> _Reading:
     """Refuse a member beyond its declared size, or whose XML holds a row past a bound.
 
-    Gives the syntax error a VML drawing was left on, if any.
+    Gives its reading: the syntax error a VML drawing was left on, if any, and whether it declares
+    a document type.
     """
     reading = _Reading(member.filename)
     for step in _inflated(content, member):
         reading.feed(bytes(step))
     reading.close()
-    return reading.left
+    return reading
 
 
 def _relations_of(part: str) -> str:
@@ -608,19 +643,28 @@ def _judge_archive(content: bytes) -> None:
     Raises ``WorkbookOutOfBoundsError`` for the bounds, ``zipfile.BadZipFile`` or ``zlib.error``
     for a file that is no zip or whose member is damaged, ``etree.XMLSyntaxError`` for a member
     whose XML is damaged, a VML drawing included when openpyxl may parse it: all of them in
-    ``DAMAGES``.
+    ``DAMAGES``. A part openpyxl may parse that declares a document type is refused by the bounds:
+    Excel writes none, and an entity it leaves unresolved, which the reading does not see, is an
+    item to openpyxl's lxml in a list of ``styles.xml``.
     """
     with zipfile.ZipFile(BytesIO(content)) as archive:
         members = archive.infolist()
     _judge_directory(members)
     left: dict[str, etree.XMLSyntaxError] = {}
+    typed: set[str] = set()
     for member in members:
-        error = _judge_member(content, member)
-        if error is not None:
-            left.setdefault(member.filename, error)
-    if left:
-        for name in left.keys() & _parsed_parts(content, members):
+        reading = _judge_member(content, member)
+        if reading.left is not None:
+            left.setdefault(member.filename, reading.left)
+        if reading.tally.typed:
+            typed.add(member.filename)
+    if left or typed:
+        parsed = _parsed_parts(content, members)
+        for name in left.keys() & parsed:
             raise left[name]
+        for name in typed & parsed:
+            msg = f"{name!r} declares a document type"
+            raise WorkbookOutOfBoundsError(msg)
 
 
 class OpenedWorkbook:
@@ -649,15 +693,15 @@ class OpenedWorkbook:
         try:
             for row in rows:
                 if len(row) > MOST_COLUMNS:
-                    msg = f"a tab of more than {MOST_COLUMNS} columns"
+                    msg = f"a row of more than {MOST_COLUMNS} cells in a tab read"
                     raise WorkbookOutOfBoundsError(msg)
                 self.rows += 1
                 self.cells += len(row)
                 if self.rows > MOST_ROWS:
-                    msg = f"tabs read of more than {MOST_ROWS} rows in all"
+                    msg = f"the tabs read hold more than {MOST_ROWS} rows in cumul"
                     raise WorkbookOutOfBoundsError(msg)
                 if self.cells > MOST_CELLS:
-                    msg = f"tabs read of more than {MOST_CELLS} cells in all"
+                    msg = f"the tabs read hold more than {MOST_CELLS} cells in cumul"
                     raise WorkbookOutOfBoundsError(msg)
                 kept.append(row)
         except TypeError as error:

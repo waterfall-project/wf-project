@@ -508,6 +508,48 @@ def styled(base: bytes, listing: str, count: int) -> bytes:
     return _rewritten(base, {STYLES: xml})
 
 
+# The forms a part may name its elements in, which openpyxl reads alike by their local names: in no
+# namespace, in another than SpreadsheetML, or each prefixed by a prefix bound to SpreadsheetML.
+SPACINGS = ("none", "other", "prefixed")
+_DEFAULT_SPACE = f'xmlns="{MAIN}"'.encode()
+_UNPREFIXED = re.compile(rb"<(/?)([A-Za-z_][\w.-]*)(?=[\s/>])")
+
+
+def edited(base: bytes, member: str, edit: Callable[[bytes], bytes]) -> bytes:
+    """Give the workbook whose ``member`` is edited by ``edit``."""
+    return _rewritten(base, {member: edit(_member(base, member))})
+
+
+def respaced(base: bytes, member: str, spacing: str) -> bytes:
+    """Give the workbook whose ``member``, of SpreadsheetML by default, names it by ``spacing``."""
+    xml = _member(base, member)
+    if xml.count(_DEFAULT_SPACE) != 1:
+        msg = f"{member!r} declares SpreadsheetML by default other than once"
+        raise ValueError(msg)
+    match spacing:
+        case "none":
+            xml = xml.replace(_DEFAULT_SPACE, b"")
+        case "other":
+            xml = xml.replace(_DEFAULT_SPACE, b'xmlns="urn:x"')
+        case _:
+            xml = _UNPREFIXED.sub(rb"<\1x:\2", xml).replace(
+                _DEFAULT_SPACE, f'xmlns:x="{MAIN}"'.encode()
+            )
+    return _rewritten(base, {member: xml})
+
+
+def with_bare_hyperlink(base: bytes, member: str) -> bytes:
+    """Give the workbook whose tab ``member`` holds, after its first row, a bare hyperlink.
+
+    openpyxl reads it as it comes among the rows, and rejects it by a ``TypeError`` (#4848): the
+    reading of the rows fails in their midst, a row following it, empty, if the tab has no other.
+    """
+    xml = _member(base, member)
+    at = xml.index(b"</row>") + len(b"</row>")
+    xml = xml[:at] + b"<hyperlinks><hyperlink/></hyperlinks><row/>" + xml[at:]
+    return _rewritten(base, {member: xml})
+
+
 def with_empty_fill(base: bytes) -> bytes:
     """Give the workbook whose fills end with ``<fill/>``, which openpyxl rejects (#4848)."""
     xml = _member(base, STYLES).replace(b"</fills>", b"<fill/></fills>", 1)

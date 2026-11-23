@@ -19,22 +19,34 @@ workbook, refused by each reader as one (#4848); a ``TypeError`` of the code tha
 not.
 """
 
+import zipfile
 from functools import cache
+from io import BytesIO
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from openpyxl.packaging.workbook import WorkbookPackage
+from openpyxl.styles.stylesheet import Stylesheet
+from openpyxl.xml.functions import fromstring
 from test_workbook_bounds import READINGS, UNREADABLE
 from workbook_bombs import (
     CALM,
     MEBIBYTE,
+    SPACINGS,
+    STYLES,
+    WORKBOOK,
+    edited,
     named,
     resident,
+    respaced,
     shared_strings,
     shared_text,
     styled,
     tab,
     tabulated,
+    with_bare_hyperlink,
     with_empty_fill,
+    with_member,
 )
 
 from waterfall.core.exchanges.interface import (
@@ -81,6 +93,16 @@ VECTORS: dict[str, tuple[Swelling, int]] = {
 }
 
 
+# What the refusal of each vector says the member holds more than of.
+REFUSED_AS: dict[str, str] = {
+    "strings": "shared strings",
+    "elements-of-a-string": "elements in a shared string",
+    "text": "characters of text in shared strings",
+    "defined-names": "items in definedNames",
+    **{f"styles-{listing}": f"items in {listing}" for listing in STYLE_LISTS},
+}
+
+
 @cache
 def _base(name: str) -> bytes:
     return READINGS[name].base()
@@ -112,7 +134,7 @@ def test_a_workbook_past_the_bound_of_a_vector_is_refused_before_the_opening_nam
     with pytest.raises(UnprocessableError) as raised:
         reading.whole(content)
     assert (raised.value.code, dict(raised.value.params)) == (UNREADABLE, reading.params)
-    assert f"holds more than {most} " in str(raised.value.__cause__)
+    assert f"holds more than {most} {REFUSED_AS[vector]}" in str(raised.value.__cause__)
 
 
 @pytest.mark.story("US-3190")
@@ -127,6 +149,111 @@ def test_each_vector_at_its_bound_is_read_and_past_it_refused_the_memory_within_
     assert [each.outcome for each in read] == ["read"] * len(VECTORS)
     assert max(each.rise for each in refused) < CALM
     assert max(each.rise for each in read) < WITHIN
+
+
+# --- The lists as openpyxl reads them: by their local names, their comments among their items ----
+
+# The member each list lies in, and the items openpyxl builds of it, as it reads the member alone.
+LISTED: dict[str, str] = {
+    "defined-names": WORKBOOK,
+    **{f"styles-{name}": STYLES for name in STYLE_LISTS},
+}
+_ITEMS: dict[str, Callable[[Any], int]] = {
+    "numFmts": lambda styles: len(styles.numFmts.numFmt),
+    "fonts": lambda styles: len(styles.fonts),
+    "fills": lambda styles: len(styles.fills),
+    "borders": lambda styles: len(styles.borders),
+    "cellStyleXfs": lambda styles: len(styles.cellStyleXfs.xf),
+    "cellXfs": lambda styles: len(styles.cellXfs.xf),
+    "cellStyles": lambda styles: len(styles.cellStyles.cellStyle),
+    "dxfs": lambda styles: len(styles.dxfs),
+    "tableStyles": lambda styles: len(styles.tableStyles.tableStyle),
+    # The ``indexedColors`` that holds the colours is counted with them.
+    "colors": lambda styles: len(styles.colors.indexedColors) + 1,
+}
+
+
+def _built(vector: str, content: bytes) -> int:
+    """Give the items openpyxl builds of the list of ``vector`` in ``content``."""
+    with zipfile.ZipFile(BytesIO(content)) as archive:
+        # The element of openpyxl's lxml, which its stubs type as the standard library's.
+        node: Any = fromstring(archive.read(LISTED[vector]))
+    if vector == "defined-names":
+        package = WorkbookPackage.from_tree(node)
+        names = None if package is None else package.definedNames
+        return 0 if names is None else len(names.definedName)
+    return _ITEMS[vector.removeprefix("styles-")](Stylesheet.from_tree(node))
+
+
+def _refused_unopened(content: bytes, monkeypatch: pytest.MonkeyPatch) -> str:
+    """Give what the estimate is refused on, before the opening."""
+    reading = READINGS["estimate"]
+    with monkeypatch.context() as patched:
+        patched.setattr(workbooks, "load_workbook", _never_opened)
+        with pytest.raises(UnprocessableError) as raised:
+            reading.whole(content)
+    assert (raised.value.code, dict(raised.value.params)) == (UNREADABLE, reading.params)
+    return str(raised.value.__cause__)
+
+
+@pytest.mark.story("US-3190")
+@pytest.mark.parametrize("spacing", SPACINGS)
+@pytest.mark.parametrize("vector", list(LISTED))
+def test_a_list_in_any_namespace_is_read_at_its_bound_and_refused_past_it_before_the_opening(
+    vector: str, spacing: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # openpyxl reads ``styles.xml`` and ``workbook.xml`` by the local names of their elements: a
+    # list in no namespace, in another, or prefixed, is built as one of SpreadsheetML is, and
+    # counted so. Past the bound, openpyxl would build each item of it.
+    most = VECTORS[vector][1]
+    at, past = (
+        respaced(_swollen("estimate", vector, count), LISTED[vector], spacing)
+        for count in (most, most + 1)
+    )
+    assert _built(vector, past) == most + 1
+    READINGS["estimate"].whole(at)
+    refused = _refused_unopened(past, monkeypatch)
+    assert f"holds more than {most} {REFUSED_AS[vector]}" in refused
+
+
+@pytest.mark.story("US-3190")
+@pytest.mark.parametrize("node", [b"<!--a font-->", b"<?a font?>"])
+def test_a_comment_or_an_instruction_in_a_list_is_counted_as_the_item_openpyxl_builds_of_it(
+    node: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # openpyxl's lxml gives a comment, and an instruction, as a child of the list, of which it
+    # builds a font: the list at its bound and one more is refused.
+    most = STYLE_LISTS["fonts"]
+    past = edited(
+        _swollen("estimate", "styles-fonts", most),
+        STYLES,
+        lambda xml: xml.replace(b"</fonts>", node + b"</fonts>"),
+    )
+    assert _built("styles-fonts", past) == most + 1
+    assert f"holds more than {most} items in fonts" in _refused_unopened(past, monkeypatch)
+
+
+@pytest.mark.story("US-3190")
+def test_a_document_type_is_refused_in_a_part_openpyxl_parses_and_left_in_another(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Under a document type it does not load, openpyxl's lxml keeps an entity it leaves unresolved
+    # as a child, of which it builds a font, where the reading sees nothing: a part openpyxl may
+    # parse that declares one is refused; Excel writes none.
+    base = _base("estimate")
+    fonts = _built("styles-fonts", base)
+    typed = edited(
+        base,
+        STYLES,
+        lambda xml: (
+            b'<!DOCTYPE styleSheet SYSTEM "s.dtd">' + xml.replace(b"</fonts>", b"&e;</fonts>")
+        ),
+    )
+    assert _built("styles-fonts", typed) == fonts + 1
+    assert "'xl/styles.xml' declares a document type" in _refused_unopened(typed, monkeypatch)
+    READINGS["estimate"].whole(
+        with_member(base, "customXml/item1.xml", b'<!DOCTYPE a SYSTEM "a.dtd"><a/>')
+    )
 
 
 # --- The cumul of the tabs read, counted as the rows come ----------------------------------------
@@ -223,6 +350,27 @@ def test_a_fill_without_a_pattern_is_refused_as_a_damaged_workbook_by_each_reade
             call(with_empty_fill(_base(name)))
         assert (raised.value.code, dict(raised.value.params)) == (UNREADABLE, reading.params)
         assert isinstance(raised.value.__cause__, WorkbookDamagedError)
+
+
+@pytest.mark.story("US-3190")
+@pytest.mark.parametrize("name", list(READINGS))
+def test_a_type_error_amid_the_rows_of_a_tab_read_is_refused_as_a_damaged_workbook_by_each_reader(
+    name: str,
+) -> None:
+    # A hyperlink without a cell among the rows of a tab read: openpyxl rejects it by a TypeError
+    # once the first row is given and before the next, in the midst of the reading (#4848).
+    reading, base = READINGS[name], _base(name)
+    member = tab(base, reading.read[0])
+    content = with_bare_hyperlink(base, member)
+    with zipfile.ZipFile(BytesIO(content)) as archive:
+        xml = archive.read(member)
+    assert xml.index(b"<hyperlinks>") < xml.rindex(b"<row")
+    for call in (reading.whole, reading.prepare):
+        with pytest.raises(UnprocessableError) as raised:
+            call(content)
+        assert (raised.value.code, dict(raised.value.params)) == (UNREADABLE, reading.params)
+        assert isinstance(raised.value.__cause__, WorkbookDamagedError)
+        assert isinstance(raised.value.__cause__.__cause__, TypeError)
 
 
 def _rejected() -> Iterator[tuple[Any, ...]]:
