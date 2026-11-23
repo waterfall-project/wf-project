@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The store of trust of the application of the realm, read back without a password (#4511).
 
-``deploy/keycloak/trust-root.sh``, which ``realm-service.sh`` and ``apply-realm.sh`` read, makes,
+``deploy/keycloak/trust-root.sh``, which ``realm-service.sh`` and ``apply-realm.sh`` run, makes,
 from the root of the platform, a store PKCS12 that Java reads without a password, by two options of
 keytool that a JDK 17 or later reads. A keytool that ignores them protects the root with the
 password drawn: the script must stop then, naming the cause, rather than let Keycloak's certificate

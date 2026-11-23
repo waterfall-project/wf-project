@@ -14,8 +14,10 @@ set -eu
 
 # Keycloak in TLS (US-2840): its certificate checked against the root of the platform,
 # WATERFALL_TLS_AUTHORITY, when it is given (trust-root.sh, beside this script).
-# shellcheck source=trust-root.sh
-. "$(dirname "$0")/trust-root.sh"
+trusted=$("$(dirname "$0")/trust-root.sh")
+if [ -n "$trusted" ]; then
+    export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-}$trusted"
+fi
 
 exec java -jar /opt/keycloak-config-cli/keycloak-config-cli.jar \
     --keycloak.availability-check.enabled=true \

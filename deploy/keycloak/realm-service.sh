@@ -56,8 +56,10 @@ drawn() {
 # Keycloak in TLS (US-2840): the Java of kcadm, and of keycloak-config-cli that the command runs,
 # checks its certificate against the root of the platform, WATERFALL_TLS_AUTHORITY (trust-root.sh,
 # beside this script).
-# shellcheck source=trust-root.sh
-. "$(dirname "$0")/trust-root.sh"
+trusted=$("$(dirname "$0")/trust-root.sh")
+if [ -n "$trusted" ]; then
+    export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-}$trusted"
+fi
 
 # Removes from master every temporary administrator, as the one signed in to kcadm, $1: the others
 # first, then itself, after which kcadm is refused.
