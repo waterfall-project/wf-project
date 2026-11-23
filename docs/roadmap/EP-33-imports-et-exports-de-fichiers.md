@@ -28,9 +28,9 @@ depuis.
 ## Ce qui en fait partie
 
 - le rapprochement des tâches à la réimportation d'un planning MS Project, et les bornes de son
-  lecteur (US-3170, US-3180) ;
-- une borne de décompression commune aux classeurs téléversés, lus hors du verrou du projet
-  (US-3190) ;
+  lecteur, constantes d'unité comprises (US-3170, US-3180) ;
+- une borne de décompression commune aux classeurs téléversés, tenue jusque dans l'analyse XML de
+  leurs membres, et leur lecture hors du verrou du projet (US-3190) ;
 - le refus d'un onglet dont une colonne lue manque (US-3200), et l'import du devis qui retire ses
   lignes en une écriture (US-3220) ;
 - l'application d'un import liée au compte rendu que l'utilisateur a confirmé, par le compteur de
@@ -133,10 +133,11 @@ Vague 1 de la ventilation du 2026-11-21. Créneaux utiles sur le poste, qui port
   exportée, une tâche insérée dans MS Project après la ligne 2, réimportée — garde à T5 sa lignée
   et ses lignes de devis, et ajoute la tâche nouvelle ;
 - un fichier MS Project de plus de 10 000 tâches, de plus de 50 niveaux, ou portant une durée ou un
-  entier hors bornes fait échouer son import sur `FILE_FORMAT_UNREADABLE`, jamais sur
-  `INTERNAL_ERROR` ;
-- un classeur de 68 515 octets dont un membre se décompresse en 64 Mio est refusé à l'ouverture
-  sans que la mémoire du service ne monte, et l'ouverture d'un import ne lit plus l'en-tête sous le
+  entier hors bornes, ou une constante d'unité nulle ou négative (#4766), fait échouer son import
+  sur `FILE_FORMAT_UNREADABLE`, jamais sur `INTERNAL_ERROR` ;
+- un classeur de 68 515 octets dont un membre se décompresse en 64 Mio en annonçant moins est
+  refusé à l'ouverture sans que la mémoire du service ne monte, de même un classeur de 13 705 octets
+  dont une ligne porte 2 000 000 de cellules vides (#4734), et l'ouverture d'un import ne lit plus l'en-tête sous le
   verrou du projet ;
 - un devis ou un reste à engager dont un onglet a perdu « ID ligne », « Débours restant » ou
   « Quantité » est refusé à l'ouverture, les colonnes nommées, et rien n'est analysé ;
@@ -158,7 +159,7 @@ Vague 1 de la ventilation du 2026-11-21. Créneaux utiles sur le poste, qui port
   `make server-models-up-to-date` passent, et `docs/api/DECISIONS.md` a ses entrées ;
 - `make check` passe sur la branche de l'EPIC, la file de fusion est verte ; `make roadmap` et
   `make requirements` passent ;
-- les quatorze constats reçus sont fermés par la fusion de leur lot.
+- les dix-neuf constats reçus sont fermés par la fusion de leur lot.
 
 ## Constats reçus
 
@@ -211,6 +212,16 @@ l'essai de l'export sur `epic/EP-08` le 2026-11-20, rangés dans une US ajoutée
   tableur → US-3640 ;
 - #4319 — back : l'export du devis porte une colonne d'heures par catégorie de main-d'œuvre, non par
   code des rôles → US-3640.
+
+Constats relevés à la livraison d'US-3190/L1 et d'US-3180, tranchés par l'auteur le 2026-11-23 :
+
+- #4734 — back : l'analyse XML d'openpyxl amplifie un classeur dans les bornes (13 Ko, 583 Mio) →
+  US-3190/L1b, une pré-lecture en flux ; une limite de mémoire du conteneur est écartée ;
+- #4736 — spec : le classeur de 64 Mio du critère d'US-3190 contre la borne de 200 Mio déclarés →
+  le critère est précisé dans le sens livré (un membre qui se décompresse au-delà de ce qu'il
+  annonce), sans borne par membre ;
+- #4766 — back : une constante d'unité nulle ou négative d'un fichier MS Project finit en
+  `INTERNAL_ERROR` → US-3180b, refusée par `FILE_FORMAT_UNREADABLE`, sans borne haute.
 
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
@@ -353,9 +364,13 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
   `platform/storage.py`, qu'EP-13 réécrit (US-2860).
 - **Les bornes des classeurs** (US-3190) : 200 Mio déclarés, la valeur que la revue propose, vingt
   fois le fichier compressé ; 200 000 lignes, dix fois les 18 000 lignes de coût de §4.6.2 ; 500
-  colonnes, pour les colonnes conservées d'une extraction. Les bornes du lecteur MS Project
-  (US-3180) hors celles de l'auteur : un entier de 18 chiffres au plus, une durée d'un million
-  d'heures au plus.
+  colonnes, pour les colonnes conservées d'une extraction. Les lignes et les cellules se comptent
+  avant l'ouverture, par une pré-lecture en flux des membres XML (US-3190/L1b, décision de l'auteur
+  du 2026-11-23, #4734) : openpyxl matérialise une ligne entière avant de la tronquer, et un
+  classeur de 13 Ko le fait monter à 583 Mio. Écartée : une limite de mémoire du conteneur. Les
+  bornes du lecteur MS Project (US-3180) hors celles de l'auteur : un entier de 18 chiffres au plus,
+  une durée d'un million d'heures au plus ; une constante d'unité (`MinutesPerDay`,
+  `MinutesPerWeek`, `DaysPerMonth`) strictement positive, sans borne haute (US-3180b, #4766).
 - **Le code d'un sous-projet à 100 caractères** (US-3270) : la reprise préfixe un code de 31
   caractères d'un code de projet de 50 et d'une barre oblique, soit 82. Écarté : 50, que la reprise
   dépasserait.
@@ -433,7 +448,8 @@ garde ses tâches manuelles à leurs dates, **afin de** savoir quoi corriger plu
   l'analyse sur `FILE_FORMAT_UNREADABLE`, `expected_format` à `ms_project_schedule`, sans que le
   moteur ne soit rejoué. De même une durée que le lecteur ne peut pas porter (`PT999…H`) et un
   entier au-delà de la borne de chiffres du lecteur, dont un `UID` que `external_id` ne garderait
-  pas. Aucun de ces fichiers ne finit en `INTERNAL_ERROR`, et aucun n'échoue après un compte rendu
+  pas, et une constante d'unité — `MinutesPerDay`, `MinutesPerWeek`, `DaysPerMonth` — nulle ou
+  négative (US-3180b, #4766). Aucun de ces fichiers ne finit en `INTERNAL_ERROR`, et aucun n'échoue après un compte rendu
   accepté.
 - `WF-INTF-0040-A` — « Après import, les tâches et leurs liaisons de prédécesseur — type FD, DD, FF ou DF, et décalage — sont identiques à celles du fichier source ; une tâche en mode manuel du fichier est en mode manuel aux mêmes dates ; une tâche portant une contrainte « Pas avant le » est en mode manuel et signalée ; une tâche à 50 % d'avancement est importée non démarrée ; aucune ressource et aucun calendrier présents dans le fichier n'a été créé dans Waterfall, et l'utilisateur est informé que ces éléments ont été ignorés. » : sa
   forme pour un fichier sans calendrier nommé : un fichier qui ne nomme pas le calendrier de son
@@ -474,7 +490,7 @@ mémoire du service ni bloquer les saisies de tous (#4419).
   tailles décompressées que ses membres déclarent, ou le nombre de ses membres, passe la borne de
   la conception est refusé par `openImport`, 422 `FILE_FORMAT_UNREADABLE`, le format attendu nommé,
   sans avoir été ouvert par le lecteur de classeurs : éprouvé sur un classeur de 68 515 octets dont
-  un membre se décompresse en 64 Mio, et sur une archive dont un membre annonce 1 Gio, la mémoire du
+  un membre se décompresse en 64 Mio en annonçant moins (#4736), et sur une archive dont un membre annonce 1 Gio, la mémoire du
   processus ne montant pas. Les refus de version et de colonne exigée sont constatés par EP-07 et
   EP-09, inchangés.
 - `WF-INTF-0070-A` — « Le projet est inchangé. » : et rien n'est mis en file : aucun import n'est
@@ -488,13 +504,16 @@ mémoire du service ni bloquer les saisies de tous (#4419).
   (`test_imports_application.py`), pour l'ouverture.
 - propre à l'US : à l'analyse et à l'application, un lecteur ne matérialise que les onglets que son
   format lit, et un onglet dont les lignes ou les colonnes passent la borne de la conception fait
-  échouer l'import sur `FILE_FORMAT_UNREADABLE`.
+  échouer l'import sur `FILE_FORMAT_UNREADABLE` ; lignes et cellules, vides comprises, se comptent
+  avant l'ouverture, et un classeur de 13 705 octets dont une ligne porte 2 000 000 de cellules
+  vides est refusé sans que la mémoire du processus ne monte (US-3190/L1b, #4734).
 
 **Notes de réalisation.** Un seul ouvreur commun aux classeurs, dans l'interface des échanges, à
 côté de l'analyseur XML durci : les trois sites d'ouverture (`estimate/excel/reader.py`,
 `estimate/remaining/excel/reader.py`, `costs/extraction.py`) passent par lui. Les valeurs des bornes
-sont de la conception. `zipfile` ne lit jamais plus que la taille déclarée d'un membre : la borne se
-juge sur `infolist()`, sans rien décompresser.
+sont de la conception. La borne se juge sur `infolist()`, et chaque membre est vérifié, par pas
+bornés, ne pas se décompresser au-delà de ce qu'il déclare : `ZipFile.read` décompresse un membre
+en entier avant de le couper (L1). La pré-lecture en flux des membres XML est d'US-3190/L1b (#4734).
 
 **Hors périmètre.** La limite de mémoire du service dans le chart (EP-13, EP-39) ; la colonne
 absente d'un onglet (US-3200).
