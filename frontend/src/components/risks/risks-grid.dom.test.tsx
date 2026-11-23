@@ -203,7 +203,7 @@ describe("the grid of the risks", () => {
     expect([...refusal.querySelectorAll("p")].map((p) => p.textContent)).toEqual([
       "Valeur calculée",
       `Gravité ne se saisit pas${NBSP}: Waterfall calcule cette valeur.`,
-      "La gravité d’un risque est le total de son devis propre.",
+      "La gravité d’un risque est l’écart de son devis propre et de sa base.",
     ]);
     expect(screen.queryByRole("textbox")).toBeNull();
     await userEvent.keyboard("{Escape}");

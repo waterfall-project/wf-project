@@ -3979,7 +3979,7 @@
       "reference_revision": "The budgeted amount is the one the reference revision set.",
       "remaining_reviews": "The re-estimated amount follows the reviews of the remaining to commit.",
       "inflation": "The re-estimated amount, inflation included, is the line’s amount projected on its year of consumption at the inflation rate of the revision.",
-      "own_estimate": "The severity of a risk is the total of its own estimate.",
+      "own_estimate": "The severity of a risk is the difference between its own estimate and its base.",
       "severity_and_probability": "The provision of a risk is its severity weighted by its probability.",
       "reference_provision": "The provision of a risk that occurred or was dismissed is the one it bore in the reference revision.",
       "occurrence_estimate": "The cost at occurrence of a risk is the total of its own estimate when it was declared occurred."
@@ -4027,7 +4027,8 @@
       },
       "steps": {
         "cause": {
-          "amendment": "Amendment"
+          "amendment": "Amendment",
+          "risk_occurrence": "Risk occurrence"
         }
       }
     },
@@ -4039,6 +4040,12 @@
           "project_manager_projection": "Project manager’s projection"
         }
       }
+    },
+    "RiskTrend": {
+      "up": "Rising",
+      "down": "Falling",
+      "stable": "Stable",
+      "new": "New"
     },
     "RiskState": {
       "identified": "Identified",
