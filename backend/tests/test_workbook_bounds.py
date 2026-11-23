@@ -25,6 +25,7 @@ import pytest
 from actual_costs_import_support import extraction, line
 from estimate_import_support import workbook as estimate_workbook
 from lxml import etree
+from openpyxl import load_workbook
 from remaining_import_support import workbook as remaining_workbook
 from workbook_bombs import (
     CALM,
@@ -41,9 +42,11 @@ from workbook_bombs import (
     in_zip64,
     lying,
     measured,
+    relocated,
     swollen,
     tab,
     with_member,
+    with_relations,
 )
 
 from waterfall.core.costs import extraction as costs_reader
@@ -438,6 +441,34 @@ def test_a_vml_drawing_not_well_formed_is_no_refusal_but_is_still_counted() -> N
     assert _refused(read, with_member(base, "xl/drawings/vmlDrawing2.vml", cells))
 
 
+VML = "xl/drawings/vmlDrawing1.vml"
+
+
+@pytest.mark.story("US-3190")
+def test_a_vml_drawing_not_well_formed_is_read_where_excel_names_it_and_refused_elsewhere(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Excel names a VML drawing in the relations of a worksheet, which openpyxl parses read-only
+    # without following them; the relations of the workbook it follows, whatever their type, and
+    # from a chartsheet every relation of the drawings and charts it reaches.
+    base, read = _base("estimate"), estimate_reader.read_workbook
+    sheet = tab(base, "1 Études")
+    worksheet = {sheet: "vmlDrawing ../drawings/vmlDrawing1.vml"}
+    assert read(with_relations(base, {VML: EXCEL_VML}, worksheet)).lines == ()
+    monkeypatch.setattr(workbooks, "load_workbook", _never_opened)
+    for relation in ("vmlDrawing drawings/vmlDrawing1.vml", f"worksheet {VML} External"):
+        workbook = {"xl/workbook.xml": relation}
+        assert _refused(read, with_relations(base, {VML: EXCEL_VML}, workbook))
+    chart = "xl/chartsheets/sheet1.xml"
+    charted = with_relations(
+        base,
+        {chart: b"<chartsheet/>", "xl/drawings/drawing1.xml": b"<wsDr/>", VML: EXCEL_VML},
+        {"xl/workbook.xml": f"chartsheet /{chart}", chart: "drawing ../drawings/drawing1.xml"},
+    )
+    charted = with_relations(charted, {}, {"xl/drawings/drawing1.xml": "chart vmlDrawing1.vml"})
+    assert _refused(read, charted)
+
+
 @pytest.mark.story("US-3190")
 def test_the_two_hardened_parsers_take_the_same_options(monkeypatch: pytest.MonkeyPatch) -> None:
     taken: list[dict[str, Any]] = []
@@ -463,4 +494,37 @@ def test_a_tab_the_hardened_parser_refuses_is_refused_though_openpyxl_reads_it()
     # openpyxl's parser reads past a value of 11 MB in an attribute, which the hardened parser
     # refuses: the reading ahead cannot leave the tab there, and let what follows pass unread.
     content = _with_row("estimate", 1, b'<c a="' + b"a" * 11_000_000 + b'"/>')
+    assert _refused(estimate_reader.read_workbook, content) == READINGS["estimate"].params
+
+
+# A row openpyxl reads past and the hardened parser refuses, then blanks past a step of the
+# reading ahead, then a row past its cells.
+PAST_THE_ERROR = (
+    b'<row><c a="' + b"a" * 11_000_000 + b'"/></row>',
+    *(b" " * MEBIBYTE for _ in range(3)),
+    b"<row>" + b"<c/>" * 600 + b"</row>",
+)
+
+
+@pytest.mark.story("US-3190")
+@pytest.mark.usefixtures("unopened")
+@pytest.mark.parametrize(
+    ("member", "target"),
+    [
+        ("xl/worksheets/sheet3.vml", "/xl/worksheets/sheet3.vml"),
+        ("xl/worksheets/sheet3.vml", "./worksheets/../worksheets/sheet3.vml"),
+        ("xl/worksheets/sheet3.VML", "../xl/worksheets/sheet3.VML"),
+        ("xl/worksheets\\sheet3.vml", "worksheets\\sheet3.vml"),
+    ],
+)
+def test_a_tab_named_as_a_vml_drawing_is_refused_past_an_error_of_its_syntax(
+    member: str, target: str
+) -> None:
+    # openpyxl reads a tab wherever the relations of the workbook put it, whatever its name, and
+    # finds it as zipfile names it, the target joined to its folder and normalised: a syntax error
+    # leaves no tab unread, VML or not, and the row of 600 cells it reads after is refused.
+    base = _base("estimate")
+    content = relocated(base, tab(base, "1 Études"), member, target, PAST_THE_ERROR)
+    sheet = load_workbook(BytesIO(content), read_only=True)["1 Études"]
+    assert max(len(row) for row in sheet.iter_rows(values_only=True)) == 600
     assert _refused(estimate_reader.read_workbook, content) == READINGS["estimate"].params

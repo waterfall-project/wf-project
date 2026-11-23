@@ -26,8 +26,15 @@ which the opener would have to resolve as openpyxl does, and its opening parses 
 or not, up to its ``<dimension>`` or to its end when it has none. A member libxml2 cannot start
 reading is read no further when it does not start as XML does (an image, a binary); one that
 starts as XML and is not well formed, or that the hardened parser refuses (a value of more than
-10 MB in an attribute, which openpyxl's parser reads past), is refused. Only then is the workbook
-opened, read-only and by values.
+10 MB in an attribute, which openpyxl's parser reads past), is refused — but a VML drawing, which
+Excel writes not well formed and openpyxl does not parse where Excel names it, in the relations of a
+worksheet. Its error is kept, not judged on its name: openpyxl reads a tab wherever the relations of
+the workbook put it, ``sheet3.vml`` as ``sheet3.xml``. Once every member is read, the parts openpyxl
+may parse are found as it finds them — the content types, the relations of the workbook and those
+of each part they name, every relation reached from a chartsheet, their targets resolved as
+``get_dependents`` does and compared as zipfile names its members —, the parts naming others read
+by the hardened parser without a tree, keeping only names of members; a VML drawing among them is
+refused on its error. Only then is the workbook opened, read-only and by values.
 
 An archive in ZIP64 — the sizes and the offsets of its members in their extra field, the end of its
 directory in a record of 64 bits — is judged as any other, and none is refused for it: zipfile reads
@@ -54,6 +61,7 @@ Every refusal raises ``WorkbookOutOfBoundsError``, which ``DAMAGES`` lists: each
 into the refusal of its format, ``FILE_FORMAT_UNREADABLE``, as it does a damaged file.
 """
 
+import posixpath
 import zipfile
 import zlib
 from contextlib import contextmanager
@@ -62,11 +70,24 @@ from typing import TYPE_CHECKING, Any
 
 from lxml import etree
 from openpyxl import load_workbook
+from openpyxl.xml.constants import (
+    ARC_CONTENT_TYPES,
+    ARC_CORE,
+    ARC_CUSTOM,
+    ARC_STYLE,
+    ARC_THEME,
+    ARC_WORKBOOK,
+    SHARED_STRINGS,
+    XLSM,
+    XLSX,
+    XLTM,
+    XLTX,
+)
 
 from waterfall.core.exchanges.interface.xml import hardened_target_parser
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterable, Iterator
+    from collections.abc import Callable, Container, Generator, Iterable, Iterator
 
     from lxml.etree._parser import CustomTargetParser
     from openpyxl.workbook.workbook import Workbook
@@ -99,18 +120,62 @@ _BLANKS = b" \t\r\n"
 _XML_STARTS = (b"<", b"\xff\xfe", b"\xfe\xff", b"\x00<")
 _HEAD = 4096
 _VML = ".vml"
+# What openpyxl's opening finds a part by (``openpyxl.reader.excel``): the content types, the fixed
+# names it reads, the content types it looks the workbook and its shared strings up by, and the
+# word that makes a relation of the workbook a chartsheet, whose drawings and charts it reads.
+_CONTENT_TYPES = ARC_CONTENT_TYPES
+_WORKBOOK = ARC_WORKBOOK
+_FIXED = frozenset({ARC_CONTENT_TYPES, ARC_CORE, ARC_CUSTOM, ARC_STYLE, ARC_THEME, ARC_WORKBOOK})
+_WORKBOOKS = frozenset({XLSX, XLSM, XLTX, XLTM})
+_LOOKED_UP = _WORKBOOKS | {SHARED_STRINGS}
+_CHARTSHEET = "chartsheet"
+
+type _Named = Callable[[dict[str, str]], tuple[str, bool] | None]
 
 
 class WorkbookOutOfBoundsError(ValueError):
     """A workbook, or a tab of it, beyond a bound: refused as a damaged workbook is."""
 
 
-class _Tally:
+class _Target:
+    """A target of the hardened parser that keeps nothing.
+
+    It answers every call of lxml's ``ParserTarget``, and keeps no element, no text, no comment, no
+    instruction.
+    """
+
+    def start(self, _tag: str, _attributes: dict[str, str], /) -> None:
+        """Leave an element."""
+
+    def end(self, _tag: str, /) -> None:
+        """Leave the end of an element."""
+
+    def close(self) -> None:
+        """End the reading: nothing to give."""
+
+    def data(self, _text: str, /) -> None:
+        """Leave a text: no cell of openpyxl's lies in one."""
+
+    def comment(self, _text: str, /) -> None:
+        """Leave a comment: openpyxl's parser of a tab reads none."""
+
+    def pi(self, _target: str, _data: str, /) -> None:
+        """Leave a processing instruction: openpyxl's parser of a tab reads none."""
+
+    def start_ns(self, _prefix: str, _uri: str, /) -> None:
+        """Leave the declaration of a namespace: the tags come already qualified."""
+
+    def end_ns(self, _prefix: str, /) -> None:
+        """Leave the end of a namespace."""
+
+    def doctype(self, _root: str | None, _public_id: str | None, _system_id: str | None, /) -> None:
+        """Leave a document type: the hardened parser loads none."""
+
+
+class _Tally(_Target):
     """The target of the reading of a member: counts its rows, and the cells of each row.
 
-    A row may lie in a row, as openpyxl reads it: each row open keeps its depth and its cells. The
-    target answers every call of a parser target (lxml's ``ParserTarget``); it keeps no text, no
-    comment, no instruction.
+    A row may lie in a row, as openpyxl reads it: each row open keeps its depth and its cells.
     """
 
     def __init__(self, name: str) -> None:
@@ -142,42 +207,45 @@ class _Tally:
             self.open_rows.pop()
         self.depth -= 1
 
-    def close(self) -> None:
-        """End the reading: nothing to give, the counts having refused as they came."""
 
-    def data(self, _text: str, /) -> None:
-        """Leave a text: no cell of openpyxl's lies in one."""
+class _Naming(_Target):
+    """The target of the reading of a part that names others: keeps the members it names.
 
-    def comment(self, _text: str, /) -> None:
-        """Leave a comment: openpyxl's parser of a tab reads none."""
+    ``named`` gives, from the attributes of an element, the member it names, as openpyxl finds it,
+    and whether openpyxl reads the parts the relations of that member name; ``None`` for an element
+    that names none. A name no member bears is not kept: what is kept is at most the archive.
+    """
 
-    def pi(self, _target: str, _data: str, /) -> None:
-        """Leave a processing instruction: openpyxl's parser of a tab reads none."""
+    def __init__(self, named: _Named, members: Container[str]) -> None:
+        self.named = named
+        self.members = members
+        self.parts: set[str] = set()
+        self.followed: set[str] = set()
 
-    def start_ns(self, _prefix: str, _uri: str, /) -> None:
-        """Leave the declaration of a namespace: the tags come already qualified."""
-
-    def end_ns(self, _prefix: str, /) -> None:
-        """Leave the end of a namespace."""
-
-    def doctype(self, _root: str | None, _public_id: str | None, _system_id: str | None, /) -> None:
-        """Leave a document type: the hardened parser loads none."""
+    def start(self, _tag: str, attributes: dict[str, str], /) -> None:
+        """Keep the member an element names, if any, and whether its relations are followed."""
+        found = self.named(attributes)
+        if found is not None and found[0] in self.members:
+            self.parts.add(found[0])
+            if found[1]:
+                self.followed.add(found[0])
 
 
 class _Reading:
     """The reading of a member, fed step by step, without a tree.
 
-    A syntax error is no refusal in a VML drawing, which openpyxl does not parse; its rows and
-    cells, if it has any, are counted until the error. The head is kept until the parser has started
-    the document: a member libxml2 cannot start is read no further when its head does not start as
-    XML does, and refused when it does.
+    A syntax error in a VML drawing is left aside, its rows and cells, if it has any, counted until
+    the error: the judgment of the archive refuses it only if openpyxl parses the member. The head
+    is kept until the parser has started the document: a member libxml2 cannot start is read no
+    further when its head does not start as XML does, and refused when it does.
     """
 
     def __init__(self, name: str) -> None:
         self.tally = _Tally(name)
-        # openpyxl opens a workbook read-only without ever parsing a VML drawing, and Excel writes
-        # legacy ones that are not well-formed XML (a ``<br>`` unclosed): its syntax is no refusal.
-        self.is_parsed = not name.lower().endswith(_VML)
+        # Excel writes legacy VML drawings that are not well-formed XML (a ``<br>`` unclosed), which
+        # openpyxl opens a workbook read-only without parsing: their syntax is judged by the parts.
+        self.tolerant = name.lower().endswith(_VML)
+        self.left: etree.XMLSyntaxError | None = None
         self.parser: CustomTargetParser[None] | None = hardened_target_parser(self.tally)
         self.head = b""
 
@@ -205,8 +273,10 @@ class _Reading:
         """Leave a member that is no XML; refuse one begun, or that starts as XML does.
 
         A head of blanks alone, as long as the head kept, is refused too: what follows is unseen.
+        A VML drawing is left, its error kept for the judgment of the parts.
         """
-        if not self.is_parsed:
+        if self.tolerant:
+            self.left = error
             self.parser = None
             return
         head = self.head.removeprefix(_UTF8_MARK).lstrip(_BLANKS)
@@ -284,12 +354,93 @@ def _inflated(content: bytes, member: zipfile.ZipInfo) -> Iterator[bytes | memor
         yield step
 
 
-def _judge_member(content: bytes, member: zipfile.ZipInfo) -> None:
-    """Refuse a member beyond its declared size, or whose XML holds a row past a bound."""
+def _judge_member(content: bytes, member: zipfile.ZipInfo) -> etree.XMLSyntaxError | None:
+    """Refuse a member beyond its declared size, or whose XML holds a row past a bound.
+
+    Gives the syntax error a VML drawing was left on, if any.
+    """
     reading = _Reading(member.filename)
     for step in _inflated(content, member):
         reading.feed(bytes(step))
     reading.close()
+    return reading.left
+
+
+def _relations_of(part: str) -> str:
+    """Give the relations of a part, as openpyxl names them (``get_rels_path``)."""
+    folder, name = posixpath.split(part)
+    return posixpath.join(folder, "_rels", f"{name}.rels")
+
+
+def _content_type(attributes: dict[str, str]) -> tuple[str, bool] | None:
+    """Give the part an override of the content types names, if openpyxl looks it up by its type.
+
+    openpyxl takes its name past its first character, and follows the relations of a workbook.
+    """
+    kind, part = attributes.get("ContentType"), attributes.get("PartName")
+    if kind not in _LOOKED_UP or part is None:
+        return None
+    return part[1:], kind in _WORKBOOKS
+
+
+def _relation(relations: str, *, followed: bool) -> _Named:
+    """Give how an element of ``relations`` names a member, as openpyxl's ``get_dependents`` does.
+
+    A target is taken as it is when external, past its slash when absolute, and joined to the folder
+    of the part otherwise, then normalised. A chartsheet's relations are followed, and all those of
+    a part reached from it when ``followed``.
+    """
+    folder = posixpath.dirname(posixpath.dirname(relations))
+
+    def named(attributes: dict[str, str]) -> tuple[str, bool] | None:
+        target = attributes.get("Target")
+        if target is None:
+            return None
+        external = attributes.get("TargetMode") == "External"
+        if not external and target.startswith("/"):
+            target = target[1:]
+        elif not external:
+            target = posixpath.normpath(posixpath.join(folder, target))
+        return target, followed or _CHARTSHEET in attributes.get("Type", "")
+
+    return named
+
+
+def _parsed_parts(content: bytes, members: list[zipfile.ZipInfo]) -> set[str]:
+    """Give the members openpyxl's opening, read-only, may parse: a superset of those it parses.
+
+    openpyxl finds them by fixed names, by the content types (the workbook and its shared strings),
+    by the relations of the workbook (its tabs, read as tabs whatever their name, the relations of
+    each, the other parts it names) and, from a chartsheet, by every relation of what it reaches;
+    the relations of a worksheet, where Excel names its VML drawings, it parses but does not follow.
+    Each part that names others is read by the hardened parser, without a tree, at most twice.
+    """
+    by_name = {member.filename: member for member in members}
+
+    def named_by(part: str, named: _Named) -> _Naming:
+        naming = _Naming(named, by_name)
+        member = by_name.get(part)
+        if member is not None:
+            parser = hardened_target_parser(naming)
+            for step in _inflated(content, member):
+                parser.feed(bytes(step))
+            parser.close()
+        return naming
+
+    found = named_by(_CONTENT_TYPES, _content_type)
+    parsed = {*_FIXED, *found.parts}
+    pending = [(part, False) for part in {*found.followed, _WORKBOOK}]
+    seen: set[tuple[str, bool]] = set()
+    while pending:
+        part, followed = pending.pop()
+        relations = _relations_of(part)
+        if (relations, followed) in seen:
+            continue
+        seen.add((relations, followed))
+        found = named_by(relations, _relation(relations, followed=followed))
+        parsed |= {relations, *found.parts, *map(_relations_of, found.parts)}
+        pending.extend((part, True) for part in found.followed)
+    return parsed
 
 
 def _judge_archive(content: bytes) -> None:
@@ -297,13 +448,20 @@ def _judge_archive(content: bytes) -> None:
 
     Raises ``WorkbookOutOfBoundsError`` for the bounds, ``zipfile.BadZipFile`` or ``zlib.error``
     for a file that is no zip or whose member is damaged, ``etree.XMLSyntaxError`` for a member
-    whose XML is damaged: all of them in ``DAMAGES``.
+    whose XML is damaged, a VML drawing included when openpyxl may parse it: all of them in
+    ``DAMAGES``.
     """
     with zipfile.ZipFile(BytesIO(content)) as archive:
         members = archive.infolist()
     _judge_directory(members)
+    left: dict[str, etree.XMLSyntaxError] = {}
     for member in members:
-        _judge_member(content, member)
+        error = _judge_member(content, member)
+        if error is not None:
+            left.setdefault(member.filename, error)
+    if left:
+        for name in left.keys() & _parsed_parts(content, members):
+            raise left[name]
 
 
 @contextmanager
