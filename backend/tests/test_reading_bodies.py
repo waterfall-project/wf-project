@@ -40,6 +40,16 @@ lines — ``is_computed``, ``computed_fields``, ``editable_fields``, ``remaining
 ``payment_delay_days`` null, the budgeted amount of 250 000, 60 and 600 000 —, by the budgeted
 amount of the tasks above them, and by the budgeted totals, deltas and bases that sum them; the
 bodies filtered by a task, which hold none, keep theirs.
+
+US-3070/L3 merges the own estimate of 752 at its occurrence, where EP-08 grafted it, and has each
+own estimate born whole with its base (EP-30): the SHA-256 of every body but that of the marked
+revision are taken again after it, the declared deviation of the lot that US-3150/L1 (#4614) takes
+again under the identifiers of the witness. Read before and after, field by field, the bodies of
+the 102 differ only by the five nodes of the occurrence of 752 — at the first level, under drawn
+identifiers, where the graft put them under « Poste de commande » —, by the row numbers below their
+former place, by the amounts of « Poste de commande », 200 less, and, read by level, by the totals
+that count them; the comparisons of the marked revisions only by the identifiers of two nodes the
+101 creates, and of the four links to them, drawn after the copies of the own estimates.
 """
 
 import hashlib
@@ -107,10 +117,10 @@ TASKS = {
 }
 TASKS_DIGESTS = {
     "kinds=task, filtered by a task": (
-        "c9442c6ca05a9e9c98b7244d3029c4b4a4042de7478d7726c397fdd668e95b53"
+        "b1f00529fd4822e6196120e0c00e9fb49db8db2f5d60a0a4f0980c07300f79dd"
     ),
     "kinds=task, by level, sorted by a line": (
-        "90fc0d8dbdc66ddc3c5167f5a3a6bdd63203195cbb60e0b751be8f1c167020fb"
+        "478e58e65ae15f5b3e0ce33ba2a9a1ea2c44266fa23c2002e2817a2e43beb29d"
     ),
     "kinds=task of a marked revision": (
         "a5a54050ee30477cac09b5d00462809b2c5c5bd09ed185d57a834816f83eab26"
@@ -127,14 +137,14 @@ COMPARISONS = {
 # after US-1680 but the fields of the estimate grid, which ask no physical progress, and after
 # US-3060/L6 but those filtered by a task (#4274).
 DIGESTS = {
-    "whole": "ab0364282ea8a6e8f37588f988b13a231e59970e18783e98c6a47353c53d2e19",
-    "kinds=task": "d9dcefc43e9076da91accb04a790b34814447107cc12c739819bb5c96faf4c8e",
-    "fields": "63eedbe65f6a5d6ae0a7e0d130844d9fc791500e399b2bcbd8edc002a0ddd017",
-    "filtered by a task": "70811c278a893bf6ef55cb727d85fff3e767d00b49d91053099aa282eca74a99",
+    "whole": "81294af0eb01e461f6a9a8c0b560190a8bee7012384457e3b171bf3447509530",
+    "kinds=task": "77c402b60f4702414b1a2138b2d19409dd6ad346cf6f12a40511a403ec6f7910",
+    "fields": "baf2a84b8eb5af16e74f69477f6b3aafcb8799b5a3f22b4b59661743e921795f",
+    "filtered by a task": "35521c64c87f05daf993de56e94966d89c326f1436515de1cc45fc8954904908",
     "filtered by a line, sorted": (
-        "8d1e236bb53024c1e416646256f07201aa05cab4d23acc1cbc3315a598293d9f"
+        "33e3978e4a9e3e32fe631c02c06e1dd6fcdf5751089db80da617c33f45ae4487"
     ),
-    "whole comparison": "3699796e0c85c057ed56cf42bd580c2460b7e9cbd57522960ee19e6bac67a46a",
+    "whole comparison": "2132ac3a3863f7a0b47511bf3575103963547517ed05cfb9706cdc315602b1d7",
     "comparison filtered and sorted": (
         "908485770a32aeba12ade836c31fd12d034ff77e4446d27b7297a3e8f40b0c03"
     ),
@@ -152,7 +162,7 @@ DIGESTS = {
 # by field against epic/EP-08: 12 997 identifiers, all shifted by 4).
 COMPARED_DIGESTS = {
     "comparison filtered and sorted": (
-        "709e123f35d91b44a3c2faf867d479fc6d825de902a2284339f9355fe29ead34"
+        "2a305cc7976f497e883e6523ef2a369e014f4b8de6c66d65f4a6a7f9b995a779"
     ),
 }
 

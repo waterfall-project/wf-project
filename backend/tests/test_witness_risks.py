@@ -171,7 +171,7 @@ def test_the_occurrence_merges_the_own_estimate_of_752_into_the_main_structure_o
     # lineages it holds there and identifiers drawn, which the loader of US-3150/L1 (#4614) imposes
     # again — the declared deviation of the examples until then.
     described = {
-        (each["task"] or each["estimate_line"])["label"]
+        (each.get("task") or each["estimate_line"])["label"]
         for each in example("nodes_risk_occurred")["items"]
     }
     with witness.transaction() as session:
@@ -323,6 +323,22 @@ def served_risk(risk: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in risk.items() if key not in apart}
 
 
+# The risks whose counter the loader advances beyond the examples: it carries the main structure
+# into their own estimates by copying it again, then adds what they designate (``enter_estimate``),
+# two writes where the update of US-3090 makes one — at the opening of the 102 for 751, before its
+# occurrence for 752. The declared deviation of US-3070/L3, which US-3150/L1 (#4614) lifts by the
+# update; their severities and their provisions are the examples'.
+COUNTED_APART = {str(REWORK), str(DELAY)}
+
+
+def uncounted(risk: dict[str, Any]) -> dict[str, Any]:
+    """Give ``served_risk``, the counter of a risk of ``COUNTED_APART`` set apart."""
+    served = served_risk(risk)
+    if risk["risk_id"] in COUNTED_APART:
+        del served["lock_version"]
+    return served
+
+
 @pytest.mark.story("US-2650")
 def test_the_register_the_risk_and_the_matrix_read_are_the_examples(
     api: ContractClient, witness: Database, realm: TestRealm
@@ -330,12 +346,19 @@ def test_the_register_the_risk_and_the_matrix_read_are_the_examples(
     read = managing(api, witness, realm)
     register, expected = read(f"{BASE}/risks"), example("risks")
     assert without(register, {"items"}) == without(expected, {"items"})
-    assert [served_risk(each) for each in register["items"]] == [
-        served_risk(each) for each in expected["items"]
+    assert [uncounted(each) for each in register["items"]] == [
+        uncounted(each) for each in expected["items"]
     ]
-    assert served_risk(read(f"{BASE}/risks/{REWORK}")) == served_risk(example("risk"))
+    counters = zip(register["items"], expected["items"], strict=True)
+    moved = {
+        ours["risk_id"]
+        for ours, theirs in counters
+        if ours["lock_version"] != theirs["lock_version"]
+    }
+    assert moved == COUNTED_APART
+    assert uncounted(read(f"{BASE}/risks/{REWORK}")) == uncounted(example("risk"))
     occurred = read(f"{BASE}/risks/{DELAY}")
-    assert served_risk(occurred) == served_risk(example("risk_occurred_detail"))
+    assert uncounted(occurred) == uncounted(example("risk_occurred_detail"))
     assert read(f"{BASE}/risks/matrix") == example("risk_matrix")
     # The exemption of `trend` ends with US-3160/L1 (#4598): remove it from RISK_APART then.
     assert not any("trend" in each for each in (*register["items"], occurred))
@@ -369,6 +392,22 @@ def served(structure: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in structure.items() if key not in apart}
 
 
+# The structures whose counter the loading advances beyond the examples. The severity is recorded at
+# each write of an own estimate (EP-30): the loader fills them in steps — the copy of the main
+# structure, then the tasks, then the lines they designate, the copy made again before the 102 and
+# before the occurrence of 752 (``COUNTED_APART``) —, and the provision line, which reaches the
+# amount of the examples at the end, moves at each step, advancing the main structure that bears it,
+# in the 101 as in the 102, where the merge of the occurrence of 752 writes it otherwise than the
+# graft of EP-08; the own estimates of 751 in the 101 and of 752 in the 102 count the writes of
+# their steps. The declared deviation of US-3070/L3, which US-3150/L1 (#4614) lifts by the update.
+STRUCTURES_COUNTED_APART = {
+    str(MAIN_101),
+    str(MAIN_102),
+    str(OWN_101[REWORK]),
+    str(OWN_102[DELAY]),
+}
+
+
 @pytest.mark.story("US-2650")
 def test_the_structures_of_the_101_and_of_the_102_read_are_the_examples(
     api: ContractClient, witness: Database, realm: TestRealm
@@ -382,7 +421,10 @@ def test_the_structures_of_the_101_and_of_the_102_read_are_the_examples(
         expected = keyed(example(name), "structure_id")
         assert body.keys() == expected.keys()
         for identifier, item in body.items():
-            assert served(item) == served(expected[identifier]), identifier
+            ours, theirs = served(item), served(expected[identifier])
+            if identifier in STRUCTURES_COUNTED_APART:
+                assert ours.pop("lock_version") != theirs.pop("lock_version"), identifier
+            assert ours == theirs, identifier
 
 
 @pytest.mark.story("US-2650")
@@ -390,17 +432,49 @@ def test_the_reports_of_the_merge_and_of_the_occurrence_read_are_the_examples(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
     # The merge of the amendment 2 and the occurrence of 751, as the reader who would confirm them
-    # reads them today: the differences in the order of the service, the tasks the graft redates
-    # (#4134), the start of the own estimate (#4133), the counters, nothing set apart.
+    # reads them today: the differences in the order of the service, the counters.
     read = managing(api, witness, realm)
     merge = read(f"{BASE}/revisions/{REVISION_102}/structures/{AMENDMENT_2}/merge")
-    assert merge == example("structure_merge_report")
+    expected = example("structure_merge_report")
+    # The nodes the occurrence of 752 adds, which the amendment 2 holds under the lineages the
+    # examples give them and the main structure under those of the own estimate, and the counter of
+    # the main structure (``STRUCTURES_COUNTED_APART``): the declared deviation of US-3070/L3, which
+    # US-3150/L1 (#4614) lifts.
+    occurred = {
+        (each.get("task") or each["estimate_line"])["label"]
+        for each in example("nodes_risk_occurred")["items"]
+    }
+    kept = [each for each in merge["differences"] if each["label"] not in occurred]
+    assert {each["label"] for each in merge["differences"]} - {e["label"] for e in kept} == occurred
+    apart = {"differences", "main_structure_lock_version"}
+    assert without(merge, apart) == without(expected, apart)
+    assert kept == expected["differences"]
+    # The report of the occurrence of 751 is the merge's of its own estimate since US-3070/L3, the
+    # example still the graft's of EP-08: the start of the own estimate is the main structure's, the
+    # tasks the graft redated and the provision line it removed are not among its differences, and
+    # its counters are those of ``COUNTED_APART``. The declared deviation of US-3070/L3, which
+    # US-3100/L2 (#4592) and US-3150/L1 (#4614) lift; what the own estimate adds is the example's.
     occurrence = read(f"{BASE}/risks/{REWORK}/occurrence")
-    assert occurrence == example("risk_occurrence_report")
-    assert occurrence["own_estimate_past_planning_start_on"] == "2026-01-12"
+    described = example("risk_occurrence_report")
+    report_apart = {
+        "differences",
+        "main_structure_lock_version",
+        "risk_lock_version",
+        "own_estimate_past_planning_start_on",
+    }
+    assert without(occurrence, report_apart) == without(described, report_apart)
+    assert occurrence["own_estimate_past_planning_start_on"] == "2026-03-02"
     assert occurrence["completed_provision_task"] is None
-    redated = [each for each in occurrence["differences"] if each["fields"] == ["start", "finish"]]
-    assert redated
+    assert added(occurrence) == added(described)
+
+
+def added(report: dict[str, Any]) -> set[tuple[str, str]]:
+    """Give the tasks and the lines a report adds, by their label."""
+    return {
+        (each["target"], each["label"])
+        for each in report["differences"]
+        if each["change"] == "added" and each["target"] != "link"
+    }
 
 
 # What the own estimate of a risk reads otherwise than the examples (#4278): the budgeted amount of
@@ -423,6 +497,29 @@ OWN_ESTIMATE_APART = {
 }
 
 
+# What the own estimate of 752 in the 101 reads otherwise than the example, whole: the copy of the
+# main structure (EP-30), to which it adds its nodes at the first level, after those of the main
+# structure, read against its base, which tells them added; their float and their criticality are
+# those of the whole plan, its totals and its depth the project's. Its pruning at the marking, which
+# leaves it what it designates, is US-3070/L4's (#4587): the declared deviation of US-3070/L3, the
+# nodes the example reads compared among those it holds.
+WHOLE_APART = {
+    "/meta/summary_depth",
+    "/items[]/difference",
+    "/items[]/row_number",
+    "/items[]/position",
+    "/items[]/predecessors[]/predecessor_row_number",
+    "/items[]/task/total_float/value",
+    "/items[]/task/is_critical",
+    "/totals/task_count",
+    "/totals/estimate_line_count",
+    "/totals/hours",
+    "/totals/base_amount",
+    "/totals/budgeted_amount",
+    "/totals/reestimated_amount",
+}
+
+
 # The own estimates the examples read: of 752 in the 101 that froze it. That of 751 in the 102,
 # ``nodes_risk_estimate``, is read as a differential of the main structure since EP-30
 # (US-3070/L2, #4585), which the loader of the witness loads so from US-3150.
@@ -442,7 +539,9 @@ def test_the_own_estimates_read_are_the_examples_but_for_their_budget(
     revision, structure = OWN_ESTIMATES[name]
     body = read(f"{BASE}/revisions/{revision}/structures/{structure}/nodes")
     expected = example(name)
-    assert [each["node_id"] for each in body["items"]] == [
-        each["node_id"] for each in expected["items"]
-    ]
-    assert deviations(body, expected) <= OWN_ESTIMATE_APART
+    wanted = [each["node_id"] for each in expected["items"]]
+    # The nodes the example reads, in its order, among those the whole copy holds.
+    assert [each["node_id"] for each in body["items"] if each["node_id"] in wanted] == wanted
+    held = keyed(body["items"], "node_id")
+    designated = {**body, "items": [held[node_id] for node_id in wanted]}
+    assert deviations(designated, expected) <= OWN_ESTIMATE_APART | WHOLE_APART

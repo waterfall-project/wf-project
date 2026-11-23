@@ -32,7 +32,7 @@ from projects_support import PROJECTS
 from sqlalchemy import select
 from test_witness import load, wipe
 from test_witness_projects import REVISION_100, REVISION_101, REVISION_102, instant
-from witness_support import PRJ_001, example, read
+from witness_support import DELAY, PRJ_001, example, occurred_apart, read
 
 from waterfall.core.planning.interface import (
     LinkLoad,
@@ -100,8 +100,17 @@ def described() -> dict[str, Any]:
 
 
 def file_tasks(revision: int) -> list[dict[str, Any]]:
-    """Give the tasks the file describes for a revision, in the order of the plan."""
-    return [task for task in described()["tasks"] if task["revision"] == revision]
+    """Give the tasks the file describes for a revision, in the order of the plan.
+
+    Those it gives the occurrence of 752 in the 102 left out, the declared deviation of US-3070/L3
+    that US-3150/L1 (#4614) lifts (``occurred_apart``).
+    """
+    apart = occurred_apart()
+    return [
+        task
+        for task in described()["tasks"]
+        if task["revision"] == revision and task["lineage_id"] not in apart
+    ]
 
 
 def structure_of(session: Session, revision: UUID) -> UUID:
@@ -115,16 +124,22 @@ def structure_of(session: Session, revision: UUID) -> UUID:
     return found
 
 
-def rows(session: Session, revision: UUID) -> dict[UUID, tuple[Node, Task]]:
+def rows(
+    session: Session, revision: UUID, *, occurred: bool = False
+) -> dict[UUID, tuple[Node, Task]]:
     """Give the lineage of each task of the main structure of a revision with its node and facet.
 
     The amendments and the own estimates of the risks hold the same lineages (EP-08): the main
-    structure alone is the revision's content the file describes.
+    structure alone is the revision's content the file describes. The tasks the occurrence of 752
+    merged into the 102 are left out unless ``occurred`` asks them (``file_tasks``).
     """
+    criteria = [Node.structure_id == structure_of(session, revision)]
+    if not occurred:
+        criteria.append(Node.origin_risk_id.is_distinct_from(DELAY))
     found = session.execute(
         select(Node, Task)
         .join(Task, (Task.project_id == Node.project_id) & (Task.node_id == Node.id))
-        .where(Node.structure_id == structure_of(session, revision))
+        .where(*criteria)
     ).all()
     return {node.lineage_id: (node, task) for node, task in found}
 
@@ -183,7 +198,8 @@ def test_each_revision_holds_the_tasks_the_file_describes_under_their_lineages(
             for found in siblings.values():
                 ranks = [by_lineage[lineage][0].rank for _, lineage in sorted(found)]
                 assert ranks == list(range(1, len(found) + 1))
-    assert [len(file_tasks(number)) for number in REVISIONS] == [997, 997, 1000]
+    # The thousand of the 102 but for the three the occurrence of 752 adds (``file_tasks``).
+    assert [len(file_tasks(number)) for number in REVISIONS] == [997, 997, 997]
 
 
 def test_the_revision_in_progress_holds_the_identifiers_of_the_examples_and_the_marked_ones_theirs(
@@ -202,7 +218,7 @@ def test_the_revision_in_progress_holds_the_identifiers_of_the_examples_and_the_
     assert not identifiers[100] & identifiers[102]
     assert not identifiers[101] & identifiers[102]
     assert not identifiers[100] & identifiers[101]
-    assert [len(identifiers[number]) for number in REVISIONS] == [997, 997, 1000]
+    assert [len(identifiers[number]) for number in REVISIONS] == [997, 997, 997]
 
 
 def test_the_copy_of_the_offer_is_reconciled_deleted_and_created_by_lineage(
@@ -212,7 +228,7 @@ def test_the_copy_of_the_offer_is_reconciled_deleted_and_created_by_lineage(
     # reference and the revision in progress hold the lineages the file says, none more.
     with witness.transaction() as session:
         lineages = {
-            number: {str(lineage) for lineage in rows(session, revision)}
+            number: {str(lineage) for lineage in rows(session, revision, occurred=True)}
             for number, revision in REVISIONS.items()
         }
     trials = lineages[100] - lineages[102]
@@ -240,6 +256,8 @@ def test_the_links_are_those_of_the_file_by_the_lineage_of_their_predecessor(
                 for link in session.scalars(
                     select(TaskLink).where(TaskLink.structure_id == structure_of(session, revision))
                 )
+                # Those of the tasks the occurrence of 752 merged set apart (``file_tasks``).
+                if link.successor_id in by_id
             }
             expected = {
                 (
@@ -319,7 +337,7 @@ def test_every_row_is_written_by_the_platform_at_the_instant_of_the_event_of_its
         for number, revision in REVISIONS.items():
             opened = instant(OPENED[number])
             written: set[tuple[object, ...]] = set()
-            for node, _ in rows(session, revision).values():
+            for node, _ in rows(session, revision, occurred=True).values():
                 written.add((node.created_at, node.created_by, node.updated_at, node.updated_by))
             expected = {(opened, None, opened, None)}
             if number == 101:
@@ -487,8 +505,14 @@ def test_the_readings_of_the_loaded_witness_are_the_examples_but_for_what_it_doe
     url = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes{READS[name]}"
     body = read(api, witness, realm, url)
     expected = example(name)
-    wanted = {item["node_id"]: item for item in expected["items"] if item["kind"] == "task"}
-    got = {item["node_id"]: item for item in body["items"]}
+    # The tasks the occurrence of 752 adds set apart on both sides (``file_tasks``).
+    apart = occurred_apart()
+    wanted = {
+        item["node_id"]: item
+        for item in expected["items"]
+        if item["kind"] == "task" and item["node_id"] not in apart
+    }
+    got = {item["node_id"]: item for item in body["items"] if item["origin_risk_id"] != str(DELAY)}
     # The tasks of #2594 are dated as the file does once the lines are loaded, the 103 that hold the
     # calendar of ten hours included: no task is excused, whatever the field.
     with witness.transaction() as session:
@@ -516,13 +540,12 @@ def test_the_readings_of_the_loaded_witness_are_the_examples_but_for_what_it_doe
     if name in {"nodes_planning", "nodes_timeline", "volume/nodes_thousand"}:
         assert body["totals"]["task_count"] == expected["totals"]["task_count"]
     if name == "volume/nodes_thousand":
-        # The three tasks the occurrence of 752 grafted bear it (EP-08), a hundred and three a
-        # calendar of ten hours (EP-07).
-        risky = {
-            i["node_id"] for i in expected["items"] if i["kind"] == "task" and i["origin_risk_id"]
-        }
+        # The three tasks the occurrence of 752 adds bear it (EP-08), under identifiers of their
+        # own until US-3150/L1 (``file_tasks``); a hundred and three a calendar of ten hours
+        # (EP-07).
+        risky = [i for i in expected["items"] if i["kind"] == "task" and i["origin_risk_id"]]
         assert len(risky) == 3
-        assert {i["node_id"] for i in body["items"] if i["origin_risk_id"]} == risky
+        assert len([i for i in body["items"] if i["origin_risk_id"]]) == len(risky)
         ten = [i for i in wanted.values() if i["task"]["calendar_hours"]["monday"] == "10"]
         assert len(ten) == 103
 
@@ -592,7 +615,8 @@ def test_two_platforms_loaded_with_the_witness_hold_the_same_tasks(
     assert load(service_database_url) == 0
     assert identifying() == first
     assert links() == first_links
-    assert [len(each) for each in first.values()] == [997, 997, 1000]
+    # The thousand of the 102 but for the three the occurrence of 752 adds (``file_tasks``).
+    assert [len(each) for each in first.values()] == [997, 997, 997]
 
 
 def test_a_second_loading_finds_the_tasks_there_and_writes_nothing(
@@ -684,7 +708,7 @@ def test_a_task_the_revision_holds_under_its_identifier_is_changed_in_place_and_
         act = Act(author=None, at=instant(OPENED[102]))
         load_tasks(session, place, TasksLoad(PLANNING_START, (*changed, created)), act)
         after = rows(session, REVISION_102)
-        assert len(after) == 1000
+        assert len(after) == len(tasks)
         node, facet = after[relabelled.lineage_id]
         assert (node.id, facet.label) == (relabelled.node_id, "Libellé modifié")
         assert node.id in before
@@ -734,7 +758,7 @@ def test_a_kept_task_moved_under_a_created_one_is_written_after_its_parent(
         act = Act(author=None, at=instant(OPENED[102]))
         load_tasks(session, place, TasksLoad(PLANNING_START, (*reparented, created)), act)
         after = rows(session, REVISION_102)
-        assert len(after) == 1001
+        assert len(after) == len(tasks) + 1
         node = after[moved.lineage_id][0]
         assert (node.id, node.parent_id, node.rank) == (moved.node_id, created.node_id, 1)
         assert node.id in before
@@ -781,7 +805,7 @@ def test_a_created_child_described_before_its_created_parent_is_written_after_it
         described = TasksLoad(PLANNING_START, (grandchild, *tasks, child, parent))
         load_tasks(session, place, described, act)
         after = rows(session, REVISION_102)
-        assert len(after) == 1003
+        assert len(after) == len(tasks) + 3
         assert after[grandchild.lineage_id][0].parent_id == child.node_id
         assert after[child.lineage_id][0].parent_id == parent.node_id
         assert after[parent.lineage_id][0].id == parent.node_id
@@ -861,7 +885,7 @@ def test_a_task_kept_under_another_identifier_is_written_again_with_its_lineage_
         act = Act(author=None, at=instant(OPENED[102]))
         load_tasks(session, place, TasksLoad(PLANNING_START, renamed), act)
         after = rows(session, REVISION_102)
-        assert len(after) == 1000
+        assert len(after) == len(tasks)
         node, facet = after[again.lineage_id]
         assert node.id == other
         assert again.node_id not in {each.id for each, _ in after.values()}

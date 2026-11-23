@@ -94,7 +94,7 @@ from waterfall.witness.description import is_loaded
 from waterfall.witness.estimate_lines import write_lines
 from waterfall.witness.filling import Duration, LineRow, Moment, TaskRow
 from waterfall.witness.portfolio_slice import NOT_STARTED, Project, derived, money, progress_on
-from waterfall.witness.tasks import write_tasks
+from waterfall.witness.tasks import add_tasks, write_tasks
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -405,7 +405,10 @@ class _Writing:
         return write
 
     def _own_estimate(self, risk: Risk, structure_id: UUID, number: int, act: Act) -> None:
-        """Enter the own estimate of a risk: its task, then its line, as the description gives."""
+        """Enter the own estimate of a risk: its task, then its line, as the description gives.
+
+        Added to the copy of the main structure it was born with (EP-30, US-3070/L3).
+        """
         project = self.project
         revision_id, _ = self._in_progress()
         place = Place(project.project_id, revision_id, structure_id)
@@ -415,9 +418,9 @@ class _Writing:
             for each in risk.own_estimate
             if each.node.task is not None
         ]
-        write_tasks(self.session, place, (start, tasks), lambda row: row.node_id, act)
+        add_tasks(self.session, place, (start, tasks), lambda row: row.node_id, act)
         lines = _line_rows(risk.own_estimate, number, project.node)
-        write_lines(self.session, place, (lines, lambda row: row.node_id), act)
+        write_lines(self.session, place, (lines, lambda row: row.node_id), act, additive=True)
 
     def _review(self, risk: Risk, review: Review) -> Callable[[Act], None]:
         def write(act: Act) -> None:

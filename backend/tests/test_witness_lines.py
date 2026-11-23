@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 from test_witness import load, wipe
 from test_witness_projects import REVISION_100, REVISION_101, REVISION_102, instant
 from test_witness_tasks import REVISIONS, structure_of
-from witness_support import PRJ_001, example
+from witness_support import DELAY, PRJ_001, example, occurred_apart
 
 from waterfall.core.estimate.interface import LineEntry, LineLoad, load_lines
 from waterfall.core.estimate.recalling import recalled, remembering, remembers
@@ -119,6 +119,24 @@ def line_rows(
     }
 
 
+def described_lines(revision: int) -> list[dict[str, Any]]:
+    """Give the lines the file describes for a revision, but those of the occurrence of 752.
+
+    The declared deviation of US-3070/L3, which US-3150/L1 (#4614) lifts (``occurred_apart``).
+    """
+    apart = occurred_apart()
+    return [line for line in file_lines(revision) if line["lineage_id"] not in apart]
+
+
+def held_lines(session: Session, revision: UUID) -> dict[UUID, tuple[Node, EstimateLine]]:
+    """Give the lines of ``line_rows``, but those the occurrence of 752 merged into the 102."""
+    return {
+        lineage: (node, facet)
+        for lineage, (node, facet) in line_rows(session, revision).items()
+        if node.origin_risk_id != DELAY
+    }
+
+
 def task_lineages(session: Session, revision: UUID) -> dict[UUID, UUID]:
     """Give the lineage of each task of the main structure of a revision, by node."""
     found = session.execute(
@@ -154,9 +172,9 @@ def test_each_revision_holds_the_lines_the_file_describes_under_their_lineages_a
     # rank of their position among the lines of that task, entered as the file enters them.
     with witness.transaction() as session:
         for number, revision in REVISIONS.items():
-            held = line_rows(session, revision)
+            held = held_lines(session, revision)
             tasks = task_lineages(session, revision)
-            expected = file_lines(number)
+            expected = described_lines(number)
             assert {str(lineage) for lineage in held} == {line["lineage_id"] for line in expected}
             ranks: dict[str, list[tuple[int, int]]] = {}
             for line in expected:
@@ -179,15 +197,16 @@ def test_the_revision_in_progress_holds_the_identifiers_of_the_examples_and_the_
     # shared, the same on every platform.
     with witness.transaction() as session:
         identifiers = {
-            number: {node.id for node, _ in line_rows(session, revision).values()}
+            number: {node.id for node, _ in held_lines(session, revision).values()}
             for number, revision in REVISIONS.items()
         }
-    in_progress = {line["node_id"] for line in file_lines(102)}
+    in_progress = {line["node_id"] for line in described_lines(102)}
     assert {str(each) for each in identifiers[102]} == in_progress
     assert not identifiers[100] & identifiers[102]
     assert not identifiers[101] & identifiers[102]
     assert not identifiers[100] & identifiers[101]
-    assert [len(identifiers[number]) for number in REVISIONS] == [4997, 4997, 4999]
+    # The 4 999 of the 102 but for the two the occurrence of 752 adds (``described_lines``).
+    assert [len(identifiers[number]) for number in REVISIONS] == [4997, 4997, 4997]
 
 
 def test_every_line_is_written_by_the_platform_at_the_instant_of_the_event_of_its_revision(

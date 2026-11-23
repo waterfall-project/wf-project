@@ -52,7 +52,15 @@ from test_witness_projects import (
     without,
 )
 from test_witness_tasks import difference, structure_of
-from witness_support import PRJ_001, READ_AT, copied_description, example, read
+from witness_support import (
+    DELAY,
+    PRJ_001,
+    READ_AT,
+    copied_description,
+    example,
+    occurred_apart,
+    read,
+)
 
 from waterfall.core.costs.tables import CostImport, CostLine
 from waterfall.core.exchanges.interface import ImportLoad, load_import
@@ -372,8 +380,42 @@ def test_the_kanban_is_the_example_but_for_the_commands(
         assert scheduled is not None
         assert scheduled.scheduled_at is not None
         read_on = scheduled.scheduled_at.date()
+    # The tasks the occurrence of 752 adds set apart, and the rows of the plan below the place the
+    # example gives them: the declared deviation of US-3070/L3, which US-3150/L1 (#4614) lifts
+    # (``occurred_apart``).
+    apart = occurred_apart()
+    above = [
+        each["row_number"]
+        for each in example("volume/nodes_thousand")["items"]
+        if each["node_id"] in apart
+    ]
+
+    def row(number: int) -> int:
+        return number - sum(r < number for r in above)
+
+    def moved(card: dict[str, Any]) -> dict[str, Any]:
+        links = card.get("predecessors")
+        if links:
+            card = {
+                **card,
+                "predecessors": [
+                    {**link, "predecessor_row_number": row(link["predecessor_row_number"])}
+                    for link in links
+                ],
+            }
+        return {**card, "row_number": row(card["row_number"])}
+
     for column in COLUMNS:
-        got, wanted = keyed(body[column], "node_id"), keyed(expected[column], "node_id")
+        got = {
+            key: card
+            for key, card in keyed(body[column], "node_id").items()
+            if card["origin_risk_id"] != str(DELAY)
+        }
+        wanted = {
+            key: moved(card)
+            for key, card in keyed(expected[column], "node_id").items()
+            if key not in apart
+        }
         # The same tasks in each column, in the order of the plan.
         assert list(got) == list(wanted), column
         for key, card in got.items():

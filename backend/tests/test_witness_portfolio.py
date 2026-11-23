@@ -25,7 +25,7 @@ from waterfall.core.costs.tables import CostImport, CostLine
 from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tables import Task as TaskFacet
 from waterfall.core.projects.tables import Contributor, Project, ProjectStateTransition
-from waterfall.core.revisions.tables import Revision
+from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.core.risks.tables import Risk, RiskReview
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act, AuditEntry
@@ -327,7 +327,8 @@ def test_the_states_of_the_tasks_are_laid_as_they_stand_on_the_day_of_each_marki
 ) -> None:
     # The tasks of PRJ-301 are not started in the offer; the study is completed in the revision
     # marked on 10 November 2025, the fabrication in the one marked on 4 May 2026; the frame of
-    # PRJ-304, started past its finish, stays started.
+    # PRJ-304, started past its finish, stays started. Those of the main structure: the own estimate
+    # of a risk and its base are copies of it, made when the risk is declared (EP-30, US-3070/L3).
     by_code = {each.code: each for each in described()}
 
     def states(code: str, number: int) -> dict[str, str]:
@@ -338,7 +339,15 @@ def test_the_states_of_the_tasks_are_laid_as_they_stand_on_the_day_of_each_marki
                 .join(
                     Node, (Node.project_id == TaskFacet.project_id) & (Node.id == TaskFacet.node_id)
                 )
-                .where(Node.revision_id == found.revisions[number - 1].revision_id)
+                .join(
+                    CostStructure,
+                    (CostStructure.project_id == Node.project_id)
+                    & (CostStructure.id == Node.structure_id),
+                )
+                .where(
+                    Node.revision_id == found.revisions[number - 1].revision_id,
+                    CostStructure.kind == "main",
+                )
             ).all()
         planned = {each.node.task.label for each in found.tasks if each.node.task is not None}
         return {row[0]: row[1] for row in rows if row[0] in planned}
