@@ -69,20 +69,6 @@ def exchange_id(entry: CostImport) -> str:
     return hex_identifier(entry.exchange)
 
 
-def expired_exchange_id() -> str:
-    """Return the identifier of the extraction of April replayed, analysed and expired.
-
-    The only import of costs of the exchanges that was not applied (``imports.json``); the journal
-    keeps nothing of it.
-    """
-    [expired] = [
-        item["import_id"]
-        for item in fixture("imports")["items"]
-        if item["kind"] == "actual_costs" and item["status"] == "expired"
-    ]
-    return cast("str", expired)
-
-
 def _filenames() -> dict[str, str]:
     return {item["import_id"]: item["filename"] for item in fixture("imports")["items"]}
 

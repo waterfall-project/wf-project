@@ -40,7 +40,7 @@ from imports_trial import (
 )
 from projects_support import READING, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
-from sqlalchemy import insert, inspect, select, update
+from sqlalchemy import delete, event, insert, inspect, select, update
 from support import ContractClient
 
 from waterfall.api.app import create_app
@@ -54,7 +54,7 @@ from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.storage import Bucket
-from waterfall.platform.tasks import submit
+from waterfall.platform.tasks import BackgroundTask, submit
 from waterfall.platform.uploads import LIFETIME, FileUpload
 
 if TYPE_CHECKING:
@@ -530,7 +530,8 @@ def test_an_expired_report_is_read_expired_and_can_no_longer_be_applied(
     api: ContractClient, stage: Scene, worker: Worker, database: Database, trial: TrialFormat
 ) -> None:
     # « Un compte rendu expiré ne peut plus être appliqué, et son fichier n'est plus sur le
-    # stockage objet. » : its expiry judged at the reading; the purge deletes the file (L2).
+    # stockage objet. » : its expiry judged at the reading; the purge deletes the file and the row
+    # (``test_purge.py``, US-3250).
     del trial
     import_id = analysed(api, stage, worker)["import_id"]
     with database.transaction() as session:
@@ -551,6 +552,56 @@ def test_an_expired_report_is_read_expired_and_can_no_longer_be_applied(
     assert stored(database, import_id).status == "analysed"
     assert api.delete(path(stage, import_id), headers=stage.manager.headers).status_code == 204
     assert stored(database, import_id).status == "analysed"
+
+
+@pytest.mark.requirement("WF-DAT-0080-A")
+@pytest.mark.usefixtures("trial")
+def test_an_import_whose_task_was_purged_is_read_with_a_null_task_not_a_500(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database
+) -> None:
+    # « Une tâche de fond terminée depuis plus que la rétention de son résultat n'est plus dans la
+    # base » : the import it ran is read all the same, 200, its task null (US-3250); one that never
+    # had a task, as those of the witness, is read so too.
+    import_id = analysed(api, stage, worker)["import_id"]
+    task_id = stored(database, import_id).task_id
+    assert read(api, stage, import_id)["task"]["task_id"] == str(task_id)
+    # The purge of the tasks is EP-13's, and the application role may not delete one: the owner.
+    with stage.owner.begin() as connection:
+        connection.execute(delete(BackgroundTask).where(BackgroundTask.id == task_id))
+    found = read(api, stage, import_id)
+    assert (found["status"], found["task"]) == ("analysed", None)
+    assert found["report"] is not None
+    with database.transaction() as session:
+        session.execute(
+            update(ImportReport).where(ImportReport.id == UUID(import_id)).values(task_id=None)
+        )
+    assert read(api, stage, import_id)["task"] is None
+
+
+@pytest.mark.story("US-3250")
+@pytest.mark.usefixtures("trial")
+def test_the_list_of_the_imports_does_not_load_their_report(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database
+) -> None:
+    # ``listImports`` says no report: the column is left out of its query, and the page is the same.
+    import_id = analysed(api, stage, worker)["import_id"]
+    statements: list[str] = []
+
+    def record(*arguments: Any) -> None:
+        statements.append(arguments[2])
+
+    engine = database.engine
+    event.listen(engine, "before_cursor_execute", record)
+    try:
+        response = api.get(path(stage), headers=stage.manager.headers)
+    finally:
+        event.remove(engine, "before_cursor_execute", record)
+    assert response.status_code == 200, response.text
+    assert [each["import_id"] for each in response.json()["items"]] == [import_id]
+    assert "report" not in response.json()["items"][0]
+    selects = [each for each in statements if "FROM import_report" in each]
+    assert selects
+    assert all("import_report.report" not in each for each in selects)
 
 
 @pytest.mark.requirement("WF-ARC-0100-A")

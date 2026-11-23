@@ -4804,7 +4804,7 @@ April, 4, 6 and 11 May, 3 June), each with its line of the journal of the import
 its entry of the journal of the costs (period, columns kept, counts), the twenty-eight cost lines they
 brought or updated, each with its item, its imputation as the service computes it, its columns kept
 and the audit of its imports, the exclusion of the customer's reception (on 6 April at 9:15, with its
-reason) and the extraction of April replayed, analysed on 2 June then expired; at the identifiers and
+reason) and the extraction of April replayed, analysed on 2 June; at the identifiers and
 the instants of the witness, the project manager of the witness as the account, through the
 interfaces of `core/exchanges` and `core/costs`, with no Excel file and no worker. The imports come
 from `fixtures/api/witness_costs.json`, which `make mock-data` writes beside the examples

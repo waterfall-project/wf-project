@@ -244,10 +244,12 @@ describe("the screen of the imports and exports", () => {
     expect(calls(GET_REVISION)).toEqual([`/projects/${PROJECT}/revisions/${REVISION}?`]);
     expect(calls(IMPORTS)).toEqual([`/projects/${PROJECT}/imports?limit=50`]);
     expect(text(page)).toContain(
-      "Imports of the project File Kind Status Opened on devis-avenant-2-reprise-des-essais.xlsx Estimate Analysed couts-reels-2026-05.xlsx Actual costs Applied couts-reels-2026-04-correction.xlsx Actual costs Expired",
+      "Imports of the project File Kind Status Opened on devis-avenant-2-reprise-des-essais.xlsx Estimate Analysed couts-reels-2026-05.xlsx Actual costs Applied couts-reels-2026-04-reextraction.xlsx Actual costs Applied",
     );
     expect(links(page)).toContain(`${PATHNAME}?import=${IMPORT}`);
-    expect(text(page)).toContain("planning-poste-de-commande.xml MS Project planning Abandoned");
+    // No import expired or abandoned is listed: the purge deletes it (US-3250).
+    expect(text(page)).not.toContain("Abandoned");
+    expect(text(page)).not.toContain("Expired");
   });
 
   it("shows no note of the mock-up: the screen is served, its writes kept by the service", async () => {
@@ -371,7 +373,7 @@ describe("the screen of the imports and exports", () => {
     expect(links(page)).toEqual(expect.arrayContaining([PATHNAME, `${PATHNAME}?offset=4`]));
     // The imports of the page lead to their report, on the same page of the list.
     expect(links(page)).toContain(
-      `${PATHNAME}?offset=2&amp;import=01926f3a-7c00-7000-8000-000000000a10`,
+      `${PATHNAME}?offset=2&amp;import=01926f3a-7c00-7000-8000-000000000a09`,
     );
   });
 

@@ -760,7 +760,9 @@ def import_remaining_completed_task() -> JsonObject:
 
 
 def _import_examples() -> dict[str, JsonObject]:
-    expired, applied = _listed("expired"), _listed("applied")
+    # The extraction of April replayed, analysed on 2 June at 9:01, expired this morning: no list
+    # keeps it, which the purge deletes in the pass that finds it expired (US-3250).
+    expired, applied = fixture("import_actual_costs_analysed"), _listed("applied")
     under = {row.number: row for row in mockcore.current()}[COMPLETED_UNDER].label
     analysed = fixture("import_analysed")
     return {
@@ -790,9 +792,10 @@ def _import_examples() -> dict[str, JsonObject]:
         ),
         "import_apply_expired.json": mocktext.example(
             f"L'application demandée aujourd'hui de « {expired['filename']} », expirée ce matin, "
-            f"vingt-quatre heures après son analyse sans avoir été appliquée (imports) : il n'y a "
-            f"plus rien à appliquer, et le refus nomme la condition qui manque, un import qui "
-            f"attend la décision ; l'import ne change pas (WF-ARC-0100, #1789).",
+            f"vingt-quatre heures après son analyse sans avoir été appliquée, avant la passe de "
+            f"purge qui la supprime (après elle, l'import est inconnu, 404) : il n'y a plus rien "
+            f"à appliquer, et le refus nomme la condition qui manque, un import qui attend la "
+            f"décision ; l'import ne change pas (WF-ARC-0100, WF-DAT-0080, #1789).",
             _refused("import_apply_expired", "import_awaiting_decision"),
         ),
         "import_apply_main_in_progress.json": mocktext.example(

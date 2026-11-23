@@ -4855,7 +4855,7 @@ chacun avec sa ligne du journal des imports des échanges et son entrée du jour
 colonnes conservées, comptes), les vingt-huit lignes de coût qu'ils ont apportées ou mises à jour,
 chacune avec son poste, son imputation que le service calcule, ses colonnes conservées et l'audit
 de ses imports, l'exclusion de la réception du client (le 6 avril à 9 h 15, avec son motif) et
-l'extraction d'avril rejouée, analysée le 2 juin puis expirée ; aux identifiants et aux instants du
+l'extraction d'avril rejouée, analysée le 2 juin ; aux identifiants et aux instants du
 témoin, le chef de projet du témoin pour compte, par les interfaces de `core/exchanges` et de
 `core/costs`, sans fichier Excel ni worker. Les imports viennent de `fixtures/api/witness_costs.json`,
 que `make mock-data` écrit à côté des exemples (`wftools.mockwitnesscosts`) et que le back lit par un
