@@ -73,10 +73,12 @@ describe("the report of an import without a task", () => {
     expect(screen.getByText(/4 lignes lues/)).toBeVisible();
   });
 
-  it("signals a rounded amount with both amounts [WF-INTF-0120-A]", () => {
+  it("signals a rounded amount of a remaining to commit, the line and both amounts: 1 234,56 typed on a quantity of 1 000 write 1 230,00 [US-3230] [WF-INTF-0120-A]", () => {
     open(example("import_remaining_amount_rounded") as Import);
     expect(screen.getByText("Montant arrondi")).toBeVisible();
-    expect(screen.getByText(/montant écrit\s: 1\s230,00/)).toBeVisible();
+    const row = screen.getByRole("row", { name: /Borniers.*Montant arrondi/ });
+    expect(row).toHaveTextContent(/Montant du fichier\s: 1\s234,56/);
+    expect(row).toHaveTextContent(/montant écrit\s: 1\s230,00/);
   });
 });
 
