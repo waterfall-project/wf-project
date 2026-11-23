@@ -193,13 +193,43 @@ describe("the layout of the Gantt", () => {
         row("e", "2026-04-17", "d"),
       ];
       const layout = ganttLayout(rows);
-      // « a » to « d » runs across the places between « a » and « b », « b » and « c », « c » and « d »;
-      // « d » to « e » across the one before « e » alone.
+      // Index 0 is before « a »: no link has an end before it.
+      // Indexes 1, 2 and 3 are before « b », « c » and « d »: « a » to « d » passes there.
+      // Index 4 is before « e »: « d » to « e » passes there, « a » to « d » having ended.
+      // Index 5 is after « e »: no link has an end after it.
       expect(layout.crossing(1).map(({ part, down }) => [part, down])).toEqual([["passes", true]]);
       expect(layout.crossing(3)).toHaveLength(1);
       expect(layout.crossing(4)).toHaveLength(1);
       expect(layout.crossing(0)).toEqual([]);
       expect(layout.crossing(5)).toEqual([]);
+    });
+
+    it("gives a stretch going up for a link whose predecessor is under its successor [WF-PLA-0090-A]", () => {
+      const task = (from: string) => ({
+        start: { date: from, hours: "0" },
+        finish: { date: from, hours: "8" },
+        is_summary: false,
+        is_milestone: false,
+      });
+      const rows: GanttRow[] = [
+        {
+          node_id: "s",
+          predecessors: [
+            {
+              predecessor_node_id: "p",
+              predecessor_row_number: 3,
+              link_type: "finish_to_start",
+              lag: { value: "0", unit: "d" },
+            },
+          ],
+          task: task("2026-04-16"),
+        },
+        { node_id: "m", predecessors: [], task: task("2026-04-14") },
+        { node_id: "p", predecessors: [], task: task("2026-04-13") },
+      ];
+      const layout = ganttLayout(rows);
+      expect(layout.crossing(1).map(({ part, down }) => [part, down])).toEqual([["passes", false]]);
+      expect(layout.crossing(2).map(({ part, down }) => [part, down])).toEqual([["passes", false]]);
     });
   });
 });

@@ -826,9 +826,10 @@ function drawingStyle(view: GanttView): CSSProperties | undefined {
 }
 
 /**
- * Render, in the row of a run of rows folded away (`FoldedRunRow`), the months and the stretch of the
- * links that cross it, between the rows shown that the layout reads (`before`: the index of the one just after it), so that a link running down the grid is not cut by the row that stands for the
- * run (#3785, WF-PLA-0090). It names nothing: the row of the run says what it folds.
+ * Render, in the row of a run of rows folded away (`FoldedRunRow`), the stretch of the links.
+ * It draws the stretch of the links that cross the run, so that a link down the grid is not cut.
+ * The layout reads the rows shown; `before` is the index of the one just after the run.
+ * It names nothing: the row of the run says what it folds (#3785, WF-PLA-0090).
  */
 export function GanttRunCell({ before }: { readonly before: number }) {
   const view = use(GanttContext);

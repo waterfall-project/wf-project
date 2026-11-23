@@ -327,7 +327,7 @@ export function FoldedRunRow({
       {ended.map(({ id, pinning, content }) => (
         <TableCell
           key={id}
-          data-column={id}
+          data-run-end={id}
           style={{ left: pinning.left, right: pinning.right }}
           className={cn(CELL_BACKGROUND, "overflow-hidden", pinning.className)}
         >
