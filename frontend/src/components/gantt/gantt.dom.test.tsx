@@ -607,6 +607,47 @@ describe("the Gantt of the planning", () => {
     expect(server.client?.calls).toEqual([]);
   });
 
+  it("places the bar of a task that begins where another ends, the link reaching to the right, at each level of the scale [WF-PLA-0090-A]", async () => {
+    // The two tasks of the witness linked finish to start, on the Monday 13 April of 8 hours: A
+    // works the first four, B the last four.
+    const [, studies, , review] = planning.items;
+    const same = (item: typeof studies, from: string, to: string) =>
+      item?.task === undefined || item.task === null
+        ? []
+        : [
+            {
+              ...item,
+              task: {
+                ...item.task,
+                start: { date: "2026-04-13", hours: from },
+                finish: { date: "2026-04-13", hours: to },
+              },
+            },
+          ];
+    const items = [...same(studies, "0", "4"), ...same(review, "4", "8")];
+    const labels = items.map((item) => item.task.label);
+    expect(items).toHaveLength(2);
+    renderPlanning("fr", { ...planning, items });
+    const percent = (value: string | null) => Number.parseFloat(value ?? "NaN");
+    const check = () => {
+      const [first, second] = labels.map((label) => ganttOf(label).querySelector("rect[rx]"));
+      const end =
+        percent(first?.getAttribute("x") ?? null) + percent(first?.getAttribute("width") ?? null);
+      expect(percent(second?.getAttribute("x") ?? null)).toBeCloseTo(end);
+      const link = ganttOf(labels[1] ?? "").querySelector('line[y1="50%"][y2="50%"]');
+      expect(link).not.toBeNull();
+      expect(percent(link?.getAttribute("x2") ?? null)).toBeGreaterThanOrEqual(
+        percent(link?.getAttribute("x1") ?? null),
+      );
+    };
+    // Fitted to the project, then each zoom in: the weeks over their days, the worked hours.
+    check();
+    await userEvent.click(screen.getByRole("button", { name: "Zoom avant" }));
+    check();
+    await userEvent.click(screen.getByRole("button", { name: "Zoom avant" }));
+    check();
+  });
+
   it("zooms by the menu of a cell too, where a narrow bar has no room for its buttons [WF-PLA-0090-A]", async () => {
     renderPlanning();
     fireEvent.contextMenu(ganttOf("Études"), { clientX: 300, clientY: 200 });
