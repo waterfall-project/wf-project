@@ -265,6 +265,10 @@ DATA = {
     "RiskMatrixPoint.label": "a label",
     "RiskMatrixPoint.project_label": "a label",
     "ProvisionTask.label": "a label",
+    # The task an occurrence reopens, and the risk a step of the earned value is attributed to
+    # (US-3080/L1).
+    "RiskOccurrenceReopenedTask.label": "a label",
+    "CurveSeries.steps.risk_label": "a label",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
 # refusal, and of each field it refuses, which name its condition by codes and values, the ones

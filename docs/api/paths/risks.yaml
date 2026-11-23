@@ -4,21 +4,26 @@
     tags: [risks]
     summary: Risk register
     description: >-
-      Label, probability, severity, provision, state and date of the last review, with the
-      matrix cell and the provision totals (WF-RIS-0040), as the revision read holds them
+      Label, probability, severity, provision, state, date of the last review and trend, with
+      the matrix cell and the provision totals (WF-RIS-0040), as the revision read holds them
       (`revision_id`, WF-RIS-0030). Sorting and filtering are done by the server, and the
       totals are those of the risks retained (WF-IHM-0130): of all the risks that the filters
       and the search retain, not of the page read alone. The register is a flat table,
       paginated like any other (`limit`, `offset`, `meta`; WF-IHM-0060, #1367). Each of its
-      columns can be filtered, following the convention of the contract's README: the state and
-      the zone by a list, the label by the search, each number column — probability, severity,
-      provision, cost at occurrence and reestimated of occurred — by its two inclusive bounds,
-      `<column>_min` and `<column>_max`, and the date of the last review by its period,
-      `last_review_on_from` and `last_review_on_to`, end included; `last_review_on_to` presents
-      to the periodic review the risks not reviewed since a date (WF-RIS-0020,
-      `risks_filtered`; H-01, #1785). A risk with neither a cost at occurrence nor a
-      reestimated amount — an identified or dismissed risk — is retained by no bound of these
-      two columns.
+      columns can be filtered, following the convention of the contract's README: the state,
+      the zone and the trend by a list, the label by the search, each number column —
+      probability, severity, provision, cost at occurrence and reestimated of occurred — by its
+      two inclusive bounds, `<column>_min` and `<column>_max`, and the date of the last review
+      by its period, `last_review_on_from` and `last_review_on_to`, end included;
+      `last_review_on_to` presents to the periodic review the risks not reviewed since a date
+      (WF-RIS-0020, `risks_filtered`; H-01, #1785). The severity, the cost at occurrence and the
+      reestimated of occurred are signed, and their bounds accept a negative value: an
+      opportunity has a negative severity (WF-RIS-0080), a realised one a negative cost at
+      occurrence (WF-RIS-0050). The severity of an occurred risk is its cost at occurrence, in
+      its sort and its filter as in its column (#4400). A risk with neither a cost at
+      occurrence nor a reestimated amount — an identified or dismissed risk — is retained by no
+      bound of these two columns, and a risk without a trend — occurred, dismissed, or read in a
+      revision that no marked revision precedes — by no value of `trends` (`Risk.trend`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskRevision
@@ -37,6 +42,15 @@
         schema:
           type: array
           items: { $ref: ../components/schemas/reference.yaml#/AlertZone }
+        explode: false
+      - name: trends
+        in: query
+        description: >-
+          Restricts to the risks whose trend since the previous marked revision is one of these
+          (`Risk.trend`, WF-RIS-0040): a risk without a trend is retained by none.
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/risks.yaml#/RiskTrend }
         explode: false
       - $ref: ../components/parameters.yaml#/Search
       - $ref: ../components/parameters.yaml#/RiskProbabilityMin
@@ -57,7 +71,10 @@
           Sort column; when absent, the order of declaration. A risk with neither a cost at
           occurrence nor a reestimated amount comes after the others in the ascending order of
           these columns, before them in the descending order, like a null value of any grid
-          (#1761).
+          (#1761); a risk without a trend likewise in the order of the trend, whose values sort in
+          the order of `RiskTrend`, as the states in that of `RiskState` (WF-RIS-0040). The
+          severity sorts signed: an opportunity comes before the risks of positive severity in
+          the ascending order.
         schema:
           type: string
           enum:
@@ -69,6 +86,7 @@
             - occurred_reestimated_amount
             - state
             - last_review_on
+            - trend
       - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
@@ -89,6 +107,7 @@
               page: { $ref: ../../../fixtures/api/risks_page.json }
               empty: { $ref: ../../../fixtures/api/risks_empty.json }
               filtered: { $ref: ../../../fixtures/api/risks_filtered.json }
+              opportunity: { $ref: ../../../fixtures/api/risks_opportunity.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
@@ -583,10 +602,11 @@
       A read, which writes nothing: what the occurrence of the risk would do to the main
       structure of the current revision (WF-RIS-0060), presented before its confirmation like
       the report of a merge (`RiskOccurrenceReport`, on the model of
-      `getStructureMergeReport`) — the tasks and the lines of the own estimate added under the
-      task that carries the provision line, or after it when it is a milestone, the provision
-      line removed, the carrying task changed —, and the provision removed from the remaining
-      to commit. The difference is the one the server computes, as for a differential
+      `getStructureMergeReport`) — what the own estimate designates, the tasks, the lines and
+      the links it adds, the values it modifies, the tasks it abandons, kept and completed, the
+      completed tasks it reopens, the earned value it brings and withdraws, and the provision line
+      removed —, and the provision removed from the remaining to commit. The difference is the
+      one the server computes, as for a differential
       (C-361), and the front does not compose it (#1383). Abandoning at this step means not
       confirming: nothing is merged. The report describes the current revision at the moment
       of the read — or, as long as the project has none, the last marked revision, from which
@@ -596,9 +616,10 @@
       own estimate — which advances `Risk.lock_version` —, or a current revision born since
       the read, has it refused with 412 (WF-IHM-0110). As long as `refusals` is not empty, the
       occurrence does not apply, and the screen does not offer its confirmation; its warnings —
-      an own estimate starting in the past, a completed carrying task that the graft makes not
-      started again (`own_estimate_past_planning_start_on`, `completed_provision_task`, #4133,
-      #4240) — refuse nothing. Refused with
+      the completed tasks it reopens (`reopened_tasks`), and, as long as the occurrence grafts,
+      an own estimate starting in the past and a completed carrying task that the graft makes
+      not started again (`own_estimate_past_planning_start_on`, `completed_provision_task`,
+      #4133, #4240) — refuse nothing. Refused with
       409 when the state forbids the occurrence, on the conditions of its 409 and in the same
       order (`declareRiskOccurrence`): a report of an occurrence that could not apply is not
       read.
@@ -614,6 +635,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/risk_occurrence_report.json }
               completed_task: { $ref: ../../../fixtures/api/risk_occurrence_report_completed_task.json }
+              abandoned_task: { $ref: ../../../fixtures/api/risk_occurrence_report_abandoned_task.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -644,23 +666,27 @@
     tags: [risks]
     summary: Declare a risk occurred
     description: >-
-      Merges the tasks and the lines of the own estimate into the main structure of the
-      current revision, and removes the provision line; marks no revision and does not move
-      the reference (WF-RIS-0060, WF-RIS-0050). The top-level tasks of the own estimate are
-      placed, in their order, in last position under the task that carried the provision
-      line; when that is a milestone, immediately after it, under its parent task or at the
-      top level, and it remains a milestone without subtasks. Their subordinates, their
-      internal links, their durations and their modes are kept; a task without a predecessor
-      in the own estimate switches to manual mode at the dates it had there. Each merged line
-      keeps its quantities, takes a zero budgeted amount and as reestimated amount the amount
-      that its quantities and its dates give (WF-DEV-0020) — that of the own estimate as long
-      as its dates have not changed (WF-RIS-0060); the preliminary report describes this
-      placement (`RiskOccurrenceReport.differences`). The risk keeps its cost at occurrence,
-      the total of its own estimate at that moment (`Risk.occurrence_cost`, WF-RIS-0010),
-      which the coverage compares with the reserve (WF-RIS-0050). Each merged task and line
-      carries the risk (`Node.origin_risk_id`), which the copy, the moves, the imports matched
-      by lineage and the merge of an amendment keep, and whose current reestimated amount the
-      register sums (`Risk.occurred_reestimated_amount`, #1761). The tasks it adds carry no
+      Merges what the own estimate designates into the main structure of the current revision,
+      on the current figures alone, and removes the provision line; marks no revision, designates
+      no reference and does not move it (WF-RIS-0060, WF-RIS-0050). The tasks, the lines and the
+      links it adds are created at the place it gives them, with their links and their dates;
+      an added line takes a zero budgeted amount and as reestimated amount the amount that its
+      quantities and its dates give (WF-DEV-0020). A line it modifies keeps its reference
+      figures and takes its current ones from it. A task it abandons is kept, and completed on
+      the day of the occurrence whatever its state, its remaining to commit brought to zero and
+      the budgeted amount of its lines unchanged: it acquires that amount (WF-REV-0050,
+      WF-IND-0030). A completed task one of whose lines it modifies, or under which it adds a
+      task, is reopened. Nothing is placed under the task that carried the provision line, which
+      said only where the provision weighed (author's decision of 2026-11-21). The preliminary
+      report describes all this (`RiskOccurrenceReport`). The risk keeps its cost at occurrence,
+      its severity at that moment, signed (`Risk.occurrence_cost`, WF-RIS-0010), which the
+      coverage compares with the reserve (WF-RIS-0050), and the earned value it brought, which
+      the earned value curve marks (`CurveSeries.steps`, WF-IND-0140). Each task and line it
+      adds carries the risk (`Node.origin_risk_id`), and they alone — a modified line and an
+      abandoned task carry no mark —, which the copy, the moves, the imports matched by lineage
+      and the merge of an amendment keep, and whose current reestimated amount the register
+      adds to the frozen part of the cost at occurrence (`Risk.occurred_reestimated_amount`,
+      #1761). The tasks it adds carry no
       attachment to the work breakdown, a risk's own estimate carrying none (WF-PLA-0170).
       When the project has no current revision, the occurrence creates one beforehand
       (WF-RIS-0060). Final: no command undoes it, and only abandoning the current revision
@@ -746,12 +772,13 @@
     description: >-
       The risk reserve (`RiskCoverageTotals.reserve`), against the provisions of the
       identified risks in the current revision and the costs at occurrence of the occurred
-      risks (`Risk.occurrence_cost`), and their signed variance (WF-RIS-0050, WF-RAE-0020): the
-      completion or the re-estimation of the tasks that came from an occurred risk changes
-      neither the cost of the occurred risks nor the variance; the current reestimated amount
-      of their lines is presented alongside the cost of the occurred risks, outside the
-      variance (`RiskCoverageTotals.occurred_reestimated`, #1761). In the named revision, or
-      the current revision.
+      risks (`Risk.occurrence_cost`), signed, and their signed variance (WF-RIS-0050,
+      WF-RAE-0020): the negative cost of a realised opportunity counts as it is, and offsets the
+      overrun of another occurred risk; the completion or the re-estimation of the tasks that
+      came from an occurred risk changes neither the cost of the occurred risks nor the
+      variance; what the occurred risks cost today is presented alongside, outside the variance
+      (`RiskCoverageTotals.occurred_reestimated`, #1761). In the named revision, or the current
+      revision.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskRevision
@@ -764,6 +791,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/risk_coverage.json }
               reestimated: { $ref: ../../../fixtures/api/risk_coverage_reestimated.json }
+              opportunity_occurred: { $ref: ../../../fixtures/api/risk_coverage_opportunity.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -784,9 +812,11 @@
       carries its zone, doubled by a non-colour cue on display (WF-IHM-0070), and the
       number of its identified risks only, like the bubbles (`cells`, #1395); each risk read is
       a point at its exact values, with its state (`points`, #1053), and the provision totals
-      cover the three states (WF-RIS-0040). On a zero base — a project without a reference
-      budget whose estimate carries only provisions so far — no share is computable
-      (`no_reference_budget`), and every point is at the lowest severity level (#1240).
+      cover the three states (WF-RIS-0040). An opportunity, of negative severity, is at the
+      lowest severity level, its share being under the first bound, and counted in its cell
+      (WF-RIS-0080). On a zero base — a project without a reference budget whose estimate
+      carries only provisions so far — no share is computable (`no_reference_budget`), and every
+      point is at the lowest severity level (#1240).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskRevision
@@ -799,6 +829,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/risk_matrix.json }
               no_basis: { $ref: ../../../fixtures/api/risk_matrix_no_basis.json }
+              opportunity: { $ref: ../../../fixtures/api/risk_matrix_opportunity.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }

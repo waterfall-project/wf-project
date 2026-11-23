@@ -82,11 +82,14 @@ from wftools.mockwitnessrisks import (
     Risk,
     reference,
     reference_provision,
+    trend,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from datetime import datetime
+
+    from wftools.mockwitnessrisks import Review
 
 OFFER, REFERENCE, CURRENT = universe(100), universe(101), universe(102)
 """The revisions of the witness: the offer v1.0, the reference, the current revision."""
@@ -100,6 +103,9 @@ REVISIONS: dict[str, tuple[Event, Event | None]] = {
 
 RISKS_PAGE = 2
 """The size of the page of the register `risks_page` reads: fewer than its risks (#1367)."""
+
+ZERO = Decimal("0.00")
+"""The provision of an opportunity, never below zero (WF-RIS-0080)."""
 
 
 def stamp(at: datetime) -> str:
@@ -277,13 +283,16 @@ def computed_fields(state: str) -> list[JsonValue]:
     """Return the fields of a risk the server computes, each with what it depends on.
 
     The severity and the provision, then, for a risk that occurred, its cost at occurrence
-    (`Risk.computed_fields`, WF-IHM-0030): the provision of an identified risk from its severity
-    and its probability, that of a risk occurred or dismissed from the reference revision
-    (`provision_amount`), the cost at occurrence from its own estimate when it occurred.
+    (`Risk.computed_fields`, WF-IHM-0030): the severity from the gap of its own estimate and of
+    its base, that of a risk occurred being its cost at occurrence (#4400); the provision of an
+    identified risk from its severity and its probability, that of a risk occurred or dismissed
+    from the reference revision (`provision_amount`), the cost at occurrence from its own
+    estimate when it occurred.
     """
     provision = "severity_and_probability" if state == IDENTIFIED else "reference_provision"
+    severity = "occurrence_estimate" if state == OCCURRED else "own_estimate"
     fields: list[JsonValue] = [
-        {"field": "severity", "dependencies": ["own_estimate"]},
+        {"field": "severity", "dependencies": [severity]},
         {"field": "provision_amount", "dependencies": [provision]},
     ]
     if state == OCCURRED:
@@ -292,8 +301,11 @@ def computed_fields(state: str) -> list[JsonValue]:
 
 
 def provision(risk: Risk) -> Decimal:
-    """Return the provision of a risk today: its severity at its probability (WF-RIS-0010)."""
-    return (risk.last.severity * risk.last.probability).quantize(Decimal("0.01"))
+    """Return the provision of a risk today: its severity at its probability, never below zero.
+
+    An opportunity, of a negative severity, bears a provision of nought (WF-RIS-0010, WF-RIS-0080).
+    """
+    return max((risk.last.severity * risk.last.probability).quantize(Decimal("0.01")), ZERO)
 
 
 def provision_amount(risk: Risk) -> Decimal:
@@ -309,9 +321,9 @@ def provision_amount(risk: Risk) -> Decimal:
 def occurrence_cost(risk: Risk) -> Decimal | None:
     """Return the cost at occurrence of a risk that occurred, none for another (H-02).
 
-    The total of its own estimate when it was declared occurred, which the review of its
-    occurrence retains and which neither reestimation nor completion changes (WF-RIS-0010,
-    WF-RIS-0050).
+    Its severity when it was declared occurred, the net gap its own estimate then made, signed,
+    which the review of its occurrence retains and which neither reestimation nor completion
+    changes (WF-RIS-0010, WF-RIS-0050).
     """
     return risk.last.severity if risk.last.state == OCCURRED else None
 
@@ -494,6 +506,7 @@ def risk_item(risk: Risk, budget: Decimal, bearer: int | None = None) -> JsonObj
         "last_review_on": last.at.date().isoformat(),
         "computed_fields": computed_fields(last.state),
         "available_commands": commands(risk),
+        "trend": trend(risk),
         "audit": {
             "created_at": stamp(risk.reviews[0].at),
             "created_by": actor,
@@ -521,15 +534,18 @@ def totals(rows: list[mockcore.Row], retained: Iterable[Risk] | None = None) -> 
     }
 
 
-def matrix(rows: list[mockcore.Row], budget: Decimal) -> JsonObject:
+def matrix(
+    rows: list[mockcore.Row], budget: Decimal, register: tuple[Risk, ...] = REGISTER
+) -> JsonObject:
     """Return the matrix of the risks: its levels, its cells counted, its points, the totals.
 
     Each identified risk counted in the cell its probability and its severity on the budget given
-    place it in, as the bubbles draw it (#1395); every risk a point at its exact values, with its
-    state, in the order of the register (`RiskMatrix`, #1053); the totals over the three states.
+    place it in, as the bubbles draw it (#1395), an opportunity at the lowest severity level; every
+    risk a point at its exact values, with its state, in the order of the register (`RiskMatrix`,
+    #1053); the totals over the three states. Of the register of the witness, or the one given.
     """
     settings = fixture("reference_settings")["risk_matrix"]
-    cells = [matrix_cell(risk, budget) for risk in REGISTER if risk.last.state == IDENTIFIED]
+    cells = [matrix_cell(risk, budget) for risk in register if risk.last.state == IDENTIFIED]
 
     def levels(bounds: list[str]) -> list[JsonValue]:
         lowers, uppers = ["0", *bounds], [*bounds, None]
@@ -557,8 +573,8 @@ def matrix(rows: list[mockcore.Row], budget: Decimal) -> JsonObject:
             for p in range(1, len(probabilities) + 2)
             for s in range(1, len(severities) + 2)
         ],
-        "points": [matrix_point(risk, budget) for risk in REGISTER],
-        "totals": totals(rows),
+        "points": [matrix_point(risk, budget) for risk in register],
+        "totals": totals(rows, register),
     }
 
 
@@ -664,6 +680,14 @@ _amount, _day = mocktext.amount, mocktext.day
 
 def _percent(value: Decimal) -> str:
     return f"{mocktext.amount(value * 100, 0)} %"
+
+
+def _product(review: Review | None) -> Decimal:
+    """Return the signed product of the severity by the probability a review retained."""
+    if review is None:
+        message = "the risk had no review at that date"
+        raise ValueError(message)
+    return (review.severity * review.probability).quantize(Decimal("0.01"))
 
 
 def _share(value: Decimal, budget: Decimal) -> str:
@@ -811,12 +835,15 @@ def examples() -> dict[str, JsonObject]:
         "risks.json": mocktext.example(
             f"Le registre des risques de la révision courante, dans l'ordre de déclaration : "
             f"« {rework.label} », identifié, porté au devis et au reste à engager par sa ligne de "
-            f"provision de {_amount(provision(rework))} ; « {delay.label} », survenu le "
+            f"provision de {_amount(provision(rework))}, en hausse depuis la référence — "
+            f"{_amount(_product(rework.known_on(AMENDMENT_MERGED.on)))} de gravité pondérée par "
+            f"la probabilité au marquage de la référence, {_amount(_product(rework.last))} "
+            f"aujourd'hui (trend) — ; « {delay.label} », survenu le "
             f"{_day(delay.last.at.date())}, son devis propre fusionné dans la révision en cours à "
             f"montant budgété nul et sa ligne de provision retirée, son coût à la survenance "
             f"gardé (WF-RIS-0060) ; « {engineer.label} », écarté le "
             f"{_day(engineer.last.at.date())}, les deux derniers lus pour la provision qu'ils "
-            f"portaient dans la référence. Chacun dans sa "
+            f"portaient dans la référence, sans tendance. Chacun dans sa "
             f"case de matrice, {scale} ; avec ses commandes — {commands_text} —, les trois "
             f"totaux de provisions — les survenus et les écartés pour la provision que portait "
             f"la référence — avec leur somme, et {reserve_text} en regard (WF-RIS-0040, "
@@ -835,7 +862,8 @@ def examples() -> dict[str, JsonObject]:
         ),
         "risk.json": mocktext.example(
             f"« {rework.label} », identifié : sa description, ses actions de mitigation, sa "
-            f"gravité de {_amount(rework.last.severity)}, total de son devis propre, et sa "
+            f"gravité de {_amount(rework.last.severity)}, l'écart net que son devis propre fait "
+            f"au coût du projet, et sa "
             f"provision de {_amount(provision(rework))}, la gravité à "
             f"{_percent(rework.last.probability)} — ni l'une ni l'autre saisies (WF-RIS-0010). "
             f"Sa ligne de provision, portée par le "
@@ -850,7 +878,8 @@ def examples() -> dict[str, JsonObject]:
             f"« {delay.label} », survenu le {_day(delay.last.at.date())} : son devis propre est "
             f"fusionné dans la structure principale de la révision en cours, ses lignes à "
             f"montant budgété nul et réestimées à {merged}, et sa ligne de provision est "
-            f"retirée ; son coût à la survenance, le total de son devis propre ce jour-là, vaut "
+            f"retirée ; son coût à la survenance, sa gravité ce jour-là, que sa gravité reste "
+            f"(#4400), vaut "
             f"{_amount(cast('Decimal', occurrence_cost(delay)))}, que ni réestimation ni "
             f"terminaison ne changent ; sa provision, celle qu'il portait à la révision de "
             f"référence, {_amount(reference_provision(delay))}, reste comptée dans la réserve "

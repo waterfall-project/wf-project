@@ -35,6 +35,8 @@ if TYPE_CHECKING:
     from datetime import date, datetime
 
 IDENTIFIED, OCCURRED, DISMISSED = "identified", "occurred", "dismissed"
+UP, DOWN, STABLE, NEW = "up", "down", "stable", "new"
+"""The trends of a risk since the previous marked revision (`RiskTrend`, WF-RIS-0040)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,8 +59,9 @@ class Review:
 class Risk:
     """A risk of the witness: what its user entered, its reviews, where its provision lies.
 
-    Its severity is the total of its own estimate, as its reviews retain it, and its provision
-    that severity at its probability: neither is entered (WF-RIS-0010). ``provision_line`` is
+    Its severity is the net gap its own estimate makes to the project, signed, as its reviews
+    retain it, and its provision that severity at its probability, never below zero: neither is
+    entered (WF-RIS-0010, WF-RIS-0080). ``provision_line`` is
     the line of provision it bears in the structure of the current revision, while identified;
     ``reference_provision_line`` the one the reference revision bore, which the reserve for risks
     counts (WF-RIS-0050) — none for a risk identified after the reference was marked;
@@ -207,6 +210,25 @@ def reference_provision(risk: Risk) -> Decimal:
     if known is None:
         return Decimal("0.00")
     return (known.severity * known.probability).quantize(Decimal("0.01"))
+
+
+def trend(risk: Risk) -> str | None:
+    """Return the trend of a risk in the revision 102 since the reference 101 (`Risk.trend`).
+
+    The signed product of its severity by its probability, as its last review retains them,
+    against the one its last review before the marking of the reference retained; a risk not
+    identified then is new; none for a risk occurred or dismissed (WF-RIS-0040).
+    """
+    last = risk.last
+    if last.state != IDENTIFIED:
+        return None
+    marked = risk.known_on(AMENDMENT_MERGED.on)
+    if marked is None or marked.state != IDENTIFIED:
+        return NEW
+    now, then = last.severity * last.probability, marked.severity * marked.probability
+    if now == then:
+        return STABLE
+    return UP if now > then else DOWN
 
 
 def reference(roots: Iterable[Task] | None = None) -> tuple[Task, ...]:

@@ -13003,6 +13003,95 @@ l'adresse de chaque devis propre que liste `structures` (`wftools.mock`, #4409).
 751 (`risk_occurrence_report`) et le chargeur du témoin lisent encore le devis propre d'EP-08, que
 US-3080, US-3100 et US-3150 réécrivent.
 
+### Les risques lus comme des différentiels : gravité et coût signés, tendance, survenance, marche (US-3080/L1, #4627 à #4631)
+
+Les autres points de « Le contrat » de la conception d'EP-30, ceux qui touchent les risques. Les
+constats « contrat » #4627 à #4631, tranchés par l'auteur à la validation de la conception le
+2026-11-21, laissaient au lot les noms, et pour la marche la forme ; ce sont eux qu'on arrête ici,
+avant le code qui les sert (US-3080, US-3100, US-3110, US-3120, US-3130, US-3160). `info.version`
+reste `1.0.0` : un schéma, une énumération, un paramètre, une valeur de tri, une cause et des
+propriétés facultatives de plus ; aucune propriété existante n'est exigée de plus, aucune n'est
+retirée. Le service d'EP-08 répond donc encore sans les propriétés nouvelles, que les lots du
+service rendent.
+
+- **`Risk.severity` et `RiskReview.severity`** (#4627) : l'écart net des totaux réestimés de la
+  structure principale portant ce que le devis propre désigne et de la principale sans lui, lignes de
+  provision exclues, signé — négatif pour une opportunité —, enregistré avec l'évaluation et jamais
+  recalculé à la lecture ; celle d'un risque survenu est son coût à la survenance (#4400).
+  `Money` était déjà signé : seules les descriptions changent. `provision_amount` ne descend pas sous
+  zéro, la ligne d'une opportunité restant à montant nul.
+- **`Risk.occurrence_cost`** est signé, figé ; **`Risk.occurred_reestimated_amount`** est la part
+  figée du coût à la survenance qui ne tient pas aux lignes ajoutées, augmentée du réestimé courant
+  de ces lignes : égal au coût à la survenance le jour de la survenance, il ne suit ensuite que les
+  lignes ajoutées. `RiskCoverageTotals.occurred_cost` et `occurred_reestimated` les somment signés.
+- **`computed_fields`** : la gravité d'un risque identifié ou écarté dépend de `own_estimate`, dont
+  la règle devient l'écart du devis propre et de sa base ; celle d'un survenu, de
+  `occurrence_estimate`, son coût à la survenance. Écartée : une valeur de plus,
+  `own_estimate_base`, à côté de `own_estimate` — `ComputedDependency` nomme une règle par calcul
+  (`severity_and_probability` en compose deux), et la règle de la gravité est une seule différence.
+- **La tendance, `Risk.trend`**, nulle ou l'une des valeurs de **`RiskTrend`** — `up`, `down`,
+  `stable`, `new` —, facultative : le service la rend à partir d'US-3160. Le nom suit le mot de la
+  spécification (« en hausse, en baisse, stable, nouveau ») ; les valeurs en sont la traduction
+  dans cet ordre, qui est aussi celui du tri, comme l'ordre de `RiskState` est celui du tri par
+  état. Nulle pour un survenu ou un écarté, et pour tout risque d'une révision qu'aucune révision
+  marquée ne précède, comme l'écart du reste à engager (WF-RAE-0020).
+- **Les commandes d'un risque dont le devis propre est en retard** : `review` et
+  `declare_occurrence` d'un risque identifié nomment, en dernier, `own_estimate_whole` puis
+  `own_estimate_up_to_date`, les conditions d'US-3070/L2. Le `review` d'un risque écarté ne les nomme
+  pas : sa confirmation à l'état écarté ne les exige pas, et son retour à l'état identifié est
+  refusé par le 409 de `reviewRisk`, comme pour `at_least_one_task` (#787) — la commande dit ce que
+  le geste peut faire, pas chacune de ses issues.
+- **`listRisks`** (#4628) : le filtre **`trends`**, une liste comme `states` et `zones`, qui ne
+  retient aucun risque sans tendance ; la valeur de tri **`trend`**, les risques sans tendance à la
+  place des valeurs nulles (#1761). Les bornes de la gravité, du coût à la survenance et du réestimé
+  des survenus disent qu'elles acceptent une valeur négative ; la gravité d'un survenu est son coût
+  à la survenance, au tri et au filtre comme à la colonne (#4400).
+- **`RiskOccurrenceReport`** (#4629) prend la forme de `StructureMergeReport` : `differences` dit
+  les ajouts, les modifications, les tâches abandonnées conservées (`kept`) et la ligne de provision
+  retirée — la description d'`ImportDifference` dit que `kept` couvre aussi une tâche abandonnée par
+  la survenance, même non démarrée ; **`completed_tasks`** (`ImportCompletedTask`, le schéma de la fusion) les tâches
+  abandonnées non encore terminées, que la survenance termine ; **`reopened_tasks`**
+  (**`RiskOccurrenceReopenedTask`**, lignée et libellé, comme une tâche terminée) les tâches
+  terminées qu'elle rouvre ; **`earned_value_added`** et **`earned_value_removed`** la valeur
+  acquise apportée et retirée, deux montants et non un par tâche, la marche des courbes étant leur
+  différence. Tous facultatifs : le service d'EP-08 greffe encore. Les deux signalements provisoires
+  d'EP-08 restent, `own_estimate_past_planning_start_on` et la phrase des tâches redatées de
+  `differences`, que US-3100/L3 retire avec la greffe (#4632) ; `completed_provision_task` (#4240)
+  reste aussi, dit propre à la greffe : `reopened_tasks` l'étend à toute tâche rouverte, et son
+  retrait va avec celui de la greffe.
+- **La marche d'une survenance** (#4630) entre dans **`CurveSeries.steps` par une cause de plus**,
+  **`risk_occurrence`**, et non par une liste à part : `steps` porte déjà les marches de la courbe
+  lue — celles du budget de référence sur `getCostCurve`, toujours vide sur `getEarnedValueCurves`
+  —, et les courbes conservées au marquage le portent déjà, ce qu'une liste nouvelle n'aurait pas eu
+  dans les documents anciens. Une marche de survenance porte **`risk_id`** et **`risk_label`**, le
+  risque auquel elle est attribuée, que le graphique nomme sans lire le registre ; ces deux champs
+  sont absents d'une marche d'avenant. Elle n'ajoute aucun point à la série, qui la porte déjà au
+  point du mois (WF-IND-0110), à la différence d'une marche d'avenant qui en ajoute deux. Restreinte
+  à un périmètre, elle compte ce qui change dans le périmètre, comme celle d'un avenant ; une
+  survenance qui termine et rouvre des tâches porte une marche même nulle, la spécification
+  attachant la marche au fait de terminer ou de rouvrir. Écartée : une liste
+  `earned_value_steps`, toujours vide sur la courbe des coûts.
+- **`ChartPreferences`** (#4631) : la description dit que l'état gardé sous `risk_matrix` n'est plus
+  lu, le graphique des risques d'un projet étant toujours dessiné ; le schéma reste, et l'exemple
+  `preferences_risk_matrix_unfolded` aussi, aucun client ne cassant.
+
+Exemples, engendrés par `make mock-data` et tenus par `tools/tests/test_mockopportunity.py` : le
+registre du témoin porte la tendance de chaque risque de la révision 102 contre la 101 — 751 en
+hausse, de 250 000,00 à 500 000,00 de gravité pondérée, 752 et 753 sans tendance
+(`wftools.mockwitnessrisks.trend`) —, et toute réponse qui lit un risque la porte ; la réponse de
+`updateRisk` sur la 101, la 102 abandonnée, le dit nouveau contre l'offre 100. Une variante déclarée
+(`wftools.mockopportunity`) ajoute au témoin l'opportunité 755, « Mise en service par
+l'automaticien du client », identifiée le 2 mars, dont le devis propre abandonne la « Mise en
+service », non démarrée : le registre (`risks_opportunity`) et la matrice (`risk_matrix_opportunity`)
+la lisent nouvelle, de gravité négative, de provision nulle, au niveau de gravité 1 et comptée dans
+sa case ; le compte rendu de sa survenance (`risk_occurrence_report_abandoned_task`) dans la forme
+nouvelle, la tâche conservée et terminée, sa valeur acquise apportée ; les courbes de valeur acquise
+après elle (`earned_value_curves_occurrence`), sa marche datée du jour ; la couverture
+(`risk_coverage_opportunity`), son coût à la survenance négatif compté tel quel. Le compte rendu de
+la survenance de 751 (`risk_occurrence_report`) reste celui de la greffe, que le service sert
+encore ; le portefeuille ne lit ni la tendance ni la forme du compte rendu, et ses exemples ne
+changent pas.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

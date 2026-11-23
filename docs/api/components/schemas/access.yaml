@@ -400,9 +400,9 @@ DisplayPreferences:
       type: object
       description: >-
         The state of each chart the user has folded or unfolded, by the chart's name
-        on its screen — `risk_matrix`, the risk matrix of a project's screen, the same
-        for all their projects: a display preference, specific to each user (WF-ADM-0040,
-        EP-15/US-0550).
+        on its screen: a display preference, specific to each user (WF-ADM-0040,
+        EP-15/US-0550). `risk_matrix`, the risk chart of a project's screen, kept for all their
+        projects since #1252, is no longer read: that chart is always drawn (`ChartPreferences`).
       maxProperties: 100
       propertyNames: { maxLength: 64 }
       additionalProperties:
@@ -414,7 +414,10 @@ ChartPreferences:
   description: >-
     The state of a foldable chart (EP-15/US-0550): when folded, the screen shows only its
     title and the button that unfolds it; a chart absent from the preferences takes the state its
-    screen gives it initially — folded for a project's risk matrix (#1252).
+    screen gives it initially. No chart is foldable any more: the risk chart of a project, the
+    only one that was, is always drawn, above the grid (WF-RIS-0040; author's decision of
+    2026-11-21, against #1252), and the state kept under `risk_matrix` is no longer read. The
+    schema stays, which other charts may use, and a client that still sends it is not refused.
   properties:
     folded:
       type: boolean

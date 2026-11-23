@@ -89,7 +89,7 @@ def test_the_reestimated_variant_is_declared_after_the_witness_it_varies() -> No
     assert [
         each["$ref"].rsplit("/", 1)[-1]
         for each in answer["content"]["application/json"]["examples"].values()
-    ] == ["risk_coverage.json", "risk_coverage_reestimated.json"]
+    ] == ["risk_coverage.json", "risk_coverage_reestimated.json", "risk_coverage_opportunity.json"]
     example = REPOSITORY / "fixtures" / "api" / "risk_coverage_reestimated.json"
     summary = json.loads(example.read_text(encoding="utf-8"))["summary"]
     assert summary.startswith("Variante contrefactuelle")
@@ -112,7 +112,8 @@ def test_a_risk_that_occurred_keeps_its_cost_at_occurrence_and_the_others_have_n
 
 def test_a_risk_names_the_rules_of_its_computed_fields_by_its_state() -> None:
     # US-0703/L3: the provision of a risk occurred or dismissed is that of the reference (H-03),
-    # and a risk that occurred alone bears a cost at occurrence (H-02).
+    # and a risk that occurred alone bears a cost at occurrence (H-02), which is its severity
+    # (US-3080/L1, #4400).
     rules = {
         IDENTIFIED: [
             {"field": "severity", "dependencies": ["own_estimate"]},
@@ -123,7 +124,7 @@ def test_a_risk_names_the_rules_of_its_computed_fields_by_its_state() -> None:
             {"field": "provision_amount", "dependencies": ["reference_provision"]},
         ],
         OCCURRED: [
-            {"field": "severity", "dependencies": ["own_estimate"]},
+            {"field": "severity", "dependencies": ["occurrence_estimate"]},
             {"field": "provision_amount", "dependencies": ["reference_provision"]},
             {"field": "occurrence_cost", "dependencies": ["occurrence_estimate"]},
         ],

@@ -322,8 +322,9 @@ ImportReport:
     finds (WF-INTF-0040, WF-INTF-0120). An import is a round trip based on
     the identifier that the export wrote: an object of the file that carries it updates the existing
     object, an object without an identifier is created, an existing object absent from the file is
-    removed — or kept and signalled (`kept`) when its task is started or completed, or when
-    it is a provision line of a risk (WF-INTF-0040, WF-INTF-0100); a remaining to commit
+    removed — or kept and signalled (`kept`) when its task is started or completed, or abandoned
+    by the occurrence of a risk, or when it is a provision line of a risk (WF-INTF-0040,
+    WF-INTF-0100); a remaining to commit
     leaves unchanged, without signalling them, the lines absent from the file (WF-INTF-0120). An
     MS Project schedule carries the project start date, which becomes the planning
     start date of the structure (`CostStructure.planning_start_on`): the report presents it
@@ -924,7 +925,8 @@ ImportDifference:
       enum: [added, removed, updated, kept]
       description: >-
         Added, removed, modified — or kept and signalled (`kept`): a started or
-        completed task that the file no longer carries, or an estimate line of such a task, that
+        completed task, or one that the occurrence of a risk abandons (`RiskOccurrenceReport`,
+        even not started), that the file no longer carries, or an estimate line of such a task, that
         the import keeps instead of removing it (WF-INTF-0040, WF-INTF-0100); a provision line
         of a risk that the file of an estimate no longer carries, kept, the import never modifying
         a provision (WF-INTF-0100, WF-RIS-0010) — a remaining to commit leaves unchanged,

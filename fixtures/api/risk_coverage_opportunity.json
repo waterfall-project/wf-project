@@ -1,0 +1,12 @@
+{
+  "summary": "Variante contrefactuelle : le témoin porte en plus « Mise en service par l'automaticien du client », identifiée le 2 mars 2026 à 50 %, après le marquage de la référence 101, dont le devis propre abandonne la « Mise en service », non démarrée, sans rien ajouter ; sa gravité, l'écart net que son devis propre fait au coût du projet, vaut -6 018,00, moins le réestimé de la ligne abandonnée. La couverture des risques du témoin une fois sa survenance déclarée aujourd'hui : son coût à la survenance, -6 018,00, s'ajoute tel quel à celui de « Retard de livraison des armoires », et le coût des survenus passe de 200,00 à -5 818,00 ; l'écart de couverture passe de 349 860,00 à 355 878,00, l'économie compensant le dépassement d'un autre risque survenu ; sa provision, nulle, ne change pas les provisions restantes (WF-RIS-0050).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
+    "reserve": "850060.00",
+    "remaining_provisions": "500000.00",
+    "occurred_cost": "-5818.00",
+    "occurred_reestimated": "-5818.00",
+    "coverage_variance": "355878.00"
+  }
+}

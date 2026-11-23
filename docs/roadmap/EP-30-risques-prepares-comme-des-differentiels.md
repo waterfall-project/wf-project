@@ -41,7 +41,8 @@ ses exigences avant l'ouverture des issues de ses lots.
 - la gravité d'un risque survenu, lue à son coût à la survenance dans les révisions qui suivent
   (#4400) ;
 - la survenance, qui fusionne ce que le devis propre désigne sur les grandeurs courantes seules,
-  termine à son budget une tâche abandonnée et rouvre une tâche terminée qu'elle modifie ;
+  termine à son budget une tâche abandonnée et rouvre une tâche terminée sous laquelle elle crée,
+  déplace ou modifie une ligne ou une tâche ;
 - le coût à la survenance, signé, la couverture et le suivi d'un risque survenu, redits pour un
   risque qui modifie ou abandonne ;
 - la valeur acquise devant une survenance qui termine ou rouvre des tâches, et sa marque sur les
@@ -464,6 +465,26 @@ au lot. Ses deux premières sections sont les décisions de l'auteur, qui s'impo
   les tâches retirées gardées et terminées quel que soit leur état, la trace posée sur les ajouts,
   ni marquage ni désignation de la référence. La greffe d'EP-08 (`graft`) disparaît. Écartée : une
   seconde application des écarts, à côté de celle de la fusion.
+- **Ce que la survenance tranche en plus** (#4750, livré par US-3100/L1 et ratifié par l'auteur le
+  2026-11-23) :
+  - *ce qui rouvre une tâche terminée* : une ligne créée, déplacée ou modifiée sous elle
+    (WF-RIS-0060-A), une tâche ajoutée ou déplacée sous elle, et les récapitulatives terminées
+    au-dessus ; un changement de durée ou de dates d'une tâche terminée ne la rouvre pas. Le
+    compte rendu nomme les tâches rouvertes sous la forme `{node_id, label}` de `ProvisionTask`
+    (#4240) ; le nom du champ au contrat est d'US-3100/L3 ;
+  - *`merge_lines_worked`* : par cette fonction de l'interface de `core/planning`, `core/estimate`
+    lui dit les tâches dont la fusion écrit les lignes ; appelée dans les deux modes, elle est sans
+    effet pour un avenant ;
+  - *projet sans référence* : le budgété nul d'une ligne désignée, lu comme le réestimé, est d'abord
+    figé au réestimé, comme `_zeroed` le fait, pour que le budgété reste inchangé ;
+  - *ligne désignée* : ses grandeurs courantes passent par la réestimation (`reestimate` :
+    `reestimated_at` posé ; les `previous_*` ne s'écrivent qu'à la copie d'une révision marquée),
+    pour qu'un avenant ultérieur ne l'écrase pas ; elle les reçoit quelle que soit sa tâche, même
+    déjà réestimée, le conflit se lisant au compte rendu ;
+  - *un refus du moteur sur une ligne désignée* (`HOURLY_RATE_MISSING`, `VALUE_OUT_OF_RANGE`…) se
+    rapporte dans les `refusals` du compte rendu, que la survenance lit avant d'écrire, et rien
+    n'est fusionné ; un test le fixe (US-3100/L2). Écarté : laisser sortir l'erreur de
+    `write_lines`, qui annule la fusion en pleine écriture sans que le compte rendu l'ait dit.
 - **Une mesure, sans objectif nouveau.** La grille d'un devis propre entier tient l'objectif
   d'ouverture d'une grille (WF-QUA-0060) ; la recomposition, la mise à jour et le marquage d'un
   projet à vingt risques sont relevés, sans objectif, comme la fusion et la survenance en EP-08.
@@ -519,7 +540,7 @@ pas pour la révision en cours.
 | Module | Ce qu'il reçoit | Ce qu'il expose |
 |---|---|---|
 | `core/revisions` | les états d'un devis propre — entier, élagué, à jour, en retard — ; sa naissance avec sa base ; la mise à jour d'EP-08 étendue à la nature `risk` ; la recomposition et l'élagage, par deux registres où `core/planning` et `core/estimate` donnent chacun leur part ; le mode « survenance » de la fusion ; l'élagage au marquage ; l'état « à jour » porté par-dessus l'écriture d'une ligne de provision ; la copie d'un devis propre élagué et de ses abandons | `register_compose`, `register_prune` ; un registre appelé avant le marquage et avant la fusion d'un avenant, par lequel `core/risks` met à jour ses devis propres ou les refuse ; le mode de `register_merge` |
-| `core/planning` | sa part de la recomposition et de l'élagage, tâches et liaisons ; le mode « survenance » de sa part de la fusion — une tâche retirée gardée et terminée quel que soit son état, les tâches terminées qu'elle rouvre — ; la lecture d'un devis propre élagué, ce qu'il désigne sous ses ancêtres ; la greffe (`graft`, `grafting.py`) retirée | ses parts des registres |
+| `core/planning` | sa part de la recomposition et de l'élagage, tâches et liaisons ; le mode « survenance » de sa part de la fusion — une tâche retirée gardée et terminée quel que soit son état, les tâches terminées qu'elle rouvre — ; la lecture d'un devis propre élagué, ce qu'il désigne sous ses ancêtres ; la greffe (`graft`, `grafting.py`) retirée | ses parts des registres ; `merge_lines_worked`, par laquelle `core/estimate` lui dit les tâches dont la fusion écrit les lignes |
 | `core/estimate` | sa part de la recomposition et de l'élagage, les lignes ; le mode « survenance » de sa part de la fusion — les grandeurs courantes seules, une ligne ajoutée à budgété nul, la trace — ; la lecture des lignes d'un devis propre élagué ; les crochets de la greffe retirés | ses parts des registres ; l'écart des totaux d'un devis propre et de sa base |
 | `core/risks` | la gravité enregistrée, son calcul à chaque écriture du devis propre et à chaque mise à jour, la provision plafonnée ; la mise à jour d'un devis propre, sa permission et ses conditions ; les refus sur un devis propre en retard ; la survenance par la fusion, le coût signé, la part figée, la valeur acquise apportée ; la mise à jour de ses devis propres avant un marquage ou une fusion ; la tendance ; la gravité d'un survenu lue à son coût (#4400) | son interface, dont les signatures que `core/portfolio` lit ne changent pas |
 | `core/indicators` | la marche d'une survenance sur les courbes de valeur acquise, dans le calcul du jour et dans les documents conservés | inchangé |
@@ -821,7 +842,7 @@ la survenance (US-3100) ; les écrans (US-3140) ; le témoin (US-3150).
 
 ## US-3080 — La gravité d'un risque, écart net, la provision qui en est tirée, et l'opportunité
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-RIS-0010-A`, `WF-RIS-0040-A`, `WF-RIS-0080-A`
 - **opérations** : `getRisk`, `listRisks`, `listRiskReviews`, `getProjectRiskMatrix`, `createRisk`,
   `reviewRisk`, `updateRiskProvision`, `listNodes` (la ligne de provision), `getEstimateIndicators`,

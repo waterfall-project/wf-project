@@ -4004,7 +4004,7 @@
       "reference_revision": "Le montant budgété est celui que la révision de référence a fixé.",
       "remaining_reviews": "Le montant réestimé suit les revues du reste à engager.",
       "inflation": "Le montant réestimé, inflation comprise, est le montant de la ligne projeté sur son année de consommation au taux d’inflation de la révision.",
-      "own_estimate": "La gravité d’un risque est le total de son devis propre.",
+      "own_estimate": "La gravité d’un risque est l’écart de son devis propre et de sa base.",
       "severity_and_probability": "La provision d’un risque est sa gravité pondérée par sa probabilité.",
       "reference_provision": "La provision d’un risque survenu ou écarté est celle qu’il portait dans la révision de référence.",
       "occurrence_estimate": "Le coût à la survenance d’un risque est le total de son devis propre quand il a été déclaré survenu."
@@ -4052,7 +4052,8 @@
       },
       "steps": {
         "cause": {
-          "amendment": "Avenant"
+          "amendment": "Avenant",
+          "risk_occurrence": "Survenance d’un risque"
         }
       }
     },
@@ -4064,6 +4065,12 @@
           "project_manager_projection": "Projection du chef de projet"
         }
       }
+    },
+    "RiskTrend": {
+      "up": "En hausse",
+      "down": "En baisse",
+      "stable": "Stable",
+      "new": "Nouveau"
     },
     "RiskState": {
       "identified": "Identifié",

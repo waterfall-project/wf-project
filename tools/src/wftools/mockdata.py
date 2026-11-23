@@ -107,6 +107,7 @@ from wftools import (
     mockkanban,
     mocklists,
     mocknonworking,
+    mockopportunity,
     mockownestimate,
     mockportfolio,
     mockportfoliotime,
@@ -197,8 +198,8 @@ def named() -> dict[str, JsonObject]:
     example (``mockdeclared``), of the administration (``mockadminrefusals``), served undeclared
     (``mockservedrefusals``), of the differentials (``mockdifferentials``); the update of the
     amendment 2 (``mockrebase``); the own estimate of the risk 751 read as a differential
-    (``mockownestimate``); the majors of the
-    review (``mockreview``); the loaders' (``mockwitness*``, ``mockchronology``).
+    (``mockownestimate``); an opportunity and its occurrence (``mockopportunity``); the majors of
+    the review (``mockreview``); the loaders' (``mockwitness*``, ``mockchronology``).
     """
     marked = mocksnapshot.revisions(mockrates.categories())
     return {
@@ -233,6 +234,7 @@ def named() -> dict[str, JsonObject]:
         **mockdifferentials.examples(),
         **mockrebase.examples(),
         **mockownestimate.examples(),
+        **mockopportunity.examples(),
         **mockservedrefusals.examples(),
         **mockspendingrefusals.examples(),
         **mockchronology.examples(),

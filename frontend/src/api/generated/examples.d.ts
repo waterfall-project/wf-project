@@ -114,7 +114,7 @@ export interface Examples {
     200: "cost_curve" | "cost_curve_amendment" | "cost_curve_payment_delays" | "cost_curve_subproject" | "cost_curve_subproject_empty" | "cost_curve_subproject_empty_payment_delays" | "cost_curve_subproject_unbudgeted";
   };
   "GET /projects/{project_id}/indicators/earned-value-curves": {
-    200: "earned_value_curves";
+    200: "earned_value_curves" | "earned_value_curves_occurrence";
   };
   "GET /projects/{project_id}/indicators/index-history": {
     200: "index_history" | "index_history_subproject";
@@ -162,19 +162,19 @@ export interface Examples {
     200: "row_number_estimate_line" | "row_number_task";
   };
   "GET /projects/{project_id}/risks": {
-    200: "risks" | "risks_empty" | "risks_filtered" | "risks_page";
+    200: "risks" | "risks_empty" | "risks_filtered" | "risks_opportunity" | "risks_page";
   };
   "GET /projects/{project_id}/risks/coverage": {
-    200: "risk_coverage" | "risk_coverage_reestimated";
+    200: "risk_coverage" | "risk_coverage_opportunity" | "risk_coverage_reestimated";
   };
   "GET /projects/{project_id}/risks/matrix": {
-    200: "risk_matrix" | "risk_matrix_no_basis";
+    200: "risk_matrix" | "risk_matrix_no_basis" | "risk_matrix_opportunity";
   };
   "GET /projects/{project_id}/risks/{risk_id}": {
     200: "risk" | "risk_dismissed_category_deactivated" | "risk_occurred_detail" | "risk_uncited";
   };
   "GET /projects/{project_id}/risks/{risk_id}/occurrence": {
-    200: "risk_occurrence_report" | "risk_occurrence_report_completed_task";
+    200: "risk_occurrence_report" | "risk_occurrence_report_abandoned_task" | "risk_occurrence_report_completed_task";
   };
   "GET /projects/{project_id}/risks/{risk_id}/reviews": {
     200: "risk_reviews" | "risk_reviews_reviewed";
