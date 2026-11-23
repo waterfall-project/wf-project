@@ -304,7 +304,7 @@ OCCURRED_APART = RISK_APART | {"computed_fields"}
 
 
 def served_risk(risk: dict[str, Any]) -> dict[str, Any]:
-    """Give what the service serves of a risk: its trend, an occurred one's computed fields apart."""
+    """Give what the service serves of a risk, the fields it does not serve yet set apart."""
     apart = OCCURRED_APART if risk["state"] == "occurred" else RISK_APART
     return {key: value for key, value in risk.items() if key not in apart}
 
