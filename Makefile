@@ -375,6 +375,18 @@ measure-core-run: measure-fresh-witness
 	@cd $(BACK) && PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure $(if $(RUNS),--runs $(RUNS)) \
 		$(foreach part,$(ONLY),--only $(part)) $(if $(JSON),--json $(abspath $(JSON)))
 
+# The measure of the workbooks (US-3190/L2b, EP-33, "Les bornes des classeurs"): backend/measure/workbooks.py,
+# on workbooks it engenders alone (tests/workbook_bombs.py, the writers of the exports, the support of the
+# tests, the prototypes of the specification), each point of a sweep read in a fresh process. No database.
+# Without VECTOR, the vectors of the workbooks engendered and the time the judgment of the archive adds;
+# VECTOR=<vector> COUNTS="<count>..." the peak of the reading along one vector. It takes the workstation
+# for itself alone, as measure-core does, and never fails on a figure.
+.PHONY: measure-workbooks
+measure-workbooks: ## Measure what a workbook engendered costs its reader (US-3190/L2b), the workstation for itself alone: the vectors of the workbooks engendered and the time of the judgment of the archive; VECTOR=<vector> COUNTS="<count>..." the peak resident size along one vector
+	@cd $(BACK) && $(exclusive) PYTHONPATH=tests PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure.workbooks \
+		$(if $(VECTOR),sweep $(VECTOR) $(COUNTS),books)
+	@$(if $(VECTOR),,cd $(BACK) && $(exclusive) PYTHONPATH=tests PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure.workbooks preread)
+
 # The witness freshly loaded, for a measure: the platform of the slot stopped and its data dropped,
 # started again, bootstrapped (its link discarded) and the witness loaded.
 $(call slot-export,measure-fresh-witness,$(SLOT_SERVICE))
