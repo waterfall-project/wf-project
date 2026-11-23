@@ -4409,15 +4409,15 @@ processus, puis reposé et ses partitions supprimées autour de chaque test (#21
 tiers du temps des tests. Un test qui change la façon dont la commande le charge le charge
 lui-même, sur la base du processus (`witness_loaded`).
 
-Un test qui se fige échoue au bout de huit minutes, nommé, sa trace là où il s'est arrêté
+Un test qui se fige échoue au bout de quinze minutes, nommé, sa trace là où il s'est arrêté
 (`pytest-timeout`, `timeout` de `backend/pyproject.toml`, par `SIGALRM`) : son processus passe au
 suivant, au lieu de figer sa part de la chaîne jusqu'à l'annulation du travail (#4653). Le plus
 long test qui ne se fige pas charge le témoin lui-même : 216 secondes au plus sur un runner
 (passage 44957647502), et un runner est jusqu'à deux fois plus lent qu'un autre. Le chargement du
-modèle a son échéance, sept minutes (`LOADING_TIMEOUT`, pour 134 à 290 secondes mesurées), sous
+modèle a son échéance, treize minutes (`LOADING_TIMEOUT`, pour 134 à 290 secondes mesurées, puis 170 secondes sur un poste une fois les devis propres des risques nés entiers, EP-30 ; le chargement que son alarme termine le dit), sous
 celle d'un test : passé ce délai, le test qui l'attend échoue avec ce que le chargement a dit, le
 chargement s'arrête et la fin de pytest ne l'attend plus. Le délai d'un test couvre l'item entier, démontage compris :
-un démontage qui suit un gel peut se figer à son tour, et le délai du travail (20 minutes) reste
+un démontage qui suit un gel peut se figer à son tour, et le délai du travail (25 minutes) reste
 le filet.
 
 Un pytest tué (`SIGTERM`, `SIGKILL`) avant sa fin laisse la base `waterfall_witness_*` (et ses

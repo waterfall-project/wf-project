@@ -4370,15 +4370,16 @@ then laid again and its partitions dropped around each test (#2157), took a thir
 tests. A test that changes how the command loads it loads it itself, on the process's database
 (`witness_loaded`).
 
-A test that hangs fails after eight minutes, named, its traceback where it stopped (`pytest-timeout`,
+A test that hangs fails after fifteen minutes, named, its traceback where it stopped (`pytest-timeout`,
 `timeout` of `backend/pyproject.toml`, by `SIGALRM`): its process goes on with the next, instead of
 freezing its part of the chain until the job is cancelled (#4653). The longest test that does not
 hang loads the witness itself: 216 seconds at most on a runner (run 44957647502), and a runner is up
-to twice as slow as another. The loading of the template has its deadline, seven minutes
-(`LOADING_TIMEOUT`, for 134 to 290 seconds measured), under that of a test: past it, the test that
+to twice as slow as another. The loading of the template has its deadline, thirteen minutes
+(`LOADING_TIMEOUT`, for 134 to 290 seconds measured, then 170 seconds on a workstation once the own
+estimates of the risks are born whole, EP-30; the loading ended by its alarm says so), under that of a test: past it, the test that
 waits for it fails with what the loading said, the loading stops, and the end of pytest no longer
 waits for it. The delay of a test covers the whole item, its teardown included: a teardown that
-follows a freeze may freeze in turn, and the delay of the job (20 minutes) remains the net.
+follows a freeze may freeze in turn, and the delay of the job (25 minutes) remains the net.
 
 A pytest killed (`SIGTERM`, `SIGKILL`) without reaching its end leaves the database
 `waterfall_witness_*` (and its copies), the roles `waterfall_witness_*_signing` and

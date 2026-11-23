@@ -56,8 +56,9 @@ jobs:
     # witness is now loaded once by a part, into a template each test on it copies (US-2770/L2b,
     # #4653): the eight parts took 6 to 10 minutes (run 44957647502), then the six 7 to 14 minutes
     # (run 44958967745), each under the delay of 20 minutes, a margin to the slowest runner rather
-    # than a wait.
-    timeout-minutes: 20
+    # than a wait. The template of the witness takes 74 then 170 seconds on a workstation since the
+    # own estimates are born whole (EP-30, US-3070/L3), up to 780 seconds on a runner: 25 minutes.
+    timeout-minutes: 25
     services:
       postgres:
         # The version the platform targets (deploy/compose/compose.service.yaml), by its digest.

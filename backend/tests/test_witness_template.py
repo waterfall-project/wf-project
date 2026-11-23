@@ -40,6 +40,14 @@ if TYPE_CHECKING:
 FAILING = (sys.executable, "-c", "print('the loader broke'); raise SystemExit(1)")
 # A loader that says it sleeps, then sleeps past any deadline of these tests.
 FROZEN = (sys.executable, "-c", "import time; print('asleep', flush=True); time.sleep(600)")
+# A loader that is killed from outside, having said nothing (the memory of a runner, an operator).
+KILLED = (sys.executable, "-c", "import os, signal; os.kill(os.getpid(), signal.SIGKILL)")
+# A loader that the system ends at its deadline, having said nothing (``SIGALRM``, as the real one).
+ALARMED = (
+    sys.executable,
+    "-c",
+    "import signal; signal.signal(signal.SIGALRM, signal.SIG_DFL); signal.alarm(1); signal.pause()",
+)
 # A loader that ends at once, having loaded nothing.
 IDLE = (sys.executable, "-c", "")
 
@@ -143,6 +151,28 @@ def test_a_loader_that_does_not_start_fails_the_test_that_waits_with_the_reason(
     with pytest.raises(OSError, match="nonexistent"):
         start(planned, ["/nonexistent"])
     with pytest.raises(pytest.fail.Exception, match="the loader did not start"):
+        built(planned)
+
+
+def test_a_loading_killed_without_a_word_says_so_to_the_test_that_waits(
+    planned: Template,
+) -> None:
+    """The message is never empty: a loading killed before its deadline is named as such."""
+    loading = start(planned, KILLED)
+    assert loading is not None
+    with pytest.raises(pytest.fail.Exception, match=r"(?s)was not loaded; .*was killed\]"):
+        built(planned)
+    assert loading.ended() == -signal.SIGKILL
+
+
+def test_a_loading_ended_by_its_alarm_says_it_lasted_past_its_deadline(
+    planned: Template,
+) -> None:
+    """The loading the system ended at its deadline, silent, is named as such, not left empty."""
+    loading = start(planned, ALARMED, timeout=1)
+    assert loading is not None
+    assert loading.process.wait(timeout=30) == -signal.SIGALRM
+    with pytest.raises(pytest.fail.Exception, match=r"ended by the system at its deadline"):
         built(planned)
 
 

@@ -73,14 +73,20 @@ _STARTED = "started"
 _BUILD_LOCK = "build.lock"
 _RECORDS = "records"
 _LOG = "loading.log"
+# What the loading writes in its log when it has loaded and recorded the template: a log that lacks
+# it is that of a loading killed, whatever it said before.
+_ENDED = "the loading wrote its records"
 # The end of what the loading said, given with the failure of a test that waited for it.
 _TAIL = 4000
 # The seconds a loading may last. It took 134 to 290 seconds on a runner of the chain, loaded by
-# each of the four processes of a part at once (#4657), a runner up to twice as slow as another:
-# 420 seconds leave it a margin of 130 seconds, nearly half of the longest again. Under the eight
-# minutes of a test (``timeout``, pyproject.toml), so that the test that waits fails with what the
-# loading said, rather than by its own timeout.
-LOADING_TIMEOUT = 420
+# each of the four processes of a part at once (#4657), a runner up to twice as slow as another. The
+# own estimate of a risk is born whole, copied from the main structure at each revision (EP-30,
+# US-3070/L3): the loading took 74 seconds and takes 170 on a workstation, and on a runner of the
+# chain it went past the 420 seconds it was given (run 45181091842, the loading ended by its alarm
+# without a word). 780 seconds leave it, at the ratio of a runner to a workstation (two to four),
+# the margin of the slowest; under the fifteen minutes of a test (``timeout``, pyproject.toml), so
+# that the test that waits fails with what the loading said, rather than by its own timeout.
+LOADING_TIMEOUT = 780
 # The seconds the end of a run waits past the deadline, for the process that started the loading to
 # kill it, before it drops the template whatever still holds it.
 _GRACE = 60
@@ -252,7 +258,17 @@ def _awaited(template: Template, until: float) -> bool:
 
 
 def _said(template: Template) -> str:
-    return (template.directory / _LOG).read_text("utf-8", errors="replace")[-_TAIL:]
+    """Give the end of what the loading said, and how it ended when it did not say so itself."""
+    said = (template.directory / _LOG).read_text("utf-8", errors="replace")[-_TAIL:]
+    if _ENDED in said:
+        return said
+    # The loading ended without saying so: past its deadline, the system ended it; before, it failed
+    # (its traceback is above) or was killed, which leaves no word at all.
+    if time.time() >= deadline_of(template) - 1:
+        how = "was ended by the system at its deadline (SIGALRM): it lasted past LOADING_TIMEOUT"
+    else:
+        how = "ended before its deadline, no records: it failed, or, saying nothing, was killed"
+    return f"{said}\n[the loading {how}]"
 
 
 def built(template: Template) -> str:
@@ -432,7 +448,11 @@ def main() -> None:
     template = Template.read(Path(sys.argv[1]))
     signal.signal(signal.SIGALRM, signal.SIG_DFL)
     signal.alarm(max(1, math.ceil(deadline_of(template) - time.time())))
+    sys.stdout.write(f"the loading started, its deadline {deadline_of(template):.0f}\n")
+    sys.stdout.flush()
     recorded(template, os.environ[TEST_DATABASE_VARIABLE])
+    sys.stdout.write(f"{_ENDED}\n")
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":
