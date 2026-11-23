@@ -223,8 +223,8 @@ def test_lines_of_labour_and_of_material_are_written_under_their_tasks_and_absen
     # « On importe un fichier qui comporte des lignes de main-d'œuvre et des lignes hors
     # main-d'œuvre. » ; « Chaque ligne se retrouve sous la tâche désignée, avec sa quantité, ses
     # heures ou son débours, son rôle et, le cas échéant, son sous-projet. » The import enters
-    # nothing in the undo history. Each of its two writes — the line absent deleted, the lines
-    # written — reads the tree once, a criterion of US-2250.
+    # nothing in the undo history. Its one write — the line absent deleted, the lines written
+    # (US-3220) — reads the tree once, a criterion of US-2250.
     tree, costs = held["tree"], held["costs"]
     answer = api.post(
         f"{PROJECTS}/{stage.project['project_id']}/subprojects",
@@ -244,7 +244,7 @@ def test_lines_of_labour_and_of_material_are_written_under_their_tasks_and_absen
     read = trees_read(monkeypatch)
     with listened() as sent:
         applied_now(api, stage, worker, import_id)
-    assert read.count == 2
+    assert read.count == 1
     # What the replay rests on holds on the application (``reshaped``, US-2250/L2, #3563).
     assert any(each.text.startswith("INSERT INTO node ") for each in sent)
     assert unkept(sent) == []

@@ -640,7 +640,7 @@ de confirmation (`Confirmed`), que le compteur rend sans objet sans la contredir
 
 ## US-3220 — L'import d'un devis retire les lignes absentes du fichier dans l'écriture qui pose les autres
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0100-A`
 - **opérations** : `applyImport`
 - **issue** : #4534
