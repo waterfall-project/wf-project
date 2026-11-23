@@ -436,6 +436,18 @@ message = '''Failed to fetch https?://(?:deb\.debian\.org|apt\.postgresql\.org)/
 frequency = "aucun passage relevé du 2026-11-05 au 2026-11-12 ; source nommée par #3015"
 cause = "hypothèse : la construction d'une image tire apt faute de cache de couches, et la source ne répond pas ; dépendance absente de l'inventaire d'US-1900"
 
+# Maven Central, à la résolution du greffon `dependency` de `make build-keycloak` (#4790). Pas de
+# `runs` : il limiterait l'entrée aux passages nommés, et elle doit classer aussi les suivants.
+[[known]]
+class = "infrastructure"
+family = "Maven Central, greffons de build-keycloak"
+issue = "#4790"
+job = '^service / paths(?: \(\d+/\d+\))?$'
+step = 'build-keycloak'
+message = "mvn --batch-mode --quiet dependency:go-offline|No plugin found for prefix 'dependency'"
+frequency = "4 passages du 2026-11-19 au 2026-11-23 : `make build-keycloak` de `service / paths` (45111181156, 44990506194, 44965076909, 44955878820)"
+cause = "hypothèse : Maven Central ne répond pas, ou trop lentement, pendant la résolution du greffon `dependency` (≈ 300 s avant l'échec) ; le dépôt local de Maven n'est pas gardé en cache dans la chaîne"
+
 # Le délai d'un job, dépassé : la chaîne trop longue, que US-1910 raccourcit.
 
 [[known]]
