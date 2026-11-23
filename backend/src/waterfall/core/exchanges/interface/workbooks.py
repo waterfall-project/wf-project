@@ -41,9 +41,10 @@ application), so a workbook at the bound, 200 MiB declared, inflates up to 200 M
 step of a mebibyte at a time and never held (a member of spaces, which inflates fast, costs a
 fraction of a second, as ``tests/workbook_bombs.py`` builds them; #4740), and it reads each XML
 member once more than openpyxl does: some 150 ms for an extraction of 18 000 lines of cost that
-openpyxl reads in 650 ms, some eight million elements a second, so a few seconds for 200 MiB of
-empty cells. The bound of the sizes is a worst case, which a user may reach only by depositing a
-file that is refused anyway, and no bound could be had without inflating.
+openpyxl reads in 650 ms, some three million cells a second (measured on rows of 500 empty
+``<c/>``, 13 MiB a second), so some fifteen seconds a judgment, three judgments an import, for
+200 MiB of empty cells. The bound of the sizes is a worst case, which a user may reach only by
+depositing a file that is refused anyway, and no bound could be had without inflating.
 
 A reader then materialises the tabs its format reads, and those alone, by ``bounded_rows``: a tab
 of more than ``MOST_ROWS`` rows or ``MOST_COLUMNS`` columns, as openpyxl gives them — the rows a
@@ -97,6 +98,7 @@ _UTF8_MARK = b"\xef\xbb\xbf"
 _BLANKS = b" \t\r\n"
 _XML_STARTS = (b"<", b"\xff\xfe", b"\xfe\xff", b"\x00<")
 _HEAD = 4096
+_VML = ".vml"
 
 
 class WorkbookOutOfBoundsError(ValueError):
@@ -165,12 +167,17 @@ class _Tally:
 class _Reading:
     """The reading of a member, fed step by step, without a tree.
 
-    Its head is kept until the parser has started the document: a member libxml2 cannot start is
-    read no further when its head does not start as XML does, and refused when it does.
+    A syntax error is no refusal in a VML drawing, which openpyxl does not parse; its rows and
+    cells, if it has any, are counted until the error. The head is kept until the parser has started
+    the document: a member libxml2 cannot start is read no further when its head does not start as
+    XML does, and refused when it does.
     """
 
     def __init__(self, name: str) -> None:
         self.tally = _Tally(name)
+        # openpyxl opens a workbook read-only without ever parsing a VML drawing, and Excel writes
+        # legacy ones that are not well-formed XML (a ``<br>`` unclosed): its syntax is no refusal.
+        self.is_parsed = not name.lower().endswith(_VML)
         self.parser: CustomTargetParser[None] | None = hardened_target_parser(self.tally)
         self.head = b""
 
@@ -199,6 +206,9 @@ class _Reading:
 
         A head of blanks alone, as long as the head kept, is refused too: what follows is unseen.
         """
+        if not self.is_parsed:
+            self.parser = None
+            return
         head = self.head.removeprefix(_UTF8_MARK).lstrip(_BLANKS)
         blank = not head and len(self.head) == _HEAD
         if self.tally.started or blank or head.startswith(_XML_STARTS):

@@ -13,7 +13,7 @@ the same parser given a target, which counts what it reads and builds no tree
 (``hardened_target_parser``, US-3190/L1b).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from lxml import etree
 
@@ -22,9 +22,20 @@ if TYPE_CHECKING:
     from lxml.etree._parser import CustomTargetParser
 
 
+# The options of the hardening, written once: the two parsers below take them both.
+class _Hardening(TypedDict):
+    resolve_entities: bool
+    no_network: bool
+    huge_tree: bool
+    load_dtd: bool
+
+
+_HARDENING = _Hardening(resolve_entities=False, no_network=True, huge_tree=False, load_dtd=False)
+
+
 def hardened_parser() -> etree.XMLParser:
     """Give a parser that resolves no entity, reaches no network, loads no DTD nor a huge tree."""
-    return etree.XMLParser(resolve_entities=False, no_network=True, huge_tree=False, load_dtd=False)
+    return etree.XMLParser(**_HARDENING)
 
 
 def hardened_target_parser(target: ParserTarget[None]) -> CustomTargetParser[None]:
@@ -32,6 +43,4 @@ def hardened_target_parser(target: ParserTarget[None]) -> CustomTargetParser[Non
 
     What the target keeps is all the reading holds: no element, no text, unless it keeps them.
     """
-    return etree.XMLParser(
-        resolve_entities=False, no_network=True, huge_tree=False, load_dtd=False, target=target
-    )
+    return etree.XMLParser(**_HARDENING, target=target)

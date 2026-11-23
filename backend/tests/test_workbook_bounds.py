@@ -19,11 +19,12 @@ from dataclasses import dataclass
 from functools import cache
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from actual_costs_import_support import extraction, line
 from estimate_import_support import workbook as estimate_workbook
+from lxml import etree
 from remaining_import_support import workbook as remaining_workbook
 from workbook_bombs import (
     CALM,
@@ -56,6 +57,7 @@ from waterfall.core.exchanges.interface import (
     MOST_MEMBERS,
     MOST_ROWS,
     workbooks,
+    xml,
 )
 from waterfall.platform.errors import UnprocessableError
 
@@ -415,6 +417,44 @@ def test_a_member_that_is_no_xml_is_left_and_a_member_of_damaged_xml_refused() -
         assert read(with_member(base, "xl/media/image1.png", other)).lines == ()
     for damaged in (b"<a><b></a>", b"\xef\xbb\xbf  <a>", b"\xff\xfe<\x00a\x00", b" " * 5000):
         assert _refused(read, with_member(base, "xl/media/x.xml", damaged))
+
+
+# What Excel writes for the comments of a legacy workbook: not well-formed XML.
+EXCEL_VML = (
+    b'<xml xmlns:v="urn:schemas-microsoft-com:vml"><v:shape id=_x0000_s1025 type="#_x0000_t202">'
+    b"<v:textbox><div style='text-align:left'>Note<br></div></v:textbox></v:shape></xml>"
+)
+
+
+@pytest.mark.story("US-3190")
+def test_a_vml_drawing_not_well_formed_is_no_refusal_but_is_still_counted() -> None:
+    # openpyxl, read-only, never parses a VML drawing: its syntax is no refusal of the workbook,
+    # while a member openpyxl does parse (an .xml one, as the test above) is refused.
+    base, read = _base("estimate"), estimate_reader.read_workbook
+    assert read(with_member(base, "xl/drawings/vmlDrawing1.vml", EXCEL_VML)).lines == ()
+    assert _refused(read, with_member(base, "xl/drawings/drawing1.xml", EXCEL_VML))
+    main = b"http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    cells = b'<row xmlns="' + main + b'">' + b"<c/>" * (MOST_COLUMNS + 1) + b"</row><br>"
+    assert _refused(read, with_member(base, "xl/drawings/vmlDrawing2.vml", cells))
+
+
+@pytest.mark.story("US-3190")
+def test_the_two_hardened_parsers_take_the_same_options(monkeypatch: pytest.MonkeyPatch) -> None:
+    taken: list[dict[str, Any]] = []
+    parser = etree.XMLParser
+
+    def spy(**options: Any) -> etree.XMLParser:
+        taken.append(options)
+        return parser()
+
+    monkeypatch.setattr(etree, "XMLParser", spy)
+    xml.hardened_parser()
+    xml.hardened_target_parser(cast("Any", object()))
+    first, second = taken
+    assert second.pop("target") is not None
+    assert first == second
+    assert first["resolve_entities"] is False
+    assert first["no_network"] is True
 
 
 @pytest.mark.story("US-3190")
