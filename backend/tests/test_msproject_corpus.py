@@ -164,6 +164,10 @@ def dated(file: str) -> tuple[MsProject, Schedule]:
     # MS Project names the calendar of its project, and carries it: no file of the corpus is dated
     # on the calendar the reader assumes of a file without one.
     assert project.calendar_uid in calendars, f"{file} names no calendar it carries"
+    # Nor is any task: each one that names a calendar names one the file carries.
+    assert all(
+        each.calendar_uid is None or each.calendar_uid in calendars for each in project.tasks
+    ), f"{file} has a task naming a calendar it does not carry"
     constants = constants_of(project)
     parents = project.parents()
     summaries = {uid for uid in parents.values() if uid is not None}

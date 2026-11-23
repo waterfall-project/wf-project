@@ -13,8 +13,9 @@ tasks of one unique identifier, a link to a task the file does not carry.
 It refuses so a file beyond its bounds too (US-3180), so that a hostile value is the refusal of the
 format and not an error of the engine or of the database: more than 10 000 tasks — ten times the
 volume of §4.6.2 — or than 50 outline levels, which the engine recurses through; an integer of more
-than 18 digits, which a unique identifier kept as ``external_id`` and a 64-bit integer hold; a
-duration of more than a million hours, which a ``timedelta`` holds.
+than 18 digits, so that a unique identifier of 19 characters at most fits ``external_id`` and no
+computation on an integer overflows; a duration of more than a million hours, which a ``timedelta``
+holds.
 """
 
 import re
@@ -124,7 +125,8 @@ def _integer(element: Tag, name: str) -> int | None:
     if value is None:
         return None
     # ``int()`` would take ``1_0`` and the digits of other scripts: an integer of the schema is
-    # an optional minus and ASCII digits. Bounded, it is never one the database cannot keep.
+    # an optional minus and ASCII digits. Bounded to 18 digits, a ``UID`` of 19 characters at most
+    # fits ``external_id`` (200 characters) and no computation on it overflows.
     if INTEGER.fullmatch(value) is None:
         raise UnreadableProjectError(name)
     return int(value)
