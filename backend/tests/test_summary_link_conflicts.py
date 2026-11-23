@@ -103,11 +103,11 @@ def scheduled(written: dict[str, Any]) -> dict[str, dict[str, Any]]:
 def kept(owner: Engine, revision_id: str) -> int:
     """Count the tasks in conflict a revision keeps."""
     with owner.connect() as connection:
-        return connection.scalar(
+        return connection.execute(
             select(func.count())
             .select_from(TaskLinkConflict)
             .where(TaskLinkConflict.revision_id == UUID(revision_id))
-        )
+        ).scalar_one()
 
 
 @pytest.mark.requirement("WF-PLA-0100-A")
