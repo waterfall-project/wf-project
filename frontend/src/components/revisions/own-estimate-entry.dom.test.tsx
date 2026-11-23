@@ -13,7 +13,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
-import { useEntryGuard } from "./entry-guard";
+import { useEntryGuard, withheld } from "./entry-guard";
 import { OwnEstimateEntry } from "./own-estimate-entry";
 import { signals } from "./rebase-report";
 
@@ -23,6 +23,7 @@ vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh: vi.fn() }));
 
 type Report = components["schemas"]["StructureRebaseReport"];
+type Problem = components["schemas"]["Problem"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -41,27 +42,27 @@ function serve(answers: FakeAnswers): FakeClient {
   return client;
 }
 
-/**
- * Serve the report of an example with what it keeps lifted: a report that signals nothing, which the
- * contract gives no example of. Derived from the example the contract gives, never written by hand.
- */
-function servedWithoutWhatItKeeps(name: "structure_rebase_report_risk"): FakeClient {
-  const client = serve({ [REPORT]: name, [REBASE]: "structure_rebased_risk" });
-  const report = example(name) as Report;
-  const lifted = { ...report, differences: report.differences.filter((d) => d.change !== "kept") };
-  // The call is made, and recorded, as any other: only the body it reads is the derived one.
-  server.client = new Proxy(client, {
-    get(target, property, receiver): unknown {
-      if (property !== "GET") {
-        return Reflect.get(target, property, receiver) as unknown;
-      }
-      return async (...args: unknown[]) => {
-        const answer = (await Reflect.apply(target.GET, target, args)) as object;
-        return String(args[0]).endsWith("/rebase") ? { ...answer, data: lifted } : answer;
-      };
-    },
-  });
-  return client;
+/** Two entries made one after the other, with no wait between them: the guard is asked twice. */
+function Twice({ write }: { readonly write: () => Promise<Outcome<string>> }) {
+  const guard = useEntryGuard();
+  const [told, setTold] = useState<string[]>([]);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => {
+          for (const entry of [guard(write), guard(write)]) {
+            void entry.then((outcome) => {
+              setTold((before) => [...before, outcome.kind]);
+            });
+          }
+        }}
+      >
+        Saisir deux fois
+      </button>
+      <output aria-label="Réponses">{told.join(",")}</output>
+    </div>
+  );
 }
 
 /** A grid's cell: one write, which goes through the guard of the own estimate. */
@@ -110,6 +111,7 @@ function entry(
           recompose={options.recompose ?? false}
         >
           <Cell write={write} />
+          <Twice write={write} />
         </OwnEstimateEntry>
       </main>
     </NextIntlClientProvider>,
@@ -130,25 +132,67 @@ describe("the first entry into an own estimate in arrears", () => {
     expect(client.calls).toEqual([]);
   });
 
-  it("updates without asking, then enters, when the report signals nothing [US-3140] [WF-RIS-0070-A]", async () => {
-    const client = servedWithoutWhatItKeeps("structure_rebase_report_risk");
+  it("updates without asking when the report signals nothing, then withholds the entry the rows read again carry [US-3140] [WF-RIS-0070-A]", async () => {
+    const client = serve({
+      [REPORT]: "structure_rebase_report_risk_clean",
+      [REBASE]: "structure_rebased_risk",
+    });
     const write = entry();
     await userEvent.click(screen.getByRole("button", { name: "Saisir" }));
-    await waitFor(() => {
-      expect(write).toHaveBeenCalledTimes(1);
-    });
+    expect(await screen.findByText(/est à jour\. Saisissez de nouveau/)).toBeVisible();
     expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE]);
-    const read = example("structure_rebase_report_risk") as Report;
+    const read = example("structure_rebase_report_risk_clean") as Report;
     expect(client.calls[1]?.body).toEqual({
       confirmed: true,
       main_structure_lock_version: read.main_structure_lock_version,
       structure_lock_version: read.structure_lock_version,
     });
+    // Not sent from the rows of before the update, whose counters and nodes it rewrote.
+    expect(write).not.toHaveBeenCalled();
+    expect(screen.getByRole("status", { name: "Réponse" })).toHaveTextContent("conflict");
     expect(screen.queryByRole("region", { name: "Mise à jour du devis propre" })).toBeNull();
     // Updated once: the next entry reads nothing more until the screen says it late again.
     await userEvent.click(screen.getByRole("button", { name: "Saisir" }));
-    expect(write).toHaveBeenCalledTimes(2);
+    expect(write).toHaveBeenCalledTimes(1);
     expect(client.calls).toHaveLength(2);
+  });
+
+  it("starts one reading and one update for the entries made while it is under way [US-3140] [WF-RIS-0070-A]", async () => {
+    const client = serve({
+      [REPORT]: "structure_rebase_report_risk_clean",
+      [REBASE]: "structure_rebased_risk",
+    });
+    const write = entry();
+    await userEvent.click(screen.getByRole("button", { name: "Saisir deux fois" }));
+    await waitFor(() => {
+      expect(screen.getByRole("status", { name: "Réponses" })).toHaveTextContent(
+        "conflict,conflict",
+      );
+    });
+    expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE]);
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("reads the report again at the next entry when the service refuses an entry for the own estimate being out of date [US-3140] [WF-RIS-0070-A]", async () => {
+    const client = serve({
+      [REPORT]: "structure_rebase_report_risk_clean",
+      [REBASE]: "structure_rebased_risk",
+    });
+    entry({ write: () => Promise.resolve(withheld<string>()) });
+    await userEvent.click(screen.getByRole("button", { name: "Saisir" }));
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(2);
+    });
+    // Updated: this entry goes, and the service says it late again.
+    await userEvent.click(screen.getByRole("button", { name: "Saisir" }));
+    await waitFor(() => {
+      expect(screen.getByRole("status", { name: "Réponse" })).toHaveTextContent("conflict");
+    });
+    expect(client.calls).toHaveLength(2);
+    await userEvent.click(screen.getByRole("button", { name: "Saisir" }));
+    await waitFor(() => {
+      expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, REPORT, REBASE]);
+    });
   });
 
   it("presents a value kept against the project, with the severity and the provision recomputed, and withholds the entry [US-3140] [WF-RIS-0070-A]", async () => {
@@ -210,11 +254,8 @@ describe("the first entry into an own estimate in arrears", () => {
   });
 
   it("signals nothing when a report keeps nothing and refuses nothing, whatever the severity it recomputes [US-3140] [WF-RIS-0070-A]", () => {
-    const report = example("structure_rebase_report_risk") as Report;
-    expect(signals(report)).toBe(true);
-    expect(
-      signals({ ...report, differences: report.differences.filter((d) => d.change !== "kept") }),
-    ).toBe(false);
+    expect(signals(example("structure_rebase_report_risk") as Report)).toBe(true);
+    expect(signals(example("structure_rebase_report_risk_clean") as Report)).toBe(false);
     expect(signals(example("structure_rebase_report_risk_refused") as Report)).toBe(true);
   });
 });
@@ -240,5 +281,46 @@ describe("the opening of an own estimate a marking pruned", () => {
     entry({ structureId: PRUNED, late: false, recompose: false });
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(client.calls).toEqual([]);
+  });
+
+  it("recomposes an own estimate that stays in arrears, then updates it without a question, and the entry that follows goes [US-3140] [WF-RIS-0030] [WF-RIS-0070-A]", async () => {
+    const client = serve({
+      [RECOMPOSE]: "structure_recomposed_late",
+      [REPORT]: "structure_rebase_report_risk_clean",
+      [REBASE]: "structure_rebased_risk",
+    });
+    const write = entry({ structureId: PRUNED, late: false, recompose: true });
+    await waitFor(() => {
+      expect(client.calls.map((call) => call.route)).toEqual([RECOMPOSE, REPORT, REBASE]);
+    });
+    await waitFor(() => {
+      expect(screen.queryByText(/Mise à jour du devis propre « /)).toBeNull();
+    });
+    expect(screen.queryByRole("region", { name: "Mise à jour du devis propre" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Saisir" }));
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(client.calls).toHaveLength(3);
+  });
+
+  it("tells the refusal of the recomposition, and reads and updates nothing [US-3140] [WF-RIS-0030]", async () => {
+    const client = serve({
+      [RECOMPOSE]: { problem: example("structure_recompose_revision_marked") as Problem },
+    });
+    entry({ structureId: PRUNED, late: false, recompose: true });
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(client.calls.map((call) => call.route)).toEqual([RECOMPOSE]);
+    expect(screen.queryByText(/Recomposition du devis propre/)).toBeNull();
+  });
+
+  it("presents at the opening what the update keeps after a recomposition that leaves the own estimate in arrears [US-3140] [WF-RIS-0030] [WF-RIS-0070-A]", async () => {
+    const client = serve({
+      [RECOMPOSE]: "structure_recomposed_late",
+      [REPORT]: "structure_rebase_report_risk",
+    });
+    const write = entry({ structureId: PRUNED, late: false, recompose: true });
+    const prompt = await screen.findByRole("region", { name: "Mise à jour du devis propre" });
+    expect(prompt).toHaveTextContent("garde une valeur contre le projet");
+    expect(client.calls.map((call) => call.route)).toEqual([RECOMPOSE, REPORT]);
+    expect(write).not.toHaveBeenCalled();
   });
 });

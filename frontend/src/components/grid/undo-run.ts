@@ -22,7 +22,6 @@
 import { useState } from "react";
 
 import { redoLastUndo, undoLastChange } from "@/api/actions/history";
-import { useEntryGuard } from "@/components/revisions/entry-guard";
 import type { Outcome } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
 import { useReadAnew } from "@/components/commands/outcome-notice";
@@ -58,8 +57,6 @@ export function useUndoRedo(
   offered: boolean | undefined,
 ): UndoControl | undefined {
   const held = useHeldCommand();
-  // An undo is a write of the structure: an own estimate in arrears is updated first (US-3140).
-  const guard = useEntryGuard();
   const [told, setTold] = useState<Told>();
   const [done, setDone] = useState<Done>();
   const structure = scope.structure_id;
@@ -75,7 +72,7 @@ export function useUndoRedo(
     const ask = command === "undo" ? undoLastChange : redoLastUndo;
     setTold(undefined);
     setDone(undefined);
-    const sent = held(guard(() => ask(scope.project_id, scope.revision_id)));
+    const sent = held(ask(scope.project_id, scope.revision_id));
     account.writing(sent);
     void sent.then((outcome) => {
       if (outcome.kind === "done") {

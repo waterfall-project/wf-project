@@ -10,10 +10,14 @@
  *   without a question when the report signals nothing.
  * - **Before the first entry** into an own estimate in arrears, the guard (`entry-guard.ts`) reads the
  *   report of the update (`getStructureRebaseReport`): it signals nothing, the update is applied
- *   (`rebaseCostStructure`) and the entry goes on; the report keeps a value against the project, it is
- *   presented to confirm, with the severity and the provision it recomputes, and the entry is withheld;
- *   it refuses, the report says what is to correct in the own estimate, and the entry is withheld.
- *   A confirmed update leaves the user to enter the value anew, the rows being read again.
+ *   (`rebaseCostStructure`) without a question; the report keeps a value against the project, it is
+ *   presented to confirm, with the severity and the provision it recomputes; it refuses, the report
+ *   says what is to correct in the own estimate. The entry is withheld in each case: the update
+ *   rewrites the rows the write was built on — their counters, perhaps their very nodes, a line it
+ *   removes —, and the grid reads them again (`readAnew`), so that a write sent from the rows before
+ *   it would carry a version the service refuses, or a value never seen. The user enters the value
+ *   anew, the rows being read again, and the update is not asked twice. Entries made while the report
+ *   is read share the one reading and the one update.
  *
  * The front decides none of it but by the word of the structure and of the report (`signals`). The
  * component is mounted for one structure — its parent keys it by the structure —, and renders what it
@@ -49,11 +53,14 @@ export interface OwnEstimate {
   readonly label: string;
 }
 
+/** What an action that gives nothing back answered, when it did not give it. */
+type Refused = Exclude<Outcome<never>, { readonly kind: "done" }>;
+
 /** What settling the update came to. */
 type Settled =
   | { readonly kind: "updated" }
   | { readonly kind: "presented" }
-  | { readonly kind: "failed"; readonly outcome: Outcome<unknown> };
+  | { readonly kind: "failed"; readonly outcome: Refused };
 
 /** The own estimate, whether it is in arrears and whether it waits for its recomposition. */
 export interface OwnEstimateEntryProps {
@@ -71,9 +78,14 @@ interface Prompt {
   readonly outcome: Outcome<unknown> | undefined;
 }
 
-/** Whether the component is still mounted: read again after each wait, so never narrowed. */
-function mounted(alive: { readonly current: boolean }): boolean {
-  return alive.current;
+/** Whether a write was refused for the own estimate being out of date: the service says it late. */
+function refusedAsLate(outcome: Outcome<unknown>): boolean {
+  return (
+    outcome.kind !== "done" &&
+    outcome.kind !== "unreachable" &&
+    outcome.problem.code === "STATE_FORBIDS_OPERATION" &&
+    outcome.problem.params?.["missing_condition"] === "own_estimate_up_to_date"
+  );
 }
 
 /** Guard the entries of an own estimate in arrears, and recompose one that is pruned. */
@@ -124,22 +136,37 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
     return { kind: "updated" };
   }, [projectId, revisionId, structureId]);
 
+  // The reading and the update under way, which entries made meanwhile wait for instead of starting
+  // their own: a second report read and a second update would be refused as stale.
+  const settling = useRef<Promise<Settled>>(undefined);
+  const settleOnce = useCallback((): Promise<Settled> => {
+    settling.current ??= settle().finally(() => {
+      settling.current = undefined;
+    });
+    return settling.current;
+  }, [settle]);
+
   const guard = useCallback<EntryGuard>(
     async (write) => {
       const now = live.current;
       if (!now.late || now.updated) {
-        return write();
+        const outcome = await write();
+        if (refusedAsLate(outcome)) {
+          // The service says it late: the next entry reads the report anew.
+          live.current = { late: true, updated: false };
+        }
+        return outcome;
       }
-      const settled = await settle();
-      if (settled.kind === "updated") {
-        return write();
-      }
+      const settled = await settleOnce();
       if (settled.kind === "failed") {
-        return settled.outcome as Outcome<never>;
+        return settled.outcome;
+      }
+      if (settled.kind === "updated" && alive.current) {
+        setDone({ title: t("done", { label }) });
       }
       return withheld();
     },
-    [settle],
+    [settleOnce, t, label],
   );
 
   const opened = useRef(false);
@@ -151,28 +178,24 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
     void (async () => {
       setWorking("recomposing");
       const recomposed = await recomposeStructure(projectId, revisionId, structureId);
-      if (!mounted(alive)) {
-        return;
-      }
+      let refused: Refused | undefined;
       if (recomposed.kind !== "done") {
-        setFailed(recomposed);
-        setWorking(undefined);
-        return;
-      }
-      if (recomposed.data.is_up_to_date === false) {
+        refused = recomposed;
+      } else if (recomposed.data.is_up_to_date === false) {
         setWorking("updating");
         live.current = { late: true, updated: false };
-        const settled = await settle();
-        if (!mounted(alive)) {
-          return;
-        }
-        if (settled.kind === "failed") {
-          setFailed(settled.outcome);
-        }
+        const settled = await settleOnce();
+        refused = settled.kind === "failed" ? settled.outcome : undefined;
+      }
+      if (!alive.current) {
+        return;
+      }
+      if (refused !== undefined) {
+        setFailed(refused);
       }
       setWorking(undefined);
     })();
-  }, [recompose, projectId, revisionId, structureId, settle]);
+  }, [recompose, projectId, revisionId, structureId, settleOnce]);
 
   const confirm = () => {
     if (prompt === undefined || busy) {
