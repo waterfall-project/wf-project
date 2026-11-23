@@ -13,7 +13,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
-import { useEntryGuard, withheld } from "./entry-guard";
+import { type Entry, type Fresh, useEntryGuard, withheld } from "./entry-guard";
 import { OwnEstimateEntry } from "./own-estimate-entry";
 import { signals } from "./rebase-report";
 
@@ -24,6 +24,7 @@ vi.mock("next/cache", () => ({ refresh: vi.fn() }));
 
 type Report = components["schemas"]["StructureRebaseReport"];
 type Problem = components["schemas"]["Problem"];
+type NodesWritten = components["schemas"]["NodesWritten"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -34,6 +35,10 @@ const STRUCTURE = "/projects/{project_id}/revisions/{revision_id}/structures/{st
 const REPORT = `GET ${STRUCTURE}/rebase` as const;
 const REBASE = `POST ${STRUCTURE}/rebase` as const;
 const RECOMPOSE = `POST ${STRUCTURE}/recompose` as const;
+const NODES = `GET ${STRUCTURE}/nodes` as const;
+// A line of the own estimate of the witness, which accepts its quantity, and a node it does not have.
+const LINE = "01926f3a-7c00-7000-8000-000000002053";
+const ABSENT = "01926f3a-7c00-7000-8000-000000009999";
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers): FakeClient {
@@ -86,6 +91,59 @@ function Cell({ write }: { readonly write: () => Promise<Outcome<string>> }) {
   );
 }
 
+/** What a write of a line answers, with the counters it moved the line and the structure on to. */
+function written(lockVersion: number, structureLockVersion: number): NodesWritten {
+  const answer = example("estimate_line_updated") as NodesWritten;
+  return {
+    ...answer,
+    nodes: answer.nodes.map((node) => ({ ...node, node_id: LINE, lock_version: lockVersion })),
+    structure_lock_version: structureLockVersion,
+  };
+}
+
+/** An entry into the quantity of the line, which notes the counters it is sent with. */
+function quantity(
+  sent: (Fresh | undefined)[],
+  options: { readonly node?: string; readonly field?: string; readonly moved?: number } = {},
+): Entry<NodesWritten> {
+  const node = options.node ?? LINE;
+  return {
+    nodes: [node],
+    fields: [options.field ?? "estimate_line.quantity"],
+    send: (fresh) => {
+      // A copy: the guard moves the counters on as the answers come.
+      sent.push(fresh === undefined ? undefined : { ...fresh, nodes: new Map(fresh.nodes) });
+      return Promise.resolve({
+        kind: "done" as const,
+        data: written(options.moved ?? 9, 7),
+      });
+    },
+  };
+}
+
+/** Entries made one after the other, with no wait between them, each through the guard. */
+function Entered({ entries }: { readonly entries: readonly Entry<NodesWritten>[] }) {
+  const guard = useEntryGuard();
+  const [told, setTold] = useState<string[]>([]);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => {
+          for (const entry of entries) {
+            void guard(entry).then((outcome) => {
+              setTold((before) => [...before, outcome.kind]);
+            });
+          }
+        }}
+      >
+        Saisir la quantité
+      </button>
+      <output aria-label="Saisies">{told.join(",")}</output>
+    </div>
+  );
+}
+
 /** The own estimate, mounted as the page mounts it. */
 function entry(
   options: {
@@ -93,6 +151,7 @@ function entry(
     readonly late?: boolean;
     readonly recompose?: boolean;
     readonly write?: () => Promise<Outcome<string>>;
+    readonly entries?: readonly Entry<NodesWritten>[];
   } = {},
 ) {
   const write =
@@ -112,6 +171,7 @@ function entry(
         >
           <Cell write={write} />
           <Twice write={write} />
+          <Entered entries={options.entries ?? []} />
         </OwnEstimateEntry>
       </main>
     </NextIntlClientProvider>,
@@ -132,29 +192,96 @@ describe("the first entry into an own estimate in arrears", () => {
     expect(client.calls).toEqual([]);
   });
 
-  it("updates without asking when the report signals nothing, then withholds the entry the rows read again carry [US-3140] [WF-RIS-0070-A]", async () => {
+  it("updates without asking when the report signals nothing, reads the nodes again and writes the entry from the counters read [US-3140] [WF-RIS-0070-A]", async () => {
     const client = serve({
       [REPORT]: "structure_rebase_report_risk_clean",
       [REBASE]: "structure_rebased_risk",
+      [NODES]: "nodes_risk_estimate",
     });
-    const write = entry();
-    await userEvent.click(screen.getByRole("button", { name: "Saisir" }));
-    expect(await screen.findByText(/est à jour\. Saisissez de nouveau/)).toBeVisible();
-    expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE]);
+    const sent: (Fresh | undefined)[] = [];
+    entry({ entries: [quantity(sent)] });
+    await userEvent.click(screen.getByRole("button", { name: "Saisir la quantité" }));
+    await waitFor(() => {
+      expect(screen.getByRole("status", { name: "Saisies" })).toHaveTextContent("done");
+    });
+    expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, NODES]);
     const read = example("structure_rebase_report_risk_clean") as Report;
     expect(client.calls[1]?.body).toEqual({
       confirmed: true,
       main_structure_lock_version: read.main_structure_lock_version,
       structure_lock_version: read.structure_lock_version,
     });
-    // Not sent from the rows of before the update, whose counters and nodes it rewrote.
-    expect(write).not.toHaveBeenCalled();
-    expect(screen.getByRole("status", { name: "Réponse" })).toHaveTextContent("conflict");
+    // Sent once, from the counters of the nodes read after the update and the structure's answered.
+    expect(sent).toHaveLength(1);
+    const nodes = example("nodes_risk_estimate") as {
+      items: { node_id: string; lock_version: number }[];
+    };
+    const line = nodes.items.find((node) => node.node_id === LINE);
+    expect(sent[0]?.nodes.get(LINE)?.lock_version).toBe(line?.lock_version);
+    expect(sent[0]?.structureLockVersion).toBe(
+      (example("structure_rebased_risk") as { lock_version: number }).lock_version,
+    );
+    // Said updated, not withheld: no refusal reached the grid, and no entering again is asked.
+    expect(screen.getByText(/a été mis à jour\./)).toBeVisible();
+    expect(screen.queryByText(/Saisissez de nouveau/)).toBeNull();
     expect(screen.queryByRole("region", { name: "Mise à jour du devis propre" })).toBeNull();
-    // Updated once: the next entry reads nothing more until the screen says it late again.
-    await userEvent.click(screen.getByRole("button", { name: "Saisir" }));
-    expect(write).toHaveBeenCalledTimes(1);
-    expect(client.calls).toHaveLength(2);
+    // Updated once: the next entry goes as it is, and reads nothing more.
+    await userEvent.click(screen.getByRole("button", { name: "Saisir la quantité" }));
+    await waitFor(() => {
+      expect(sent).toHaveLength(2);
+    });
+    expect(sent[1]).toBeUndefined();
+    expect(client.calls).toHaveLength(3);
+  });
+
+  it("writes nothing and says so when the node is gone after the update, or no longer accepts the field [US-3140] [WF-RIS-0070-A]", async () => {
+    serve({
+      [REPORT]: "structure_rebase_report_risk_clean",
+      [REBASE]: "structure_rebased_risk",
+      [NODES]: "nodes_risk_estimate",
+    });
+    const sent: (Fresh | undefined)[] = [];
+    entry({
+      entries: [
+        quantity(sent, { node: ABSENT }),
+        quantity(sent, { field: "estimate_line.unit_disbursement" }),
+      ],
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Saisir la quantité" }));
+    await waitFor(() => {
+      expect(screen.getByRole("status", { name: "Saisies" })).toHaveTextContent("refused,refused");
+    });
+    expect(sent).toEqual([]);
+    expect(screen.getByRole("alert")).toHaveTextContent("la saisie n’a pas été enregistrée");
+    expect(screen.queryByText(/Saisissez de nouveau/)).toBeNull();
+  });
+
+  it("writes the entries made while the update is under way one after the other, each from the counters the one before answered [US-3140] [WF-RIS-0070-A]", async () => {
+    const client = serve({
+      [REPORT]: "structure_rebase_report_risk_clean",
+      [REBASE]: "structure_rebased_risk",
+      [NODES]: "nodes_risk_estimate",
+    });
+    const sent: (Fresh | undefined)[] = [];
+    // The counters the second entry saw when it was sent: the first answered them.
+    const seen: number[] = [];
+    const first = quantity(sent, { moved: 4 });
+    const second: Entry<NodesWritten> = {
+      ...first,
+      send: (fresh) => {
+        seen.push(fresh?.nodes.get(LINE)?.lock_version ?? -1, fresh?.structureLockVersion ?? -1);
+        return first.send(fresh);
+      },
+    };
+    entry({ entries: [first, second] });
+    await userEvent.click(screen.getByRole("button", { name: "Saisir la quantité" }));
+    await waitFor(() => {
+      expect(screen.getByRole("status", { name: "Saisies" })).toHaveTextContent("done,done");
+    });
+    // One reading, one update, one reading of the nodes, and two writes in the order of the entries.
+    expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, NODES]);
+    expect(sent).toHaveLength(2);
+    expect(seen).toEqual([4, 7]);
   });
 
   it("starts one reading and one update for the entries made while it is under way [US-3140] [WF-RIS-0070-A]", async () => {
@@ -212,6 +339,10 @@ describe("the first entry into an own estimate in arrears", () => {
     expect(write).not.toHaveBeenCalled();
     expect(client.calls.map((call) => call.route)).toEqual([REPORT]);
     expect(screen.getByRole("status", { name: "Réponse" })).toHaveTextContent("conflict");
+    // Withheld for a confirmation, and nowhere said up to date: nothing was updated.
+    expect(prompt).toHaveTextContent("confirmez-la, puis saisissez de nouveau");
+    expect(screen.queryByText(/est à jour/)).toBeNull();
+    expect(screen.queryByText(/a été mis à jour/)).toBeNull();
     await expectAccessible(prompt);
   });
 

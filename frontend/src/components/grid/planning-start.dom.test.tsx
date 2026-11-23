@@ -57,7 +57,7 @@ function grid({
         nodes={planning}
         structure={STRUCTURE}
         structureVersion={1}
-        planningStart={{ on: "2026-03-02", label: LABEL, editable: startEditable }}
+        planningStart={{ on: "2026-03-02", label: LABEL, editable: editable && startEditable }}
         filters={{ kinds: ["task"] }}
         query={NO_QUERY}
         preferences={undefined}

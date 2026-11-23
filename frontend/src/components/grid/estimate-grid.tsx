@@ -31,7 +31,12 @@ import {
   updateTaskFacet,
 } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
-import { type EntryGuard, useEntryGuard } from "@/components/revisions/entry-guard";
+import {
+  counterOf,
+  type EntryGuard,
+  fieldsOf,
+  useEntryGuard,
+} from "@/components/revisions/entry-guard";
 import { formatPercent } from "@/i18n/format";
 
 import { withDifference } from "./compared";
@@ -176,13 +181,18 @@ function structurePaste(
         rows: block.map((cells) => [...cells]),
       }),
     apply: async (plan) => {
-      const outcome = await guard(() =>
-        applyPaste(structure, {
-          paste_id: plan.paste_id,
-          confirmed: true,
-          lock_version: version,
-        }),
-      );
+      // A block has no node of its own: the service places it, and judges it by the counter of the
+      // structure — read again, when the own estimate was updated first.
+      const outcome = await guard({
+        nodes: [],
+        fields: [],
+        send: (fresh) =>
+          applyPaste(structure, {
+            paste_id: plan.paste_id,
+            confirmed: true,
+            lock_version: fresh?.structureLockVersion ?? version,
+          }),
+      });
       if (outcome.kind !== "done") {
         return outcome;
       }
@@ -219,23 +229,29 @@ function structureWrites(
     totals: moved.whole ? undefined : () => readNodeTotals(structure, filters),
     line: async (node, change) =>
       asWritten(
-        await guard(() =>
-          updateEstimateLine(structure, node.node_id, {
-            ...change,
-            lock_version: node.lock_version,
-          }),
-        ),
+        await guard({
+          nodes: [node.node_id],
+          fields: fieldsOf("estimate_line", change),
+          send: (fresh) =>
+            updateEstimateLine(structure, node.node_id, {
+              ...change,
+              lock_version: counterOf(fresh, node.node_id, node.lock_version),
+            }),
+        }),
         moved,
       ),
     task: tasks
       ? async (node, label) =>
           asWritten(
-            await guard(() =>
-              updateTaskFacet(structure, node.node_id, {
-                label,
-                lock_version: node.lock_version,
-              }),
-            ),
+            await guard({
+              nodes: [node.node_id],
+              fields: ["task.label"],
+              send: (fresh) =>
+                updateTaskFacet(structure, node.node_id, {
+                  label,
+                  lock_version: counterOf(fresh, node.node_id, node.lock_version),
+                }),
+            }),
             moved,
           )
       : undefined,

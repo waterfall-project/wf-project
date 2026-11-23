@@ -251,7 +251,7 @@ export default async function PlanningPage({
                 planningStart: {
                   on: screen.planningStart,
                   label: screen.label,
-                  editable: screen.kind !== "risk",
+                  editable: editable && screen.kind !== "risk",
                 },
                 filters: screen.filters,
                 query: screen.query,

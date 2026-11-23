@@ -2148,7 +2148,9 @@
     "refused": "La mise à jour du devis propre « {label} » est refusée : corrigez le devis propre, puis saisissez de nouveau.",
     "confirm": "Confirmer la mise à jour du devis propre",
     "close": "Fermer",
-    "done": "Le devis propre « {label} » est à jour. Saisissez de nouveau."
+    "done": "Le devis propre « {label} » est à jour. Saisissez de nouveau.",
+    "updated": "Le devis propre « {label} » a été mis à jour.",
+    "gone": "Le devis propre « {label} » a été mis à jour, et la saisie n’a pas été enregistrée : la ligne n’existe plus ou n’accepte plus ce champ."
   },
   "rebaseReport": {
     "labelOwn": "Mettre à jour le devis propre",

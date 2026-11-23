@@ -10,14 +10,14 @@
  *   without a question when the report signals nothing.
  * - **Before the first entry** into an own estimate in arrears, the guard (`entry-guard.ts`) reads the
  *   report of the update (`getStructureRebaseReport`): it signals nothing, the update is applied
- *   (`rebaseCostStructure`) without a question; the report keeps a value against the project, it is
- *   presented to confirm, with the severity and the provision it recomputes; it refuses, the report
- *   says what is to correct in the own estimate. The entry is withheld in each case: the update
- *   rewrites the rows the write was built on — their counters, perhaps their very nodes, a line it
- *   removes —, and the grid reads them again (`readAnew`), so that a write sent from the rows before
- *   it would carry a version the service refuses, or a value never seen. The user enters the value
- *   anew, the rows being read again, and the update is not asked twice. Entries made while the report
- *   is read share the one reading and the one update.
+ *   (`rebaseCostStructure`) without a question, the nodes are read again (`readNodeCounters`), and the
+ *   entry is written as the user made it, from the counter of its node read again — or, for a block
+ *   pasted, from the counter of the structure; the node gone, or the field no longer accepted, nothing is
+ *   written and the screen says it. The report keeps a value against the project, it is presented to
+ *   confirm, with the severity and the provision it recomputes; it refuses, the report says what is to
+ *   correct in the own estimate; the entry is withheld in each case, and the user enters it anew. Entries
+ *   made while the report is read share the one reading and the one update, then are written one after
+ *   the other, each from the counter the one before answered.
  *
  * The front decides none of it but by the word of the structure and of the report (`signals`). The
  * component is mounted for one structure — its parent keys it by the structure —, and renders what it
@@ -36,13 +36,22 @@ import {
   useState,
 } from "react";
 
+import { readNodeCounters } from "@/api/actions/nodes";
 import { readRebaseReport, recomposeStructure, rebaseStructure } from "@/api/actions/revisions";
+import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { DoneNotice } from "@/components/notices/done-notice";
 import { Button } from "@/components/ui/button";
 
-import { type EntryGuard, EntryGuardProvider, withheld } from "./entry-guard";
+import {
+  type Entry,
+  type EntryGuard,
+  EntryGuardProvider,
+  type FreshNode,
+  notFound,
+  withheld,
+} from "./entry-guard";
 import { type Report, ReportBody, signals } from "./rebase-report";
 
 /** The own estimate, and where it is. */
@@ -53,12 +62,20 @@ export interface OwnEstimate {
   readonly label: string;
 }
 
+type NodesWritten = components["schemas"]["NodesWritten"];
+
 /** What an action that gives nothing back answered, when it did not give it. */
 type Refused = Exclude<Outcome<never>, { readonly kind: "done" }>;
 
+/** The nodes read again after the update, which the entries held back are written from, in turn. */
+interface Rewritten {
+  readonly nodes: Map<string, FreshNode>;
+  structureLockVersion: number;
+}
+
 /** What settling the update came to. */
 type Settled =
-  | { readonly kind: "updated" }
+  | { readonly kind: "updated"; readonly structureLockVersion: number }
   | { readonly kind: "presented" }
   | { readonly kind: "failed"; readonly outcome: Refused };
 
@@ -96,6 +113,8 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
   const [failed, setFailed] = useState<Outcome<unknown>>();
   const [working, setWorking] = useState<"recomposing" | "updating">();
   const [done, setDone] = useState<{ readonly title: string }>();
+  // What the entries written again found gone: a node the update removed, a field it no longer accepts.
+  const [missing, setMissing] = useState<{ readonly title: string }>();
   const [busy, setBusy] = useState(false);
   // What the structure lists now, read by the guard at the time of the entry — a write held by the
   // grid before the page was read anew must not see the state of the page before (défaut n° 2): kept
@@ -115,25 +134,25 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
   }, []);
 
   const settle = useCallback(async (): Promise<Settled> => {
-    const read = await readRebaseReport(projectId, revisionId, structureId);
-    if (read.kind !== "done") {
-      return { kind: "failed", outcome: read };
+    const report = await readRebaseReport(projectId, revisionId, structureId);
+    if (report.kind !== "done") {
+      return { kind: "failed", outcome: report };
     }
-    if (signals(read.data)) {
+    if (signals(report.data)) {
       if (alive.current) {
-        setPrompt({ report: read.data, outcome: undefined });
+        setPrompt({ report: report.data, outcome: undefined });
       }
       return { kind: "presented" };
     }
     const rebased = await rebaseStructure(projectId, revisionId, structureId, {
-      mainStructureLockVersion: read.data.main_structure_lock_version,
-      structureLockVersion: read.data.structure_lock_version,
+      mainStructureLockVersion: report.data.main_structure_lock_version,
+      structureLockVersion: report.data.structure_lock_version,
     });
     if (rebased.kind !== "done") {
       return { kind: "failed", outcome: rebased };
     }
     live.current.updated = true;
-    return { kind: "updated" };
+    return { kind: "updated", structureLockVersion: rebased.data.lock_version };
   }, [projectId, revisionId, structureId]);
 
   // The reading and the update under way, which entries made meanwhile wait for instead of starting
@@ -146,11 +165,84 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
     return settling.current;
   }, [settle]);
 
-  const guard = useCallback<EntryGuard>(
-    async (write) => {
+  // The update rewrote the counters, perhaps the nodes: the entries held back are written from what
+  // the structure now says, read once for the update they all waited for.
+  const rereads = useRef(new WeakMap<Settled, Promise<Rewritten | Refused>>());
+  const reread = useCallback(
+    (settled: Settled & { readonly kind: "updated" }): Promise<Rewritten | Refused> => {
+      const known = rereads.current.get(settled);
+      if (known !== undefined) {
+        return known;
+      }
+      const reading = readNodeCounters({
+        project_id: projectId,
+        revision_id: revisionId,
+        structure_id: structureId,
+      }).then((read): Rewritten | Refused =>
+        read.kind !== "done"
+          ? read
+          : {
+              nodes: new Map(read.data.map(({ node_id, ...node }) => [node_id, node])),
+              structureLockVersion: settled.structureLockVersion,
+            },
+      );
+      rereads.current.set(settled, reading);
+      return reading;
+    },
+    [projectId, revisionId, structureId],
+  );
+
+  // The entries written again, one after the other: each takes the counters the one before answered.
+  const turns = useRef<Promise<unknown>>(Promise.resolve());
+  const announced = useRef(new WeakSet<Settled>());
+  const write = useCallback(
+    <T extends NodesWritten>(
+      entry: Entry<T>,
+      settled: Settled & { readonly kind: "updated" },
+    ): Promise<Outcome<T>> => {
+      const turn = turns.current.then(async (): Promise<Outcome<T>> => {
+        const fresh = await reread(settled);
+        if (!("nodes" in fresh)) {
+          return fresh;
+        }
+        const gone = entry.nodes.some((id) => {
+          const node = fresh.nodes.get(id);
+          const accepted: readonly string[] = node?.editable_fields ?? [];
+          return node === undefined || !entry.fields.every((field) => accepted.includes(field));
+        });
+        if (gone) {
+          if (alive.current) {
+            setMissing({ title: t("gone", { label }) });
+          }
+          return notFound();
+        }
+        const outcome = await entry.send(fresh);
+        if (outcome.kind === "done") {
+          // What the answer says of the counters: the next entry takes them.
+          for (const written of outcome.data.nodes) {
+            const node = fresh.nodes.get(written.node_id);
+            if (node !== undefined) {
+              fresh.nodes.set(written.node_id, { ...node, lock_version: written.lock_version });
+            }
+          }
+          fresh.structureLockVersion = outcome.data.structure_lock_version;
+        }
+        return outcome;
+      });
+      turns.current = turn.catch(() => undefined);
+      return turn;
+    },
+    [reread, t, label],
+  );
+
+  const guard = useCallback(
+    async (
+      entry: (() => Promise<Outcome<NodesWritten>>) | Entry<NodesWritten>,
+    ): Promise<Outcome<NodesWritten>> => {
+      const send = typeof entry === "function" ? entry : () => entry.send();
       const now = live.current;
       if (!now.late || now.updated) {
-        const outcome = await write();
+        const outcome = await send();
         if (refusedAsLate(outcome)) {
           // The service says it late: the next entry reads the report anew.
           live.current = { late: true, updated: false };
@@ -161,13 +253,19 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
       if (settled.kind === "failed") {
         return settled.outcome;
       }
-      if (settled.kind === "updated" && alive.current) {
-        setDone({ title: t("done", { label }) });
+      if (settled.kind === "presented") {
+        // The report is presented to confirm or to correct, beside the grid: nothing is updated.
+        return withheld();
       }
-      return withheld();
+      const rewrites = typeof entry !== "function";
+      if (alive.current && !announced.current.has(settled)) {
+        announced.current.add(settled);
+        setDone({ title: t(rewrites ? "updated" : "done", { label }) });
+      }
+      return rewrites ? write(entry, settled) : withheld();
     },
-    [settleOnce, t, label],
-  );
+    [settleOnce, write, t, label],
+  ) as EntryGuard;
 
   const opened = useRef(false);
   useEffect(() => {
@@ -276,6 +374,11 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
             </Button>
           </div>
         </section>
+      )}
+      {missing === undefined ? null : (
+        <p role="alert" className="text-sm text-destructive">
+          {missing.title}
+        </p>
       )}
       <DoneNotice title={done?.title} of={done} subject={label} />
       {children}

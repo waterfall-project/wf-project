@@ -50,7 +50,7 @@ import {
   updateTaskFacet,
 } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
-import { useEntryGuard } from "@/components/revisions/entry-guard";
+import { counterOf, fieldsOf, useEntryGuard } from "@/components/revisions/entry-guard";
 import { Command } from "@/components/commands/command";
 import { rejectedRead } from "@/components/commands/rejection";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
@@ -134,12 +134,12 @@ export interface PlanningGridProps {
   /**
    * The planning start date of the structure read (`CostStructure.planning_start_on`) and how the
    * screen names the structure: shown above the grid, and entered where the structure lists
-   * `edit_planning` (`updateCostStructure`, WF-PLA-0020), unless `editable` says it is not: the own
-   * estimate of a risk has none of its own, the main structure's being copied (WF-RIS-0030). None, and
-   * the grid shows none.
+   * `edit_planning` (`updateCostStructure`, WF-PLA-0020), where `editable` says so — the page says it
+   * once: not for the own estimate of a risk, which has none of its own, the main structure's being
+   * copied (WF-RIS-0030). None, and the grid shows none.
    */
   readonly planningStart?:
-    { readonly on: string; readonly label: string; readonly editable?: boolean } | undefined;
+    { readonly on: string; readonly label: string; readonly editable: boolean } | undefined;
   /** What the revision offers of the skeleton (`generate_skeleton`); none, it does not list it. */
   readonly skeleton?: CommandOffer | undefined;
   /**
@@ -327,11 +327,6 @@ function useRowNames(
   return useMemo(() => ({ resolve, ask }), [resolve, ask]);
 }
 
-/** Whether the start date may be changed: the grid is entered, and the page says the structure has its own. */
-function startEntered(editable: boolean | undefined, own: boolean | undefined): boolean {
-  return editable === true && own !== false;
-}
-
 /** Render the grid of the planning, its totals counting the tasks the answer retained. */
 export function PlanningGrid({
   nodes,
@@ -427,13 +422,18 @@ export function PlanningGrid({
             rows: block.map((cells) => [...cells]),
           }),
         apply: async (plan) => {
-          const outcome = await guard(() =>
-            applyPaste(structure, {
-              paste_id: plan.paste_id,
-              confirmed: true,
-              lock_version: version,
-            }),
-          );
+          // A block has no node of its own: the counter of the structure, read again when the own
+          // estimate was updated first, is all the service judges it by.
+          const outcome = await guard({
+            nodes: [],
+            fields: [],
+            send: (fresh) =>
+              applyPaste(structure, {
+                paste_id: plan.paste_id,
+                confirmed: true,
+                lock_version: fresh?.structureLockVersion ?? version,
+              }),
+          });
           if (outcome.kind !== "done") {
             return outcome;
           }
@@ -458,12 +458,15 @@ export function PlanningGrid({
       // The field entered and the version of the node read, nothing else (#178).
       task: async (node, change) =>
         answered(
-          await guard(() =>
-            updateTaskFacet(structure, node.node_id, {
-              ...change,
-              lock_version: node.lock_version,
-            }),
-          ),
+          await guard({
+            nodes: [node.node_id],
+            fields: fieldsOf("task", change),
+            send: (fresh) =>
+              updateTaskFacet(structure, node.node_id, {
+                ...change,
+                lock_version: counterOf(fresh, node.node_id, node.lock_version),
+              }),
+          }),
         ),
       // The links of the task in place of its own, with the version of the node read: the rows the
       // server answers, the tasks the links redate with them, take the place of the rows read.
@@ -599,7 +602,7 @@ export function PlanningGrid({
           read={structureVersion}
           label={planningStart.label}
           account={account}
-          editable={startEntered(editable, planningStart.editable)}
+          editable={planningStart.editable}
         />
       )}
       {offered && (skeleton !== undefined || ours !== undefined) ? (

@@ -2148,7 +2148,9 @@
     "refused": "The update of the own estimate “{label}” is refused: correct the own estimate, then enter again.",
     "confirm": "Confirm the update of the own estimate",
     "close": "Close",
-    "done": "The own estimate “{label}” is up to date. Enter again."
+    "done": "The own estimate “{label}” is up to date. Enter again.",
+    "updated": "The own estimate “{label}” was updated.",
+    "gone": "The own estimate “{label}” was updated, and the entry was not saved: the row no longer exists or no longer accepts that field."
   },
   "rebaseReport": {
     "labelOwn": "Update the own estimate",

@@ -37,6 +37,7 @@ const REPORT = `GET ${STRUCTURE_PATH}/rebase` as const;
 const REBASE = `POST ${STRUCTURE_PATH}/rebase` as const;
 const PREVIEW = `POST ${STRUCTURE_PATH}/nodes/paste-preview` as const;
 const APPLY = `POST ${STRUCTURE_PATH}/nodes/paste` as const;
+const NODES = `GET ${STRUCTURE_PATH}/nodes` as const;
 // The counter of the own estimate once the update is applied (`structure_rebased_risk`).
 const UPDATED = 6;
 const STRUCTURE = {
@@ -45,7 +46,13 @@ const STRUCTURE = {
   structure_id: "01926f3a-7c00-7000-8000-000000000206",
 };
 const LABOUR = 4;
-const estimate = example("nodes_risk_estimate") as NodeList;
+const read = example("nodes_risk_estimate") as NodeList;
+// The rows as the page read them before the update: the labour line at a counter the update moved.
+const BEFORE = 0;
+const estimate: NodeList = {
+  ...read,
+  items: read.items.map((node, row) => (row === LABOUR ? { ...node, lock_version: BEFORE } : node)),
+};
 
 /** The cell of a row, by its index among the rows of the answer, and of a column, by its key. */
 function cell(row: number, column: string): HTMLElement {
@@ -133,51 +140,83 @@ describe("the entry into the grid of an own estimate in arrears", () => {
     expect(client.calls.some((call) => call.route === LINE)).toBe(false);
   });
 
-  it("updates a cell entry without a question, sends nothing from the rows before the update, and writes the next one without reading the report again [US-3140] [WF-RIS-0070-A]", async () => {
+  it("updates a cell entry without a question, reads the nodes again, and writes it with the counter of its node read [US-3140] [WF-RIS-0070-A]", async () => {
     const client = fakeClient({
       [REPORT]: "structure_rebase_report_risk_clean",
       [REBASE]: "structure_rebased_risk",
+      [NODES]: "nodes_risk_estimate",
       [LINE]: "estimate_line_updated",
     });
     server.client = client;
-    const { rerender } = render(tree(5));
-    await enterRole();
-    expect(await screen.findByText(/est à jour\. Saisissez de nouveau/)).toBeVisible();
-    expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE]);
-    // The page read anew by the update: the next entry carries what it read, and reads no report.
-    rerender(tree(UPDATED));
+    render(tree(5));
     await enterRole();
     await waitFor(() => {
-      expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, LINE]);
+      expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, NODES, LINE]);
     });
-    expect(client.calls[2]?.body).toMatchObject({ lock_version: 1 });
+    // The counter of the node as the update left it, not the one of the rows read before it.
+    const line = read.items[LABOUR];
+    expect(line?.lock_version).not.toBe(BEFORE);
+    expect(client.calls[3]?.body).toMatchObject({ lock_version: line?.lock_version });
+    expect(client.calls[3]?.path).toContain(line?.node_id);
+    // Told updated, with no refusal and no entering again.
+    expect(await screen.findByText(/a été mis à jour\./)).toBeVisible();
+    expect(screen.queryByText(/Saisissez de nouveau/)).toBeNull();
+    // No refusal of the service for the own estimate being out of date.
+    expect(screen.queryByText(/devis propre à jour de la structure principale/)).toBeNull();
   });
 
-  it("updates a paste without a question, applies nothing from the version before the update, and applies the next one with the counter read after it [US-3140] [WF-RIS-0070-A]", async () => {
+  it("writes nothing and says so when the node is gone after the update [US-3140] [WF-RIS-0070-A]", async () => {
     const client = fakeClient({
       [REPORT]: "structure_rebase_report_risk_clean",
       [REBASE]: "structure_rebased_risk",
+      [NODES]: "nodes_empty",
+      [LINE]: "estimate_line_updated",
+    });
+    server.client = client;
+    render(tree(5));
+    await enterRole();
+    expect(await screen.findByText(/la saisie n’a pas été enregistrée/)).toBeVisible();
+    expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, NODES]);
+    expect(screen.queryByText(/Saisissez de nouveau/)).toBeNull();
+  });
+
+  it("updates a paste without a question, and applies it with the counter of the structure read after the update [US-3140] [WF-RIS-0070-A]", async () => {
+    const client = fakeClient({
+      [REPORT]: "structure_rebase_report_risk_clean",
+      [REBASE]: "structure_rebased_risk",
+      [NODES]: "nodes_risk_estimate",
       [PREVIEW]: "paste_plan",
       [APPLY]: "paste_applied",
     });
     server.client = client;
-    const { rerender } = render(tree(5));
-    await pasteLabel();
-    expect(await screen.findByText(/est à jour\. Saisissez de nouveau/)).toBeVisible();
-    expect(client.calls.map((call) => call.route)).toEqual([PREVIEW, REPORT, REBASE]);
-    rerender(tree(UPDATED));
-    await userEvent.keyboard("{Escape}");
+    render(tree(5));
     await pasteLabel();
     await waitFor(() => {
       expect(client.calls.map((call) => call.route)).toEqual([
         PREVIEW,
         REPORT,
         REBASE,
-        PREVIEW,
+        NODES,
         APPLY,
       ]);
     });
     expect(client.calls[4]?.body).toMatchObject({ confirmed: true, lock_version: UPDATED });
+    expect(screen.queryByText(/Saisissez de nouveau/)).toBeNull();
+  });
+
+  it("withholds the entry for a confirmation, and says nothing is up to date, when the report keeps a value against the project [US-3140] [WF-RIS-0070-A]", async () => {
+    const client = fakeClient({
+      [REPORT]: "structure_rebase_report_risk",
+      [LINE]: "estimate_line_updated",
+    });
+    server.client = client;
+    render(tree(5));
+    await enterRole();
+    const prompt = await screen.findByRole("region", { name: "Mise à jour du devis propre" });
+    expect(prompt).toHaveTextContent("confirmez-la, puis saisissez de nouveau");
+    expect(screen.queryByText(/est à jour/)).toBeNull();
+    expect(screen.queryByText(/a été mis à jour/)).toBeNull();
+    expect(client.calls.map((call) => call.route)).toEqual([REPORT]);
   });
 
   it("asks nothing of the report to undo on an own estimate in arrears [US-3140]", async () => {
