@@ -546,7 +546,7 @@ défaut ne sont pas réparées : la date effacée n'est écrite nulle part.
 
 ## US-3320 — Un calendrier de rôle modifié, ou un rôle changé de calendrier, redate et rechiffre les révisions en cours
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0010-A`, `WF-REF-0130-A`
 - **opérations** : `updateCalendar`, `updateResourceRole`, `listNodes`
 - **issue** : #4552

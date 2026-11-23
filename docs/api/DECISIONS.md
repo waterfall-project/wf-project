@@ -12937,9 +12937,10 @@ heure travaillée : le service levait une exception que rien ne traduisait (500,
 créé. La tâche est nommée par son nœud dans la copie, comme le refus `PROJECT_HORIZON_EXCEEDED` de
 la même opération nomme la sienne ; les rôles sont vides pour une tâche sans ligne de main-d'œuvre,
 sous le calendrier par défaut. `ProblemParams.tasks` et `ProblemTask` nomment l'ouverture. Pas
-d'exemple : aucune tâche du témoin n'est sans heure. La déclaration précède US-3330, qui sert le refus : le service ne le rend pas encore. Écarté : étendre la garde de
-la modification d'un calendrier à la dernière révision marquée des projets au repos, au-delà de
-WF-PLA-0010 (« d'une révision en cours »).
+d'exemple : aucune tâche du témoin n'est sans heure. La déclaration précède US-3330, qui sert le
+refus : le service ne le rend pas encore. Écarté : étendre la garde de la modification d'un
+calendrier à la dernière révision marquée des projets au repos, au-delà de WF-PLA-0010 (« d'une
+révision en cours »).
 
 ### Le changement de calendrier d'un rôle déclare les refus du redatage (US-3300/L1, #4567)
 
@@ -12957,9 +12958,10 @@ déjà, et il les déclare dans les mêmes termes :
   dérivé qui déborde sa colonne est refusé au champ qui le provoque » (US-2260/L3, #3401), dont
   `/calendar_id` est le champ qui provoque le redatage.
 
-Rien n'est écrit. La déclaration précède US-3320, qui sert ces refus (#4411) : le service ne
-redate pas encore, et le contrat décrit le comportement voulu. Pas d'exemple ajouté : la conception d'EP-32 n'en prévoit pas, et le refus
-d'horizon d'`updateCalendar` (`calendar_update_horizon_exceeded`) en montre déjà la forme.
+Rien n'est écrit. La déclaration précède US-3320, qui sert ces refus (#4411) : le service redate
+depuis US-3320 et rend ces refus, comme le contrat les décrit. Pas d'exemple ajouté : la conception d'EP-32
+n'en prévoit pas, et le refus d'horizon d'`updateCalendar` (`calendar_update_horizon_exceeded`) en
+montre déjà la forme.
 
 ## Collage et annulation
 
