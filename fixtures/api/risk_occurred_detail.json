@@ -1,5 +1,5 @@
 {
-  "summary": "« Retard de livraison des armoires », survenu le 20 février 2026 : son devis propre est fusionné dans la structure principale de la révision en cours, ses lignes à montant budgété nul et réestimées à 120,00 et 80,00, et sa ligne de provision est retirée ; son coût à la survenance, le total de son devis propre ce jour-là, vaut 200,00, que ni réestimation ni terminaison ne changent ; sa provision, celle qu'il portait à la révision de référence, 60,00, reste comptée dans la réserve pour risques (WF-RIS-0010, WF-RIS-0050, WF-RIS-0060). Aucune de ses commandes n'est disponible : il ne se modifie pas (`risk_not_occurred`), ne change ni la catégorie ni le sous-projet de sa provision (`risk_identified`), ne se réexamine pas (`risk_not_occurred`), ne se déclare pas survenu (`risk_identified`), ne se supprime pas (`risk_not_occurred`, `risk_not_cited`) (WF-IHM-0090, WF-RIS-0020).",
+  "summary": "« Retard de livraison des armoires », survenu le 20 février 2026 : son devis propre est fusionné dans la structure principale de la révision en cours, ses lignes à montant budgété nul et réestimées à 120,00 et 80,00, et sa ligne de provision est retirée ; son coût à la survenance, sa gravité ce jour-là, que sa gravité reste (#4400), vaut 200,00, que ni réestimation ni terminaison ne changent ; sa provision, celle qu'il portait à la révision de référence, 60,00, reste comptée dans la réserve pour risques (WF-RIS-0010, WF-RIS-0050, WF-RIS-0060). Aucune de ses commandes n'est disponible : il ne se modifie pas (`risk_not_occurred`), ne change ni la catégorie ni le sous-projet de sa provision (`risk_identified`), ne se réexamine pas (`risk_not_occurred`), ne se déclare pas survenu (`risk_identified`), ne se supprime pas (`risk_not_occurred`, `risk_not_cited`) (WF-IHM-0090, WF-RIS-0020).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "x-examples": [
     "WF-RIS-0060-A#474d7bce167a"
@@ -26,7 +26,7 @@
     "matrix_cell": {"probability_level":3,"severity_level":1,"zone":"nominal"},
     "last_review_on": "2026-02-20",
     "computed_fields": [
-      {"field":"severity","dependencies":["own_estimate"]},
+      {"field":"severity","dependencies":["occurrence_estimate"]},
       {"field":"provision_amount","dependencies":["reference_provision"]},
       {"field":"occurrence_cost","dependencies":["occurrence_estimate"]}
     ],
@@ -37,6 +37,7 @@
       {"command":"declare_occurrence","is_available":false,"missing_conditions":["risk_identified"]},
       {"command":"delete","is_available":false,"missing_conditions":["risk_not_occurred","risk_not_cited"]}
     ],
+    "trend": null,
     "audit": {"created_at":"2026-01-12T10:30:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-02-20T16:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},
     "lock_version": 7
   }

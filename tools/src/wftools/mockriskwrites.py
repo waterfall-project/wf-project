@@ -76,6 +76,7 @@ from wftools.mockwitnessrisks import (
     DELIVERY_DELAY,
     DISMISSED,
     IDENTIFIED,
+    NEW,
     REFERENCE_PROVISIONS,
     REGISTER,
     REWORK,
@@ -182,6 +183,8 @@ def risk_updated_without_current_revision() -> JsonObject:
         **item,
         "structure_id": own,
         "provision_task": {"node_id": universe(bearer), "label": rows[bearer].label},
+        # Read in the 101, against the offer 100 that precedes it, which no risk was identified in.
+        "trend": NEW,
         "audit": audit,
         "lock_version": REWORK.lock_version + 2,
     }

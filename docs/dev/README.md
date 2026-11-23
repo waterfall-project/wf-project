@@ -3044,7 +3044,10 @@ of what it describes, and two generations write the same bytes:
   proposed (`wftools.mockcycle`), its marked revisions read with their snapshot
   (`wftools.mocksnapshot`), its compared revisions (`wftools.mockcomparisons`) and its risks, and
   the responses of the entries of a risk, with the own estimate of risk 751 and the preliminary
-  report of its occurrence (`wftools.mockriskwrites`); its indicators, its curves, its workload
+  report of its occurrence (`wftools.mockriskwrites`), and, as declared variants, an opportunity
+  in the register and in the matrix, its occurrence that abandons a task, with its step of earned
+  value, and its negative cost at occurrence in the coverage (`wftools.mockopportunity`,
+  US-3080/L1); its indicators, its curves, its workload
   detailed by task and its spending projection today, over the whole structure of a thousand
   tasks, each line spread by its rounded parts (`wftools.mocktoday`, `wftools.mockindicators`,
   `wftools.mockcurves`, `wftools.mockspending`); its actual costs — those the witness describes

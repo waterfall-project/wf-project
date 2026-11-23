@@ -7,7 +7,7 @@ les réponses en citent d'autres, comptées dans la couverture ci-dessous mais p
 dans le tableau.
 
 **175 opérations sur 135 chemins, dans 13 familles.**
-Le contrat cite **196 des 224 exigences** de la spécification.
+Le contrat cite **198 des 224 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -210,7 +210,7 @@ Le contrat cite **196 des 224 exigences** de la spécification.
 | GET | `/projects/{project_id}/indicators` | Earned value indicators | WF-DAT-0040, WF-IND-0010, WF-IND-0080 |
 | GET | `/projects/{project_id}/indicators/milestone-tracking` | Time/time diagram | WF-IND-0010, WF-IND-0020, WF-IND-0090 |
 | GET | `/projects/{project_id}/indicators/cost-curve` | Cumulative cost curve | WF-DAT-0040, WF-IND-0010, WF-IND-0020, WF-IND-0100, WF-RAE-0040 |
-| GET | `/projects/{project_id}/indicators/earned-value-curves` | Earned value curves | WF-DAT-0040, WF-IND-0010, WF-IND-0110 |
+| GET | `/projects/{project_id}/indicators/earned-value-curves` | Earned value curves | WF-DAT-0040, WF-IND-0010, WF-IND-0110, WF-IND-0140 |
 | GET | `/projects/{project_id}/indicators/index-history` | Evolution of the indices | WF-DAT-0040, WF-IND-0010, WF-IND-0020, WF-IND-0130, WF-REF-0170 |
 
 ## Risques et provisions
@@ -219,7 +219,7 @@ Le contrat cite **196 des 224 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/projects/{project_id}/risks` | Risk register | WF-IHM-0060, WF-IHM-0130, WF-RIS-0020, WF-RIS-0030, WF-RIS-0040 |
+| GET | `/projects/{project_id}/risks` | Risk register | WF-IHM-0060, WF-IHM-0130, WF-RIS-0020, WF-RIS-0030, WF-RIS-0040, WF-RIS-0050, WF-RIS-0080 |
 | POST | `/projects/{project_id}/risks` | Declare a risk | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0030, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/{risk_id}` | One risk | WF-RIS-0010, WF-RIS-0020, WF-RIS-0030 |
 | PATCH | `/projects/{project_id}/risks/{risk_id}` | Edit the identity of a risk | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0040 |
@@ -228,9 +228,9 @@ Le contrat cite **196 des 224 exigences** de la spécification.
 | GET | `/projects/{project_id}/risks/{risk_id}/reviews` | History of the reviews | WF-PLA-0150, WF-RIS-0010, WF-RIS-0030 |
 | POST | `/projects/{project_id}/risks/{risk_id}/reviews` | Review a risk | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/{risk_id}/occurrence` | Preliminary report of the occurrence of a risk | WF-IHM-0110, WF-RIS-0060 |
-| POST | `/projects/{project_id}/risks/{risk_id}/occurrence` | Declare a risk occurred | WF-ARC-0090, WF-DEV-0020, WF-IHM-0110, WF-PLA-0170, WF-RIS-0010, WF-RIS-0020, WF-RIS-0050, WF-RIS-0060, WF-SEC-0030 |
+| POST | `/projects/{project_id}/risks/{risk_id}/occurrence` | Declare a risk occurred | WF-ARC-0090, WF-DEV-0020, WF-IHM-0110, WF-IND-0030, WF-IND-0140, WF-PLA-0170, WF-REV-0050, WF-RIS-0010, WF-RIS-0020, WF-RIS-0050, WF-RIS-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/risks/coverage` | Risk coverage | WF-RAE-0020, WF-RIS-0050 |
-| GET | `/projects/{project_id}/risks/matrix` | Risk matrix of the project | WF-IHM-0070, WF-REF-0160, WF-RIS-0030, WF-RIS-0040 |
+| GET | `/projects/{project_id}/risks/matrix` | Risk matrix of the project | WF-IHM-0070, WF-REF-0160, WF-RIS-0030, WF-RIS-0040, WF-RIS-0080 |
 
 ## Coûts réels
 
@@ -277,7 +277,7 @@ Le contrat cite **196 des 224 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-28 sur 224. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+26 sur 224. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
@@ -288,8 +288,6 @@ surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 | DAT | WF-DAT-0050, WF-DAT-0140, WF-DAT-0150 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
 | EXP | WF-EXP-0010 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
 | IHM | WF-IHM-0010, WF-IHM-0100, WF-IHM-0140, WF-IHM-0180 | Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent dans le front. La copie de lignes d'une grille (WF-IHM-0180), ajoutée par la spécification 1.0.8, attend son contrat (#4398). |
-| IND | WF-IND-0140 | La marque d'une survenance sur les courbes de valeur acquise (WF-IND-0140), ajoutée par la spécification 1.0.9 : EP-30 écrit son contrat (US-3120), dont les issues s'ouvrent avec celles de ses lots. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
 | QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0030, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070, WF-QUA-0080 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |
 | REV | WF-REV-0110 | La base d'un différentiel et sa mise à jour (WF-REV-0110), ajoutées par la spécification 1.0.8 : les opérations qu'EP-08 écrit pour elles (US-3050) les servent, et leur citation au contrat reste à écrire (#4402). |
-| RIS | WF-RIS-0080 | La mise à jour du devis propre d'un risque (WF-RIS-0070) et la gravité d'un risque (WF-RIS-0080), ajoutées par la spécification 1.0.9 : EP-30 écrit leur contrat (US-3090, US-3080), dont les issues s'ouvrent avec celles de ses lots. |

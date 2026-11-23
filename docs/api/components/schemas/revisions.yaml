@@ -1317,13 +1317,15 @@ ComputedDependency:
     `remaining_reviews`, the re-estimated amount, tracked by the reviews of the remaining to
     commit (WF-RAE-0040); `inflation`, the projection of the budgeted and re-estimated amounts
     onto the line's consumption year, at the project's inflation rate — a provision line is not
-    projected (WF-DEV-0030, WF-DEV-0040); `own_estimate`, the severity of a risk, total of its own
-    estimate; `severity_and_probability`, the provision of an identified risk, that severity
-    weighted by its probability (WF-RIS-0010); `reference_provision`, that of an occurred or
+    projected (WF-DEV-0030, WF-DEV-0040); `own_estimate`, the severity of a risk identified or
+    dismissed, the gap of the re-estimated totals of its own estimate and of its base, neither
+    carrying a provision line, signed (WF-RIS-0080); `severity_and_probability`, the provision
+    of an identified risk, that severity weighted by its probability, never below zero
+    (WF-RIS-0010); `reference_provision`, that of an occurred or
     dismissed risk, the provision it carried in the reference revision (WF-RIS-0040);
-    `occurrence_estimate`, the cost at occurrence of an occurred risk, the total of its own
-    estimate at the moment it was declared occurred (WF-RIS-0010) — which the risk itself names
-    (`Risk.computed_fields`).
+    `occurrence_estimate`, the cost at occurrence of an occurred risk, and its severity, the
+    severity its own estimate gave at the moment it was declared occurred, signed (WF-RIS-0010,
+    #4400) — which the risk itself names (`Risk.computed_fields`).
   enum:
     - subordinates
     - lines_and_subordinates

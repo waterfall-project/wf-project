@@ -3061,7 +3061,10 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   proposée (`wftools.mockcycle`), ses révisions marquées lues avec leur instantané
   (`wftools.mocksnapshot`), ses révisions comparées (`wftools.mockcomparisons`) et ses risques, et
   les réponses des saisies d'un risque, avec le devis propre du risque 751 et le compte rendu
-  préalable de sa survenance (`wftools.mockriskwrites`) ; ses indicateurs, ses courbes, son plan
+  préalable de sa survenance (`wftools.mockriskwrites`), et, en variantes déclarées, une
+  opportunité au registre et dans la matrice, sa survenance qui abandonne une tâche, avec sa marche
+  de valeur acquise, et son coût à la survenance négatif dans la couverture
+  (`wftools.mockopportunity`, US-3080/L1) ; ses indicateurs, ses courbes, son plan
   de charge détaillé par tâche et sa projection de dépenses aujourd'hui, sur toute la structure de
   mille tâches, chaque ligne étalée par ses parts arrondies (`wftools.mocktoday`,
   `wftools.mockindicators`, `wftools.mockcurves`, `wftools.mockspending`) ; ses coûts réels — ceux
