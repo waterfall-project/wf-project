@@ -386,3 +386,25 @@ def test_the_reference_is_made_from_nothing_and_used_when_it_exists() -> None:
     none = Platform(calendars=[])
     with pytest.raises(ProductionError, match="no active calendar"):
         none.trial().make_the_reference(none.trial().api_on("pod/x"), "token")
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+@pytest.mark.story("US-2840")
+def test_redis_is_asked_its_pending_entries_in_tls_in_its_pod() -> None:
+    # Redis opens no port in the clear: redis-cli speaks TLS to it, its certificate checked against
+    # the root its pod holds, its password read from the environment of its container.
+    platform = Platform()
+    platform.trial().hold("token")
+    (asked, *_) = [command for command in platform.asked if "XPENDING" in command]
+    at = asked.index("--")
+    assert asked[at - 1] == "deployment/waterfall-redis"
+    assert asked[at + 1 : at + 8] == [
+        "redis-cli",
+        "--tls",
+        "--cacert",
+        "/tls/ca.crt",
+        "-h",
+        "localhost",
+        "--raw",
+    ]
+    assert "-a" not in asked
