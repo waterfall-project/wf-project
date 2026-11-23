@@ -49,8 +49,9 @@ the lock of the structure, so that the application judges again what the analysi
   a main structure left without a task while it bears the provision line of a risk
   (``PROVISION_WITHOUT_TASK``, the risks named; WF-RIS-0010, #4011), the task of an order item
   outside the subtree of that of its work package (``ORDER_ITEM_OUTSIDE_WORK_PACKAGE``, the main
-  structure alone), and a planning beyond fifteen years (``PROJECT_HORIZON_EXCEEDED``,
-  WF-PLA-0150), whose dates are then not compared.
+  structure alone), a planning beyond fifteen years (``PROJECT_HORIZON_EXCEEDED``,
+  WF-PLA-0150), and a task left without an hour in its week (``TASK_WITHOUT_WORKING_HOURS``,
+  WF-PLA-0010, #4799), whose dates are then not compared.
 """
 
 from dataclasses import dataclass, field
@@ -70,8 +71,10 @@ from waterfall.core.planning.dating import (
     LINK_FORBIDDEN,
     MANUAL,
     PROJECT_HORIZON_EXCEEDED,
+    TASK_WITHOUT_WORKING_HOURS,
     constants_of,
     duration_of,
+    roles_named,
 )
 from waterfall.core.planning.entries import decimal_text
 from waterfall.core.planning.interface.facets import calendars_of
@@ -104,6 +107,7 @@ from waterfall.core.planning.scheduling import (
     LinkForbiddenError,
     Schedule,
     Structure,
+    TaskWithoutWorkingHoursError,
     WorkInstant,
     decimal_of,
     schedule,
@@ -565,11 +569,12 @@ def _first_start(project: MsProject) -> date | None:
     return min(starts, default=None)
 
 
-def _replayed(plan: Plan, constants: UnitConstants) -> None:
+def _replayed(session: Session, plan: Plan, constants: UnitConstants) -> None:
     """Replay the engine on the structure the import leaves; refuse it beyond the horizon.
 
     A loop of links, or a link between a summary and its subordinate, which MS Project refuses
-    too, fails the analysis by the engine's code, the tasks named by their label.
+    too, fails the analysis by the engine's code, the tasks named by their label. A task left
+    without an hour in its week refuses the file (``hourless``); its dates are not computed.
     """
     if not plan.order or plan.start is None:
         return
@@ -584,11 +589,31 @@ def _replayed(plan: Plan, constants: UnitConstants) -> None:
         raise UnprocessableError(LINK_CYCLE, {"cycle": cycle}) from None
     except LinkForbiddenError:
         raise UnprocessableError(LINK_FORBIDDEN) from None
+    except TaskWithoutWorkingHoursError as idle:
+        plan.refusals.append(_hourless(session, plan, idle.task_id))
+        return
     beyond = plan.schedule.horizon_exceeded_by
     if beyond is not None:
         node = None if beyond not in plan.aimed.tree.nodes else str(beyond)
         named = {"node_id": node, "label": plan.label_of(beyond)}
         plan.refusals.append({"code": PROJECT_HORIZON_EXCEEDED, "params": {"task": named}})
+
+
+def _hourless(session: Session, plan: Plan, task_id: UUID) -> Json:
+    """Give the refusal of a task whose calendar grants no hour, the task and its roles named.
+
+    The task by its lineage and its label, as the report names its objects: the lineage null for
+    a task the file creates, which bears no labour line yet, hence no role; a task matched with
+    the roles of its labour lines — as ``dated`` names them (US-3330; #4799).
+    """
+    lineage = plan.lineage_of(task_id)
+    roles = [] if lineage is None else roles_named(session, plan.aimed.project_id, task_id)
+    named = {
+        "lineage_id": None if lineage is None else str(lineage),
+        "label": plan.label_of(task_id),
+    }
+    params = {"resource_roles": roles, "tasks": [named]}
+    return {"code": TASK_WITHOUT_WORKING_HOURS, "params": params}
 
 
 def _named(plan: Plan, node_id: UUID) -> Json:
@@ -701,7 +726,7 @@ def plan_import(
     _links(plan, file_constants)
     items = work_breakdown_items(session, aimed.project_id)
     _strays(plan, items)
-    _replayed(plan, constants)
+    _replayed(session, plan, constants)
     return plan, items
 
 
