@@ -365,7 +365,6 @@ def test_a_copy_whose_opening_advanced_the_counter_further_refuses_the_import_th
     worker: Worker,
     costs: Costing,
     backups_bucket: Bucket,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Fixes a behavior that is a limit, not a wish (#4791, a decision for the author):
     # ``unwritten_since_opening`` expects the opening to leave the counter of the copy at its first
@@ -377,10 +376,11 @@ def test_a_copy_whose_opening_advanced_the_counter_further_refuses_the_import_th
     Lines(tree).made(first, quantity="1", resource_role_id=str(costs.role), hours="10")
     mark(stage, tree.revision)
     import_id = analysed(api, stage, worker, REWORKED)["import_id"]
-    monkeypatch.setattr(
-        "waterfall.api.revisions.utc_now", lambda: datetime(YEAR + 1, 1, 12, 10, tzinfo=UTC)
-    )
-    copy = Tree(api, stage, opened(api, stage))
+    with pytest.MonkeyPatch.context() as clock:
+        clock.setattr(
+            "waterfall.api.revisions.utc_now", lambda: datetime(YEAR + 1, 1, 12, 10, tzinfo=UTC)
+        )
+        copy = Tree(api, stage, opened(api, stage))
     # The redated copy of a source that holds a node stands at 2: the opening went beyond.
     assert counter(stage, copy.structure_id) > 2
     refused_for_good(api, stage, backups_bucket, import_id, apply(api, stage, import_id))
