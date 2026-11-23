@@ -184,6 +184,8 @@ class MsProject:
 
     The constants are those of the file, in minutes per day and per week and days per month,
     ``None`` when the file does not say them; ``calendar_uid`` is the calendar of the project.
+    ``lineage_declared`` tells that the file defines the custom field of the lineages: it is then an
+    export of Waterfall, whose ``UID`` are ranks.
     """
 
     start: datetime | None
@@ -195,6 +197,7 @@ class MsProject:
     days_per_month: int | None = None
     calendars: tuple[MsCalendar, ...] = ()
     tasks: tuple[MsTask, ...] = ()
+    lineage_declared: bool = False
 
     def parents(self) -> dict[int, int | None]:
         """Return the parent of each task by its unique identifier, ``None`` for a root.

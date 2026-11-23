@@ -8,6 +8,7 @@ reads it —, then applied, and the structure read back. The tests of the corpus
 database, are in ``test_msproject_corpus.py``.
 """
 
+import itertools
 import time
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -547,6 +548,65 @@ def test_a_reimport_matches_by_lineage_then_by_uid_and_keeps_only_the_started_ab
     assert after["Tâche B revue"][0].parent_id == after["Lot A"][0].id
     assert after["Tâche C"][1].progress == "started"
     assert (after["Tâche E"][1].external_id, after["Lot A"][1].external_id) == ("5", "1")
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+def test_a_file_that_defines_the_field_of_the_lineages_never_matches_a_row_by_its_uid(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # [US-3170] A row without a lineage the structure knows is added in such a file, even when its
+    # UID is a task's; in a file without that field, the same row is matched by its UID.
+    opened(api, stage)
+    imported(api, stage, worker, planning(task(1, "A"), task(2, "B")))
+    lineage = by_label(stage)["A"][0].lineage_id
+
+    def declared(alias: str) -> str:
+        return (
+            "<ExtendedAttributes><ExtendedAttribute><FieldID>188743731</FieldID>"
+            f"<FieldName>Text1</FieldName><Alias>{alias}</Alias></ExtendedAttribute>"
+            "</ExtendedAttributes>"
+        )
+
+    def carrying(value: object) -> str:
+        return (
+            f"<ExtendedAttribute><FieldID>188743731</FieldID><Value>{value}</Value>"
+            "</ExtendedAttribute>"
+        )
+
+    unknown, known = carrying(uuid4()), carrying(lineage)
+    # The alias the user renamed in MS Project still declares the field, by its identifier.
+    for alias, besides in itertools.product(("Waterfall.lineage", "Mine"), ("", unknown)):
+        reworked = planning(
+            task(1, "A", besides=known),
+            task(2, "B revue", besides=besides),
+            besides=declared(alias),
+        )
+        named = [
+            (each["change"], each["label"])
+            for each in analysed(api, stage, worker, reworked)["report"]["differences"]
+        ]
+        assert sorted(named) == [("added", "B revue"), ("removed", "B")]
+    report = analysed(api, stage, worker, planning(task(1, "A"), task(2, "B revue")))["report"]
+    assert [(each["change"], each["label"]) for each in report["differences"]] == [
+        ("updated", "B revue")
+    ]
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+def test_the_first_pass_takes_the_lineages_before_any_row_falls_back_on_a_uid(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # [US-3170] In a file without the field of the lineages, a row whose UID is a task's, that
+    # comes before the row bearing that task's GUID, does not take it: the GUID is matched first.
+    opened(api, stage)
+    imported(api, stage, worker, planning(task(1, "A"), task(2, "B"), task(3, "C")))
+    before = by_label(stage)
+    guid = f"<GUID>{before['C'][0].lineage_id}</GUID>"
+    reworked = planning(task(3, "Neuve"), task(1, "A"), task(2, "B"), task(9, "C", besides=guid))
+    applied(api, stage, worker, analysed(api, stage, worker, reworked))
+    after = by_label(stage)
+    assert after["C"][0].id == before["C"][0].id
+    assert after["Neuve"][0].id != before["C"][0].id
 
 
 @pytest.mark.requirement("WF-RIS-0060-A")

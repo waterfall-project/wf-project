@@ -214,4 +214,5 @@ def project_of(session: Session, project_id: UUID, structure_id: UUID) -> MsProj
         days_per_month=round(constants.days_per_month),
         calendars=tuple(_ms_calendar(uid, week) for uid, week in sorted(calendars.periods.items())),
         tasks=tuple(tasks),
+        lineage_declared=bool(tasks),
     )
