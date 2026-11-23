@@ -26,7 +26,14 @@ the differential's, a line designated its columns, its figures of reference and 
 amount, its current figures too while its task is not started and nobody re-estimated it —, and
 the lines of the started tasks the merge keeps and completes brought to a remaining of nought.
 
-Written by US-2560/L1; the application by US-2560/L2.
+The occurrence of a risk merges its own estimate in a mode of its own (``OCCURRENCE_MERGE``; EP-30,
+"La survenance"): the same differences, the lines of every task it abandons kept with it, and the
+current figures alone written — a line added at a budgeted amount of nought, bearing the trace of
+the risk, a line designated keeping its budget and its reference (``merged``). The tasks whose
+lines it adds or designates are told to the planning (``merge_lines_worked``), which names those it
+reopens.
+
+Written by US-2560/L1; the application by US-2560/L2; the mode of an occurrence by US-3100/L1.
 """
 
 from typing import TYPE_CHECKING, Any
@@ -34,7 +41,7 @@ from typing import TYPE_CHECKING, Any
 from waterfall.core.estimate.costing import TASK_WITHOUT_WORKING_HOURS, hourless_tasks
 from waterfall.core.estimate.merged import LineMerged, write_lines
 from waterfall.core.estimate.reading import line_rows
-from waterfall.core.planning.interface import merged_lines
+from waterfall.core.planning.interface import merge_lines_worked, merged_lines
 from waterfall.core.resource_settings.interface import role_calendars
 from waterfall.core.revisions.interface import MergePart
 
@@ -86,7 +93,8 @@ def merge_lines(merging: StructureMerging) -> MergePart:
     """Give the part of the estimate in a merge: lines added, updated, removed, provisions moved.
 
     In the order of the plan of the differential, then those of the main structure; and, for the
-    report, the tasks the merge would leave without a working hour.
+    report, the tasks the merge would leave without a working hour. The tasks whose lines it adds
+    or designates, by their lineage, told to the planning.
     """
     where = merged_lines(merging)
     nodes = [each.node_id for each in (*where.main, *where.amendment)]
@@ -109,6 +117,7 @@ def merge_lines(merging: StructureMerging) -> MergePart:
             written.append(
                 LineMerged(line.node_id, found.node_id, designated, line.task_lineage_id)
             )
+    merge_lines_worked(merging, {each.task for each in written})
     for line in where.main:
         label = rows[line.node_id].label
         if line.is_provision:

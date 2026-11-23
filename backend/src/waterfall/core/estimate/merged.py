@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The lines a merge writes into the main structure, private to the module (US-2560/L2).
+"""The lines a merge writes into the main structure, private to the module (US-2560/L2, US-3100/L1).
 
 The estimate's part of the application of a merge (WF-REV-0050, WF-DEV-0020; EP-08, "La fusion et
 la survenance"), once the planning has written the tasks; the planning writes the nodes of the
@@ -41,12 +41,25 @@ lines (``place_merged_lines``), then this module their facets:
   reference, so that its provision lines bear a budgeted amount of null (``budgeted_of`` reads a
   null as the re-estimated amount, the provision, which is never projected), and the revision
   opened after it copies that null by the lineage. Only a merge, which marks a reference whose
-  figures it has just changed, has a budgeted amount to fix (``test_risk_provision_lines.py``, the
-  provision line marked plainly then designated). The write here is neither stamped
-  (``lock_version``, ``updated_at``, ``updated_by``) as ``_stamped`` and ``_zeroed`` stamp theirs: a
-  provision line is closed to the entry, its risk alone writing it, so no entry holds its counter
-  to lose, and the revision is marked in the same transaction, which freezes the line and its
-  history whole; the amount it gives is the one the line read before, null read as the provision.
+  figures it has just changed, has a budgeted amount to fix (``_provision_budgeted``).
+
+**The occurrence of a risk** (``OCCURRENCE_MERGE``; EP-30, "La survenance") writes the current
+figures alone, and neither marks nor designates a reference:
+
+- **A line its own estimate adds** is a copy of the own estimate's at a budgeted amount of nought —
+  work the reference did not hold (WF-RIS-0060, WF-RAE-0050) —, without figures of reference;
+  the planning gives its node the trace of the risk.
+- **A line it designates** takes the columns it changes that are the line's own, and, when it
+  changes what prices it, its figures as current figures, whatever the state of its task and its
+  re-estimate (``_current``), by the function of ``setLineRemaining`` that marks it re-estimated
+  (``reestimated_at``): its figures of reference and its budgeted amount stay — a line budgeted at
+  100 that the own estimate brings to 130 bears 100 budgeted and 130 re-estimated, and the
+  amendment after it leaves those 130 (``_designated``).
+- **The lines of every task it abandons** stay with the task, which the planning keeps and
+  completes, and are brought to a remaining of nought as an amendment brings those of a started
+  task (``_zeroed``), the task started or not.
+- **A provision line** is not written: no reference is marked, and the provision is its risk's to
+  withdraw.
 
 The amounts are priced again by the replay of the dates that ends the merge; a provision line is
 never priced again.
@@ -60,7 +73,8 @@ from waterfall.core.estimate.entries import LineEntry
 from waterfall.core.estimate.reading import rows_of
 from waterfall.core.estimate.remaining.reviewing import reestimate
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.planning.interface import FacetWrite, place_merged_lines
+from waterfall.core.planning.interface import FacetWrite, merge_bearing, place_merged_lines
+from waterfall.core.revisions.interface import OCCURRENCE_MERGE
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
@@ -116,12 +130,17 @@ def _stamped(row: EstimateLine, merging: StructureMerging) -> None:
 
 
 def _created(source: EstimateLine, node_id: UUID, merging: StructureMerging) -> EstimateLine:
-    """Give the facet of a line the differential adds, under its node in the main structure."""
+    """Give the facet of a line the differential adds, under its node in the main structure.
+
+    Its figures of reference and its budgeted amount the differential's; for an occurrence, none
+    and nought (WF-RIS-0060).
+    """
     act = merging.act
+    occurrence = merging.mode == OCCURRENCE_MERGE
     columns = {each.key: getattr(source, each.key) for each in EstimateLine.__table__.columns}
     columns.update(
         node_id=node_id,
-        budgeted_amount=source.reestimated_amount,
+        budgeted_amount=NOUGHT if occurrence else source.reestimated_amount,
         lock_version=1,
         created_at=act.at,
         created_by=act.author,
@@ -129,7 +148,7 @@ def _created(source: EstimateLine, node_id: UUID, merging: StructureMerging) -> 
         updated_by=act.author,
         **dict.fromkeys(CLEARED),
         **{
-            reference: getattr(source, figure)
+            reference: None if occurrence else getattr(source, figure)
             for reference, figure in zip(REFERENCE, FIGURES, strict=True)
         },
     )
@@ -157,6 +176,58 @@ def _designated(
             setattr(row, figure, getattr(source, figure))
 
 
+def _current(
+    row: EstimateLine, source: EstimateLine, line: LineMerged, merging: StructureMerging
+) -> None:
+    """Give a line of the main structure what an occurrence designates of it: the current alone.
+
+    The columns it changes that are the line's own; its figures, when it changes what prices it, as
+    its current figures — by the function of ``setLineRemaining`` (``reestimate``), as ``_zeroed``
+    brings a line to nought: the line priced again and marked (``reestimated_at``), so that an
+    amendment after it takes it for a line re-estimated and leaves its current figures —, its
+    reference and its budgeted amount kept — a line that read its budget from its re-estimated
+    amount, the project having no reference yet, has it written first, as ``_zeroed`` does. The
+    write is counted: ``reestimate`` counts the line it writes, a line it does not price is counted
+    here. The reason of a line already re-estimated is kept. A line that changes its nature receives
+    the hours and the unit disbursement of the source with its category and its role, so that a
+    line that changes from labour to disbursement, or back, loses the column it no longer has;
+    otherwise ``reestimate`` carries those the fields name. The guard on the category and the role
+    only holds the category, the role, the hours and the disbursement together.
+    """
+    for name, column in OWN:
+        if name in line.fields:
+            setattr(row, column, getattr(source, column))
+    if not line.fields & PRICING:
+        _stamped(row, merging)
+        return
+    if row.budgeted_amount is None:
+        row.budgeted_amount = row.reestimated_amount
+    # Its hours and its unit disbursement as the source has them, the column it does not have
+    # null, written with its category and its role: ``reestimate`` cannot change the kind of a line,
+    # and a flush between the two would break the constraints that tie them (#4591).
+    # Only when the line changes its kind: otherwise the columns stay and ``reestimate`` decides
+    # (#4750).
+    if line.fields & {"cost_category", "resource_role"}:
+        row.hours, row.unit_disbursement = source.hours, source.unit_disbursement
+    # The figures the line takes, as the source has them: a labour line has its hours, a line that
+    # is not its unit disbursement (``FIELD_NOT_ACCEPTED`` otherwise), both their quantity.
+    sent = {"quantity"}
+    sent.update(
+        each for each in ("hours", "unit_disbursement") if getattr(source, each) is not None
+    )
+    entry = LineEntry(
+        quantity=source.quantity,
+        hours=source.hours,
+        unit_disbursement=source.unit_disbursement,
+        sent=frozenset(sent),
+    )
+    bearer = merge_bearing(merging, row.node_id)
+    write = FacetWrite(
+        merging.session, merging.project_id, merging.revision_id, row.node_id, bearer, merging.act
+    )
+    reestimate(write, entry, row.remaining_reason)
+
+
 def _zeroed(row: EstimateLine, merging: StructureMerging, bearer: BearingTask) -> None:
     """Bring a line of a task the merge completes to a remaining of nought, its budget kept.
 
@@ -168,10 +239,9 @@ def _zeroed(row: EstimateLine, merging: StructureMerging, bearer: BearingTask) -
     rated for the year of its revision when it was written, a rate no operation takes away (the
     hourly rates are corrected at the version read and "never deleted",
     ``cost_settings/interface/hourly_rates.py``), so that ``HOURLY_RATE_MISSING`` cannot be. The
-    report need not announce either; a test shows the merge of a started task bearing a line of
-    labour and one that is not (``labor`` and ``non_labor``, the kinds a task bears: a line of
-    ``provision`` is the own estimate of a risk, borne by no task of the order),
-    ``test_a_started_task_the_merge_completes_is_brought_to_nought_labour_or_not``.
+    report need not announce either. It holds for both kinds a task bears, a line of labour and one
+    that is not (``labor``, ``non_labor``); a line of ``provision``, which its risk alone writes, is
+    never brought to nought here.
     """
     if row.budgeted_amount is None:
         row.budgeted_amount = row.reestimated_amount
@@ -186,9 +256,11 @@ def write_lines(
 ) -> None:
     """Write the lines of a merge: their nodes by the planning, then their facets.
 
-    ``lines`` those the differential adds or designates, in its order.
+    ``lines`` those the differential adds or designates, in its order. An occurrence writes the
+    current figures of a line designated alone, and no provision line: it marks no reference.
     """
     session, project_id = merging.session, merging.project_id
+    occurrence = merging.mode == OCCURRENCE_MERGE
     created = place_merged_lines(merging)
     sources = {
         each.node_id: each for each in rows_of(session, project_id, [line.source for line in lines])
@@ -197,7 +269,7 @@ def write_lines(
     held_nodes += [
         each.node_id
         for each in where.main
-        if each.is_provision or each.task_lineage_id in where.completing
+        if (each.is_provision and not occurrence) or each.task_lineage_id in where.completing
     ]
     held: Mapping[UUID, EstimateLine] = {
         each.node_id: each for each in rows_of(session, project_id, held_nodes)
@@ -210,12 +282,16 @@ def write_lines(
             continue
         row = held[line.held]
         if line.fields - {"parent"}:
-            _designated(row, source, line, current=line.task not in where.started)
-            _stamped(row, merging)
+            if occurrence:
+                _current(row, source, line, merging)
+            else:
+                _designated(row, source, line, current=line.task not in where.started)
+                _stamped(row, merging)
     for each in where.main:
         completing = each.task_lineage_id in where.completing
         if each.is_provision:
-            _provision_budgeted(held[each.node_id])
+            if not occurrence:
+                _provision_budgeted(held[each.node_id])
         elif completing and each.node_id not in sent:
             _zeroed(held[each.node_id], merging, where.bearers[each.task_lineage_id])
     session.flush()
@@ -224,7 +300,15 @@ def write_lines(
 def _provision_budgeted(row: EstimateLine) -> None:
     """Give a provision line of the reference the merge marks its provision as its budgeted amount.
 
-    Its re-estimated amount, which is its provision, never projected (``set_provision``).
+    Its re-estimated amount, which is its provision, never projected (``set_provision``); the
+    amount it gives is the one the line read before, a null read as the provision.
+
+    The write is not stamped — neither ``lock_version`` advanced nor ``updated_at`` and
+    ``updated_by`` set —, as ``_stamped`` and ``_zeroed`` stamp theirs (#4406). The counter of a
+    line guards an entry against a write it has not read: a provision line is closed to the entry,
+    its risk alone writing it, so no entry holds its counter to lose. And the revision is marked in
+    the same transaction, which freezes the line and its history whole: no later write follows
+    whose author or instant this one would have to precede.
     """
     if row.budgeted_amount != row.reestimated_amount:
         row.budgeted_amount = row.reestimated_amount

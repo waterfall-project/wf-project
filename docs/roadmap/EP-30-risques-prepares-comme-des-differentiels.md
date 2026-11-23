@@ -1065,7 +1065,7 @@ enchaîne la mise à jour et le réexamen (US-3140).
 
 ## US-3100 — La survenance fusionne ce que le devis propre désigne
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-RIS-0060-A`
 - **opérations** : `getRiskOccurrenceReport`, `declareRiskOccurrence`, `getBackgroundTask`,
   `listNodes` et `compareRevisions` (`is_from_risk`, `origin_risk_ids`), `getRisk`

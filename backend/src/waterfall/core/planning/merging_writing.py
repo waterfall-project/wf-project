@@ -24,6 +24,12 @@ goes:
    started task kept is completed on the day of the merge, and the engine is replayed once on the
    main structure, which prices all its lines again on the dates it gives them.
 
+An occurrence (``MergePlan.occurrence``; EP-30, "La survenance") writes the same three steps, but
+that the tasks and the lines it creates bear the trace of its risk, every task it keeps is
+completed on its day — one not started taking that day as its start too, as a completion from the
+Kanban does —, and the completed tasks it reopens are put back to started before the engine is
+replayed — a milestone to not started, as its reopening from the Kanban does.
+
 The nodes of the differential are not written: it is read merged in the revision the merge marks.
 """
 
@@ -33,13 +39,13 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from waterfall.core.planning.dating import conflicts_of
-from waterfall.core.planning.merging import MergePlan, merge_plan, task_fields
+from waterfall.core.planning.merging import MergePlan, merge_plan, reopening, task_fields
 from waterfall.core.planning.rebasing import COLUMNS, PARENT
 from waterfall.core.planning.rescheduling import Holding, replayed
-from waterfall.core.planning.shaping import PARKED, deleted, emptied, stamp
+from waterfall.core.planning.shaping import PARKED, deleted, emptied, reopened, stamp
 from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.planning.tree import LINE, TASK, read_links, read_tree
-from waterfall.core.planning.views import COMPLETED, STARTED, state_of
+from waterfall.core.planning.views import COMPLETED
 from waterfall.core.projects.interface import current_day
 from waterfall.platform.identifiers import new_id
 
@@ -75,10 +81,11 @@ def _written(merging: StructureMerging) -> Written:
     return held
 
 
-def _new_node(merging: StructureMerging, source: NodeRow, kind: str) -> Node:
+def _new_node(merging: StructureMerging, plan: MergePlan, source: NodeRow, kind: str) -> Node:
     """Give the node a merge creates in the main structure, of the lineage of the differential's.
 
-    At its first version, parked above any rank at the first level, its place to be set.
+    At its first version, parked above any rank at the first level, its place to be set; the trace
+    of the differential's node, or, created by an occurrence, of its risk (WF-RIS-0060).
     """
     at, author = merging.act.at, merging.act.author
     return Node(
@@ -90,7 +97,7 @@ def _new_node(merging: StructureMerging, source: NodeRow, kind: str) -> Node:
         kind=kind,
         parent_id=None,
         rank=PARKED,
-        origin_risk_id=source.origin_risk_id,
+        origin_risk_id=plan.risk_id if plan.occurrence else source.origin_risk_id,
         lock_version=1,
         created_at=at,
         created_by=author,
@@ -266,7 +273,7 @@ def write_tasks(merging: StructureMerging) -> None:
     tree = read_tree(session, project_id, merging.main_structure_id)
     conflicts = conflicts_of(read_links(session, project_id, merging.main_structure_id))
     created = {
-        task_id: _new_node(merging, plan.amendment.nodes[plan.sources[task_id]], TASK)
+        task_id: _new_node(merging, plan, plan.amendment.nodes[plan.sources[task_id]], TASK)
         for task_id in plan.order
         if task_id not in plan.main.nodes
     }
@@ -348,7 +355,7 @@ def place_lines(merging: StructureMerging) -> dict[UUID, UUID]:
         deleted(session, project_id, tree, gone)
         tree = read_tree(session, project_id, merging.main_structure_id)
     created = {
-        each: _new_node(merging, amendment.nodes[each], LINE)
+        each: _new_node(merging, plan, amendment.nodes[each], LINE)
         for members in lists.values()
         for each in members
         if each in amendment.nodes
@@ -362,10 +369,12 @@ def place_lines(merging: StructureMerging) -> dict[UUID, UUID]:
 
 
 def finish(merging: StructureMerging) -> None:
-    """Delete the tasks the merge removes, complete the started ones it keeps, replay the engine.
+    """Delete the tasks the merge removes, complete the ones it keeps, replay the engine.
 
-    A started task kept is completed on the day of the merge, its start kept (WF-REV-0050): its
-    lines' remaining to commit the estimate brought to nought. The engine is replayed once on the
+    A task kept that the merge completes (``MergePlan.completes``) is completed on the day of the
+    merge, its start kept, or that day for one not started (WF-REV-0050, WF-RIS-0060): its lines'
+    remaining to commit the estimate brought to nought; a summary's state is derived. The completed
+    tasks an occurrence reopens are put back (``reopening``). The engine is replayed once on the
     main structure, which prices all its lines again on the dates of their tasks.
     """
     plan, written = merge_plan(merging), _written(merging)
@@ -376,11 +385,15 @@ def finish(merging: StructureMerging) -> None:
         tree = read_tree(session, project_id, merging.main_structure_id)
     day = current_day(act.at)
     for task_id in plan.kept:
-        if plan.is_summary(task_id) or state_of(plan.main, task_id).progress != STARTED:
+        if plan.is_summary(task_id) or not plan.completes(task_id):
             continue
         task = tree.tasks[task_id]
         task.progress, task.completed_on = COMPLETED, day
+        # A milestone completed by an occurrence stands on that day, whatever its dates were.
+        if task.started_on is None or (plan.occurrence and tree.is_milestone(task_id)):
+            task.started_on = day
         stamp(tree.nodes[task_id], act)
+    reopened(tree, reopening(plan), act, milestones_unstarted=True)
     session.flush()
     repriced = tuple(written.nodes[each] for each in plan.order)
     held = Holding(conflicts=written.conflicts, repriced=repriced)
