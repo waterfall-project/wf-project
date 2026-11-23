@@ -278,7 +278,14 @@ class Worker:
                 result = self.handlers[task.kind](session, task)
         except RetriedError as stalled:
             if task.attempt < MAX_ATTEMPTS:
-                logger.warning("task.retried", attempt=task.attempt, code=_code_of(stalled.cause))
+                # The trace is the stall's, chained to the failure it came from: a defect of the
+                # reading is not left without one.
+                logger.warning(
+                    "task.retried",
+                    attempt=task.attempt,
+                    code=_code_of(stalled.cause),
+                    exc_info=stalled,
+                )
                 return False
             stalled.trace(session)
             self.fail(session, task, stalled.cause)
