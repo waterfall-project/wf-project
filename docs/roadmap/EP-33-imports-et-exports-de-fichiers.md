@@ -216,7 +216,9 @@ l'essai de l'export sur `epic/EP-08` le 2026-11-20, rangés dans une US ajoutée
 Constats relevés à la livraison d'US-3190/L1 et d'US-3180, tranchés par l'auteur le 2026-11-23 :
 
 - #4734 — back : l'analyse XML d'openpyxl amplifie un classeur dans les bornes (13 Ko, 583 Mio) →
-  US-3190/L1b, une pré-lecture en flux ; une limite de mémoire du conteneur est écartée ;
+  US-3190/L1b, une pré-lecture en flux ; une limite de mémoire du conteneur est écartée ; à la
+  question du livreur (2026-11-23), les chaînes partagées, les styles, les noms définis et le
+  produit lignes × colonnes → US-3190/L2b, qui les mesure avant toute borne ;
 - #4736 — spec : le classeur de 64 Mio du critère d'US-3190 contre la borne de 200 Mio déclarés →
   le critère est précisé dans le sens livré (un membre qui se décompresse au-delà de ce qu'il
   annonce), sans borne par membre ;
@@ -378,7 +380,14 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
   colonnes, pour les colonnes conservées d'une extraction. Les lignes et les cellules se comptent
   avant l'ouverture, par une pré-lecture en flux des membres XML (US-3190/L1b, décision de l'auteur
   du 2026-11-23, #4734) : openpyxl matérialise une ligne entière avant de la tronquer, et un
-  classeur de 13 Ko le fait monter à 583 Mio. Écartée : une limite de mémoire du conteneur. Les
+  classeur de 13 Ko le fait monter à 583 Mio. Écartée : une limite de mémoire du conteneur. La
+  pré-lecture lit tous les membres XML du classeur, pas seulement les onglets que le format lit :
+  un onglet non lu au-delà des bornes fait aussi échouer l'import ; le classeur s'ouvrant en
+  `read_only`, l'écart ne coûte pas de mémoire et évite de résoudre d'abord les onglets lus
+  (décision de l'auteur du 2026-11-23). Les chaînes partagées, les styles et les noms définis
+  n'ont pas encore de borne, et 200 000 lignes × 500 colonnes autorisent encore un pic de 789 Mio
+  pour un fichier de 9 885 octets : US-3190/L2b mesure chaque vecteur et propose des bornes
+  chiffrées, que l'auteur fixe avant qu'elles soient écrites. Les
   bornes du lecteur MS Project (US-3180) hors celles de l'auteur : un entier de 18 chiffres au plus,
   une durée d'un million d'heures au plus ; une constante d'unité (`MinutesPerDay`,
   `MinutesPerWeek`, `DaysPerMonth`) strictement positive, sans borne haute (US-3180b, #4766).
@@ -514,17 +523,21 @@ mémoire du service ni bloquer les saisies de tous (#4419).
   le projet n'attend pas la lecture d'un classeur — éprouvé comme l'application l'est déjà
   (`test_imports_application.py`), pour l'ouverture.
 - propre à l'US : à l'analyse et à l'application, un lecteur ne matérialise que les onglets que son
-  format lit, et un onglet dont les lignes ou les colonnes passent la borne de la conception fait
-  échouer l'import sur `FILE_FORMAT_UNREADABLE` ; lignes et cellules, vides comprises, se comptent
-  avant l'ouverture, et un classeur de 13 705 octets dont une ligne porte 2 000 000 de cellules
-  vides est refusé sans que la mémoire du processus ne monte (US-3190/L1b, #4734).
+  format lit, et un onglet du classeur, lu ou non, dont les lignes ou les colonnes passent la
+  borne de la conception fait échouer l'import sur `FILE_FORMAT_UNREADABLE` ; lignes et
+  cellules, vides comprises, se comptent avant l'ouverture, et un classeur de 13 705 octets dont
+  une ligne porte 2 000 000 de cellules vides est refusé sans que la mémoire du processus ne monte (US-3190/L1b, #4734).
+- propre à l'US : les chaînes partagées, les styles et les noms définis d'un classeur ont chacun
+  une borne de la conception, fixée sur mesure, au-delà de laquelle l'import échoue avant
+  l'ouverture sur `FILE_FORMAT_UNREADABLE` (US-3190/L2b).
 
 **Notes de réalisation.** Un seul ouvreur commun aux classeurs, dans l'interface des échanges, à
 côté de l'analyseur XML durci : les trois sites d'ouverture (`estimate/excel/reader.py`,
 `estimate/remaining/excel/reader.py`, `costs/extraction.py`) passent par lui. Les valeurs des bornes
 sont de la conception. La borne se juge sur `infolist()`, et chaque membre est vérifié, par pas
 bornés, ne pas se décompresser au-delà de ce qu'il déclare : `ZipFile.read` décompresse un membre
-en entier avant de le couper (L1). La pré-lecture en flux des membres XML est d'US-3190/L1b (#4734).
+en entier avant de le couper (L1). La pré-lecture en flux des membres XML est d'US-3190/L1b
+(#4734) ; les bornes des autres vecteurs, et la revue de 200 000 × 500, d'US-3190/L2b, mesurées avant d'être écrites.
 
 **Hors périmètre.** La limite de mémoire du service dans le chart (EP-13, EP-39) ; la colonne
 absente d'un onglet (US-3200).
@@ -640,7 +653,7 @@ de confirmation (`Confirmed`), que le compteur rend sans objet sans la contredir
 
 ## US-3220 — L'import d'un devis retire les lignes absentes du fichier dans l'écriture qui pose les autres
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0100-A`
 - **opérations** : `applyImport`
 - **issue** : #4534

@@ -88,9 +88,9 @@ def read_project(content: bytes) -> ReadProject:
         name=root.text_of("Name"),
         currency_code=root.text_of("CurrencyCode"),
         calendar_uid=_calendar_uid(root, "CalendarUID"),
-        minutes_per_day=_integer(root, "MinutesPerDay"),
-        minutes_per_week=_integer(root, "MinutesPerWeek"),
-        days_per_month=_integer(root, "DaysPerMonth"),
+        minutes_per_day=_divisor(root, "MinutesPerDay"),
+        minutes_per_week=_divisor(root, "MinutesPerWeek"),
+        days_per_month=_divisor(root, "DaysPerMonth"),
         calendars=tuple(_calendar(element) for element in _every(root, "Calendars", "Calendar")),
         tasks=tasks,
         lineage_declared=_lineage_declared(root, users),
@@ -130,6 +130,14 @@ def _integer(element: Tag, name: str) -> int | None:
     if INTEGER.fullmatch(value) is None:
         raise UnreadableProjectError(name)
     return int(value)
+
+
+def _divisor(element: Tag, name: str) -> int | None:
+    """Return a constant of unit of the project, positive: the conversions divide by it."""
+    value = _integer(element, name)
+    if value is not None and value <= 0:
+        raise UnreadableProjectError(name)
+    return value
 
 
 def _required(element: Tag, name: str) -> int:
