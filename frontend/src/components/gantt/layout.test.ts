@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { NodeList } from "@/components/grid/nodes";
 import { example } from "@/test/fixtures";
 
-import { finishTime, ganttLayout, startTime } from "./layout";
+import { finishTime, ganttLayout, type GanttRow, startTime } from "./layout";
 
 // The studies of the witness, without their lines: the summary from 2 March to 24 April 2026, the
 // detailed studies, the desks in manual mode, the review after the studies, the reception at its
@@ -160,6 +160,46 @@ describe("the layout of the Gantt", () => {
       expect(link?.out).toBe(noon("2026-04-13"));
       expect(link?.in).toBe(noon("2026-04-13"));
       expect((link?.in ?? 0) >= (link?.out ?? 1)).toBe(true);
+    });
+  });
+
+  describe("the links across a run of rows folded away", () => {
+    it("gives the stretch of each link with an end before the run and one after it, and none for the others [WF-PLA-0090-A]", () => {
+      const row = (id: string, from: string, predecessor?: string): GanttRow => ({
+        node_id: id,
+        predecessors:
+          predecessor === undefined
+            ? []
+            : [
+                {
+                  predecessor_node_id: predecessor,
+                  predecessor_row_number: 1,
+                  link_type: "finish_to_start",
+                  lag: { value: "0", unit: "d" },
+                },
+              ],
+        task: {
+          start: { date: from, hours: "0" },
+          finish: { date: from, hours: "8" },
+          is_summary: false,
+          is_milestone: false,
+        },
+      });
+      const rows = [
+        row("a", "2026-04-13"),
+        row("b", "2026-04-14"),
+        row("c", "2026-04-15"),
+        row("d", "2026-04-16", "a"),
+        row("e", "2026-04-17", "d"),
+      ];
+      const layout = ganttLayout(rows);
+      // « a » to « d » runs across the places between « a » and « b », « b » and « c », « c » and « d »;
+      // « d » to « e » across the one before « e » alone.
+      expect(layout.crossing(1).map(({ part, down }) => [part, down])).toEqual([["passes", true]]);
+      expect(layout.crossing(3)).toHaveLength(1);
+      expect(layout.crossing(4)).toHaveLength(1);
+      expect(layout.crossing(0)).toEqual([]);
+      expect(layout.crossing(5)).toEqual([]);
     });
   });
 });

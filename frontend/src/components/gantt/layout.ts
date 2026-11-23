@@ -145,6 +145,12 @@ export interface GanttLayout {
   readonly bar: (row: GanttRow) => GanttBar | undefined;
   /** The parts of the links a row draws, by the identity of its node. */
   readonly links: (nodeId: string) => readonly GanttLinkPart[];
+  /**
+   * The parts of the links that run across the row of a run folded away (#3785), which stands
+   * between the rows of the layout: given the index of the row just after it, each link with an end
+   * before it and an end from that row on, a stretch passing by.
+   */
+  readonly crossing: (before: number) => readonly GanttLinkPart[];
 }
 
 /** A link between two rows of the answer, its places shares of the axis. */
@@ -240,7 +246,8 @@ export function ganttLayout(rows: readonly GanttRow[]): GanttLayout {
   const span = (ticks.at(-1) ?? first + DAY) - first;
   const at = (time: number) => (time - first) / span;
   const index = new Map(rows.map((row, at) => [row.node_id, at]));
-  const parts = partsByRow(linksOf(rows, index), at);
+  const links = linksOf(rows, index);
+  const parts = partsByRow(links, at);
   return {
     ticks,
     at,
@@ -260,5 +267,11 @@ export function ganttLayout(rows: readonly GanttRow[]): GanttLayout {
       const row = index.get(nodeId);
       return (row === undefined ? undefined : parts.get(row)) ?? [];
     },
+    crossing: (before) =>
+      links
+        .filter(
+          (link) => Math.min(link.from, link.to) < before && Math.max(link.from, link.to) >= before,
+        )
+        .map((link) => ({ ...partAt(link, -1, at), part: "passes" as const })),
   };
 }

@@ -173,6 +173,41 @@ describe("« Écarts seulement » on a grid that reads a comparison", () => {
     expect(router.refresh).not.toHaveBeenCalled();
   });
 
+  it("draws in the row of a run the stretch of the link that crosses it, so that a vertical link is not cut [WF-PLA-0090-A]", async () => {
+    // « Dossier de conception » follows « Études », the four tasks between them folded away.
+    const [studies] = planning.items;
+    const linked: NodeList = {
+      ...planning,
+      items: planning.items.map((node) =>
+        node.task?.label === DESIGN
+          ? {
+              ...node,
+              predecessors: [
+                {
+                  predecessor_node_id: studies?.node_id ?? "",
+                  predecessor_row_number: studies?.row_number ?? 0,
+                  link_type: "finish_to_start" as const,
+                  lag: { value: "0", unit: "d" as const },
+                },
+              ],
+            }
+          : node,
+      ),
+    };
+    render(planningGrid(compared(MARKED, linked)));
+    await userEvent.click(differencesOnly());
+    const run = screen.getByRole("button", { name: "4 lignes sans écart repliées" }).closest("tr");
+    const gantt = run?.querySelector<HTMLElement>('td[data-column="gantt"]');
+    // The link leaves the row of « Études », reaches the row of « Dossier de conception », and runs
+    // the whole height of the row of the run between them: not cut there.
+    const stretch = gantt?.querySelectorAll("g[data-link] line");
+    expect(stretch).toHaveLength(1);
+    expect(stretch?.[0]).toHaveAttribute("y1", "0");
+    expect(stretch?.[0]).toHaveAttribute("y2", "100%");
+    // The cell of the run still spans the columns before the Gantt, and says what it folds.
+    expect(run?.querySelector("td[data-run]")).toHaveAttribute("colspan");
+  });
+
   it("unfolds a run at the click, and keeps it unfolded while the folding is on [WF-IHM-0170-A]", async () => {
     render(planningGrid(compared(MARKED)));
     await userEvent.click(differencesOnly());
