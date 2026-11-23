@@ -694,8 +694,12 @@ describe("the Gantt of the planning", () => {
     const bound = (2 * 600) / 20 + 16;
     expect(lines()).toBeGreaterThan(0);
     expect(lines()).toBeLessThanOrEqual(bound);
+    // The example of the contract has its Saturdays and Sundays at 0: some bands, and few.
+    expect(bands()).toBeGreaterThan(0);
     expect(bands()).toBeLessThanOrEqual(2);
     const before = lines();
+    const firstLine = () => drawing?.querySelector(":scope > line")?.getAttribute("x1");
+    const firstBefore = firstLine();
     // Far along the axis the count is the same: it follows the frame, not the project.
     const frame = view.container.querySelector<HTMLElement>("div.overflow-x-auto");
     act(() => {
@@ -707,6 +711,9 @@ describe("the Gantt of the planning", () => {
     expect(lines()).toBeGreaterThan(0);
     expect(lines()).toBeLessThanOrEqual(bound);
     expect(Math.abs(lines() - before)).toBeLessThanOrEqual(20);
+    // What is drawn has moved with the scroll: the window no longer starts where it did.
+    expect(firstBefore).toBeTruthy();
+    expect(firstLine()).not.toBe(firstBefore);
   });
 
   // WF-IHM-0100-A, WF-PLA-0090-A : la barre de la tâche active est ramenée dans le cadre.

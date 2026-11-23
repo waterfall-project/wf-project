@@ -323,7 +323,7 @@ export function GanttRows({
     () => rows.some(({ task }) => hasDaysOff(task?.calendar_hours)),
     [rows],
   );
-  // The width of the frame that scrolls, as the header shows it; that of the column before it is drawn.
+  // The stretch of the axis a row draws: the frame widened by half a frame each side, the whole axis when fitted.
   const visible = useMemo(
     () => visibleSpan({ first, last }, width, frame, offset),
     [first, last, width, frame, offset],
