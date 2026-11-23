@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The backward pass of the engine on the links of a summary and the short elapsed durations.
 
-US-3300/L2, without a database: a link from the start of a summary bounds only the subordinates
-that carry that start (#3335, WF-PLA-0100); a link finish to finish toward a summary binds each of
-its subordinates (WF-PLA-0030, 1.0.7); an elapsed duration shorter than a day goes back as far as
-the same hours of work do (#4412, WF-PLA-0160); and the finish of a manual task of an elapsed
-duration is bounded to the hours of the day it reaches, as the engine bounds it (#4412). The
-planning starts on Monday the 2nd of March 2026, on a calendar of eight hours from Monday to
-Friday.
+US-3300/L2 and L3, without a database: a link from the start of a summary bounds only the
+subordinates that carry that start (#3335, WF-PLA-0100); a link toward the summary of a manual task
+names that task in its conflict (#3984, WF-PLA-0100, WF-PLA-0020); a link finish to finish toward a
+summary binds each of its subordinates (WF-PLA-0030, 1.0.7); an elapsed duration shorter than a day
+goes back as far as the same hours of work do (#4412, WF-PLA-0160); and the finish of a manual task
+of an elapsed duration is bounded to the hours of the day it reaches, as the engine bounds it
+(#4412). The planning starts on Monday the 2nd of March 2026, on a calendar of eight hours from
+Monday to Friday.
 """
 
 from datetime import date, timedelta
@@ -25,6 +26,7 @@ from waterfall.core.planning.scheduling import (
     DurationUnit,
     Lag,
     Link,
+    LinkConflict,
     LinkType,
     Schedule,
     ScheduledTask,
@@ -112,6 +114,81 @@ def test_a_link_from_the_start_of_a_summary_bounds_only_the_subordinates_that_ca
         (Decimal(0), True),
         (Decimal(0), True),
     ]
+
+
+def fixed(number: int, on: int, parent: int | None = None) -> Task:
+    """Return a task in manual mode of one day, dated so many days after the planning start."""
+    parent_id = None if parent is None else ident(parent)
+    return Task(
+        ident(number), parent_id, "manual", duration("1"), EIGHT_HOURS, day(on), day(on, "8")
+    )
+
+
+# --- WF-PLA-0100, WF-PLA-0020: a link toward the summary of a manual task -----------------------
+
+
+@pytest.mark.requirement("WF-PLA-0100-A")
+def test_a_predecessor_of_the_summary_of_a_manual_task_floats_negative_and_both_are_signalled() -> (
+    None
+):
+    # « Un prédécesseur automatique qui ne peut pas finir avant le début d'une tâche manuelle porte
+    # une marge négative, apparaît sur le chemin critique et est signalé. », its form when the link
+    # aims at the summary of the manual task (BPL-06): P of five days, finish to start toward S,
+    # whose subordinate M is manual and dated on the Wednesday. P should finish by the Tuesday:
+    # three days late, critical, and P and M are signalled by the link P → S.
+    tasks = [task(1, "5"), task(2), fixed(3, 2, parent=2)]
+    dated = planned(tasks, [link(1, 2)])
+    conflict = LinkConflict(ident(1), ident(2), ident(3), "finish_to_start")
+    assert (of(dated, 1).total_float, of(dated, 1).is_critical) == (Decimal(-3), True)
+    assert dated.link_conflicts == (conflict,)
+    assert of(dated, 1).link_conflicts == of(dated, 3).link_conflicts == (conflict,)
+    assert of(dated, 2).link_conflicts == ()
+
+
+@pytest.mark.requirement("WF-PLA-0020-A")
+@pytest.mark.parametrize(
+    ("on", "signalled"), [(9, True), (14, False)], ids=["before-the-finish", "delayed-past-it"]
+)
+def test_a_predecessor_of_a_summary_is_signalled_with_its_manual_subordinate_until_delayed(
+    on: int, signalled: bool
+) -> None:
+    # « Un prédécesseur lié fin à début à une récapitulative, dont une subordonnée manuelle est
+    # datée avant sa fin, est signalé avec cette subordonnée. » A (10 j, automatic) precedes the
+    # summary S finish to start, whose only subordinate M is manual: dated on the Wednesday of the
+    # second week, before A finishes on its Friday, A floats negative and A and M are signalled by
+    # the link A → S; delayed to the Monday after, past the finish of A, the signal goes (#3984).
+    dated = planned([task(1, "10"), task(2), fixed(3, on, parent=2)], [link(1, 2)])
+    conflicts = (LinkConflict(ident(1), ident(2), ident(3), "finish_to_start"),)
+    assert dated.link_conflicts == (conflicts if signalled else ())
+    assert of(dated, 1).link_conflicts == of(dated, 3).link_conflicts == dated.link_conflicts
+    total = of(dated, 1).total_float
+    assert total is not None
+    assert (total < 0) is signalled
+
+
+@pytest.mark.story("US-3300")
+def test_a_link_toward_a_summary_names_each_manual_subordinate_it_cannot_satisfy_alone() -> None:
+    # Propre à l'US (« ce qu'un conflit nomme sous une récapitulative », conception) : P (5 j)
+    # toward S = {M1, manual, Tuesday ; T = {M2, manual, Wednesday} ; M3, manual, the Monday after ;
+    # A, automatic}. M1 and M2, dated before P finishes, are named, in the order of the plan; M3,
+    # dated late enough, and A, automatic, are not. A link start to start judges each start: from
+    # P's Monday, M1 on the Tuesday satisfies it.
+    tasks = [
+        task(1, "5"),
+        task(2),
+        fixed(3, 1, parent=2),
+        task(4, parent=2),
+        fixed(5, 2, parent=4),
+        fixed(6, 7, parent=2),
+        task(7, parent=2),
+    ]
+    dated = planned(tasks, [link(1, 2)])
+    assert [each.manual_node_id for each in dated.link_conflicts] == [ident(3), ident(5)]
+    assert {each.successor_id for each in dated.link_conflicts} == {ident(2)}
+    assert of(dated, 1).link_conflicts == dated.link_conflicts
+    assert of(dated, 6).link_conflicts == of(dated, 7).link_conflicts == ()
+    started = planned(tasks, [link(1, 2, "start_to_start")])
+    assert started.link_conflicts == ()
 
 
 # --- WF-PLA-0030: a link finish to finish toward a summary --------------------------------------

@@ -8,13 +8,16 @@ applicable calendar (``calendar_of``, WF-PLA-0010), the links, the planning star
 and the constants of the units of the installation. What it computes is kept on the facet: the
 dates of each task — those of a task in manual mode are its own and stay —, its float and its
 criticality, and, for a summary, its duration — the work between its dates on its calendar, in
-days (WF-PLA-0040) — and its mode, always automatic; the links in conflict are marked
-(WF-PLA-0020). A recalculation advances no counter of a node (``LockVersion``).
+days (WF-PLA-0040) — and its mode, always automatic; the links in conflict are marked, and the
+tasks in manual mode each cannot satisfy kept (``task_link_conflict``, WF-PLA-0020, #3984). A
+recalculation advances no counter of a node (``LockVersion``).
 """
 
 from dataclasses import dataclass
 from fractions import Fraction
 from typing import TYPE_CHECKING, cast
+
+from sqlalchemy import delete, insert, select, tuple_
 
 from waterfall.core.planning.scheduling import (
     Duration,
@@ -30,12 +33,13 @@ from waterfall.core.planning.scheduling import (
     schedule,
 )
 from waterfall.core.planning.scheduling import Task as Planned
-from waterfall.core.planning.tree import read_links
+from waterfall.core.planning.tables import TaskLinkConflict
+from waterfall.core.planning.tree import Conflict, read_links
 from waterfall.core.resource_settings.interface import get_duration_units
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable
+    from collections.abc import Collection
     from datetime import date
     from decimal import Decimal
     from uuid import UUID
@@ -51,7 +55,7 @@ if TYPE_CHECKING:
         ScheduledTask,
     )
     from waterfall.core.planning.tables import Task, TaskLink
-    from waterfall.core.planning.tree import LinkColumns, TaskColumns, Tree
+    from waterfall.core.planning.tree import TaskColumns, Tree
 
 AUTOMATIC = "automatic"
 MANUAL = "manual"
@@ -87,8 +91,12 @@ def duration_of(task: TaskColumns) -> Duration:
 
 @dataclass(frozen=True, slots=True)
 class Replay:
-    """A structure as the engine dates it: its tree, its links, the calendars and the constants."""
+    """A structure as the engine dates it: its tree, its links, the calendars and the constants.
 
+    ``place`` its project and itself, where the links in conflict are written (``kept``).
+    """
+
+    place: tuple[UUID, UUID]
     tree: Tree
     links: list[TaskLink]
     calendars: dict[UUID, Applicable]
@@ -122,7 +130,9 @@ def replay_of(
     """Gather what the engine reads of a structure — its project, itself, its start — read."""
     project_id, structure_id, planning_start = structure
     links = read_links(session, project_id, structure_id)
-    return Replay(tree, links, calendars, constants_of(session), planning_start)
+    return Replay(
+        (project_id, structure_id), tree, links, calendars, constants_of(session), planning_start
+    )
 
 
 def _planned(replay: Replay, node_id: UUID) -> Planned:
@@ -169,18 +179,71 @@ def dated(replay: Replay, origin: Origin = None) -> Schedule:
         raise UnprocessableError(LINK_FORBIDDEN) from None
 
 
-def conflicts_of(links: Iterable[LinkColumns]) -> frozenset[tuple[UUID, UUID]]:
-    """Give the links in conflict among these, objects or rows, each by its two tasks."""
-    return frozenset((link.predecessor_id, link.successor_id) for link in links if link.in_conflict)
-
-
-def _conflicts(pairs: Collection[tuple[UUID, UUID]]) -> dict[UUID, set[tuple[UUID, UUID]]]:
-    """Give, by task, the links in conflict it is an end of, each by its two tasks."""
-    held: dict[UUID, set[tuple[UUID, UUID]]] = {}
-    for pair in pairs:
-        for end in pair:
-            held.setdefault(end, set()).add(pair)
+def _ends(conflicts: Collection[Conflict]) -> dict[UUID, set[Conflict]]:
+    """Give, by task, the conflicts it is named by: as the predecessor, or as the manual task."""
+    held: dict[UUID, set[Conflict]] = {}
+    for conflict in conflicts:
+        for end in (conflict.predecessor_id, conflict.manual_node_id):
+            held.setdefault(end, set()).add(conflict)
     return held
+
+
+def _conflicts_kept(session: Session, replay: Replay, computed: Schedule) -> frozenset[Conflict]:
+    """Write the links in conflict the engine found, the manual task each names; give the former.
+
+    Each link bears ``in_conflict`` as soon as it names a task in manual mode, which its row of
+    ``task_link_conflict`` keeps (WF-PLA-0020, #3984); the rows that no longer hold are deleted,
+    those that do not yet are inserted. Gives the conflicts the structure held before, as their
+    rows tell after the write deleted its own links and tasks.
+    """
+    project_id, structure_id = replay.place
+    links = {(link.predecessor_id, link.successor_id): link for link in replay.links}
+    by_id = {link.id: link for link in replay.links}
+    found = {(each.predecessor_id, each.successor_id) for each in computed.link_conflicts}
+    for pair, link in links.items():
+        if link.in_conflict != (pair in found):
+            link.in_conflict = pair in found
+    wanted = {
+        (links[(each.predecessor_id, each.successor_id)].id, each.manual_node_id)
+        for each in computed.link_conflicts
+    }
+    held = {
+        (link_id, node_id)
+        for link_id, node_id in session.execute(
+            select(TaskLinkConflict.link_id, TaskLinkConflict.node_id).where(
+                TaskLinkConflict.project_id == project_id,
+                TaskLinkConflict.structure_id == structure_id,
+            )
+        )
+    }
+    gone = held - wanted
+    if gone:
+        session.execute(
+            delete(TaskLinkConflict).where(
+                TaskLinkConflict.project_id == project_id,
+                tuple_(TaskLinkConflict.link_id, TaskLinkConflict.node_id).in_(gone),
+            )
+        )
+    born = wanted - held
+    if born:
+        session.execute(
+            insert(TaskLinkConflict),
+            [
+                {
+                    "project_id": project_id,
+                    "link_id": link_id,
+                    "node_id": node_id,
+                    "revision_id": by_id[link_id].revision_id,
+                    "structure_id": structure_id,
+                }
+                for link_id, node_id in sorted(born)
+            ],
+        )
+    return frozenset(
+        Conflict(by_id[link_id].predecessor_id, by_id[link_id].successor_id, node_id)
+        for link_id, node_id in held
+        if link_id in by_id
+    )
 
 
 def _kept(task: Task, placed: ScheduledTask, summary: Duration | None) -> bool:
@@ -207,25 +270,28 @@ def _kept(task: Task, placed: ScheduledTask, summary: Duration | None) -> bool:
 
 
 def kept(
+    session: Session,
     replay: Replay,
     computed: Schedule,
-    conflicts: Collection[tuple[UUID, UUID]] | None = None,
+    conflicts: Collection[Conflict] | None = None,
 ) -> set[UUID]:
     """Write what the engine computed on the facets and the links; give the tasks it moved.
 
-    A task moves when its dates, its float, its criticality or its links in conflict change.
-    ``conflicts`` are the links in conflict before the write, read before it wrote any link: a
-    link it deleted in conflict moves its ends that stay. Without them, the links of the replay
-    are taken as they were, which a recalculation writes none of.
+    A task moves when its dates, its float, its criticality or the conflicts that name it change:
+    as the predecessor of a link in conflict, or as the task in manual mode it cannot satisfy.
+    ``conflicts`` are those of the structure before the write, read before it wrote any link: a
+    link it deleted in conflict moves the tasks it named that stay. Without them, the conflicts the
+    structure holds are taken as they were, which a recalculation writes none of.
     """
     tree = replay.tree
-    in_conflict = {(each.predecessor_id, each.successor_id) for each in computed.link_conflicts}
-    before = _conflicts(conflicts_of(replay.links) if conflicts is None else conflicts)
-    after = _conflicts(in_conflict)
-    for link in replay.links:
-        flagged = (link.predecessor_id, link.successor_id) in in_conflict
-        if link.in_conflict != flagged:
-            link.in_conflict = flagged
+    held = _conflicts_kept(session, replay, computed)
+    before = _ends(held if conflicts is None else conflicts)
+    after = _ends(
+        [
+            Conflict(each.predecessor_id, each.successor_id, each.manual_node_id)
+            for each in computed.link_conflicts
+        ]
+    )
     moved: set[UUID] = set()
     for task_id, placed in computed.tasks.items():
         summary = None

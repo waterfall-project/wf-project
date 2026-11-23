@@ -38,7 +38,7 @@ from uuid import UUID
 from sqlalchemy import and_, inspect, or_, select
 
 from waterfall.core.planning.interface.open_lines import held_open
-from waterfall.core.planning.tables import Node, Task, TaskLink, TrackingEntry
+from waterfall.core.planning.tables import Node, Task, TaskLink, TaskLinkConflict, TrackingEntry
 from waterfall.core.planning.tallying import provision_lines
 from waterfall.platform.database import among
 
@@ -89,6 +89,17 @@ class TaskRow(NamedTuple):
     work_package_id: UUID | None
     total_float_days: Decimal | None
     is_critical: bool
+
+
+class Conflict(NamedTuple):
+    """A link in conflict by its two tasks, and a task in manual mode it cannot satisfy (0020).
+
+    The successor itself, or a subordinate in manual mode of a summary successor (#3984).
+    """
+
+    predecessor_id: UUID
+    successor_id: UUID
+    manual_node_id: UUID
 
 
 class LinkRow(NamedTuple):
@@ -516,6 +527,25 @@ def read_link_rows(session: Session, project_id: UUID, structure_id: UUID) -> li
         .order_by(TaskLink.id)
     )
     return [LinkRow._make(row) for row in rows]
+
+
+def read_conflicts(session: Session, project_id: UUID, structure_id: UUID) -> frozenset[Conflict]:
+    """Read the links in conflict of a structure, each with a task in manual mode it names."""
+    rows = session.execute(
+        select(TaskLink.predecessor_id, TaskLink.successor_id, TaskLinkConflict.node_id)
+        .join(
+            TaskLink,
+            and_(
+                TaskLink.project_id == TaskLinkConflict.project_id,
+                TaskLink.id == TaskLinkConflict.link_id,
+            ),
+        )
+        .where(
+            TaskLinkConflict.project_id == project_id,
+            TaskLinkConflict.structure_id == structure_id,
+        )
+    )
+    return frozenset(Conflict._make(row) for row in rows)
 
 
 def links_of(

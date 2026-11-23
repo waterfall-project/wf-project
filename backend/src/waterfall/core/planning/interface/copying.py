@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The copy of the nodes of a revision opened from a marked one: nodes, tasks and links.
+"""The copy of the nodes of a revision opened from a marked one: nodes, tasks, links, conflicts.
 
 Registered after the copy of the structures (``register_copy``), whose copies it finds in
 ``RevisionCopy.identifiers``. Each table is copied by one ``INSERT … SELECT``, joined to the
@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Integer, Uuid, case, insert, literal, null, select
 
 from waterfall.core.planning.interface.facets import facets
-from waterfall.core.planning.tables import Node, Task, TaskLink
+from waterfall.core.planning.tables import Node, Task, TaskLink, TaskLinkConflict
 from waterfall.core.planning.tallying import provision_lines
 from waterfall.core.projects.interface import work_breakdown_items
 from waterfall.platform.database import Base, UtcDateTime, among, copied_columns, copies
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 NODE = Base.metadata.tables[Node.__tablename__]
 TASK = Base.metadata.tables[Task.__tablename__]
 LINK = Base.metadata.tables[TaskLink.__tablename__]
+CONFLICT = Base.metadata.tables[TaskLinkConflict.__tablename__]
 
 
 def _stamp(copy: RevisionCopy) -> dict[str, ColumnElement[Any]]:
@@ -121,6 +122,41 @@ def _copy_links(copy: RevisionCopy, nodes: dict[UUID, UUID], structures: dict[UU
         .where(LINK.c.project_id == copy.project_id)
     )
     session.execute(insert(LINK).from_select(names, rows))
+    _copy_conflicts(copy, links, nodes, structures)
+
+
+def _copy_conflicts(
+    copy: RevisionCopy,
+    links: dict[UUID, UUID],
+    nodes: dict[UUID, UUID],
+    structures: dict[UUID, UUID],
+) -> None:
+    """Copy the tasks in manual mode the links copied in conflict cannot satisfy (#3984).
+
+    With their links, as each link keeps ``in_conflict``: the replay of the copy that follows
+    (``redate_copy``) writes them again, as any replay does.
+    """
+    link, structure = copies(links, "copied_link"), copies(structures, "copied_structure")
+    node = copies(nodes, "copied_node")
+    names, columns = copied_columns(
+        CONFLICT,
+        {
+            "link_id": link.c.copy,
+            "node_id": node.c.copy,
+            "revision_id": literal(copy.target, Uuid()),
+            "structure_id": structure.c.copy,
+        },
+    )
+    rows = (
+        select(*columns)
+        .select_from(CONFLICT)
+        .join(link, link.c.source == CONFLICT.c.link_id)
+        .join(node, node.c.source == CONFLICT.c.node_id)
+        .join(structure, structure.c.source == CONFLICT.c.structure_id)
+        .where(CONFLICT.c.project_id == copy.project_id)
+    )
+    session = copy.session
+    session.execute(insert(CONFLICT).from_select(names, rows))
 
 
 def _copy(copy: RevisionCopy, *, attached: bool, left_out: frozenset[UUID] = frozenset()) -> None:

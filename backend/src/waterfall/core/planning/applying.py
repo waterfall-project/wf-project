@@ -22,13 +22,13 @@ from sqlalchemy import insert
 
 # By its module: its own imports reach the interface, which reaches this module again.
 from waterfall.core.planning import importing
-from waterfall.core.planning.dating import MANUAL, conflicts_of
+from waterfall.core.planning.dating import MANUAL
 from waterfall.core.planning.provisioning import lines_reported
 from waterfall.core.planning.rescheduling import Holding, replayed
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.shaping import PARKED, deleted, emptied, stamp
 from waterfall.core.planning.tables import Node, Task, TaskLink
-from waterfall.core.planning.tree import TASK
+from waterfall.core.planning.tree import TASK, read_conflicts
 from waterfall.core.planning.views import NOT_STARTED
 from waterfall.core.revisions.interface import write_structure
 from waterfall.platform.errors import UnprocessableError
@@ -221,7 +221,7 @@ def apply_plan(session: Session, plan: Plan, act: Act) -> None:
         msg = "an import is applied to a structure the current revision holds"
         raise ValueError(msg)
     project_id, structure_id = plan.aimed.project_id, facts.structure_id
-    conflicts = conflicts_of(plan.aimed.links)
+    conflicts = read_conflicts(session, project_id, structure_id)
     if plan.start is not None and plan.start != facts.planning_start_on:
         write_structure(session, project_id, structure_id, (plan.start, None), act)
         facts = replace(facts, planning_start_on=plan.start)

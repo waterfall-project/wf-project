@@ -32,13 +32,12 @@ from itertools import count
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from waterfall.core.planning.dating import conflicts_of
 from waterfall.core.planning.merging import MergePlan, merge_plan, task_fields
 from waterfall.core.planning.rebasing import COLUMNS, PARENT
 from waterfall.core.planning.rescheduling import Holding, replayed
 from waterfall.core.planning.shaping import PARKED, deleted, emptied, stamp
 from waterfall.core.planning.tables import Node, Task, TaskLink
-from waterfall.core.planning.tree import LINE, TASK, read_links, read_tree
+from waterfall.core.planning.tree import LINE, TASK, read_conflicts, read_links, read_tree
 from waterfall.core.planning.views import COMPLETED, STARTED, state_of
 from waterfall.core.projects.interface import current_day
 from waterfall.platform.identifiers import new_id
@@ -46,7 +45,7 @@ from waterfall.platform.identifiers import new_id
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
-    from waterfall.core.planning.tree import NodeRow, TaskRow, Tree
+    from waterfall.core.planning.tree import Conflict, NodeRow, TaskRow, Tree
     from waterfall.core.revisions.interface import StructureMerging
 
 # Where what the writing of the tasks leaves is kept for the lines and the end of the merge.
@@ -63,7 +62,7 @@ class Written:
     """
 
     nodes: dict[UUID, UUID] = field(default_factory=dict[UUID, UUID])
-    conflicts: frozenset[tuple[UUID, UUID]] = frozenset()
+    conflicts: frozenset[Conflict] = frozenset()
 
 
 def _written(merging: StructureMerging) -> Written:
@@ -264,7 +263,7 @@ def write_tasks(merging: StructureMerging) -> None:
     plan = merge_plan(merging)
     session, project_id = merging.session, merging.project_id
     tree = read_tree(session, project_id, merging.main_structure_id)
-    conflicts = conflicts_of(read_links(session, project_id, merging.main_structure_id))
+    conflicts = read_conflicts(session, project_id, merging.main_structure_id)
     created = {
         task_id: _new_node(merging, plan.amendment.nodes[plan.sources[task_id]], TASK)
         for task_id in plan.order

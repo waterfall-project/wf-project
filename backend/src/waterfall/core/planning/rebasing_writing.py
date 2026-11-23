@@ -28,14 +28,13 @@ from dataclasses import dataclass
 from itertools import count
 from typing import TYPE_CHECKING
 
-from waterfall.core.planning.dating import conflicts_of
 from waterfall.core.planning.interface.copying import copy_structure_nodes
 from waterfall.core.planning.interface.differential_deletion import delete_structure_nodes
 from waterfall.core.planning.rebasing import COLUMNS, PARENT
 from waterfall.core.planning.rescheduling import Holding, replayed
 from waterfall.core.planning.shaping import PARKED, deleted, stamp
 from waterfall.core.planning.tables import Node, Task, TaskLink
-from waterfall.core.planning.tree import LINE, TASK, read_links, read_tree
+from waterfall.core.planning.tree import LINE, TASK, read_conflicts, read_links, read_tree
 from waterfall.core.planning.writing import Place
 from waterfall.core.revisions.interface import RevisionCopy, rebased_structure
 from waterfall.platform.identifiers import new_id
@@ -259,6 +258,7 @@ def write_tasks(rebasing: StructureRebasing, plan: RebasePlan) -> None:
     """
     session, project_id = rebasing.session, rebasing.project_id
     tree = read_tree(session, project_id, rebasing.structure_id)
+    plan.conflicts = read_conflicts(session, project_id, rebasing.structure_id)
     plan.nodes = {**plan.structure.tasks, **{each: new_id() for each in plan.added}}
     final = _places(plan, tree)
     created: dict[UUID, Node] = {}
@@ -366,9 +366,6 @@ def finish(rebasing: StructureRebasing, plan: RebasePlan) -> None:
     """
     session, project_id = rebasing.session, rebasing.project_id
     tree = read_tree(session, project_id, rebasing.structure_id)
-    # The links in conflict as the differential held them, read before the update wrote its links:
-    # one the update deletes moves its ends that stay (``kept``).
-    conflicts = conflicts_of(plan.structure.links.values())
     leaving = [plan.nodes[each] for each in plan.removed]
     if leaving:
         below = [line for each in leaving for line in tree.lines(each)]
@@ -389,5 +386,7 @@ def finish(rebasing: StructureRebasing, plan: RebasePlan) -> None:
     copy_structure_nodes(copy)
     rebased_structure(rebasing)
     repriced = tuple(plan.nodes[each] for each in plan.order)
-    held = Holding(conflicts=conflicts, repriced=repriced)
+    # The links in conflict as the differential held them, read before the update wrote its links:
+    # one the update deletes moves the tasks it named that stay (``kept``).
+    held = Holding(conflicts=plan.conflicts, repriced=repriced)
     replayed(session, project_id, rebasing.structure_id, rebasing.act.at, held)
