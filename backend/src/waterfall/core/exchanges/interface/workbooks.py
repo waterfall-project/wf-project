@@ -54,12 +54,24 @@ openpyxl reads in 650 ms, some three million cells a second (measured on rows of
 200 MiB of empty cells. The bound of the sizes is a worst case, which a user may reach only by
 depositing a file that is refused anyway, and no bound could be had without inflating.
 
-A reader then materialises the tabs its format reads, and those alone, by ``bounded_rows``: a tab
-of more than ``MOST_ROWS`` rows or ``MOST_COLUMNS`` columns, as openpyxl gives them — the rows a
-gap leaves, and the width the places of the cells give —, is refused.
+The same reading counts the other vectors a workbook amplifies by (US-3190/L2b; EP-33, "Les bornes
+des classeurs"), each bounded by the author on the measures of ``measure/workbooks.py``: the shared
+strings — their number, the elements of one, the characters of their text —, wherever they lie, as
+openpyxl's reader of them finds them; the items of each list of ``styles.xml``, which openpyxl
+builds an object of each; the defined names of ``workbook.xml``. Past a bound, the workbook is
+refused before it is opened.
+
+A reader then materialises the tabs its format reads, and those alone, by the ``bounded_rows`` of
+the workbook opened: a row of more than ``MOST_COLUMNS`` columns, as openpyxl gives them — the width
+the places of the cells give —, is refused, and so are the tabs read past ``MOST_ROWS`` rows or
+``MOST_CELLS`` cells in all, the rows a gap leaves included, counted as they come. That refusal
+comes after the opening: the rows are those openpyxl gives, which the reading ahead would have to
+reproduce, and none is held past the bounds.
 
 Every refusal raises ``WorkbookOutOfBoundsError``, which ``DAMAGES`` lists: each reader turns it
-into the refusal of its format, ``FILE_FORMAT_UNREADABLE``, as it does a damaged file.
+into the refusal of its format, ``FILE_FORMAT_UNREADABLE``, as it does a damaged file. A
+``TypeError`` openpyxl raises at the opening or at the reading of the rows, for a part of the wrong
+kind, raises ``WorkbookDamagedError``, a ``ValueError`` that ``DAMAGES`` lists too (#4848).
 """
 
 import posixpath
@@ -68,7 +80,8 @@ import zlib
 from contextlib import contextmanager
 from enum import Enum
 from io import BytesIO
-from typing import TYPE_CHECKING, Any
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Never
 
 from lxml import etree
 from openpyxl import load_workbook
@@ -90,7 +103,7 @@ from openpyxl.xml.constants import (
 from waterfall.core.exchanges.interface.xml import hardened_target_parser
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Container, Generator, Iterable, Iterator
+    from collections.abc import Callable, Container, Generator, Iterable, Iterator, Mapping
 
     from lxml.etree._parser import CustomTargetParser
     from openpyxl.workbook.workbook import Workbook
@@ -102,6 +115,32 @@ LARGEST_INFLATED = 200 * 1024 * 1024
 MOST_MEMBERS = 1_000
 MOST_ROWS = 200_000
 MOST_COLUMNS = 500
+# The other vectors, measured by US-3190/L2b and bounded by the author on 2026-11-23 (EP-33, "Les
+# bornes des classeurs"). The tabs read, in cumul: 200 000 rows, and 10 000 000 cells, 8.3 bytes
+# each to openpyxl. The shared strings: their number, the elements of one (its runs and what they
+# hold), and their text, which Python holds up to four bytes a character, counted in characters.
+MOST_CELLS = 10_000_000
+MOST_STRINGS = 1_000_000
+MOST_STRING_ELEMENTS = 65_536
+LONGEST_TEXT = 32 * 1024 * 1024
+# The items of each list of ``styles.xml``: the limits of Excel, so that a workbook Excel writes is
+# never refused; ``colors``, the colours its lists hold, counted with them. The defined names of
+# ``workbook.xml``.
+STYLE_LISTS: Mapping[str, int] = MappingProxyType(
+    {
+        "numFmts": 1_000,
+        "fonts": 1_024,
+        "fills": 1_024,
+        "borders": 1_024,
+        "tableStyles": 1_024,
+        "colors": 1_024,
+        "cellStyleXfs": 65_490,
+        "cellXfs": 65_490,
+        "cellStyles": 65_490,
+        "dxfs": 65_490,
+    }
+)
+MOST_NAMES = 10_000
 
 # The steps of the inflation of a member: what is fed, and the most that one step gives.
 _FED = 64 * 1024
@@ -113,8 +152,17 @@ _LOCAL_LENGTH = 30
 _NAME_LENGTH_AT = 26
 _EXTRA_LENGTH_AT = 28
 _ENCRYPTED = 0x1
-# The row of SpreadsheetML, as openpyxl finds it wherever it lies (ECMA-376, §18.3.1.73).
-_ROW = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}row"
+# The row of SpreadsheetML, as openpyxl finds it wherever it lies (ECMA-376, §18.3.1.73); a shared
+# string (§18.4.8), which it finds so too; the lists whose items are bounded, by their tag: their
+# name, their bound, and whether all they hold is counted (``colors``) or their children alone.
+_MAIN = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+_ROW = f"{_MAIN}row"
+_STRING = f"{_MAIN}si"
+_COLORS = "colors"
+_LISTS = {
+    f"{_MAIN}{name}": (name, most, name == _COLORS)
+    for name, most in {**STYLE_LISTS, "definedNames": MOST_NAMES}.items()
+}
 # How an XML document starts, past a UTF-8 byte order mark and blanks: its first tag, or the byte
 # order mark or the first tag of UTF-16 (XML 1.0, appendix F). What the head of a member that
 # libxml2 cannot start reading is judged on, as far as its first bytes go.
@@ -156,6 +204,15 @@ class WorkbookOutOfBoundsError(ValueError):
     """A workbook, or a tab of it, beyond a bound: refused as a damaged workbook is."""
 
 
+class WorkbookDamagedError(ValueError):
+    """A workbook whose parts openpyxl rejects by a ``TypeError``: refused as a damaged one is.
+
+    openpyxl's descriptors raise it for an element of the wrong kind, a ``<fill/>`` that holds no
+    pattern (#4848). It is caught at the opening and at the reading of the rows alone, so that an
+    error of a reader's own code is not taken for a damaged file.
+    """
+
+
 class _Target:
     """A target of the hardened parser that keeps nothing.
 
@@ -191,10 +248,27 @@ class _Target:
         """Leave a document type: the hardened parser loads none."""
 
 
-class _Tally(_Target):
-    """The target of the reading of a member: counts its rows, and the cells of each row.
+class _Listing:
+    """A list of bounded items open: its name, its depth, its bound, what it counts, its count."""
 
-    A row may lie in a row, as openpyxl reads it: each row open keeps its depth and its cells.
+    __slots__ = ("count", "deep", "depth", "most", "name")
+
+    def __init__(self, name: str, depth: int, most: int, *, deep: bool) -> None:
+        self.name = name
+        self.depth = depth
+        self.most = most
+        self.deep = deep
+        self.count = 0
+
+
+class _Tally(_Target):
+    """The target of the reading of a member: counts what a bound is judged on.
+
+    Its rows, and the cells of each row: a row may lie in a row, as openpyxl reads it, so each row
+    open keeps its depth and its cells. Its shared strings, wherever they lie, as openpyxl finds
+    them; the elements of each, those of a string in it included; and the characters of their text.
+    The items of a list bounded — of ``styles.xml``, the defined names —, its children, or all it
+    holds for ``colors``; a list in a list is an item of the first, as openpyxl reads none of it.
     """
 
     def __init__(self, name: str) -> None:
@@ -203,9 +277,20 @@ class _Tally(_Target):
         self.depth = 0
         self.rows = 0
         self.open_rows: list[list[int]] = []
+        self.strings = 0
+        # The depth of the outermost string open, 0 out of any.
+        self.string_at = 0
+        self.string_elements = 0
+        self.text = 0
+        self.listing: _Listing | None = None
+
+    def _refuse(self, what: str, most: int) -> Never:
+        """Refuse the member past a bound: it holds more than ``most`` of ``what``."""
+        msg = f"{self.name!r} holds more than {most} {what}"
+        raise WorkbookOutOfBoundsError(msg)
 
     def start(self, tag: str, _attributes: dict[str, str], /) -> None:
-        """Count an element: a cell of the row it lies in, if any, and a row if it is one."""
+        """Count an element: as a cell, a row, a string, an element of one, an item of a list."""
         self.started = True
         self.depth += 1
         if self.open_rows and self.open_rows[-1][0] == self.depth - 1:
@@ -216,14 +301,49 @@ class _Tally(_Target):
         if tag == _ROW:
             self.rows += 1
             if self.rows > MOST_ROWS:
-                msg = f"{self.name!r} holds more than {MOST_ROWS} rows"
-                raise WorkbookOutOfBoundsError(msg)
+                self._refuse("rows", MOST_ROWS)
             self.open_rows.append([self.depth, 0])
+        if self.string_at or tag == _STRING:
+            self._count_strings(tag)
+        listing = self.listing
+        if listing is None:
+            bounded = _LISTS.get(tag)
+            if bounded is not None:
+                self.listing = _Listing(bounded[0], self.depth, bounded[1], deep=bounded[2])
+        elif listing.deep or listing.depth == self.depth - 1:
+            listing.count += 1
+            if listing.count > listing.most:
+                self._refuse(f"items in {listing.name}", listing.most)
+
+    def _count_strings(self, tag: str) -> None:
+        """Count a shared string, and an element of the string open."""
+        if tag == _STRING:
+            self.strings += 1
+            if self.strings > MOST_STRINGS:
+                self._refuse("shared strings", MOST_STRINGS)
+        if self.string_at:
+            self.string_elements += 1
+            if self.string_elements > MOST_STRING_ELEMENTS:
+                self._refuse("elements in a shared string", MOST_STRING_ELEMENTS)
+        elif tag == _STRING:
+            self.string_at = self.depth
+            self.string_elements = 0
+
+    def data(self, text: str, /) -> None:
+        """Count the characters of the text of a shared string; leave any other."""
+        if self.string_at:
+            self.text += len(text)
+            if self.text > LONGEST_TEXT:
+                self._refuse("characters of text in shared strings", LONGEST_TEXT)
 
     def end(self, _tag: str, /) -> None:
-        """Close an element, and the row it is."""
+        """Close an element, and the row, the string or the list it is."""
         if self.open_rows and self.open_rows[-1][0] == self.depth:
             self.open_rows.pop()
+        if self.string_at == self.depth:
+            self.string_at = 0
+        if self.listing is not None and self.listing.depth == self.depth:
+            self.listing = None
         self.depth -= 1
 
 
@@ -503,35 +623,65 @@ def _judge_archive(content: bytes) -> None:
             raise left[name]
 
 
+class OpenedWorkbook:
+    """A workbook ``opened_workbook`` opened: its tabs, and the rows read of them, in cumul."""
+
+    def __init__(self, workbook: Workbook) -> None:
+        self._workbook = workbook
+        self.rows = 0
+        self.cells = 0
+
+    @property
+    def worksheets(self) -> list[Any]:
+        """Give the tabs of the workbook, in their order: openpyxl's read-only worksheets."""
+        return self._workbook.worksheets
+
+    def bounded_rows(self, rows: Iterable[tuple[Any, ...]]) -> list[tuple[Any, ...]]:
+        """Materialise the rows of a tab, refused past a row of ``MOST_COLUMNS`` columns.
+
+        The rows are those openpyxl gives (``iter_rows(values_only=True)``), each as wide as the tab
+        says it is. They are counted with those of every tab read before them from this workbook:
+        past ``MOST_ROWS`` rows or ``MOST_CELLS`` cells in all, the row is refused as it comes,
+        before the next is read, so that what is held stays within the bounds (EP-33, "Les bornes
+        des classeurs"). A ``TypeError`` of openpyxl while it reads them is a damaged workbook.
+        """
+        kept: list[tuple[Any, ...]] = []
+        try:
+            for row in rows:
+                if len(row) > MOST_COLUMNS:
+                    msg = f"a tab of more than {MOST_COLUMNS} columns"
+                    raise WorkbookOutOfBoundsError(msg)
+                self.rows += 1
+                self.cells += len(row)
+                if self.rows > MOST_ROWS:
+                    msg = f"tabs read of more than {MOST_ROWS} rows in all"
+                    raise WorkbookOutOfBoundsError(msg)
+                if self.cells > MOST_CELLS:
+                    msg = f"tabs read of more than {MOST_CELLS} cells in all"
+                    raise WorkbookOutOfBoundsError(msg)
+                kept.append(row)
+        except TypeError as error:
+            msg = f"openpyxl rejects a row: {error}"
+            raise WorkbookDamagedError(msg) from error
+        return kept
+
+
 @contextmanager
-def opened_workbook(content: bytes) -> Generator[Workbook]:
+def opened_workbook(content: bytes) -> Generator[OpenedWorkbook]:
     """Open a workbook deposited, read-only and by values, once its archive is judged; close it.
 
     Whatever the judgment or openpyxl raises is the caller's to turn into its refusal, by
     ``DAMAGES``: in read-only mode the XML of a tab is parsed while iterating, so the reading of the
-    rows belongs inside the ``with``.
+    rows, by ``bounded_rows``, belongs inside the ``with``. A ``TypeError`` of openpyxl at the
+    opening is a damaged workbook (#4848).
     """
     _judge_archive(content)
-    workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
     try:
-        yield workbook
+        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+    except TypeError as error:
+        msg = f"openpyxl rejects a part: {error}"
+        raise WorkbookDamagedError(msg) from error
+    try:
+        yield OpenedWorkbook(workbook)
     finally:
         workbook.close()
-
-
-def bounded_rows(rows: Iterable[tuple[Any, ...]]) -> list[tuple[Any, ...]]:
-    """Materialise the rows of a tab, refused past ``MOST_ROWS`` rows or ``MOST_COLUMNS`` columns.
-
-    The rows are those openpyxl gives (``iter_rows(values_only=True)``), each as wide as the tab
-    says it is: a row past a bound is refused as it comes, before the next is read.
-    """
-    kept: list[tuple[Any, ...]] = []
-    for row in rows:
-        if len(kept) == MOST_ROWS:
-            msg = f"a tab of more than {MOST_ROWS} rows"
-            raise WorkbookOutOfBoundsError(msg)
-        if len(row) > MOST_COLUMNS:
-            msg = f"a tab of more than {MOST_COLUMNS} columns"
-            raise WorkbookOutOfBoundsError(msg)
-        kept.append(row)
-    return kept

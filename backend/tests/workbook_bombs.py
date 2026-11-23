@@ -376,7 +376,7 @@ CONTENT_TYPES = "[Content_Types].xml"
 STRINGS_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"
 # The lists of ``styles.xml`` in the order of ECMA-376 (§18.8.39), and an item of each that openpyxl
 # reads; the item of ``colors`` is a colour of its ``indexedColors``, which it holds with them.
-STYLE_LISTS = (
+STYLE_ORDER = (
     "numFmts",
     "fonts",
     "fills",
@@ -500,7 +500,7 @@ def styled(base: bytes, listing: str, count: int) -> bytes:
     else:
         later = [
             found.start()
-            for name in STYLE_LISTS[STYLE_LISTS.index(listing) + 1 :]
+            for name in STYLE_ORDER[STYLE_ORDER.index(listing) + 1 :]
             if (found := re.search(b"<" + name.encode() + rb"[ />]", xml)) is not None
         ]
         at = later[0] if later else xml.index(b"</styleSheet>")

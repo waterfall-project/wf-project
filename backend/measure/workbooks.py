@@ -42,7 +42,6 @@ from remaining_import_support import workbook as remaining_workbook
 from workbook_bombs import (
     READERS,
     STRINGS,
-    STYLE_LISTS,
     STYLES,
     WORKBOOK,
     named,
@@ -66,7 +65,15 @@ from waterfall.core.estimate.excel.model import (
     Task,
 )
 from waterfall.core.estimate.excel.writer import write_workbook
-from waterfall.core.exchanges.interface import hardened_parser, opened_workbook
+from waterfall.core.exchanges.interface import (
+    MOST_CELLS,
+    MOST_COLUMNS,
+    MOST_NAMES,
+    MOST_STRINGS,
+    STYLE_LISTS,
+    hardened_parser,
+    opened_workbook,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence, Sized
@@ -75,19 +82,6 @@ _PROTOTYPES = Path(__file__).resolve().parents[2] / "docs" / "spec" / "exemples"
 _MAIN = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 _SHEET = "1 Études"
 _MEBIBYTE = 1024 * 1024
-# The bounds the author set on 2026-11-23, each vector at its bound in one workbook (``combined``).
-_AT_BOUNDS = {
-    "numFmts": 1_000,
-    "fonts": 1_024,
-    "fills": 1_024,
-    "borders": 1_024,
-    "cellStyleXfs": 65_490,
-    "cellXfs": 65_490,
-    "cellStyles": 65_490,
-    "dxfs": 65_490,
-    "tableStyles": 1_024,
-    "colors": 1_024,
-}
 
 
 def _estimate(lines: int, tasks: int, tabs: int, entries: int) -> Estimate:
@@ -183,11 +177,11 @@ def _styled(listing: str, count: int) -> bytes:
 
 def _combined(_: int) -> bytes:
     """Give the workbook of every vector at its bound at once, its text apart."""
-    content = shared_strings(_base(), 1_000_000)
-    for listing, most in _AT_BOUNDS.items():
+    content = shared_strings(_base(), MOST_STRINGS)
+    for listing, most in STYLE_LISTS.items():
         content = styled(content, listing, most)
-    content = named(content, 10_000, _SHEET)
-    return tabulated(content, tab(content, _SHEET), 20_000, 500)
+    content = named(content, MOST_NAMES, _SHEET)
+    return tabulated(content, tab(content, _SHEET), MOST_CELLS // MOST_COLUMNS, MOST_COLUMNS)
 
 
 VECTORS: dict[str, Callable[[int], bytes]] = {
@@ -232,9 +226,9 @@ def vectors(content: bytes) -> dict[str, int]:
             )
         book = etree.fromstring(archive.read(WORKBOOK), hardened_parser())
         found["names"] = len(book.findall(f".//{_MAIN}definedName"))
-    with opened_workbook(content) as workbook:
+    with opened_workbook(content) as opened:
         rows = cells = 0
-        for sheet in workbook.worksheets:
+        for sheet in opened.worksheets:
             for row in sheet.iter_rows(values_only=True):
                 rows += 1
                 cells += len(row)

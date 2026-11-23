@@ -325,12 +325,35 @@ def test_a_tab_read_past_its_rows_or_its_columns_fails_the_analysis_and_the_appl
         assert _refused(reading.prepare, content) == reading.params
 
 
+def _rows_read(
+    call: Callable[[bytes], Any], content: bytes, monkeypatch: pytest.MonkeyPatch
+) -> int:
+    """Give the rows a reading of ``content`` counted, in all the tabs it read."""
+    opened: list[workbooks.OpenedWorkbook] = []
+    counted = workbooks.OpenedWorkbook.bounded_rows
+
+    def spied(self: workbooks.OpenedWorkbook, rows: Any) -> list[tuple[Any, ...]]:
+        opened.append(self)
+        return counted(self, rows)
+
+    with monkeypatch.context() as patched:
+        patched.setattr(workbooks.OpenedWorkbook, "bounded_rows", spied)
+        call(content)
+    assert len({id(each) for each in opened}) == 1
+    return opened[0].rows
+
+
 @pytest.mark.story("US-3190")
 @pytest.mark.parametrize("name", list(READINGS))
-def test_a_tab_read_at_its_bounds_and_a_tab_not_read_past_them_are_read(name: str) -> None:
+def test_a_tab_read_at_its_bounds_and_a_tab_not_read_past_them_are_read(
+    name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The rows of the tabs read are bounded in cumul (US-3190/L2b): the first tab read grown so
+    # that, with those the others read, they are as many as the bound.
     reading = READINGS[name]
     read = reading.read[0]
-    reading.whole(grown(_base(name), read, MOST_ROWS, 1))
+    others = _rows_read(reading.whole, grown(_base(name), read, 1_000, 1), monkeypatch) - 1_000
+    reading.whole(grown(_base(name), read, MOST_ROWS - others, 1))
     reading.prepare(grown(_base(name), read, 1, MOST_COLUMNS))
     for sheet in reading.unread:
         past = grown(_base(name), sheet, MOST_ROWS + 1, 1)

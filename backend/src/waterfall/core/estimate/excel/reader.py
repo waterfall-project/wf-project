@@ -26,7 +26,7 @@ from waterfall.core.estimate.excel.writer import (
     FORMAT_VERSION,
     TASKS,
 )
-from waterfall.core.exchanges.interface import DAMAGES, bounded_rows, opened_workbook
+from waterfall.core.exchanges.interface import DAMAGES, opened_workbook
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
@@ -239,9 +239,9 @@ def check_header(
     slot's, as ``check_header_rows`` has them: the remaining to commit reads its header so too.
     """
     try:
-        with opened_workbook(content) as workbook:
-            sheets = workbook.worksheets
-            rows = bounded_rows(header_cells(sheets[0])) if sheets else None
+        with opened_workbook(content) as opened:
+            sheets = opened.worksheets
+            rows = opened.bounded_rows(header_cells(sheets[0])) if sheets else None
     except DAMAGES as error:
         raise unreadable(expected_format, version) from error
     if rows is None:
@@ -382,12 +382,14 @@ def load_sheets(
     """
     sheets: list[tuple[str, list[tuple[Any, ...]]]] = []
     try:
-        with opened_workbook(content) as workbook:
-            for rank, sheet in enumerate(workbook.worksheets):
+        with opened_workbook(content) as opened:
+            for rank, sheet in enumerate(opened.worksheets):
                 if sheet.title not in unread:
-                    sheets.append((sheet.title, bounded_rows(sheet.iter_rows(values_only=True))))
+                    sheets.append(
+                        (sheet.title, opened.bounded_rows(sheet.iter_rows(values_only=True)))
+                    )
                 elif rank == 0:
-                    sheets.append((sheet.title, bounded_rows(header_cells(sheet))))
+                    sheets.append((sheet.title, opened.bounded_rows(header_cells(sheet))))
     except DAMAGES as error:
         raise unreadable(expected_format, expected_version) from error
     return sheets

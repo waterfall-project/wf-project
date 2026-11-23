@@ -10,7 +10,8 @@ fills it, but for those a caller relies on before (the purge), without effect un
 module imports them from here, never from the file. The formats and the exporters are registered
 by the modules that serve them, at the import of their interface (``register_format``,
 ``register_exporter``). The witness writes its imports as they ended (``load_import``, EP-09).
-A workbook deposited is opened by ``opened_workbook`` alone, its tabs read by ``bounded_rows``.
+A workbook deposited is opened by ``opened_workbook`` alone, its tabs read by the
+``bounded_rows`` of the ``OpenedWorkbook`` it gives.
 """
 
 # ``damages`` (US-1940): what a damaged workbook raises, one list for every reader of a workbook.
@@ -188,9 +189,17 @@ from waterfall.core.exchanges.interface.purge import (
     stored_before as stored_before,
 )
 
-# ``workbooks`` (US-3190/L1): the opener of a workbook deposited, bounded, for every reader of one.
+# ``workbooks`` (US-3190/L1): the opener of a workbook deposited, bounded, for every reader of one;
+# (US-3190/L2b) the bounds of the other vectors, the cumul of the tabs read, a workbook openpyxl
+# rejects by a TypeError (#4848).
 from waterfall.core.exchanges.interface.workbooks import (
     LARGEST_INFLATED as LARGEST_INFLATED,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    LONGEST_TEXT as LONGEST_TEXT,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    MOST_CELLS as MOST_CELLS,
 )
 from waterfall.core.exchanges.interface.workbooks import (
     MOST_COLUMNS as MOST_COLUMNS,
@@ -199,13 +208,28 @@ from waterfall.core.exchanges.interface.workbooks import (
     MOST_MEMBERS as MOST_MEMBERS,
 )
 from waterfall.core.exchanges.interface.workbooks import (
+    MOST_NAMES as MOST_NAMES,
+)
+from waterfall.core.exchanges.interface.workbooks import (
     MOST_ROWS as MOST_ROWS,
 )
 from waterfall.core.exchanges.interface.workbooks import (
-    WorkbookOutOfBoundsError as WorkbookOutOfBoundsError,
+    MOST_STRING_ELEMENTS as MOST_STRING_ELEMENTS,
 )
 from waterfall.core.exchanges.interface.workbooks import (
-    bounded_rows as bounded_rows,
+    MOST_STRINGS as MOST_STRINGS,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    STYLE_LISTS as STYLE_LISTS,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    OpenedWorkbook as OpenedWorkbook,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    WorkbookDamagedError as WorkbookDamagedError,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    WorkbookOutOfBoundsError as WorkbookOutOfBoundsError,
 )
 from waterfall.core.exchanges.interface.workbooks import (
     opened_workbook as opened_workbook,
