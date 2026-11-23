@@ -192,8 +192,12 @@ describe("« Réexaminer » devant un devis propre en retard [US-3140] [WF-RIS-0
     render(detail(LATE, `/projects/${PROJECT}/revisions/${REVISION}/estimate`));
     await reviewAndUpdate();
     const step = await screen.findByRole("region", { name: "Mise à jour du devis propre" });
-    const link = within(step).getByRole("link", { name: "Corriger le devis propre dans sa grille" });
-    expect(link.getAttribute("href")).toContain(`/projects/${PROJECT}/revisions/${REVISION}/estimate`);
+    const link = within(step).getByRole("link", {
+      name: "Corriger le devis propre dans sa grille",
+    });
+    expect(link.getAttribute("href")).toContain(
+      `/projects/${PROJECT}/revisions/${REVISION}/estimate`,
+    );
     expect(link.getAttribute("href")).toContain(IDENTIFIED.structure_id);
   });
 

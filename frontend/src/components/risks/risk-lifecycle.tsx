@@ -85,6 +85,22 @@ export function DeleteRisk({
   );
 }
 
+/**
+ * The own estimate updated before the occurrence is declared: the counter of the risk it was updated
+ * at, the offer being the one listed until the page read anew lists it available. The update made
+ * stands for the listing until then, and no more once the listing says the own estimate late again.
+ */
+function useUpdatedOwnEstimate(risk: Risk, late: boolean) {
+  const [updatedAt, setUpdatedAt] = useState<{ readonly lockVersion: number }>();
+  const caught = useListedSince(updatedAt, late);
+  const updated =
+    updatedAt !== undefined && risk.lock_version <= updatedAt.lockVersion && !(caught && late);
+  const update = (fresh: Risk | undefined) => {
+    setUpdatedAt({ lockVersion: fresh?.lock_version ?? risk.lock_version });
+  };
+  return { updated, updatedAt, update };
+}
+
 /** « Déclarer survenu », as the risk lists `declare_occurrence`; the tracker follows the task. */
 export function DeclareOccurrence({
   projectId,
@@ -109,22 +125,16 @@ export function DeclareOccurrence({
   const onRead = useCallback((next: Outcome<OccurrenceReport> | undefined) => {
     setReport(next);
   }, []);
-  // The own estimate updated first: the counter of the risk it was updated at, the offer being the
-  // one listed until the page read anew lists it available.
-  const [updatedAt, setUpdatedAt] = useState<{ readonly lockVersion: number }>();
+  // The own estimate is updated first: the step runs while `stepping`.
   const [stepping, setStepping] = useState(false);
   const stepId = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const listed = findOffer(risk.available_commands, "declare_occurrence");
   const { late, pruned } = lateOf(listed);
-  // The update made stands for the listing until it is read anew, and no more once it lists the own
-  // estimate late again.
-  const caught = useListedSince(updatedAt, late);
+  const { updated, updatedAt, update } = useUpdatedOwnEstimate(risk, late);
   if (listed === undefined) {
     return null;
   }
-  const updated =
-    updatedAt !== undefined && risk.lock_version <= updatedAt.lockVersion && !(caught && late);
   const offer = late && updated ? PRESSABLE : listed;
   const read = report?.kind === "done" ? report.data : undefined;
   const run = () =>
@@ -146,7 +156,7 @@ export function DeclareOccurrence({
       estimate={estimate}
       onReady={(fresh) => {
         setStepping(false);
-        setUpdatedAt({ lockVersion: fresh?.lock_version ?? risk.lock_version });
+        update(fresh);
       }}
       onClose={() => {
         setStepping(false);
