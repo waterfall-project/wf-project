@@ -4694,12 +4694,17 @@ jetons connus (`make service-logs-search`, WF-OBS-0020, US-2900) ; il échoue s'
 si les journaux n'ont pas pu être lus ou sont vides. Il cherche aussi, dans chaque fichier que git
 suit, les secrets de la plateforme de service (`python -m wftools.logsearch repository`,
 WF-SEC-0010, US-2840), et échoue s'il en trouve un. Cette recherche-là a une portée plus étroite que
-celle des journaux : les seules valeurs que la chaîne tire à l'exécution et donne à la plateforme —
-les variables de `SECRET_VARIABLES`, absentes du dépôt par construction —, telles qu'elles sont
-écrites, échappées en JSON ou citées dans une URL. Elle ne cherche ni les formes des jetons, que des
-tests écrivent exprès, ni le mot de passe des comptes des parcours (`FIXED_SECRETS`), constante du
-dépôt écrite dans `frontend/e2e/service/realm.ts`, et non secret d'une plateforme ; elle ne dit donc
-rien d'un secret d'exploitation qu'un développeur aurait écrit sans que la chaîne le tire. Il vérifie
+celle des journaux : les seules valeurs que la plateforme reçoit pour ses secrets — les variables de
+`SECRET_VARIABLES` —, telles qu'elles sont écrites, échappées en JSON ou citées dans une URL. Elle ne
+cherche ni les formes des jetons, que des tests écrivent exprès, ni le mot de passe des comptes des
+parcours (`FIXED_SECRETS`), constante du dépôt écrite dans `frontend/e2e/service/realm.ts`, ni une
+valeur qu'un workflow de `.github/workflows/` fixe en clair pour l'une de ces variables
+(`chain_values`) : les valeurs de poste de la chaîne, publiques et nommées comme telles, que les
+images ne doivent pas porter (`wftools.images`) et qu'un poste reprend de `keycloak.yml`
+(`INSTALL.md`) ; aucune n'est un secret d'une plateforme. Sous la chaîne, et sur un poste qui a
+repris ces valeurs, toutes en sont : la recherche le dit, ne cherche rien et passe ; elle mord sur
+un poste qui a ses propres valeurs, ou chez un exploitant. Elle ne dit rien d'un secret
+d'exploitation qu'aucune de ces variables ne tient. Il vérifie
 ensuite que chaque ligne des journaux de l'API, du worker, de son ordonnanceur et du service de
 restauration est un enregistrement qui porte son identifiant de corrélation, son auteur et sa
 gravité (`make service-logs-fields`). Un import qui échoue dans le worker se suit dans ces journaux

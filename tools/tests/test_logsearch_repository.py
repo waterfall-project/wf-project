@@ -11,6 +11,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
+import yaml
 
 from wftools import REPOSITORY, logsearch
 
@@ -81,6 +82,63 @@ def test_the_search_of_the_repository_reaches_the_secrets_the_chain_draws_alone(
         subprocess.run(["git", "-C", str(tmp_path), "add", "leak.env"], check=True)
         assert logsearch.search_repository(drawn, tmp_path) == 1, name
         assert f"found in leak.env: {name}" in capsys.readouterr().err
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_a_value_a_workflow_sets_in_clear_is_not_sought_and_a_value_of_a_platform_still_is(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Under the chain, the secrets of the platform are values a workflow writes in clear, public
+    # and named as such (keycloak.yml, INSTALL.md): found in the workflow and wherever the files
+    # reuse them, they are no secret of a platform. A value of a platform, set by no workflow and
+    # written in a tracked file, is still found.
+    chain = "chain-only-storage-secret"
+    workflow = (
+        "jobs:\n  paths:\n    env:\n"
+        f"      WATERFALL_STORAGE_SECRET: {chain}\n"
+        "      WATERFALL_REDIS_PASSWORD: ${{ secrets.REDIS }}\n"
+    )
+    _repository(
+        tmp_path,
+        {".github/workflows/service.yml": workflow, "compose.test.yaml": f"KEY: {chain}\n"},
+    )
+    drawn = "drawn-at-run-time-for-redis"
+    environment = {"WATERFALL_STORAGE_SECRET": chain, "WATERFALL_REDIS_PASSWORD": drawn}
+    assert logsearch.search_repository(environment, tmp_path) == 0
+    said = capsys.readouterr()
+    assert "values a workflow of the chain sets: WATERFALL_STORAGE_SECRET" in said.err
+    assert "searched 1 secrets" in said.out
+    # The expression of GitHub is no value of the file: the value it gives is still sought.
+    (tmp_path / "leak.env").write_text(f"X={drawn}\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "leak.env"], check=True)
+    assert logsearch.search_repository(environment, tmp_path) == 1
+    said = capsys.readouterr()
+    assert "found in leak.env: WATERFALL_REDIS_PASSWORD" in said.err
+    assert "found in compose.test.yaml" not in said.err
+    assert "found in .github" not in said.err
+    assert drawn not in said.err + said.out
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_every_secret_a_value_of_the_chain_passes_saying_so(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _repository(
+        tmp_path, {".github/workflows/a.yaml": "env:\n  WATERFALL_REDIS_PASSWORD: chainonlyredis\n"}
+    )
+    environment = {"WATERFALL_REDIS_PASSWORD": "chainonlyredis"}
+    assert logsearch.search_repository(environment, tmp_path) == 0
+    assert "none of a platform to look for" in capsys.readouterr().out
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_the_search_of_the_repository_passes_with_the_secrets_the_paths_of_the_chain_hold() -> None:
+    # The conditions of the chain: the environment of the job that plays e2e-service, on this
+    # repository, whose workflows and files write those values (#4782, run 45109501025).
+    workflow = REPOSITORY / ".github" / "workflows" / "service.yml"
+    environment = yaml.safe_load(workflow.read_text(encoding="utf-8"))["jobs"]["paths"]["env"]
+    assert set(logsearch.SECRET_VARIABLES) <= set(environment)
+    assert logsearch.search_repository(environment) == 0
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")

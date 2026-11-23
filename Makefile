@@ -440,8 +440,9 @@ run-logged = { $(COMPOSE_SERVICE) run --rm --no-TTY $(1) $(3); ran=$$?; cat $(2)
 service-logs-secrets = $(service-logs-text) && $(WFTOOLS).logsearch secrets $(SERVICE_LOGS)
 # The secrets of the platform of service, by their values, in every file git tracks (WF-SEC-0010,
 # US-2840): e2e-service, which the chain plays with them, searches them there too. Those values
-# alone, which the chain draws: neither the shapes of the tokens nor the password of the paths, a
-# constant of the repository (wftools.logsearch, FIXED_SECRETS).
+# alone: neither the shapes of the tokens, nor the password of the paths, a constant of the
+# repository (FIXED_SECRETS), nor the values a workflow sets in clear, those of a workstation, public
+# (wftools.logsearch, chain_values): under the chain, it searches nothing and says so.
 repository-secrets = $(WFTOOLS).logsearch repository
 service-logs-check = mkdir -p $(FRONT)/.e2e && $(COMPOSE_SERVICE_ALL) logs --no-color api worker scheduler restore > $(SERVICE_LOGS_OF_WATERFALL) && $(WFTOOLS).logsearch fields $(SERVICE_LOGS_OF_WATERFALL)
 service-logs-search: ## Search the logs of the platform and the log of the front of the last e2e-service for the secrets and tokens known; CORRELATION=<identifier>: the story of an identifier instead (its lines, and those of the deposit, the import and the task they name). The front log is the last run's, kept until e2e-service empties it
