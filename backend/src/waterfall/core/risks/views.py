@@ -18,6 +18,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from datetime import date, datetime
     from decimal import Decimal
     from uuid import UUID
@@ -116,13 +117,15 @@ class RiskLoad:
     """A risk of the witness declared under the identifiers it imposes (US-2650/L1).
 
     The risk, its own estimate and its provision line, whose lineage is its identifier: the copies
-    of the next revision find it by that lineage.
+    of the next revision find it by that lineage. ``nodes`` the identifier of the copy of each node
+    of the main structure in the own estimate, by its lineage, the others drawn (EP-30).
     """
 
     entry: RiskEntry
     risk_id: UUID
     structure_id: UUID
     provision_node_id: UUID
+    nodes: Mapping[UUID, UUID] | None = None
 
 
 @dataclass(frozen=True, slots=True)

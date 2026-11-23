@@ -2,18 +2,27 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """What the risks read of the estimate, private to the module (EP-08, US-2570/L1).
 
-The total of an own estimate, the severity of its risk (``structure_amount``, WF-RIS-0010), and the
-base of the project the matrix relates a severity to (``risk_base``, WF-REF-0160).
+The total of a structure (``structure_amount``); the gap of the totals of the own estimate of a risk
+and of its base, the severity of its risk (``own_estimate_gap``, WF-RIS-0010; EP-30, US-3070/L3);
+and the base of the project the matrix relates a severity to (``risk_base``, WF-REF-0160).
 """
 
 from typing import TYPE_CHECKING
 
+from sqlalchemy import select
+
 from waterfall.core.estimate.provisioning import NOUGHT
 from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.remaining.reviewing import provisions_of
+from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.interface import lines_of_structure, lines_of_structures
 from waterfall.core.projects.interface import project_facts
-from waterfall.core.revisions.interface import aimed_structure, reference_at_marking
+from waterfall.core.revisions.interface import (
+    aimed_structure,
+    differential_base,
+    reference_at_marking,
+)
+from waterfall.platform.database import among
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -32,6 +41,34 @@ def structure_amount(session: Session, project_id: UUID, structure_id: UUID) -> 
     session.flush()
     lines = rows_of(session, project_id, lines_of_structure(session, project_id, structure_id))
     return sum((line.reestimated_amount for line in lines), NOUGHT)
+
+
+def own_estimate_gap(session: Session, project_id: UUID, structure_id: UUID) -> Decimal | None:
+    """Give the gap of the totals of an own estimate whole and of its base; none without a base.
+
+    The severity of its risk, signed (EP-30, "La gravité et la provision"): the re-estimated amount
+    of the project with the risk, the main structure as the own estimate carries it, less that of
+    the project without it, its base; neither holds a provision line. An own estimate without a
+    base — pruned, or consumed and taken up empty — has none to give.
+    """
+    base_id = differential_base(session, project_id, structure_id)
+    if base_id is None:
+        return None
+    session.flush()
+    held = lines_of_structures(session, project_id, (structure_id, base_id))
+    # The amounts alone, in one statement: the two structures hold the project twice over.
+    rows = session.execute(
+        select(EstimateLine.node_id, EstimateLine.reestimated_amount).where(
+            EstimateLine.project_id == project_id,
+            among(EstimateLine.node_id, [*held[structure_id], *held[base_id]]),
+        )
+    )
+    amounts: dict[UUID, Decimal] = dict(rows.all())
+    totals = {
+        each: sum((amounts[node] for node in nodes if node in amounts), NOUGHT)
+        for each, nodes in held.items()
+    }
+    return totals[structure_id] - totals[base_id]
 
 
 def structure_amounts(

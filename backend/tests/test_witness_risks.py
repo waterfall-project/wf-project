@@ -163,22 +163,35 @@ def test_the_101_is_opened_by_the_risks_and_marked_the_reference_by_the_merge_of
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
-def test_the_occurrence_grafts_the_own_estimate_of_752_under_the_identifiers_of_the_examples(
+def test_the_occurrence_merges_the_own_estimate_of_752_into_the_main_structure_of_the_102(
     witness: Database,
 ) -> None:
-    grafted = {
-        each["node_id"]: each["lineage_id"] for each in example("nodes_risk_occurred")["items"]
+    # The nodes the examples read, by their label. Their identifiers and their lineages are those
+    # of the graft of EP-08: the occurrence merges the own estimate since US-3070/L3, under the
+    # lineages it holds there and identifiers drawn, which the loader of US-3150/L1 (#4614) imposes
+    # again — the declared deviation of the examples until then.
+    described = {
+        (each["task"] or each["estimate_line"])["label"]
+        for each in example("nodes_risk_occurred")["items"]
     }
     with witness.transaction() as session:
-        nodes = {
-            str(row.id): row
-            for row in session.scalars(
-                select(Node).where(Node.structure_id == MAIN_102, Node.origin_risk_id == DELAY)
-            )
+        nodes = session.scalars(
+            select(Node).where(Node.structure_id == MAIN_102, Node.origin_risk_id == DELAY)
+        ).all()
+        labels = {
+            *session.scalars(
+                select(TaskFacet.label).where(TaskFacet.node_id.in_([row.id for row in nodes]))
+            ),
+            *session.scalars(
+                select(EstimateLine.label).where(
+                    EstimateLine.node_id.in_([row.id for row in nodes])
+                )
+            ),
         }
-    assert {each: str(row.lineage_id) for each, row in nodes.items()} == grafted
-    assert {row.structure_id for row in nodes.values()} == {MAIN_102}
-    assert {row.created_at for row in nodes.values()} == {OCCURRED}
+    assert labels == described
+    assert len(nodes) == len(described)
+    assert {row.structure_id for row in nodes} == {MAIN_102}
+    assert {row.created_at for row in nodes} == {OCCURRED}
 
 
 def identifying(database: Database) -> dict[str, list[tuple[object, ...]]]:

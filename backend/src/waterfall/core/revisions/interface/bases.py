@@ -11,10 +11,11 @@ differential of a base, by which a refusal that concerns a task of the base name
 differential (``base_differential``, #4213); the conditions that a column of structures names no
 base (``not_a_base``), which what counts the nodes or the lines of a revision or of a project leaves
 out, and only structures that hold their lineages alone (``holds_its_lineages``), which a reading
-by lineage reads; whether a differential is up to date (``differential_up_to_date``), which the
-loader of the witness asks before a merge (US-2560/L2); and, at the end of the copy of a revision,
-the state of each differential it took up, up to date or out of date, as it was in the revision
-marked (``keep_differential_states``).
+by lineage reads; whether a structure is read against its base (``read_against_base``), a
+differential or the own estimate of a risk whole (EP-30); whether a differential is up to date
+(``differential_up_to_date``), which the loader of the witness asks before a merge (US-2560/L2);
+and, at the end of the copy of a revision, the state of each differential it took up, up to date or
+out of date, as it was in the revision marked (``keep_differential_states``).
 
 Written by US-3050/L2.
 """
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.revisions.interface.revisions import RevisionCopy
+    from waterfall.core.revisions.interface.structures import StructureFacts
 
 
 def differential_base(session: Session, project_id: UUID, structure_id: UUID) -> UUID | None:
@@ -84,15 +86,30 @@ def holds_its_lineages(
 ) -> ColumnElement[bool]:
     """Say of a column of structures that it is one of a revision that holds its lineages alone.
 
-    The main structure and the own estimates of the risks: a differential and its base copy the
-    main structure under its lineages (US-3050), and a reading by lineage reads none of them.
+    The main structure alone: a differential, the own estimate of a risk and their bases copy the
+    main structure under its lineages (US-3050, EP-30), and a reading by lineage reads none of them.
     """
     return structure.in_(
         select(CostStructure.id).where(
             CostStructure.project_id == project,
             CostStructure.revision_id == revision,
-            CostStructure.kind.in_((MAIN, RISK)),
+            CostStructure.kind == MAIN,
         )
+    )
+
+
+def read_against_base(session: Session, project_id: UUID, facts: StructureFacts) -> bool:
+    """Tell whether a structure is read against its base: a differential, or a whole own estimate.
+
+    The own estimate of a risk is read so while it is whole, with its base, as a differential is
+    (EP-30, "La recomposition, la mise à jour et l'élagage"); one that has no base — consumed and
+    taken up empty by the next revision — is read as it is.
+    """
+    if facts.is_differential:
+        return True
+    return (
+        facts.is_own_estimate
+        and differential_base(session, project_id, facts.structure_id) is not None
     )
 
 

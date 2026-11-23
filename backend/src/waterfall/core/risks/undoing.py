@@ -11,7 +11,8 @@ that bears its line, the risk —, judged by the history on the counter of the r
 - a risk absent from the entry kept is deleted with its own estimate and its line — the undoing of
   a declaration, the redoing of a deletion —, as a deletion deletes it;
 - a risk absent now is created again under its identifier — the undoing of a deletion, the redoing
-  of a declaration —, its own estimate with its nodes, its evaluation, its reviews and its line;
+  of a declaration —, its own estimate with its nodes and its base with its own (EP-30), its
+  evaluation with the severity it recorded, its reviews and its line;
 - a risk present has its evaluation brought back — its probability, its state, the category, the
   subproject and the task of its provision —, the reviews of the revision the entry kept, and its
   line removed, created again under its identifier, or moved back and written again at the
@@ -36,18 +37,18 @@ from sqlalchemy import delete, insert, select, update
 from waterfall.core.cost_settings.interface import category_labels
 from waterfall.core.estimate.interface import (
     ProvisionEntry,
-    round_to_cent,
     set_provision,
     set_provision_bearing,
-    structure_amount,
 )
 from waterfall.core.history.interface import UNDO_CONFLICT, ObjectState, Undoable
 from waterfall.core.planning.interface import (
+    OwnEstimateOpening,
     Place,
     Writer,
     delete_borne_line,
     first_task,
     move_borne_line,
+    open_own_estimate,
     recreate_borne_line,
     restore_structure_nodes,
     snapshot,
@@ -60,8 +61,10 @@ from waterfall.core.projects.interface import (
     subproject_labels,
 )
 from waterfall.core.revisions.interface import (
+    NEVER_BORNE,
+    OwnEstimateKept,
     aimed_structure,
-    create_own_estimate,
+    differential_base,
     main_structure_has_task,
     structure_facts,
 )
@@ -69,7 +72,14 @@ from waterfall.core.risks.commands import WRITE
 from waterfall.core.risks.declaring import refuse
 from waterfall.core.risks.deleting import remove
 from waterfall.core.risks.following import advance_risks
-from waterfall.core.risks.reading import PROVISION_KIND, evaluation_of, found_risk
+from waterfall.core.risks.reading import (
+    NOUGHT,
+    PROVISION_KIND,
+    evaluation_of,
+    found_risk,
+    provision_of,
+    recorded_severity,
+)
 from waterfall.core.risks.recording import amount, decoded_nodes, identifier, instant
 from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReview
 from waterfall.platform.errors import NOT_FOUND, ConflictError, NotFoundError
@@ -199,21 +209,31 @@ def _bearer(session: Session, place: Place, state: ObjectState) -> UUID:
     return named.node_id
 
 
-def _provision(session: Session, project_id: UUID, state: ObjectState) -> Decimal:
-    """Give the provision of a risk brought back: its severity, as it is, weighted, to the cent."""
+def _severity(state: ObjectState) -> Decimal:
+    """Give the severity the evaluation an entry kept recorded, nought where it kept none."""
     kept = _rows(state, "evaluation")
-    own = cast("UUID", identifier(kept, "structure_id"))
-    return round_to_cent(structure_amount(session, project_id, own) * amount(kept, "probability"))
+    return NOUGHT if kept.get("severity") is None else amount(kept, "severity")
 
 
-def _line_created(session: Session, place: Place, state: ObjectState, writer: Writer) -> UUID:
-    """Create again, under its identifier, the provision line an entry kept of a risk."""
+def _provision(severity: Decimal, state: ObjectState) -> Decimal:
+    """Give the provision of a risk brought back: a severity weighted by the probability kept."""
+    return provision_of(severity, amount(_rows(state, "evaluation"), "probability"))
+
+
+def _line_created(
+    session: Session, place: Place, state: ObjectState, held: tuple[Decimal, Writer]
+) -> UUID:
+    """Create again, under its identifier, the provision line an entry kept of a risk.
+
+    ``held`` the severity it is written at, weighted, and the writer.
+    """
+    severity, writer = held
     kept = _rows(state, "evaluation")
     entry = ProvisionEntry(
         cast("str", _rows(state, "risk")["label"]),
         cast("UUID", identifier(kept, "provision_cost_category_id")),
         identifier(kept, "provision_subproject_id"),
-        _provision(session, place.project_id, state),
+        _provision(severity, state),
     )
     line = cast("UUID", identifier(kept, "provision_node_id"))
     borne = (_bearer(session, place, state), line)
@@ -280,22 +300,28 @@ def _created_again(session: Session, place: Place, state: ObjectState, writer: W
             updated_by=act.author,
         )
     )
-    own = cast("UUID", identifier(kept, "structure_id"))
     estimate = _rows(state, "own_estimate")
-    start = cast("str", estimate["planning_start_on"])
-    create_own_estimate(
-        session,
-        (project_id, revision_id),
-        (state.object_id, label),
-        act,
-        (own, _day(start)),
+    had_line = identifier(kept, "provision_node_id") is not None
+    born = OwnEstimateKept(
+        cast("UUID", identifier(kept, "structure_id")),
+        _day(cast("str", estimate["planning_start_on"])),
+        _retained(session, place, estimate, had_line=had_line),
+        identifier(estimate, "base_id") if "base_id" in estimate else None,
     )
+    own = open_own_estimate(
+        session, place, OwnEstimateOpening(state.object_id, label, born), act, copied=False
+    )
+    # The base first: the nodes of the own estimate written back are then priced against it.
+    base = differential_base(session, project_id, own)
+    if base is not None and "base_nodes" in estimate:
+        kept_base = decoded_nodes(estimate["base_nodes"])
+        held = Place(project_id, revision_id, base)
+        restore_structure_nodes(session, held, kept_base, writer, base=True)
     nodes = restore_structure_nodes(
         session, Place(project_id, revision_id, own), decoded_nodes(estimate["nodes"]), writer
     )
-    line = None
-    if identifier(kept, "provision_node_id") is not None:
-        line = _line_created(session, place, state, writer)
+    severity = _severity(state)
+    line = _line_created(session, place, state, (severity, writer)) if had_line else None
     session.add(
         RiskEvaluation(
             project_id=project_id,
@@ -309,6 +335,7 @@ def _created_again(session: Session, place: Place, state: ObjectState, writer: W
             provision_subproject_id=identifier(kept, "provision_subproject_id"),
             provision_task_lineage_id=identifier(kept, "provision_task_lineage_id"),
             occurrence_cost=None,
+            severity=severity,
             created_at=instant(kept, "created_at"),
             created_by=identifier(kept, "created_by"),
             updated_at=act.at,
@@ -318,6 +345,24 @@ def _created_again(session: Session, place: Place, state: ObjectState, writer: W
     session.flush()
     _reviews(session, project_id, state)
     return nodes
+
+
+def _retained(
+    session: Session, place: Place, estimate: Mapping[str, JsonValue], *, had_line: bool
+) -> int:
+    """Give the counter of the main structure an own estimate created again retains (EP-30).
+
+    It was up to date when the entry kept it, and the main structure has moved since by the
+    deletion of its provision line alone, if it had one, a provision line written apart: it is up
+    to date again, at the counter of the main structure. Otherwise ``NEVER_BORNE``, out of date —
+    what its base keeps may no longer be the main structure —, until its update.
+    """
+    before = estimate.get("main_lock_version")
+    now = structure_facts(session, place.project_id, place.structure_id, lock=False).lock_version
+    moved = 1 if had_line else 0
+    if estimate.get("up_to_date") is True and isinstance(before, int) and now == before + moved:
+        return now
+    return NEVER_BORNE
 
 
 def _day(value: str) -> date:
@@ -338,7 +383,7 @@ def _brought_back(
     current, wanted = held.provision_node_id, identifier(kept, "provision_node_id") is not None
     created = None
     if wanted and current is None:
-        created = _line_created(session, place, state, writer)
+        created = _line_created(session, place, state, (recorded_severity(held), writer))
     held.probability = amount(kept, "probability")
     held.state = cast("str", kept["state"])
     held.provision_node_id = (created or current) if wanted else None
@@ -354,7 +399,7 @@ def _brought_back(
         move_borne_line(session, place, current, _bearer(session, place, state), writer)
         bearing = (held.provision_cost_category_id, held.provision_subproject_id)
         set_provision_bearing(session, place, current, bearing)
-        set_provision(session, place, current, _provision(session, place.project_id, state))
+        set_provision(session, place, current, _provision(recorded_severity(held), state))
     _reviews(session, place.project_id, state)
 
 

@@ -11,15 +11,17 @@ those of the risk, as its command ``declare_occurrence`` names them: a risk that
 (``risk_identified``), and, without a current revision, the permission to create it
 (``may_create_revision``).
 
-The report is the graft of the planning computed without being written (``graft``): the tasks and
-the lines of the own estimate added under the task that bears the provision line — after it, a
-milestone —, that task changed, the provision line removed; and the reasons that refuse it. It is
-judged in the revision the risk is read in: the current one, or, without one, the last marked one,
-which the occurrence would copy first (``creates_current_revision``, #790). The counters read are
-those of the main structure of that revision and of the risk, which the confirmation sends back;
-the provision removed is the amount of the line, the severity weighted by the probability.
+The report is the merge of the own estimate into the main structure, in the mode ``occurrence``,
+computed without being written (``merge_parts``, EP-30, "La survenance"): what the own estimate
+adds, modifies and abandons against its base, each as an ``ImportDifference``, and the reasons that
+refuse it; the provision line is removed. It is judged in the revision the risk is read in: the
+current one, or, without one, the last marked one, which the occurrence would copy first
+(``creates_current_revision``, #790). The counters read are those of the main structure of that
+revision and of the risk, which the confirmation sends back; the provision removed is the amount of
+the line, the severity weighted by the probability.
 
-Filled by US-2620/L1; the application, under the locks, is US-2620/L2's (``applying``).
+Filled by US-2620/L1; the application, under the locks, is US-2620/L2's (``applying``); the graft
+replaced by the merge by US-3070/L3, the report in the form of a merge's left to US-3100/L2.
 """
 
 from dataclasses import dataclass
@@ -28,14 +30,21 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from waterfall.core.estimate.interface import provision_amount
-from waterfall.core.planning.interface import Graft, bearing_of, graft
+from waterfall.core.planning.interface import bearing_of
 from waterfall.core.projects.interface import (
     NO_BACKGROUND_TASK_RUNNING,
     PROJECT_NOT_TERMINAL,
+    current_day,
     no_background_task_running,
     project_facts,
 )
-from waterfall.core.revisions.interface import aimed_structure, structure_facts
+from waterfall.core.revisions.interface import (
+    OCCURRENCE_MERGE,
+    StructureMerging,
+    aimed_structure,
+    merge_parts,
+    structure_facts,
+)
 from waterfall.core.risks.commands import (
     OCCURRED,
     RiskStanding,
@@ -56,6 +65,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.projects.interface import Viewer
+    from waterfall.platform.audit import Act
 
 REFERENCE_DESIGNATED = "reference_revision_designated"
 DECLARE_OCCURRENCE = "declare_occurrence"
@@ -68,7 +78,7 @@ class OccurrenceReport:
     ``differences`` as ``ImportDifference``, ``refusals`` as ``ReportRefusal``; the provision line
     the occurrence removes, by its amount; the planning start of the own estimate when it precedes
     the day of the read, which warns and refuses nothing (#4133); the task that bears the
-    provision line when it is completed, by its node and its label, which the graft reopens: a
+    provision line when it is completed and the merge reopens it, by its node and its label: a
     warning too (#4240).
     """
 
@@ -114,13 +124,34 @@ def judge_risk(session: Session, project_id: UUID, risk_id: UUID, viewer: Viewer
     return found
 
 
+def occurrence_merging(
+    session: Session, evaluation: RiskEvaluation, main: UUID, act: Act
+) -> StructureMerging:
+    """Give the merge of the own estimate of a risk into the main structure, in the mode occurrence.
+
+    ``main`` the main structure of the revision of ``evaluation``; written nothing (``applying``
+    false), which the application replaces.
+    """
+    return StructureMerging(
+        session,
+        evaluation.project_id,
+        evaluation.revision_id,
+        main,
+        evaluation.structure_id,
+        act,
+        applying=False,
+        mode=OCCURRENCE_MERGE,
+    )
+
+
 def report_occurrence(
-    session: Session, project_id: UUID, risk_id: UUID, viewer: Viewer, today: date
+    session: Session, project_id: UUID, risk_id: UUID, viewer: Viewer, act: Act
 ) -> OccurrenceReport:
     """Tell what the occurrence of an identified risk would do, writing nothing; or refuse.
 
-    ``today`` is the day of the read, in the time zone of the installation: an own estimate whose
-    planning starts before it is told (#4133).
+    ``act`` the reader and the instant of the read: its day, in the time zone of the installation,
+    tells an own estimate whose planning starts before it (#4133), and the merge completes on it
+    the tasks the own estimate abandons.
     """
     judge_project(session, project_id)
     found = judge_risk(session, project_id, risk_id, viewer)
@@ -133,25 +164,24 @@ def report_occurrence(
         msg = "an identified risk bears its provision line in the main structure"
         raise ValueError(msg)
     bearer = bearing_of(session, project_id, (line,))[line].node_id
-    grafted = graft(
-        session,
-        Graft(project_id, evaluation.structure_id, main, bearer, (line,), risk_id),
-    )
+    merged = merge_parts(occurrence_merging(session, evaluation, main, act))
     provision = provision_amount(session, project_id, line)
     start = structure_facts(session, project_id, evaluation.structure_id, lock=False)
+    today = current_day(act.at)
+    reopened = [each for each in merged.reopened_tasks if each.get("node_id") == str(bearer)]
     return OccurrenceReport(
         main_structure_lock_version=structure_facts(
             session, project_id, main, lock=False
         ).lock_version,
         risk_lock_version=risk.lock_version,
         creates_current_revision=not current,
-        differences=grafted.differences,
+        differences=merged.differences,
         provision_amount=provision,
-        refusals=grafted.refusals,
+        refusals=merged.refusals,
         own_estimate_past_planning_start_on=(
             start.planning_start_on if start.planning_start_on < today else None
         ),
-        completed_provision_task=grafted.reopened,
+        completed_provision_task=reopened[0] if reopened else None,
     )
 
 

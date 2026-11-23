@@ -31,7 +31,11 @@ from waterfall.core.planning.interface import (
     delete_structure_nodes,
     structure_node_ids,
 )
-from waterfall.core.revisions.interface import delete_own_estimate, marked_revisions_at
+from waterfall.core.revisions.interface import (
+    delete_own_estimate,
+    differential_base,
+    marked_revisions_at,
+)
 from waterfall.core.risks.commands import OCCURRED, RISK_NOT_CITED, RISK_NOT_OCCURRED
 from waterfall.core.risks.declaring import refuse
 from waterfall.core.risks.entering import Held, enter
@@ -56,14 +60,18 @@ def erase(session: Session, project_id: UUID, revision_id: UUID, held: tuple[UUI
     ``held`` the risk and its own estimate. The entries of the stacks that name the nodes of the
     own estimate go first (``forget_structure``, #4154): no undoing aims at a structure that is
     gone, as the abandonment of a differential has it. Then the nodes of the own estimate and its
-    facets, then the structure, which they name, then the risk, which the structure names. The
-    structure is locked by the caller.
+    facets, and those of its base (EP-30), then the structures, which they name, then the risk,
+    which the structure names. The structure is locked by the caller; its base, which no other
+    write reaches, is not.
     """
     risk_id, structure_id = held
     forget_structure(
         session, revision_id, structure_id, structure_node_ids(session, project_id, structure_id)
     )
     delete_structure_nodes(session, project_id, structure_id)
+    base_id = differential_base(session, project_id, structure_id)
+    if base_id is not None:
+        delete_structure_nodes(session, project_id, base_id)
     delete_own_estimate(session, project_id, structure_id)
     session.execute(
         delete(Risk)

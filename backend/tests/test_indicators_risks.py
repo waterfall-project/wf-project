@@ -37,8 +37,8 @@ from occurrence_support import (
     TESTS,
     WIRES,
     Occurring,
+    filled_again,
     occurring,
-    start_own_estimate,
 )
 from planning_support import DAY
 from projects_support import PROJECTS, Scene
@@ -188,6 +188,9 @@ def ready(api: ContractClient, stage: Scene, clock: Clock) -> Occurring:
     clock(TODAY)
     load_import(stage, ready.project.project_id, [dated("FA-1", None, "400.00", DAY)])
     finish(main_tree(ready), "Réalisation", "Fabrication")
+    # The own estimate is a copy of the main structure since EP-30: up to date again, as its update
+    # will make it (US-3090), so that its occurrence merges what it designates alone.
+    filled_again(ready)
     return ready
 
 
@@ -346,32 +349,6 @@ def test_after_an_occurrence_the_projection_carries_the_cost_of_the_risk_and_the
     assert spent["projections"]["project_manager"] == "1200.00"
 
 
-@pytest.mark.requirement("WF-RIS-0060-A")
-@pytest.mark.story("US-3060")
-def test_the_report_tells_a_completed_task_the_graft_reopens_and_the_occurrence_applies(
-    ready: Occurring, worker: Worker
-) -> None:
-    # Propre à l'US (#4240) : la survenance greffe le devis propre sous les études, qui portent
-    # la provision ; terminées, elles deviennent la récapitulative des tâches greffées, non
-    # démarrée, et leur valeur acquise, 600, retombe (1 000 à 400). Le compte rendu les nomme,
-    # sans refuser ; une écriture des études le rend périmé ; la survenance s'applique, et la
-    # valeur acquise retombée n'est pas corrigée (règle provisoire, EP-30).
-    open_report = ready.reported()
-    assert open_report["completed_provision_task"] is None
-    tree = main_tree(ready)
-    studies = task_named(tree, "Étude")
-    finish(tree, "Étude", "Plans")
-    report = ready.reported()
-    named = {"node_id": studies["node_id"], "label": "Étude"}
-    assert (report["completed_provision_task"], report["refusals"]) == (named, [])
-    assert report["main_structure_lock_version"] != open_report["main_structure_lock_version"]
-    assert read(ready)["earned_value"] == "1000.00"
-    occurred(ready, worker)
-    reopened = task_named(main_tree(ready), "Étude")["task"]
-    assert reopened["progress"] == "not_started"
-    assert read(ready)["earned_value"] == "400.00"
-
-
 @pytest.mark.requirement("WF-IND-0100-A")
 def test_the_documents_a_marking_keeps_count_the_provisions(ready: Occurring) -> None:
     # Propre à l'US : les documents conservés au marquage comptent les provisions, comme la lecture
@@ -515,13 +492,15 @@ def test_every_write_of_a_risk_or_of_a_structure_changes_the_key_even_when_no_li
 ) -> None:
     # Propre à l'US (#3629) : l'empreinte lit le compteur de toutes les structures de la révision,
     # le nombre des risques du projet et la somme de leurs compteurs. Ce qui ne touche aucune ligne
-    # la change tout de même : la confirmation d'un risque (son compteur), le début du planning de
-    # son devis propre (celui de sa structure), l'ouverture d'un différentiel, une saisie dans le
+    # la change tout de même : la confirmation d'un risque (son compteur), une saisie dans son devis
+    # propre (celui de sa structure ; son début est celui de la structure principale depuis EP-30),
+    # l'ouverture d'un différentiel, une saisie dans le
     # différentiel (celui de sa structure), son abandon, la déclaration d'un autre risque.
     keys = [key_of(ready)]
     ready.risks.reviewed(ready.read())
     keys.append(key_of(ready))
-    start_own_estimate(ready, date(2026, 11, 10))
+    line = own_line(ready, SEARCH)
+    ready.risks.repriced(ready.read(), ready.revision["revision_id"], line, "130.00")
     keys.append(key_of(ready))
     path = structures_path(ready)
     opened = ready.api.post(

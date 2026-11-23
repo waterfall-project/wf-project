@@ -21,7 +21,6 @@ from waterfall.api.evaluation import Acting, RequiresProject
 from waterfall.api.projects import viewer_of
 from waterfall.api.risks import CONSULT
 from waterfall.api.tasks import task_ref
-from waterfall.core.projects.interface import current_day
 from waterfall.core.risks.interface import OccurrenceRequest, occurrence_report, submit_occurrence
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -44,8 +43,8 @@ def get_risk_occurrence_report(
     project_id: UUID, risk_id: UUID, actor: Acting, session: Transaction
 ) -> RiskOccurrenceReport:
     """Tell what the occurrence of an identified risk would do to the main structure."""
-    today = current_day(utc_now())
-    report = occurrence_report(session, project_id, risk_id, viewer_of(actor), today)
+    act = Act(actor.user_id, utc_now())
+    report = occurrence_report(session, project_id, risk_id, viewer_of(actor), act)
     return RiskOccurrenceReport.model_validate(
         {
             "main_structure_lock_version": report.main_structure_lock_version,

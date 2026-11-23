@@ -10,17 +10,21 @@ instant of its event:
 
 - **the declaration** (``load_risk``) in the revision in progress, under the identifiers the
   witness imposes — the risk, its own estimate, its provision line, whose lineage is that
-  identifier —, its provision under the task the description names by its lineage; then its own
-  estimate entered as the revision gives it, its tasks then its lines: a declaration keeps the
-  severity of an own estimate still empty, the review that follows it in the chronology the one
-  so entered (WF-RIS-0010);
+  identifier —, its provision under the task the description names by its lineage; its own
+  estimate born whole, the copy of the main structure (EP-30), to which what the revision gives
+  it is added, its tasks then its lines, at the first level after those of the main structure: a
+  declaration keeps the severity of an own estimate that designates nothing, the review that
+  follows it in the chronology the one so entered (WF-RIS-0010);
 - **a review** (``review_risk``) at the counter of the risk read, which may dismiss it;
-- **the occurrence** (``load_occurrence``), its own estimate grafted into the main structure under
-  the identifiers and the lineages the examples give the nodes grafted, then their states laid as
-  the description of the revision in progress gives them.
+- **the occurrence** (``load_occurrence``), its own estimate merged into the main structure, then
+  the states of the tasks the examples give the nodes grafted laid as the description of the
+  revision in progress gives them.
 
-The own estimate of a risk in the revision opened is entered at the opening, as the main structure
-is (``fill_estimates``): the copy of the revision took up the one before.
+The own estimate of a risk in the revision opened, and before its occurrence, is copied again from
+the main structure, then entered (``enter_estimate``): the update that would carry the main
+structure into it is US-3090's, and the loader takes it up with US-3150, whose examples read the own
+estimates as differentials; until then, the examples of the risks the loader strays from are
+declared where the tests compare them (US-3070/L3).
 """
 
 from dataclasses import dataclass, replace
@@ -33,6 +37,7 @@ from waterfall.core.planning.interface import (
     Place,
     ProgressLoad,
     Writer,
+    load_own_estimate_again,
     load_progress,
     task_of_lineage,
 )
@@ -49,7 +54,7 @@ from waterfall.core.risks.interface import (
 )
 from waterfall.witness.estimate_lines import write_lines
 from waterfall.witness.filling import LineRow, Strict, TaskRow, node_identifier
-from waterfall.witness.tasks import write_tasks
+from waterfall.witness.tasks import add_tasks
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable
@@ -190,7 +195,7 @@ def declare(session: Session, risks: Risks, write: RiskDeclared, made: RiskWrite
     )
     load = RiskLoad(entry, risk.risk_id, structure_id, risk.provision_lineage_id)
     load_risk(session, project_id, load, made.writer, made.manager)
-    enter_estimate(session, risk, made)
+    enter_estimate(session, risk, made, again=False)
 
 
 def review(session: Session, write: RiskReviewed, made: RiskWrite) -> None:
@@ -211,50 +216,76 @@ def _reviewed(
 def occur(
     session: Session, risks: Risks, write: RiskOccurred, made: RiskWrite, tasks: Iterable[TaskRow]
 ) -> None:
-    """Declare the occurrence of a risk, then lay the states of the tasks it grafted.
+    """Declare the occurrence of a risk, then lay the states of the tasks it merged.
 
-    ``tasks`` the tasks the description gives the revision in progress, where the nodes grafted
-    are read under the identifiers the occurrence imposes.
+    ``tasks`` the tasks the description gives the revision in progress, where the nodes the graft
+    of EP-08 copied are described: the merge adds them under the lineage they have in the own
+    estimate, by which their states are laid (US-3070/L3).
     """
     risk = risks.named(write.risk_id)
     imposed = {each.lineage_id: (each.node_id, each.copy_lineage_id) for each in risk.grafted}
     occurrence = OccurrenceLoad(risk.risk_id, imposed)
+    # Merged up to date: what the main structure received since is carried into it first.
+    enter_estimate(session, risk, made, read_from=_last_estimate(risk))
     load_occurrence(session, made.project_id, occurrence, made.writer.act)
-    grafted = {each.copy_lineage_id for each in risk.grafted}
-    rows = [task for task in tasks if task.lineage_id in grafted]
+    project_id, revision_id = made.project_id, made.revision[0]
+    main = aimed_structure(session, project_id, revision_id, None)
+    merged = {each.copy_lineage_id: each.lineage_id for each in risk.grafted}
+    rows = [task for task in tasks if task.lineage_id in merged]
     summaries = {task.parent_lineage_id for task in rows}
     for task in rows:
-        if task.lineage_id in summaries or task.progress == NOT_STARTED:
+        if task.lineage_id in summaries or task.progress == NOT_STARTED or main is None:
             continue
-        state = ProgressLoad(task.node_id, task.progress, task.started_on, task.completed_on)
-        load_progress(session, made.project_id, state, made.writer.act)
+        held = task_of_lineage(session, project_id, main, merged[task.lineage_id])
+        if held is None:
+            continue
+        state = ProgressLoad(held.node_id, task.progress, task.started_on, task.completed_on)
+        load_progress(session, project_id, state, made.writer.act)
 
 
-def enter_estimate(session: Session, risk: RiskRow, made: RiskWrite) -> bool:
+def _last_estimate(risk: RiskRow) -> int | None:
+    """Give the last revision that gives the own estimate of a risk, none if none does."""
+    return max((each.revision for each in risk.estimates), default=None)
+
+
+def enter_estimate(
+    session: Session,
+    risk: RiskRow,
+    made: RiskWrite,
+    *,
+    again: bool = True,
+    read_from: int | None = None,
+) -> bool:
     """Enter the own estimate of a risk as the revision in progress gives it; tell whether it did.
 
-    Its tasks then its lines, reconciled by lineage with what it holds, under the identifiers the
-    examples read them by in the revision they name, derived from those in another.
+    Its tasks then its lines, added to the copy of the main structure it holds (EP-30), under the
+    identifiers the examples read them by in the revision they name, derived from those in another.
+    ``again`` copies the main structure into it and its base again first, as the update would
+    (``load_own_estimate_again``); ``read_from`` the revision whose description it takes, the one
+    in progress by default.
     """
     revision_id, number = made.revision
-    estimate = risk.estimate_in(number)
+    estimate = risk.estimate_in(number if read_from is None else read_from)
     structure_id = risk.structure_in(number)
     if estimate is None or structure_id is None:
         return False
-    place = Place(made.project_id, revision_id, structure_id)
+    project_id = made.project_id
+    if again:
+        main = aimed_structure(session, project_id, revision_id, None)
+        if main is None:
+            message = f"revision {number} holds no main structure"
+            raise ValueError(message)
+        main_place = Place(project_id, revision_id, main)
+        load_own_estimate_again(session, main_place, structure_id, made.writer.act)
+    place = Place(project_id, revision_id, structure_id)
 
     def identified(row: TaskRow | LineRow) -> UUID:
         return node_identifier(_NODE_NAMESPACE, number, row.node_id, estimate.read_in)
 
-    write_tasks(session, place, (estimate.planning_start_on, estimate.tasks), identified, made.at)
-    write_lines(session, place, (estimate.lines, identified), made.at)
+    written = (estimate.planning_start_on, estimate.tasks)
+    add_tasks(session, place, written, identified, made.at)
+    write_lines(session, place, (estimate.lines, identified), made.at, additive=True)
     return True
-
-
-def fill_estimates(session: Session, risks: Risks, made: RiskWrite) -> None:
-    """Enter the own estimate of each risk the revision just opened gives, as it gives it."""
-    for risk in risks.risks:
-        enter_estimate(session, risk, made)
 
 
 def copied_nodes(risks: Risks, revision: int) -> dict[UUID, dict[UUID, UUID]]:

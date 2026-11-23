@@ -322,7 +322,9 @@ def test_a_differential_is_up_to_date_until_a_write_advances_the_main_structure(
     assert commands_of(held[first])["rebase"] == (True, [])
     assert held[second]["is_up_to_date"] is True
     assert held[project.tree.structure_id]["is_up_to_date"] is None
-    assert held[str(risk.structure_id)]["is_up_to_date"] is None
+    # The own estimate of a risk says its state as a differential does since EP-30: the write of
+    # the main structure leaves it out of date (US-3070/L3).
+    assert held[str(risk.structure_id)]["is_up_to_date"] is False
     for structure_id in (project.tree.structure_id, str(risk.structure_id)):
         assert "rebase" not in commands_of(held[structure_id])
     mark(project.stage, project.tree.revision)

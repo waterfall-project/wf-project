@@ -16,14 +16,17 @@ project does not have; a node that is no task of the main structure (``UNKNOWN_T
 written then.
 
 It creates, in that order, the current revision if the project has none (WF-REV-0010, its rates
-kept and projected, WF-REV-0060), the risk, its own estimate (E-09), its provision line under the
-task designated or the first of the first level, of nought while its own estimate is empty, and its
-evaluation in the revision — its probability, the state identified, its own estimate, its line,
-the category, the subproject and the lineage of the task it designates — with a first review dated
-of the day (WF-RIS-0010). The natures of cost are shared first, then the revision is held ``FOR
-SHARE``, as any write of the tree takes them; the entry of the history of the writer
-(``risk_create``, US-2590/L2) is opened once the revision is known, which locks the stack, and
-its main structure is locked by the write of the line.
+kept and projected, WF-REV-0060), the risk, its own estimate (E-09) — whole, the main structure
+copied twice under its lock, into the own estimate and into its base, as a differential opens: it
+designates nothing (EP-30, "La recomposition, la mise à jour et l'élagage") —, its provision line
+under the task designated or the first of the first level, of nought while its own estimate
+designates nothing, and its evaluation in the revision — its probability, the state identified,
+its severity recorded at nought, its own estimate, its line, the category, the subproject and the
+lineage of the task it designates — with a first review dated of the day (WF-RIS-0010). The
+natures of cost are shared first, then the revision is held ``FOR SHARE``, as any write of the tree
+takes them; the entry of the history of the writer (``risk_create``, US-2590/L2) is opened once the
+revision is known, which locks the stack, and its main structure is locked by the opening of the
+own estimate, before the write of the line.
 
 The identity (``updateRisk``) is a datum of the project (H-02, #1783): the label, the description
 and the notes of mitigation, written at the counter of the risk read (412), refused on a terminal
@@ -43,9 +46,11 @@ from waterfall.core.cost_settings.interface import (
 from waterfall.core.estimate.interface import ProvisionEntry, rename_provision
 from waterfall.core.history.interface import carry_everywhere
 from waterfall.core.planning.interface import (
+    OwnEstimateOpening,
     Place,
     create_borne_line,
     first_task,
+    open_own_estimate,
     recreate_borne_line,
     task_of,
 )
@@ -61,8 +66,8 @@ from waterfall.core.projects.interface import (
     subproject_labels,
 )
 from waterfall.core.revisions.interface import (
+    OwnEstimateKept,
     aimed_structure,
-    create_own_estimate,
     create_revision,
     last_marked_revision,
     main_structure_has_task,
@@ -288,10 +293,10 @@ def _declared(
         )
     )
     session.flush()
-    kept = None if imposed is None else (imposed.structure_id, current_day(act.at))
-    structure_id = create_own_estimate(
-        session, (project_id, revision_id), (risk_id, entry.label), act, kept
-    )
+    kept = None if imposed is None else OwnEstimateKept(imposed.structure_id)
+    nodes = None if imposed is None else imposed.nodes
+    opening = OwnEstimateOpening(risk_id, entry.label, kept, nodes)
+    structure_id = open_own_estimate(session, place, opening, act)
     provision = ProvisionEntry(entry.label, category, subproject, NOUGHT)
     if imposed is None:
         line = create_borne_line(session, place, task.node_id, provision, writer)
@@ -311,6 +316,7 @@ def _declared(
             provision_subproject_id=subproject,
             provision_task_lineage_id=None if entry.provision_task_id is None else task.lineage_id,
             occurrence_cost=None,
+            severity=NOUGHT,
             **_stamp(act),
         )
     )

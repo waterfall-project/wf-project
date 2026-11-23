@@ -25,9 +25,11 @@ from projects_support import PROJECTS, designate
 from risks_support import Costed, Risks, material
 from sqlalchemy import select, update
 
+from waterfall.core.planning.interface import Place, load_own_estimate_again
 from waterfall.core.planning.tables import Task
 from waterfall.core.resource_settings.tables import Calendar, ResourceRole
-from waterfall.core.revisions.tables import CostStructure
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
     from support import ContractClient
@@ -86,11 +88,15 @@ class Occurring:
         return answer.json()
 
     def own(self, revision_id: object | None = None) -> list[dict[str, Any]]:
-        """Read the nodes of the own estimate of the risk in a revision, the current by default."""
+        """Read what the own estimate of the risk designates in a revision, the current by default.
+
+        The nodes its base does not hold as it does: the own estimate is a copy of the main
+        structure since EP-30, read against its base (``NodeDifference``).
+        """
         held = revision_id or self.revision["revision_id"]
         answer = self.api.get(self.risks.own(self.risk, held), headers=self.risks.headers)
         assert answer.status_code == 200, answer.text
-        return answer.json()["items"]
+        return [each for each in answer.json()["items"] if each.get("difference") != "unchanged"]
 
     def main(self, revision_id: object | None = None) -> list[dict[str, Any]]:
         """Read the nodes of the main structure of a revision, the current by default."""
@@ -154,14 +160,10 @@ def follows(risks: Risks, path: str, task: dict[str, Any], before: dict[str, Any
 
 
 def fill_own_estimate(risks: Risks, risk: dict[str, Any], revision_id: object) -> None:
-    """Write the own estimate of the risk in a revision: the diagnostic, the rework under it."""
-    held = risks.risk(risk, revision_id)
-    with risks.stage.owner.begin() as connection:
-        connection.execute(
-            update(CostStructure)
-            .where(CostStructure.id == UUID(held["structure_id"]))
-            .values(planning_start_on=OWN_START)
-        )
+    """Write the own estimate of the risk in a revision: the diagnostic, the rework under it.
+
+    Its planning starts on the main structure's, which it copies (EP-30).
+    """
     path = risks.own(risk, revision_id)
     costs = risks.project.costs
     diagnostic = _task(risks, path, DIAGNOSTIC, None, "2")
@@ -172,6 +174,25 @@ def fill_own_estimate(risks: Risks, risk: dict[str, Any], revision_id: object) -
     tests = _task(risks, path, TESTS, rework["node_id"], "1")
     follows(risks, path, rewiring, diagnostic)
     follows(risks, path, tests, rewiring)
+
+
+def filled_again(ready: Occurring) -> None:
+    """Bring the own estimate of the risk up to date with the main structure, then fill it again.
+
+    The main structure copied again into it and its base, through the function the loader of the
+    witness uses (``load_own_estimate_again``), then the diagnostic and the rework written again:
+    what its update will do (US-3090) for a test that writes the main structure after the risk is
+    declared, and before it occurs, which merges the own estimate as it stands against the main
+    structure (EP-30).
+    """
+    revision_id = UUID(ready.revision["revision_id"])
+    main = UUID(ready.main_structure()["structure_id"])
+    own = UUID(ready.read()["structure_id"])
+    project_id = ready.project.project_id
+    with ready.project.stage.database.transaction() as session:
+        place = Place(project_id, revision_id, main)
+        load_own_estimate_again(session, place, own, Act(None, utc_now()))
+    fill_own_estimate(ready.risks, ready.risk, revision_id)
 
 
 def occurring(api: ContractClient, project: Costed) -> Occurring:
@@ -217,7 +238,7 @@ def idle_diagnostic(ready: Occurring) -> tuple[UUID, UUID, UUID]:
     fitter = add_role(stage.database, "MONT", (8, 8, 8, 8, 8, 0, 0))
     path = ready.risks.own(ready.risk, ready.revision["revision_id"])
     diagnostic = next(
-        each for each in ready.own() if each.get("task", {}).get("label") == DIAGNOSTIC
+        each for each in ready.own() if each["task"] and each["task"]["label"] == DIAGNOSTIC
     )
     for role in (welder, fitter):
         line = {
@@ -249,8 +270,9 @@ def main_task(ready: Occurring, label: str, parent: str | None, days: str) -> di
 def beyond_horizon(ready: Occurring, label: str) -> UUID:
     """Push a task of the own estimate to the year 2060, past the fifteen years of the horizon.
 
-    Give its node. Around the service, as a change of the reference would leave it: the dates of
-    the own estimate are read as they stand.
+    Give its node. Around the service, as a change of the reference would leave it: the task in
+    manual mode at its dates, which the merge of the occurrence carries into the main structure
+    as it does every value of a task the own estimate adds (EP-30).
     """
     node = next(
         each for each in ready.own() if each["kind"] == "task" and each["task"]["label"] == label
@@ -259,6 +281,10 @@ def beyond_horizon(ready: Occurring, label: str) -> UUID:
         connection.execute(
             update(Task)
             .where(Task.node_id == UUID(node["node_id"]))
-            .values(finish_date=date(2060, 1, 1))
+            .values(
+                scheduling_mode="manual",
+                start_date=date(2059, 12, 1),
+                finish_date=date(2060, 1, 1),
+            )
         )
     return UUID(node["node_id"])

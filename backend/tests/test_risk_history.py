@@ -293,8 +293,9 @@ def test_a_deletion_undone_brings_back_the_risk_and_its_own_estimate_and_redone_
     # their identifiers, at 60; the entries of the own estimate went with the deletion (#4154), so
     # the undoing that follows is not theirs. Redone, the deletion takes them all again.
     risk = declared_by(risks, who)
-    nodes = costed_by(risks, who, risk, "200.00")
+    costed_by(risks, who, risk, "200.00")
     held = risks.risk(risk)
+    nodes = [each for each, _ in own_nodes(risks, held["structure_id"])]
     removed = risks.remove(held, who)
     assert removed.status_code == 204, removed.text
     risk_undone(undone(risks, who), "risk_delete", risk)

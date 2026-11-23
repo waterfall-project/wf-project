@@ -26,7 +26,8 @@ holds, read once under the lock (#2492), at the counter of its redating, not rea
 ``open_differential`` opens a differential, the copy of the main structure of a revision
 (``createCostStructure``, US-2550/L3), and its base, a second copy (US-3050/L2);
 ``load_differential`` the same for the loader of the witness, under the identifiers it imposes on
-the differential and on the copies of its nodes, its base drawn (US-2650/L1).
+the differential and on the copies of its nodes, its base drawn (US-2650/L1). ``open_own_estimate``
+opens the own estimate of a risk declared the same way, whole with its base (EP-30, US-3070/L3).
 
 Declared by US-1380/L1; ``reschedule`` filled by US-1380/L2, handed what a write already holds by
 US-1380/L3, ``update_cost_structure`` filled by US-1390/L2, its structure after built by US-1380/L5.
@@ -38,14 +39,19 @@ from typing import TYPE_CHECKING
 from waterfall.core.history.interface import ObjectState
 from waterfall.core.planning.calendars import default_calendar
 from waterfall.core.planning.interface.copying import copy_structure_nodes
+from waterfall.core.planning.interface.differential_deletion import delete_structure_nodes
 from waterfall.core.planning.rescheduling import Holding, replayed
 from waterfall.core.planning.writing import Place, facts_of, judge_revision, writing
 from waterfall.core.revisions.interface import (
     CopyImposed,
     DifferentialName,
+    OwnEstimateKept,
     RevisionCopy,
     aimed_structure,
     create_differential,
+    create_own_estimate,
+    differential_base,
+    own_estimate_retained,
     write_structure,
 )
 from waterfall.platform.errors import (
@@ -72,6 +78,7 @@ if TYPE_CHECKING:
     from waterfall.platform.audit import Act
 
 NON_WORKING_DAY = "NON_WORKING_DAY"
+FIELD_READ_ONLY = "FIELD_READ_ONLY"
 
 
 def reschedule(
@@ -132,8 +139,9 @@ def update_cost_structure(
 ) -> NodesWritten:
     """Write the start date and the label of a structure at the counter read, and redate it.
 
-    Refused at another version (412), on a day without hours of the default calendar or beyond
-    the horizon (422); nothing is written then.
+    Refused at another version (412); on a day without hours of the default calendar or beyond
+    the horizon, or for a start sent on the own estimate of a risk, which has none of its own
+    (``FIELD_READ_ONLY``), 422; nothing is written then.
     """
     with writing(session, place, writer, ("structure_update", ())) as write:
         facts = write.facts
@@ -142,6 +150,11 @@ def update_cost_structure(
                 STALE_LOCK_VERSION, {"expected_lock_version": facts.lock_version}
             )
         if change.planning_start_on is not None:
+            if facts.is_own_estimate:
+                # The own estimate of a risk has no start of its own: the main structure's is its
+                # (WF-RIS-0030; EP-30).
+                fault = FieldError("/planning_start_on", FIELD_READ_ONLY)
+                raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
             _judge_start(session, change.planning_start_on)
         write.frame.keep_before((structure_state(facts),))
         sent = (change.planning_start_on, change.label)
@@ -223,8 +236,31 @@ def _opened(
     main = facts_of(session, Place(project_id, revision_id, main_id), lock=True)
     imposed = None if load is None else load.structure_id
     opened = create_differential(session, revision, main, DifferentialName(label, imposed), act)
-    for target in (opened.structure_id, opened.base_id):
-        nodes = {} if load is None or target != imposed else {target: load.nodes}
+    nodes: Mapping[UUID, UUID] = {} if load is None else load.nodes
+    _copied(
+        session,
+        (project_id, revision_id, main_id),
+        (opened.structure_id, opened.base_id),
+        (nodes, act),
+    )
+    return opened.structure_id
+
+
+def _copied(
+    session: Session,
+    main: tuple[UUID, UUID, UUID],
+    targets: tuple[UUID, UUID],
+    imposed: tuple[Mapping[UUID, UUID], Act],
+) -> None:
+    """Copy the main structure, locked, into a structure opened and into its base.
+
+    ``main`` the project, the revision and the main structure; ``targets`` the structure and its
+    base; ``imposed`` the identifiers the witness imposes on the copies of the nodes of the
+    structure, by lineage — those of the base drawn —, and the act of the opening.
+    """
+    project_id, revision_id, main_id = main
+    nodes, act = imposed
+    for target in targets:
         copy = RevisionCopy(
             session,
             project_id,
@@ -234,7 +270,76 @@ def _opened(
             act.author,
             {main_id: target},
             within_revision=True,
-            imposed=CopyImposed(nodes=nodes),
+            imposed=CopyImposed(nodes={target: nodes} if target == targets[0] else {}),
         )
         copy_structure_nodes(copy)
+
+
+@dataclass(frozen=True, slots=True)
+class OwnEstimateOpening:
+    """The own estimate of a risk to open: the risk and its label, what the opening keeps.
+
+    ``kept`` the identifier the witness imposes, or the own estimate created again by the undoing of
+    the deletion of its risk; ``nodes`` the identifier the witness imposes on the copy of a node of
+    the main structure, by its lineage. What is not named is drawn.
+    """
+
+    risk_id: UUID
+    label: str
+    kept: OwnEstimateKept | None = None
+    nodes: Mapping[UUID, UUID] | None = None
+
+
+def open_own_estimate(
+    session: Session, place: Place, opening: OwnEstimateOpening, act: Act, *, copied: bool = True
+) -> UUID:
+    """Open the own estimate of a risk declared, whole, with its base; give it (EP-30).
+
+    ``place`` the main structure of the current revision, which the risks have judged: it is locked,
+    as a write of its nodes does, and copied whole under the lock into the own estimate and into
+    its base, as a differential opens (``open_differential``) — its tasks and links, its lines at
+    the figures they hold, each node under an identifier of its own and the lineage it has in the
+    main structure, its tasks without an attachment to the work breakdown, the provision lines left
+    out (WF-RIS-0030, WF-PLA-0170, #4008). The own estimate keeps the counter of the main structure:
+    born up to date, it designates nothing. ``copied`` false creates the two structures alone, for
+    an own estimate whose nodes the undoing writes back as an entry kept them (US-2590/L2).
+    """
+    project_id, revision_id = place.project_id, place.revision_id
+    main = facts_of(session, place, lock=True)
+    risk = (opening.risk_id, opening.label)
+    opened = create_own_estimate(
+        session, (project_id, revision_id), risk, (main, opening.kept), act
+    )
+    if copied:
+        targets = (opened.structure_id, opened.base_id)
+        _copied(
+            session,
+            (project_id, revision_id, place.structure_id),
+            targets,
+            (opening.nodes or {}, act),
+        )
     return opened.structure_id
+
+
+def load_own_estimate_again(session: Session, place: Place, structure_id: UUID, act: Act) -> None:
+    """Copy the main structure again into the own estimate of a risk of the witness and its base.
+
+    ``place`` the main structure of the revision, locked; then the own estimate and its base,
+    their nodes deleted and the main structure copied into each as ``open_own_estimate`` does, the
+    own estimate retaining its counter: up to date, it designates nothing, what the witness adds
+    to it entered after. What the loader does where the service updates an own estimate (US-3090),
+    until the update serves it (US-3150).
+    """
+    project_id, revision_id = place.project_id, place.revision_id
+    facts_of(session, place, lock=True)
+    facts_of(session, Place(project_id, revision_id, structure_id), lock=True)
+    base_id = differential_base(session, project_id, structure_id)
+    if base_id is None:
+        raise NotFoundError(NOT_FOUND)
+    facts_of(session, Place(project_id, revision_id, base_id), lock=True, base=True)
+    for each in (structure_id, base_id):
+        delete_structure_nodes(session, Place(project_id, revision_id, each))
+    session.flush()
+    targets = (structure_id, base_id)
+    _copied(session, (project_id, revision_id, place.structure_id), targets, ({}, act))
+    own_estimate_retained(session, project_id, structure_id)

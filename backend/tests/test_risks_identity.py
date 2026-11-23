@@ -135,7 +135,8 @@ def test_the_identity_is_written_without_a_revision_and_no_abandonment_undoes_it
 ) -> None:
     # Declared, then the revision marked: the project has no current revision, and the change of
     # the identity creates none. A revision opened and abandoned after does not bring it back, and
-    # the counter of the risk never goes back.
+    # the counter of the risk never goes back: the opening redates its own estimate, a copy of the
+    # main structure (EP-30), which advances it.
     risk = risks.declared()
     mark(project.stage, {"revision_id": str(project.revision_id)})
     before = revisions_of(project)
@@ -150,14 +151,14 @@ def test_the_identity_is_written_without_a_revision_and_no_abandonment_undoes_it
     assert revisions_of(project) == before
     opened = risks.revision()
     renamed = risks.update(risks.risk(risk), label="Grue indisponible").json()
-    assert renamed["lock_version"] == 3
+    assert renamed["lock_version"] == 4
     risks.abandon(opened)
     after = risks.risk(risk)
     assert (after["label"], after["mitigation_notes"]) == (
         "Grue indisponible",
         "Réserver une seconde grue.",
     )
-    assert after["lock_version"] == 4
+    assert after["lock_version"] == 5
 
 
 @pytest.mark.requirement("WF-RIS-0020-A")
@@ -219,7 +220,7 @@ def test_a_marked_revision_freezes_the_risk_and_the_copy_takes_it_up(
     line = next(
         each
         for each in risks.api.get(path, headers=risks.headers).json()["items"]
-        if each["kind"] == "estimate_line"
+        if each["kind"] == "estimate_line" and each["estimate_line"]["label"] == "Location"
     )
     risks.repriced(risk, current, line, "300.00")
     assert risks.risk(risk)["severity"] == "300.00"
@@ -241,14 +242,15 @@ def test_the_abandonment_takes_the_evaluations_of_its_revision_away_and_advances
     risks: Risks, project: Costed
 ) -> None:
     # A risk of the marked revision is read there again once the copy is abandoned, its counter
-    # advanced; one the abandoned revision declared is read nowhere.
+    # advanced by the opening, which redates its own estimate, and by the abandonment; one the
+    # abandoned revision declared is read nowhere.
     kept = risks.declared()
     mark(project.stage, {"revision_id": str(project.revision_id)})
     opened = risks.revision()
     gone = risks.declared()
     risks.abandon(opened)
     after = risks.risk(kept)
-    assert (after["lock_version"], after["structure_id"]) == (2, kept["structure_id"])
+    assert (after["lock_version"], after["structure_id"]) == (3, kept["structure_id"])
     assert risks.read(gone).status_code == 404
     with project.stage.database.transaction() as session:
         evaluations = session.scalars(
@@ -351,19 +353,19 @@ def test_the_provision_line_is_never_projected_when_its_task_is_moved_in_the_mai
 
 
 @pytest.mark.requirement("WF-RIS-0030-A")
-def test_the_opening_of_a_revision_advances_the_counter_of_a_risk_whose_estimate_holds_a_node(
+def test_the_opening_of_a_revision_advances_the_counter_of_every_risk_it_takes_up(
     risks: Risks, project: Costed
 ) -> None:
-    # The copy redates the own estimates that hold a node, which advances their risk; one that is
-    # empty is not redated, and its risk keeps its counter.
+    # The copy redates the own estimates, which advances their risk: each holds the main structure
+    # copied since EP-30, whether it designates something or not; its base advances none.
     held = risks.declared()
     empty = risks.declared()
     risks.costed_at(held, project.revision_id, "200.00")
     counters = (risks.risk(held)["lock_version"], risks.risk(empty)["lock_version"])
     mark(project.stage, {"revision_id": str(project.revision_id)})
     risks.revision()
-    assert risks.risk(held)["lock_version"] > counters[0]
-    assert risks.risk(empty)["lock_version"] == counters[1]
+    assert risks.risk(held)["lock_version"] == counters[0] + 1
+    assert risks.risk(empty)["lock_version"] == counters[1] + 1
 
 
 # --- The label, and the names it gives (#3980) ---------------------------------------------------
@@ -434,7 +436,7 @@ def test_a_risk_renamed_leaves_the_marked_revisions_with_the_names_they_were_mar
     marked = project.revision_id
     mark(project.stage, {"revision_id": str(marked)})
     current = risks.revision()["revision_id"]
-    renamed = risks.update(risk, label="Grue indisponible")
+    renamed = risks.update(risks.risk(risk), label="Grue indisponible")
     assert renamed.status_code == 200, renamed.text
     assert own_label(risks, current, risk) == "Grue indisponible"
     assert provision_label(risks, current, risks.risk(risk)) == "Provision — Grue indisponible"
@@ -472,7 +474,7 @@ def test_a_risk_renamed_in_a_revision_abandoned_names_the_revision_opened_after_
     risk = risks.declared()
     mark(project.stage, {"revision_id": str(project.revision_id)})
     opened = risks.revision()
-    assert risks.update(risk, label="Grue indisponible").status_code == 200
+    assert risks.update(risks.risk(risk), label="Grue indisponible").status_code == 200
     risks.abandon(opened)
     reopened = risks.revision()["revision_id"]
     assert own_label(risks, reopened, risk) == "Grue indisponible"

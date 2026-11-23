@@ -653,6 +653,12 @@ from waterfall.core.planning.interface.structures import (
     DifferentialLoad as DifferentialLoad,
 )
 
+# ``structures`` (US-3070/L3): the own estimate of a risk opened whole, with its base; copied again
+# for the witness.
+from waterfall.core.planning.interface.structures import (
+    OwnEstimateOpening as OwnEstimateOpening,
+)
+
 # ``structures`` (US-1380/L1; US-1380/L2, US-1390/L2): the dates, the start and the label.
 from waterfall.core.planning.interface.structures import (
     StructureChange as StructureChange,
@@ -661,7 +667,13 @@ from waterfall.core.planning.interface.structures import (
     load_differential as load_differential,
 )
 from waterfall.core.planning.interface.structures import (
+    load_own_estimate_again as load_own_estimate_again,
+)
+from waterfall.core.planning.interface.structures import (
     open_differential as open_differential,
+)
+from waterfall.core.planning.interface.structures import (
+    open_own_estimate as open_own_estimate,
 )
 from waterfall.core.planning.interface.structures import (
     reschedule as reschedule,

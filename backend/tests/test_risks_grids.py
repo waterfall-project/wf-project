@@ -25,7 +25,7 @@ from nodes_support import Tree, mark
 from paste_support import apply, counter, planned
 from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
-from risks_support import Costed, Risks, costed, material
+from risks_support import ESTIMATE, Costed, Risks, costed, material
 from sqlalchemy import select, update
 
 from waterfall.core.projects.tables import Project
@@ -94,8 +94,11 @@ def risk_counter(project: Costed, risk: dict[str, Any]) -> int:
 
 
 def total(tree: Tree) -> Decimal:
-    """Read the re-estimated amount the totals of a structure give."""
-    return Decimal(tree.read().json()["totals"]["reestimated_amount"])
+    """Read what an own estimate adds to the project: its totals less the 1 000 of the main one.
+
+    The own estimate is a copy of the main structure since US-3070/L3, its base too (EP-30).
+    """
+    return Decimal(tree.read().json()["totals"]["reestimated_amount"]) - ESTIMATE
 
 
 # --- WF-RIS-0030-A -------------------------------------------------------------------------------
@@ -114,7 +117,7 @@ def test_every_operation_of_the_grids_serves_the_own_estimate_of_a_risk(
     lines = Lines(tree)
     main_before = snapshot(project.tree)
     main_nodes = outside_provision(project.tree)
-    assert tree.items() == []
+    assert {each["difference"] for each in tree.items()} == {"unchanged"}
     counted = counter(tree)
     held = risk_counter(project, risk)
     # createNode: a task, a line under it.
@@ -298,8 +301,10 @@ def test_the_provision_line_keeps_its_amount_when_the_reference_year_changes_at_
     # #3995: a revision opened a year later prices its lines again for its year of reference
     # (#3535). The provision line, in a task of the main structure that falls two years after the
     # first reference, would be projected by one year of inflation less, were it a line like the
-    # others: it keeps the severity weighted by the probability the risk sets, 100. The own
-    # estimate is dated of the day of the declaration, before every reference: its severity stays.
+    # others: it keeps the severity weighted by the probability the risk sets. The own estimate is
+    # dated as the main structure is (EP-30): its line of 200 is projected two years, to 212.18;
+    # the revision opened takes up the severity recorded, until the next entry or update (EP-30,
+    # "La gravité et la provision").
     stage = project.stage
     with stage.owner.begin() as connection:
         connection.execute(
@@ -318,8 +323,8 @@ def test_the_provision_line_keeps_its_amount_when_the_reference_year_changes_at_
     risk = risks.declared("0.5")
     risks.costed_at(risk, project.revision_id, "200.00")
     assert (risks.risk(risk)["severity"], risks.risk(risk)["provision_amount"]) == (
-        "200.00",
-        "100.00",
+        "212.18",
+        "106.09",
     )
     plans = node_of(project.tree, "Plans")["estimate_line"]["reestimated_amount"]
     mark(stage, project.tree.revision)
@@ -338,9 +343,10 @@ def test_the_provision_line_keeps_its_amount_when_the_reference_year_changes_at_
         for each in carried.items()
         if each["estimate_line"] and each["estimate_line"]["label"].startswith("Provision")
     ]
-    assert [each["reestimated_amount"] for each in provisions] == ["100.00"]
+    assert [each["reestimated_amount"] for each in provisions] == ["106.09"]
     assert [each["consumption_year"] for each in provisions] == [YEAR + 2]
-    assert risks.risk(risk)["provision_amount"] == "100.00"
+    read = risks.risk(risk)
+    assert (read["severity"], read["provision_amount"]) == ("212.18", "106.09")
 
 
 def revision_path(project: Costed, revision_id: str) -> str:
