@@ -516,6 +516,7 @@ def _report(imported: Import) -> dict[str, object]:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": [],
+        "unknown_wbs_elements": [],
         "unit_constants": None,
         "calendar_gap": None,
     }
