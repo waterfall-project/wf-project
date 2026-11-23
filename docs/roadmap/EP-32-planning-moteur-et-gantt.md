@@ -67,10 +67,9 @@ les constate. Leur portée reste celle des EPIC qui les ouvrent et les closent :
 `WF-PLA-0010-A` et `WF-DAT-0010-A` (EP-07), `WF-PLA-0040-A` (EP-08), `WF-PLA-0070-A` (EP-09),
 `WF-REF-0130-A` (EP-10), `WF-IHM-0100-A` (EP-14).
 
-US-3310 réalise une règle que la spécification n'écrit pas encore : WF-PLA-0040 est amendée par la
-1.0.10, et les deux phrases que l'US cite comme « texte proposé » deviennent des citations à sa
-fusion ; les US d'EP-06, EP-08, EP-09, EP-17 et EP-22 qui citent WF-PLA-0040 les reçoivent alors en
-écart.
+US-3310 réalise la règle que la spécification 1.0.10 ajoute à WF-PLA-0040 (#4564, fusionnée par
+#4816) : l'US cite ses deux phrases nouvelles, et les US d'EP-06, EP-08, EP-09, EP-17 et EP-22 qui
+citent WF-PLA-0040 les ont reçues en écart.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -103,8 +102,8 @@ validé, et ses issues sont ouvertes sur GitHub »), écrit ici pour qu'il ne se
 oubli ; l'EPIC passe `en cours` quand l'auteur le décide.
 
 La règle de #3336 est tranchée (2026-11-21) : la feuille garde son état. US-3310, et elle seule,
-attend la fusion de la spécification 1.0.10, qui amende WF-PLA-0040 ; les autres US ne l'attendent
-pas.
+attendait la fusion de la spécification 1.0.10, qui amende WF-PLA-0040 : elle est fusionnée (#4816),
+et reprise dans la branche de l'EPIC.
 
 US-3290 se fusionne avant US-3000 (EP-13), qui branche `make requirements-release` sur la
 publication.
@@ -180,7 +179,7 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 Ouverts au cadrage du 2026-11-21, avec les issues de l'EPIC :
 
 - #4564 — spec : WF-PLA-0040, une feuille démarrée ou terminée qui reçoit une sous-tâche garde son
-  état — bloque US-3310, jusqu'à la fusion de la spécification 1.0.10
+  état — a bloqué US-3310 jusqu'à la fusion de la spécification 1.0.10 (#4816)
 - #4565 — contrat : `LinkConflict` nomme la tâche manuelle en cause
 - #4566 — contrat : `createRevision` déclare le refus d'une tâche sans heure travaillée
 - #4567 — contrat : `updateResourceRole` déclare les refus du redatage
@@ -494,7 +493,7 @@ champs inertes ; les lectures de `node` sans le projet — EP-40.
 
 ## US-3310 — Une feuille démarrée ou terminée qui reçoit une sous-tâche garde son état, et ne se supprime pas
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0040-A`, `WF-PLA-0070-A`
 - **opérations** : `createNode`, `moveNodes`, `applyPaste`, `applyImport`, `deleteNode`, `listNodes`
 - **issue** : #4556
@@ -516,19 +515,10 @@ indicateurs, et que la tâche ne devienne pas supprimable (#3336, bloquant B2 de
 - écart : `WF-PLA-0040-A` — « Une récapitulative terminée dont la seule subordonnée, un jalon, est déplacée devient un jalon terminé. » : constaté par EP-06 (US-1380), EP-09 (US-1590) et EP-08 (US-2580), inchangé.
 - écart : `WF-PLA-0040-A` — « Le déplacement d'une sélection qui contient une récapitulative et l'une de ses subordonnées laisse la subordonnée sous la récapitulative : le groupe est déplacé entier, sans être aplati. » : constaté par EP-06 (US-1380), EP-09 (US-1590) et EP-08 (US-2580), inchangé.
 - écart : `WF-PLA-0040-A` — « Un déplacement qui placerait un nœud sous lui-même ou sous l'un de ses subordonnés est refusé. » : constaté par EP-06 (US-1380), EP-09 (US-1590) et EP-08 (US-2580), inchangé.
+- `WF-PLA-0040-A` — « Une feuille démarrée qui reçoit une sous-tâche non démarrée est une récapitulative démarrée, à sa date de démarrage ; privée de cette sous-tâche, elle redevient une feuille démarrée à cette date. » : par `createNode` sous P comme par `moveNodes` vers P (indentation), `listNodes` rend P `started`, `started_on` au 1er mars 2026 ; P quitte le Kanban tant qu'une subordonnée est ouverte, et y revient dans la colonne des tâches démarrées, à sa date, quand elle n'attend plus que ses lignes propres ; `finish_overdue` est jugé sur elle.
+- `WF-PLA-0040-A` — « Une feuille terminée qui reçoit une sous-tâche non terminée est une récapitulative démarrée, à sa date de démarrage. » : la terminaison, périmée, est effacée comme elle l'est aujourd'hui (#2769) ; la date de démarrage est gardée, et P redevient terminée quand sa sous-tâche l'est et que le reste à engager de ses lignes propres est nul.
 - écart : `WF-PLA-0070-A` — « La suppression d'une récapitulative supprime ses subordonnées et leurs lignes, et le devis diminue d'autant. » : constaté par EP-06 (US-1380), inchangé.
 - `WF-PLA-0070-A` — « La suppression d'une tâche démarrée est refusée, et l'utilisateur est renvoyé vers la mise à zéro de son reste à engager. » : sa forme pour une récapitulative née d'une feuille démarrée : P, feuille démarrée, reçoit une sous-tâche non démarrée ; `deleteNode(P)` est refusé (409, `task_not_started`), et ni P, ni sa sous-tâche, ni ses lignes ne sont supprimées.
-- propre à l'US, texte proposé pour `WF-PLA-0040-A` (spécification 1.0.10) : « Une feuille démarrée
-  qui reçoit une sous-tâche non démarrée est une récapitulative démarrée, à sa date de démarrage ;
-  privée de cette sous-tâche, elle redevient une feuille démarrée à cette date. » : par `createNode`
-  sous P comme par `moveNodes` vers P (indentation), `listNodes` rend P `started`, `started_on` au
-  1er mars 2026 ; P reste dans la colonne des tâches démarrées du Kanban, et `finish_overdue` est
-  jugé sur elle.
-- propre à l'US, texte proposé pour `WF-PLA-0040-A` (spécification 1.0.10) : « Une feuille terminée
-  qui reçoit une sous-tâche non terminée est une récapitulative démarrée, à sa date de démarrage. »
-  : la terminaison, périmée, est effacée comme elle l'est aujourd'hui (#2769) ; la date de démarrage
-  est gardée, et P redevient terminée quand sa sous-tâche l'est et que le reste à engager de ses
-  lignes propres est nul.
 - propre à l'US : la date de démarrage d'une récapitulative est la plus ancienne entre celle qu'elle
   portait comme feuille et celles de ses subordonnées.
 - propre à l'US : la règle vaut quelle que soit l'entrée — création, déplacement, collage
@@ -541,10 +531,14 @@ indicateurs, et que la tâche ne devienne pas supprimable (#3336, bloquant B2 de
 écarté : refuser la sous-tâche par un 422 sur le modèle de `MILESTONE_HAS_NO_SUBTASK`, qui
 interdirait de détailler une tâche démarrée et se répéterait à chaque entrée, fusion d'un
 différentiel comprise. La phrase de WF-PLA-0040 « tire de ses subordonnées […] son état » est
-amendée par un constat de spécification, que la 1.0.10 porte : **le lot de cette US attend la fusion
-de la 1.0.10**, et elle seule dans l'EPIC (décision du même jour) ; les deux phrases proposées
-deviennent alors des citations. Les fonctions en cause : `state_of` et `_derived`
+amendée par un constat de spécification, que la 1.0.10 porte : le lot de cette US a attendu sa fusion
+(#4816), et elle seule dans l'EPIC (décision du même jour) ; ses deux phrases nouvelles sont des
+citations de l'US. Les fonctions en cause : `state_of` et `_derived`
 (`core/planning/views.py`), `emptied` et `closed_above` (`shaping.py`), la garde de `deleteNode`.
+L'état propre d'une récapitulative est lu sur sa facette tel qu'il y est, quel que soit ce qui l'a
+écrit : une récapitulative dérivée terminée, dont le moteur a écrit la facette en terminée
+(`completed_again`, `reopened`), se lit démarrée, à sa date, quand toutes ses sous-tâches repassent
+à non démarré. Le critère du Kanban a été récrit le 2026-11-23 (option A de #4556, décision de l'auteur) : la règle d'EP-22 (#1851) est gardée — le Kanban ne liste une récapitulative que lorsqu'elle n'attend plus que ses lignes propres —, sans changement de code ni de contrat.
 
 **Hors périmètre.** L'état d'une récapitulative reste non saisissable ; une feuille démarrée à tort
 se corrige avant de la détailler. Les révisions où une feuille démarrée a déjà perdu son état par ce
