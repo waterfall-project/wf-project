@@ -420,7 +420,9 @@ def judge_room(session: Session, act: Act) -> None:
     if act.author is None:
         msg = "a file is deposited by an account"
         raise ValueError(msg)
-    used = select(ImportReport.upload_id)
+    # A NULL in a NOT IN list would empty it: the column is NOT NULL today, and the count
+    # does not rely on it.
+    used = select(ImportReport.upload_id).where(ImportReport.upload_id.is_not(None))
     if pending_imports(session, act.author, act.at, used) >= MOST_PENDING:
         conflict = {"missing_condition": PENDING_UPLOADS_BELOW_LIMIT, "maximum": MOST_PENDING}
         raise ConflictError(STATE_FORBIDS_OPERATION, conflict)

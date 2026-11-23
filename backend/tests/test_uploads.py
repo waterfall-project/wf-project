@@ -610,8 +610,9 @@ def stage(
 def written(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """Give the keys written to the storage from now on, each write let through.
 
-    The bucket is shared by the tests that run beside this one: what is written is counted, not
-    listed.
+    The patch lives in the process of the test and is undone with it: under ``pytest -n`` each
+    worker is a process and runs its tests one after the other, so only the writes of this test
+    are counted, whatever the other workers write to the shared bucket.
     """
     keys: list[str] = []
     put = Bucket.put
