@@ -554,3 +554,14 @@ test = 'e2e/service/installation\.setup\.ts:39\b'
 message = "getByRole\\('grid', \\{ name: 'Comptes utilisateurs' \\}\\)"
 frequency = "1 passage, avant la référence : le 2026-11-01 (41319278707, #1807) ; aucun du 2026-11-05 au 2026-11-12"
 cause = "établie : `GET /reference/org-nodes` (#1807), lu par `readOrFail`, répond 404 — le service ne le servait pas encore — et `notFound()` remplace la page ; corrigé dans la pull request avant sa fusion (db6a135e). Le parcours attend depuis le titre de l'écran des comptes, qui dit « Introuvable » à sa place"
+
+[[known]]
+class = "known flakiness"
+family = "jour courant franchi à minuit pendant le test"
+issue = "#4765"
+runs = [45085607399]
+job = '^back / tests(?: \(\d+/\d+\))?$'
+test = 'tests/test_portfolio_risks_kept\.py.*test_the_outcomes_of_projects_are_ordered_and_a_risk_dismissed_keeps_its_share'
+message = 'assert 3 == 4'
+frequency = "1 passage : le 2026-11-23 (45085607399, #4760), de 23:53 à 00:09 en temps universel"
+cause = "hypothèse : le passage franchit minuit en temps universel ; le test écrit ses revues, puis lit `outcomes_between` du seul jour de `current_day(utc_now())`, et une revue de la veille en sort"
