@@ -118,6 +118,15 @@ Reportées d'EP-32 le 2026-11-23 (arbitrage de l'utilisateur), relevées à la r
 - #4789 — back : aucun test ne couvre le 409 du code tenu à la mise à jour d'un rôle, avant et après
   le redatage ; les deux tests que l'issue propose
 
+Ouvertes au tri des issues de spécification du 2026-11-23 (spécification 1.0.10), à rattacher à un
+lot qui touche la courbe de coûts cumulés (`core/indicators/curving.py`,
+`core/revisions/interface/reference.py`), avec #4440 :
+
+- #4814 — back : la courbe du budget manque la marche de l'avenant 1 du témoin, la référence 100
+  étant en vigueur depuis le passage En cours (WF-IND-0100) ; remplace #4651, fermée
+- #4815 — back : une correction de la référence dessine une marche dans la courbe du budget
+  (WF-IND-0100, WF-REV-0040) ; le texte de la 1.0.10 (#4260)
+
 ## Conception
 
 À écrire au cadrage.

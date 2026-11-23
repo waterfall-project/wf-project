@@ -1236,6 +1236,12 @@ déclarer ce qui a commencé et clore mes phases depuis la vue qui les répartit
   entier, sans être aplati. » : le déplacement est d’EP-06 (US-1380/L4) ;
 - écart : `WF-PLA-0040-A` — « Un déplacement qui placerait un nœud sous lui-même ou sous l’un
   de ses subordonnés est refusé. » : le déplacement est d’EP-06 (US-1380/L4) ;
+- écart : `WF-PLA-0040-A` — « Une feuille démarrée qui reçoit une sous-tâche non démarrée est une
+  récapitulative démarrée, à sa date de démarrage ; privée de cette sous-tâche, elle redevient une
+  feuille démarrée à cette date. » : ajouté par la spécification 1.0.10 (#4564) ; EP-32 (US-3310) ;
+- écart : `WF-PLA-0040-A` — « Une feuille terminée qui reçoit une sous-tâche non terminée est une
+  récapitulative démarrée, à sa date de démarrage. » : ajouté par la spécification 1.0.10 (#4564) ;
+  EP-32 (US-3310) ;
 - `WF-PLA-0050-A` — « Une tâche feuille de durée nulle ne peut recevoir de sous-tâche. »
 - `WF-PLA-0050-A` — « Une récapitulative dont la seule subordonnée est un jalon a une durée nulle
   et reste une récapitulative. » : les deux, constatées par EP-06 ;
