@@ -36,10 +36,9 @@ updated in it after the last write of its main structure, then entered. The revi
 amendments opened and the risks declared bear the identifiers of the examples; whatever no example
 names is drawn in order (``drawn_in_order``), the same at every loading. The actual costs come
 after the lines, at the instants of their events (``witness.costs``, EP-09): the imports applied,
-the line excluded and the extraction expired, by the project manager, the account an import is
+the line excluded, by the project manager, the account an import is
 requested by; their description is checked against the chronology before its first event, so that
-one that strays writes nothing at all (``check``). A marking keeps the
-indicators of its revision as the worker's does (EP-10): the loader imports their interface
+one that strays writes nothing at all (``check``). A marking keeps the indicators of its revision as the worker's does (EP-10): the loader imports their interface
 (``loader.EXTENDING``).
 """
 
