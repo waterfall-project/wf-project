@@ -6,11 +6,14 @@ A workbook of the format given, swollen afterwards: a member that inflates to 64
 declares 7 000 bytes, its CRC that of its first 7 000 bytes, as the workbook of #4419 holds 64 MiB
 of spaces in its theme in some 68 kB; a member that announces 1 GiB; an archive of too many
 members; a member compressed by another method than deflate; an archive in ZIP64, honest or
-announcing 5 GiB through its ZIP64 field. And a tab grown past its rows or columns. Each is written
-by streams of a mebibyte at most, so that writing one does not take the memory the test then
-measures. And the measure: the peak of what Python allocates during a call.
+announcing 5 GiB through its ZIP64 field. A tab grown past its rows or columns, and a tab that ends
+with rows of empty cells, as the workbook of #4734 holds a row of 2 000 000 ``<c/>`` in some 13 kB;
+a member added, with relations naming it; a tab moved to another name. Each is written by streams
+of a mebibyte at most, so that writing one does not take the memory the test then measures. And
+the measure: the peak of what Python allocates during a call.
 """
 
+import re
 import tracemalloc
 import warnings
 import zipfile
@@ -23,7 +26,7 @@ from typing import TYPE_CHECKING
 from openpyxl import load_workbook
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Generator, Iterable
 
 MEBIBYTE = 1024 * 1024
 GIBIBYTE = 1024 * MEBIBYTE
@@ -177,6 +180,124 @@ def duplicated(
             warnings.simplefilter("ignore", UserWarning)
             for _ in range(copies):
                 target.writestr(HUGE, b" " * size, compress_type=method)
+    return out.getvalue()
+
+
+def tab(base: bytes, title: str) -> str:
+    """Give the member of the tab ``title`` of a workbook openpyxl wrote: sheetN, N its rank."""
+    return f"xl/worksheets/sheet{load_workbook(BytesIO(base)).sheetnames.index(title) + 1}.xml"
+
+
+@dataclass(frozen=True)
+class Rows:
+    """Rows appended to a tab: ``count`` rows of ``cells`` cells each, every cell ``cell``.
+
+    The rows have no number: openpyxl numbers them after the last. The tab keeps its
+    ``<dimension>``, which openpyxl cuts the rows and the width to, unless ``dimension`` is false.
+    """
+
+    count: int = 1
+    cells: int = 0
+    cell: bytes = b"<c/>"
+    dimension: bool = True
+
+
+def appended(base: bytes, member: str, rows: Rows) -> bytes:
+    """Give the workbook whose tab ``member`` ends with ``rows``, written by streams of a MiB."""
+    out = BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as target:
+        _copied(base, target, but=member)
+        with zipfile.ZipFile(BytesIO(base)) as source:
+            xml = source.read(member).replace(b"<sheetData/>", b"<sheetData></sheetData>")
+        if not rows.dimension:
+            xml = re.sub(rb"<dimension [^>]*/>", b"", xml)
+        before, after = xml.split(b"</sheetData>")
+        per_write = max(1, MEBIBYTE // len(rows.cell))
+        with target.open(member, "w") as written:
+            written.write(before)
+            if rows.cells > per_write:
+                for _ in range(rows.count):
+                    written.write(b"<row>")
+                    for start in range(0, rows.cells, per_write):
+                        written.write(rows.cell * min(per_write, rows.cells - start))
+                    written.write(b"</row>")
+            else:
+                row = b"<row>" + rows.cell * rows.cells + b"</row>"
+                rows_per_write = max(1, MEBIBYTE // len(row))
+                for start in range(0, rows.count, rows_per_write):
+                    written.write(row * min(rows_per_write, rows.count - start))
+            written.write(b"</sheetData>" + after)
+    return out.getvalue()
+
+
+def relocated(base: bytes, member: str, to: str, target: str, tail: Iterable[bytes]) -> bytes:
+    """Give the workbook whose tab ``member`` lies at ``to``, its rows ending with ``tail``.
+
+    The content types name it at ``to``, the relations of the workbook by ``target``, as openpyxl
+    finds a tab; it loses its ``<dimension>``, and ``tail`` is written piece by piece.
+    """
+    workbook_relations = "xl/_rels/workbook.xml.rels"
+    out = BytesIO()
+    with (
+        zipfile.ZipFile(BytesIO(base)) as source,
+        zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as written,
+    ):
+        for item in source.infolist():
+            data = source.read(item.filename)
+            if item.filename == "[Content_Types].xml":
+                data = data.replace(f'"/{member}"'.encode(), f'"/{to}"'.encode())
+            elif item.filename == workbook_relations:
+                data = data.replace(f'"/{member}"'.encode(), f'"{target}"'.encode())
+            if item.filename != member:
+                written.writestr(item, data)
+        xml = source.read(member).replace(b"<sheetData/>", b"<sheetData></sheetData>")
+        before, after = re.sub(rb"<dimension [^>]*/>", b"", xml).split(b"</sheetData>")
+        with written.open(to, "w") as moved:
+            moved.write(before)
+            for piece in tail:
+                moved.write(piece)
+            moved.write(b"</sheetData>" + after)
+    return out.getvalue()
+
+
+def with_member(base: bytes, name: str, data: bytes) -> bytes:
+    """Give the workbook with one member more, ``name``, holding ``data``."""
+    out = BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target:
+        _copied(base, target)
+        target.writestr(name, data)
+    return out.getvalue()
+
+
+def with_relations(base: bytes, members: dict[str, bytes], relations: dict[str, str]) -> bytes:
+    """Give the workbook with ``members`` more, and relations: of each part, a type to a target.
+
+    A relation is written ``"<type> <target>"``, or ``"<type> <target> <mode>"``; it is added to
+    the relations the part holds, or makes them.
+    """
+    package = "http://schemas.openxmlformats.org/package/2006/relationships"
+    office = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    out = BytesIO()
+    with (
+        zipfile.ZipFile(BytesIO(base)) as source,
+        zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target,
+    ):
+        written = dict(members)
+        for part, relation in relations.items():
+            folder, name = part.rsplit("/", 1)
+            path = f"{folder}/_rels/{name}.rels"
+            kind, to, *mode = relation.split(" ")
+            element = f'<Relationship Id="rIdAdded" Type="{office}/{kind}" Target="{to}"'
+            element += f' TargetMode="{mode[0]}"/>' if mode else "/>"
+            end = "</Relationships>"
+            held = source.read(path).decode() if path in source.namelist() else ""
+            held = held or f'<Relationships xmlns="{package}">{end}'
+            written[path] = held.replace(end, element + end).encode()
+        for item in source.infolist():
+            if item.filename not in written:
+                target.writestr(item, source.read(item.filename))
+        for name, data in written.items():
+            target.writestr(name, data)
     return out.getvalue()
 
 
