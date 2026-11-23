@@ -236,6 +236,11 @@ paths = [
     "deploy/compose/grafana-datasource.yml",
     "deploy/compose/grafana-dashboards.yml",
     "deploy/compose/grafana-dashboard.json",
+    # In TLS, as in production (US-2840).
+    "deploy/compose/prometheus-web.yml",
+    "deploy/compose/prometheus-client.yml",
+    "deploy/compose/alertmanager-web.yml",
+    "deploy/compose/alertmanager-client.yml",
     "deploy/keycloak/**",
     "deploy/openldap/**",
     ".github/workflows/service.yml",
