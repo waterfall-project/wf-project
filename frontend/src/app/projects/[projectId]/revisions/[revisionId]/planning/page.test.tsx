@@ -549,6 +549,13 @@ describe("« Écarts seulement » on the grid of the planning [WF-REV-0100-A] [W
     expect(grid.given.at(-1)?.differential).toBe(true);
   });
 
+  it("offers no start date of its own on the own estimate of a risk, the main structure's being copied, and offers it on the main structure [US-3140] [WF-PLA-0020]", async () => {
+    await planning({ structure: RISK });
+    expect(grid.given.at(-1)?.planningStart?.editable).toBe(false);
+    await planning();
+    expect(grid.given.at(-1)?.planningStart?.editable).toBe(true);
+  });
+
   it("reads the own estimate of a risk occurred as the main structure, which bears no difference: none asked, none offered [US-3140] [WF-RIS-0060]", async () => {
     const consumed = "01926f3a-7c00-7000-8000-000000000205";
     server.answers = { ...server.answers, [NODES]: "nodes_risk_estimate_occurred" };

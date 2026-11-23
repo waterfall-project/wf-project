@@ -134,9 +134,13 @@ export interface PlanningGridProps {
   /**
    * The planning start date of the structure read (`CostStructure.planning_start_on`) and how the
    * screen names the structure: shown above the grid, and entered where the structure lists
-   * `edit_planning` (`updateCostStructure`, WF-PLA-0020). None, and the grid shows none.
+   * `edit_planning` (`updateCostStructure`, WF-PLA-0020), unless `editable` says it is not: the own
+   * estimate of a risk has none of its own, the main structure's being copied (WF-RIS-0030). None, and
+   * the grid shows none.
    */
-  readonly planningStart?: { readonly on: string; readonly label: string } | undefined;
+  readonly planningStart?:
+    | { readonly on: string; readonly label: string; readonly editable?: boolean }
+    | undefined;
   /** What the revision offers of the skeleton (`generate_skeleton`); none, it does not list it. */
   readonly skeleton?: CommandOffer | undefined;
   /**
@@ -591,7 +595,7 @@ export function PlanningGrid({
           read={structureVersion}
           label={planningStart.label}
           account={account}
-          editable={editable === true}
+          editable={editable === true && planningStart.editable !== false}
         />
       )}
       {offered && (skeleton !== undefined || ours !== undefined) ? (

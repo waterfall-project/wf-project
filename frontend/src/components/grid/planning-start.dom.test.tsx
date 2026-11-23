@@ -45,14 +45,19 @@ const ADVANCED = "volume/structure_planning_start_advanced";
 function grid({
   editable = true,
   locale = "fr",
-}: { readonly editable?: boolean; readonly locale?: Locale } = {}) {
+  startEditable = true,
+}: {
+  readonly editable?: boolean;
+  readonly locale?: Locale;
+  readonly startEditable?: boolean;
+} = {}) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <PlanningGrid
         nodes={planning}
         structure={STRUCTURE}
         structureVersion={1}
-        planningStart={{ on: "2026-03-02", label: LABEL }}
+        planningStart={{ on: "2026-03-02", label: LABEL, editable: startEditable }}
         filters={{ kinds: ["task"] }}
         query={NO_QUERY}
         preferences={undefined}
@@ -117,6 +122,14 @@ describe("the planning start date of the grid of the planning", () => {
       expect(within(region).queryByRole("button")).toBeNull();
     },
   );
+
+  it("offers no change of the date on a structure the page says has none of its own, the grid being entered [US-3140] [WF-PLA-0020-A]", () => {
+    serve({});
+    render(grid({ editable: true, startEditable: false }));
+    const region = screen.getByRole("region", { name: "Date de début de planning" });
+    expect(region).toHaveTextContent("02/03/2026");
+    expect(within(region).queryByRole("button")).toBeNull();
+  });
 
   it("writes the date with the version of the structure read, and shows the date the server answered [WF-PLA-0020-A]", async () => {
     const client = serve({ [STRUCTURE_ROUTE]: ADVANCED });

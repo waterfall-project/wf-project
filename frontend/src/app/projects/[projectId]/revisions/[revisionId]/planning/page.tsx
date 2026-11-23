@@ -247,7 +247,12 @@ export default async function PlanningPage({
                 nodes: screen.nodes,
                 structure: screen.structure,
                 structureVersion: screen.structureVersion,
-                planningStart: { on: screen.planningStart, label: screen.label },
+                // An own estimate has no start date of its own: the main structure's, copied.
+                planningStart: {
+                  on: screen.planningStart,
+                  label: screen.label,
+                  editable: screen.kind !== "risk",
+                },
                 filters: screen.filters,
                 query: screen.query,
                 preferences: screen.preferences,
