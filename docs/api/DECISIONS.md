@@ -12963,6 +12963,29 @@ depuis US-3320 et rend ces refus, comme le contrat les décrit. Pas d'exemple aj
 n'en prévoit pas, et le refus d'horizon d'`updateCalendar` (`calendar_update_horizon_exceeded`) en
 montre déjà la forme.
 
+### La marge totale et le chemin critique ne rendent pas une tâche modifiée (US-3300/L5, #4312)
+
+La comparaison de deux révisions (`compareRevisions`) disait une tâche modifiée dès qu'une valeur
+qu'elle porte diffère, calculée comprise (EP-27, « Ce qui fait un nœud modifié ») : une tâche que
+rien n'a touchée était modifiée (`other`) dès qu'une autre, allongée, lui changeait sa marge totale
+ou la faisait sortir du chemin critique, et ses récapitulatives avec elle. WF-REV-0080-A ne modifie
+une tâche que par « ses dates, sa durée, son état et son parent ». Décision de l'utilisateur du
+2026-11-22 : **`TaskFacet.total_float` et `TaskFacet.is_critical` ne sont pas comparés**, comme
+`finish_overdue`, parce que le moteur de planning les calcule de toute la structure :
+
+- une tâche dont seules la marge ou l'appartenance au chemin critique changent est `unchanged`, et
+  ne rend plus ses récapitulatives modifiées ; la remontée reste : une récapitulative qui porte une
+  tâche modifiée l'est, `changes` vide ;
+- `ComparedNodeBase` ne les porte jamais (sa description les nomme parmi ce qui n'est pas
+  comparé) ; `TaskDeltas.total_float` est retiré ;
+- le service les écarte des deux chemins, les lignes et les lectures gardées (US-2270), qui rendent
+  le même corps ; les exemples de `compareRevisions` sont engendrés de nouveau
+  (`wftools.mockdiff`) : le dossier de conception allongé n'y dit plus `other`, et ne porte plus de
+  marge dans `base` ni dans `deltas`.
+
+Écarté : garder l'écart de marge dans `deltas` sans rendre la tâche modifiée ; une colonne d'écart
+remplie sur une ligne inchangée contredirait la marque, que la grille ne recalcule pas.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

@@ -75,6 +75,17 @@ def conflicts(engine: Engine) -> set[tuple[UUID, UUID]]:
         return {(link_id, node_id) for link_id, node_id in rows}
 
 
+def aimed(engine: Engine) -> bool:
+    """Tell whether ``task_link`` bears the unique constraint the key of a conflict aims at."""
+    query = text(
+        "SELECT count(*) FROM pg_constraint"
+        " WHERE conrelid = 'task_link'::regclass AND contype = 'u'"
+        " AND conname = 'uq_task_link_project_id'"
+    )
+    with engine.connect() as connection:
+        return connection.scalar(query) == 1
+
+
 @pytest.mark.story("US-3300")
 def test_the_migration_keeps_the_manual_successor_of_each_link_in_conflict_marked_included(
     empty_engine: Engine,
@@ -98,7 +109,11 @@ def test_the_migration_keeps_the_manual_successor_of_each_link_in_conflict_marke
     assert sorted(revisions) == sorted([current, marked])
     with pytest.raises(IntegrityError, match="never written"), empty_engine.begin() as connection:
         connection.execute(delete(TaskLinkConflict).where(TaskLinkConflict.revision_id == marked))
+    assert aimed(empty_engine)
     downgrade(empty_engine, "0043")
     with empty_engine.connect() as connection:
         assert connection.scalar(text("SELECT to_regclass('task_link_conflict')")) is None
         assert connection.scalar(select(func.count()).where(TaskLink.in_conflict)) == 6
+    # The unique constraint the key of a conflict aims at goes with it, by the name the convention
+    # gives it in the tables (#4780).
+    assert not aimed(empty_engine)

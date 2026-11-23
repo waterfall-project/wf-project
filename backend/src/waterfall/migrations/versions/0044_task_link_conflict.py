@@ -7,7 +7,10 @@ row by link in conflict and by task in manual mode it cannot satisfy — its suc
 subordinate in manual mode of a summary successor (#3984, US-3300) —, keyed by the project, the link
 and the task. A row names its revision and its structure together, by the key towards the structure
 that names its revision too, as every revised row of the planning does (``0022``); its link by its
-key, and its task by a key that names its structure too. Every key cascades: the row follows the
+key, and its task by a key that names its structure too. The key of the link names its structure,
+so the migration first sets on ``task_link`` the unique constraint ``uq_task_link_project_id``
+``(project_id, id, structure_id)`` it aims at, the name the naming convention gives it in
+``tables.py``, and the descent drops it. Every key cascades: the row follows the
 deletion of its link, of its task or of its structure inside a current revision (§4.4.1), and goes
 with them at the abandonment of its revision (WF-DAT-0010). ``task_link.in_conflict`` stays, the
 engine writing both together.

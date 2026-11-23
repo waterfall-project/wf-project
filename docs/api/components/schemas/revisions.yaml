@@ -969,8 +969,10 @@ NodeChange:
     alone (`compareRevisions`): another value of the node differs, entered or computed, of
     either facet — a label, a description, a predecessor, an amount at the rates of the
     reference year, the amounts of a task, the remaining to commit previously re-estimated of a
-    line… —, which `ComparedNodeRead.base` names; the subproject and the cost category bring
-    their labels with them, which `other` does not say again. A label that changes alone, its
+    line… —, which `ComparedNodeRead.base` names; the total float and the membership of the
+    critical path of a task are not compared (`ComparedNodeBase`, #4312); the subproject and the
+    cost category bring their labels with them, which `other` does not say again. A label that
+    changes alone, its
     identifier kept — a subproject or a category renamed —, changes nothing of the node, which
     it neither makes `modified` nor says `subproject`, `cost_category` or `other`
     (`ComparedNodeBase`). On the read of a differential
@@ -2908,7 +2910,11 @@ ComparedNodeRead:
         `fields` names it or not, never null. It does not depend on `fields` either: a node is
         `modified` as soon as a value it carries differs, entered or computed, of either facet,
         whether the read returns it or not (`NodeChange`, EP-27) — a task said modified on the
-        estimate is said so on the planning.
+        estimate is said so on the planning —, save the total float and the membership of the
+        critical path of a task (`TaskFacet.total_float`, `TaskFacet.is_critical`), which the
+        planning engine computes from the whole structure: a task whose float alone changes,
+        or which enters or leaves the critical path without its dates changing, is `unchanged`,
+        and makes no summary modified (WF-REV-0080, #4312).
     base:
       anyOf: [{ $ref: '#/ComparedNodeBase' }, { type: 'null' }]
       description: >-
@@ -2940,8 +2946,12 @@ ComparedNodeBase:
     are there. Not compared, because they change from one revision to the other without
     anything of the node changing: the identifiers, the counter, the row, the rank and the
     level, the fields computed or enterable (`computed_fields`, `editable_fields`,
-    `EstimateLineFacet.remaining_entry`) and the overdue finish of a task
-    (`TaskFacet.finish_overdue`), a flag of the day it is computed on (EP-27). A node that a
+    `EstimateLineFacet.remaining_entry`), the overdue finish of a task
+    (`TaskFacet.finish_overdue`), a flag of the day it is computed on (EP-27), and the total
+    float and the membership of the critical path of a task (`TaskFacet.total_float`,
+    `TaskFacet.is_critical`), which the planning engine computes from the whole structure and
+    which change when another task does (WF-REV-0080 modifies a task by its dates, its
+    duration, its state and its parent; #4312): `task` never carries them here. A node that a
     value names is compared by its lineage, and named here by the node the comparison returns
     for it: the parent, a predecessor and the bearing task of a line
     (`EstimateLineFacet.bearing_task_node_id`), whose identifier differs from one revision to
@@ -2992,7 +3002,8 @@ NodeDeltas:
 TaskDeltas:
   type: object
   description: >-
-    The differences of the time facet of a modified node (`NodeDeltas.task`), none required.
+    The differences of the time facet of a modified node (`NodeDeltas.task`), none required;
+    none of the total float, which is not compared (`ComparedNodeBase`, #4312).
   properties:
     start:
       anyOf: [{ type: integer }, { type: 'null' }]
@@ -3015,9 +3026,6 @@ TaskDeltas:
       description: >-
         The duration read minus that of the base, in working time, in the unit of the duration
         read (WF-PLA-0160); signed, negative for a shorter task.
-    total_float:
-      anyOf: [{ $ref: '#/Duration' }, { type: 'null' }]
-      description: The total float read minus that of the base, in working days, signed.
     base_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-

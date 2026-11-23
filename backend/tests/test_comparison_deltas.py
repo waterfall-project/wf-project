@@ -126,9 +126,10 @@ def test_each_date_duration_and_amount_that_differs_gives_its_difference(
     # « l'écart à la base de chaque date, en jours calendaires, de chaque durée, en temps de
     # travail, et de chaque montant » : « Réception », two days in the base, one week read — the
     # difference in the unit read, 0.6 week at forty hours, its finish three days later, from the
-    # Tuesday to the Friday —, which gives the other tasks three days of float more; a line of
-    # twelve hours for ten, 130.00 more, its task and the summary above it with it. The hours of a
-    # line are no amount: they bear no difference.
+    # Tuesday to the Friday —, which gives the other tasks three days of float more, a value the
+    # planning engine computes, which bears no difference (#4312); a line of twelve hours for ten,
+    # 130.00 more, its task and the summary above it with it. The hours of a line are no amount:
+    # they bear no difference.
     _, current = pair
     nodes = by_label(current.items())
     current.changed(nodes["Réception"], duration={"value": "1", "unit": "w"})
@@ -139,14 +140,11 @@ def test_each_date_duration_and_amount_that_differs_gives_its_difference(
     }
     amounts = {"base_amount": "130.00", "budgeted_amount": "130.00", "reestimated_amount": "130.00"}
     assert found["Conception — Ingénieur"]["deltas"] == {"estimate_line": amounts}
-    floating = {"total_float": {"value": "3", "unit": "d"}}
-    assert (
-        found["Conception"]["deltas"]
-        == found["Études"]["deltas"]
-        == {"task": {**floating, **amounts}}
-    )
-    assert found["Plans"]["deltas"] == {"task": floating}
-    assert {found[each]["deltas"] is None for each in ("Tirages", "Banc d'essais")} == {True}
+    assert found["Conception"]["deltas"] == found["Études"]["deltas"] == {"task": amounts}
+    # « Plans » gains the float alone: unchanged, without a difference.
+    assert found["Plans"]["difference"] == "unchanged"
+    labels = ("Plans", "Tirages", "Banc d'essais")
+    assert {found[each]["deltas"] is None for each in labels} == {True}
 
 
 @pytest.mark.requirement("WF-IHM-0150-A")

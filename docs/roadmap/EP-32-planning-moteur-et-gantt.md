@@ -237,12 +237,15 @@ Une seule table nouvelle, `task_link_conflict`, par US-3300 : pour une liaison e
 tâches manuelles que son prédécesseur ne peut pas satisfaire.
 
 - colonnes : `project_id`, `link_id`, `node_id` — la clé —, `revision_id`, `structure_id` ;
-- partitionnée par projet, comme `task_link` ; clés étrangères vers `task_link` et vers `node`, qui
-  suivent la suppression de la liaison ou de la tâche à l'intérieur d'une révision en cours (§4.4.1) ;
-  le déclencheur des révisions marquées la tient en lecture seule comme les autres tables d'une
-  révision ;
+- partitionnée par projet, comme `task_link` ; trois clés étrangères : vers `task_link` et vers
+  `node`, qui suivent la suppression de la liaison ou de la tâche à l'intérieur d'une révision en
+  cours (§4.4.1), et vers la structure avec sa révision (`cost_structure`), la convention des
+  tables d'une révision (migration 0022) ; le déclencheur des révisions marquées la tient en
+  lecture seule comme les autres tables d'une révision ;
 - écrite par `kept` (`dating.py`), dans l'écriture qui pose `task_link.in_conflict`, lequel reste :
-  une liaison est en conflit dès qu'elle a une ligne ici ;
+  une liaison est en conflit dès qu'elle a une ligne ici, équivalence qui tient dès le premier
+  rejeu de la structure — après la migration, une liaison vers une récapitulative n'a ses lignes
+  qu'au premier rejeu (ci-dessous) ;
 - copiée à l'ouverture d'une révision avec les liaisons, puis récrite par `redate_copy` ; supprimée à
   l'abandon avec elles (WF-DAT-0010) ;
 - la migration la crée vide et la remplit, pour chaque liaison `in_conflict` dont le successeur est
@@ -417,7 +420,7 @@ l'étiquette `@shared` à `wftools.coverage` : ce que `make requirements` ne lit
 
 ## US-3300 — Le moteur de planning : les liaisons d'une récapitulative et les durées écoulées de moins d'un jour rendent des marges justes, et une liaison entre récapitulatives se calcule une fois
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PLA-0100-A`, `WF-PLA-0020-A`, `WF-PLA-0030-A`, `WF-PLA-0160-A`
 - **opérations** : aucune en propre — le moteur ; `listNodes` rend les marges, le chemin critique et
   les conflits qu'il calcule

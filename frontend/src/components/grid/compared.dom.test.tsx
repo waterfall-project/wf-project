@@ -540,6 +540,16 @@ describe("the base of a cell, read as the contract types it (#3781)", () => {
       expect(said(deltaFinish, null)).toBe("");
     });
 
+    it("keeps the total float column without a base, and has no difference column for it [WF-REV-0080-A, WF-IHM-0150-A]", () => {
+      const grid = comparedGrid(PLANNING_GRID, true);
+      const keys = grid.columns.map((column) => column.key);
+      const column = grid.columns.find((candidate) => candidate.key === "total_float");
+      expect(column).toBeDefined();
+      expect(column?.base).toBeUndefined();
+      expect(keys).toContain("delta_duration");
+      expect(keys).not.toContain("delta_total_float");
+    });
+
     it.each([
       ["days that are a text", deltaFinish, { task: { finish: "5" } }],
       ["days that are an object", deltaFinish, { task: { finish: { days: 5 } } }],

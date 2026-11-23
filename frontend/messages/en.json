@@ -232,7 +232,6 @@
       "deltaStartedOn": "Started-on difference",
       "deltaCompletedOn": "Completed-on difference",
       "deltaDuration": "Duration difference",
-      "deltaTotalFloat": "Float difference",
       "deltaUnitDisbursement": "Unit disbursement difference",
       "deltaBudgetedAmount": "Budgeted amount difference",
       "deltaReferenceAmount": "Reference amount difference",
