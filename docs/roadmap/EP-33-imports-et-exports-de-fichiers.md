@@ -533,7 +533,7 @@ absente d'un onglet (US-3200).
 
 ## US-3200 — Un devis ou un reste à engager dont un onglet a perdu une colonne lue est refusé, colonnes nommées
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0070-A`, `WF-INTF-0120-A`
 - **opérations** : `openImport`
 - **issue** : #4530

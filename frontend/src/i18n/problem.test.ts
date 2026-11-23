@@ -319,6 +319,28 @@ describe("the sentence of a refusal", () => {
     expect(say(noSheet, "en")).toContain("missing from the file: \u201CQuantité\u201D.");
   });
 
+  it("[US-3200] names each column an estimate lacks with its sheet, the format and the version being those of the refusal [WF-INTF-0070-A]", () => {
+    const missing: ProblemText = {
+      code: "FILE_FORMAT_UNREADABLE",
+      params: {
+        expected_format: "estimate",
+        expected_version: "1",
+        missing_columns: [
+          { header: "ID ligne", sheet: "Lignes" },
+          { header: "Heures", sheet: "Lignes" },
+          { header: "Débours unitaire", sheet: "Débours" },
+        ],
+      },
+    };
+    // The params are written against the schema: the contract example is tracked by #4785.
+    expect(say(missing, "en")).toBe(
+      "The file format cannot be read. Expected format: Estimate. Expected version: 1. Required columns missing from the file: \u201CID ligne\u201D (sheet \u201CLignes\u201D), \u201CHeures\u201D (sheet \u201CLignes\u201D) and \u201CDébours unitaire\u201D (sheet \u201CDébours\u201D).",
+    );
+    expect(say(missing, "fr")).toBe(
+      "Le format du fichier est illisible. Format attendu\u00A0: Devis. Version attendue\u00A0: 1. Colonnes exigées absentes du fichier\u00A0: \u00AB\u00A0ID ligne\u00A0\u00BB (onglet \u00AB\u00A0Lignes\u00A0\u00BB), \u00AB\u00A0Heures\u00A0\u00BB (onglet \u00AB\u00A0Lignes\u00A0\u00BB) et \u00AB\u00A0Débours unitaire\u00A0\u00BB (onglet \u00AB\u00A0Débours\u00A0\u00BB).",
+    );
+  });
+
   it("says the amount of the file and the amount written of a line rounded [WF-INTF-0120-A]", () => {
     const rounded: ProblemText = {
       code: "AMOUNT_ROUNDED",

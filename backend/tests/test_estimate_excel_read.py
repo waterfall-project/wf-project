@@ -42,6 +42,7 @@ from waterfall.core.estimate.excel.reader import (
     TOTAL_LABEL,
     VERSION_LABEL,
     Rejection,
+    check_workbook,
     read_number,
     read_workbook,
 )
@@ -634,3 +635,58 @@ def test_the_headers_and_labels_the_reader_expects_are_the_ones_the_writer_write
     }
     assert set(totalled) == set(TOTAL_HEADERS)
     assert all(str(value).startswith("=SUBTOTAL(109,") for value in totalled.values())
+
+
+def _without(headers: list[str], *dropped: str) -> list[str]:
+    return [header for header in headers if header not in dropped]
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_each_column_a_tab_lacks_is_named_with_its_tab_in_the_order_of_the_format() -> None:
+    # « un devis dont un onglet de lignes n'a plus « ID ligne », « Quantité », « Heures » ou
+    # « Débours unitaire » est refusé […] params.missing_columns nommant chaque colonne manquante
+    # avec son onglet » ; un en-tête renommé est une colonne absente.
+    content = workbook(
+        {
+            "SP-1": [_without(HEADERS, "ID ligne", "Heures")],
+            "SP-2": [HEADERS],
+            "SP-3": [[*_without(HEADERS, "Débours unitaire"), "Débours unitaire (€)"]],
+        }
+    )
+
+    with pytest.raises(UnprocessableError) as raised:
+        check_workbook(content)
+
+    assert raised.value.code == "FILE_FORMAT_UNREADABLE"
+    assert raised.value.params == {
+        "expected_format": "estimate",
+        "expected_version": "1",
+        "missing_columns": [
+            {"header": "Heures", "sheet": "SP-1"},
+            {"header": "ID ligne", "sheet": "SP-1"},
+            {"header": "Débours unitaire", "sheet": "SP-3"},
+        ],
+    }
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_a_column_the_format_reads_but_can_do_without_may_be_missing() -> None:
+    # « une colonne que le format ne lit pas peut manquer » ; la désignation, le délai de paiement
+    # et le sous-projet, lus mais jamais le fondement d'une application, restent à l'analyse.
+    lean = _without(HEADERS, "Désignation", "Délai de paiement (j)", "Sous-projet")
+
+    check_workbook(workbook({"SP-1": [lean]}))
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_a_tab_without_the_headers_of_lines_is_no_tab_of_lines_and_is_not_refused() -> None:
+    check_workbook(workbook({"SP-1": [HEADERS], "Notes": [["Remarque", "Quantité"]]}))
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_the_workbook_the_writer_writes_is_accepted_at_the_opening() -> None:
+    check_workbook(write_workbook(_round_trip_model()))

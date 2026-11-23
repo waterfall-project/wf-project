@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 from waterfall.core.estimate import importing
 from waterfall.core.estimate.interface.remaining_indicators import remaining_indicators
 from waterfall.core.estimate.remaining import analysing, applying, exporting
-from waterfall.core.estimate.remaining.excel.reader import check_header, read_remaining_workbook
+from waterfall.core.estimate.remaining.excel.reader import check_workbook, read_remaining_workbook
 from waterfall.core.estimate.remaining.excel.writer import write_workbook
 from waterfall.core.exchanges.interface import LARGEST_FILE, ExportedFile, kept_refusal
 from waterfall.core.projects.interface import project_facts
@@ -72,10 +72,12 @@ class RemainingFormat:
         """Keep, before any lock, the refusal of a file that is no workbook of a remaining.
 
         A workbook of an unknown version is refused too (422 ``FILE_FORMAT_UNREADABLE``,
-        ``expected_format`` ``remaining`` and ``expected_version``; WF-INTF-0070); ``None`` for
+        ``expected_format`` ``remaining`` and ``expected_version``; WF-INTF-0070), and so is one
+        whose tab of lines lacks « ID ligne », « Jours restants » or « Débours restant »
+        (``missing_columns``, each by its ``header`` and its ``sheet``; US-3200); ``None`` for
         one it reads.
         """
-        return kept_refusal(check_header, head)
+        return kept_refusal(check_workbook, head)
 
     def judge_header(self, session: Session, parsed: UnprocessableError | None) -> None:
         """Refuse a file that is not the workbook of a remaining of a known version (422)."""
