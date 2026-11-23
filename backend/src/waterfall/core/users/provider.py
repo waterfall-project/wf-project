@@ -21,7 +21,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
-from sqlalchemy import desc, insert, select
+from sqlalchemy import desc, insert, select, update
 
 from waterfall.core.users.accounts import (
     NewAccount,
@@ -33,15 +33,21 @@ from waterfall.core.users.accounts import (
     lock_account,
     unique_address,
 )
-from waterfall.core.users.identity import IDENTITY_FIELDS, LOCAL, inscribe
+from waterfall.core.users.identity import IDENTITY_FIELDS, LOCAL, display_name, inscribe
 from waterfall.core.users.tables import IdentitySyncReport, UserAccount
-from waterfall.platform.audit import Act, AuditValue
+from waterfall.platform.audit import (
+    Act,
+    AuditObject,
+    AuditValue,
+    Inscription,
+    record_all,
+)
 from waterfall.platform.errors import ConflictError
 from waterfall.platform.keycloak_admin import LocalIdentity, ProviderAccount
 from waterfall.platform.logs import get_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Sequence
     from datetime import datetime
 
     from sqlalchemy.orm import Session
@@ -305,6 +311,69 @@ def deactivate_unheld(session: Session, held: HeldAccount, at: datetime) -> bool
     account = change_columns(session, user_id, {"state": DEACTIVATED}, account.lock_version, stamp)
     inscribe(session, "user_deactivate", account, Act(None, at), {})
     return True
+
+
+def deactivate_all_unheld(session: Session, held: Sequence[HeldAccount], at: datetime) -> int:
+    """Deactivate the accounts the provider no longer holds, by the platform, all at once.
+
+    As ``deactivate_unheld`` each, but by one lock, one write and one inscription of all the
+    accounts, not four round trips of the database each: the reading holds the lock of the rule
+    for all its writes (WF-ARC-0090), and a directory of five hundred persons emptied would hold
+    it for as long as the round trips take. The caller runs them under the guard only for the
+    accounts the rule is about. Give how many were deactivated.
+    """
+    if not held:
+        return 0
+    wanted = {account.user_id: account.subject for account in held}
+    rows = session.execute(
+        select(
+            UserAccount.id,
+            UserAccount.idp_subject,
+            UserAccount.origin,
+            UserAccount.state,
+            UserAccount.first_name,
+            UserAccount.last_name,
+        )
+        .where(UserAccount.id.in_(wanted))
+        .order_by(UserAccount.id)
+        .with_for_update()
+    )
+    moving = {
+        row.id: row
+        for row in rows
+        if row.origin != LOCAL and row.state != DEACTIVATED and row.idp_subject == wanted[row.id]
+    }
+    session.execute(
+        update(UserAccount)
+        .where(UserAccount.id.in_(moving))
+        .values(
+            state=DEACTIVATED,
+            lock_version=UserAccount.lock_version + 1,
+            updated_at=at,
+            updated_by=None,
+        )
+    )
+    # Inscribed in the order the accounts were given, as one by one.
+    record_all(
+        session,
+        [
+            Inscription(
+                "user_deactivate",
+                None,
+                AuditObject(
+                    "user",
+                    account.user_id,
+                    display_name(
+                        moving[account.user_id].first_name, moving[account.user_id].last_name
+                    ),
+                ),
+                at,
+            )
+            for account in held
+            if account.user_id in moving
+        ],
+    )
+    return len(moving)
 
 
 def identity_to_restore(session: Session, subject: str) -> LocalIdentity | None:

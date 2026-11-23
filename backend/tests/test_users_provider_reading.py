@@ -43,6 +43,7 @@ from waterfall.core.users.interface import (
     SkippedAddressHeld,
     SkippedPerson,
     SyncReport,
+    deactivate_all_unheld,
     deactivate_unheld,
     follow,
     identity_to_restore,
@@ -302,6 +303,37 @@ def test_an_account_the_provider_no_longer_holds_is_deactivated_by_the_platform(
     as_local = HeldAccount(local["id"], local["idp_subject"])
     assert deactivate_unheld(session, as_local, NOON) is False
     assert session.get_one(UserAccount, local["id"]).state == "active"
+
+
+@pytest.mark.requirement("WF-DAT-0070-A")
+def test_the_accounts_the_provider_no_longer_holds_are_deactivated_all_at_once_as_one_by_one(
+    session: Session,
+) -> None:
+    # The same as each deactivated alone, in one lock, one write and one inscription: the reading
+    # holds the lock of the rule for all of them (#4748).
+    gone = [held(session, email=f"gone{rank}@example.org") for rank in range(3)]
+    local = held(session, email="local@example.org", origin="local")
+    off = held(session, email="off@example.org", state="deactivated")
+    moved = held(session, email="moved@example.org")
+    before = session.get_one(UserAccount, gone[0]["id"]).lock_version
+    asked = [
+        *(HeldAccount(row["id"], row["idp_subject"]) for row in gone),
+        HeldAccount(local["id"], local["idp_subject"]),
+        HeldAccount(off["id"], off["idp_subject"]),
+        HeldAccount(moved["id"], "another-subject"),
+    ]
+    assert deactivate_all_unheld(session, [], NOON) == 0
+    assert deactivate_all_unheld(session, asked, NOON) == 3
+    for row in gone:
+        stored = session.get_one(UserAccount, row["id"], populate_existing=True)
+        assert (stored.state, stored.updated_by, stored.updated_at) == ("deactivated", None, NOON)
+        assert stored.lock_version == before + 1
+    for row in (local, moved):
+        assert session.get_one(UserAccount, row["id"], populate_existing=True).state == "active"
+    assert journal(session) == [("user_deactivate", None, row["id"], {}) for row in gone]
+    # Deactivated, they are left as they are.
+    assert deactivate_all_unheld(session, asked, NOON) == 0
+    assert len(journal(session)) == 3
 
 
 def test_the_report_read_is_that_of_the_latest_reading(session: Session) -> None:

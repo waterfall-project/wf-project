@@ -35,6 +35,7 @@ from waterfall.platform.audit import (
     Inscription,
     forget_account,
     record,
+    record_all,
 )
 from waterfall.platform.logs import logging_context
 
@@ -137,6 +138,29 @@ def test_two_inscriptions_of_one_instant_are_ordered_as_they_were_written(
 ) -> None:
     written = [inscribe(database, role_created()) for _ in range(5)]
     assert sorted(written) == written
+
+
+def test_several_actions_are_inscribed_by_one_write_in_their_order_or_none_is(
+    database: Database,
+) -> None:
+    objects = [AuditObject("backup", uuid4(), None) for _ in range(3)]
+    several = [role_created(audited=each, action="backup", actor=None) for each in objects]
+    with logging_context(correlation_id=CORRELATION), database.transaction() as session:
+        record_all(session, [])
+        record_all(session, several)
+    with database.transaction() as session:
+        written = session.scalars(select(AuditEntry).order_by(AuditEntry.id)).all()
+    assert [entry.object_id for entry in written] == [each.object_id for each in objects]
+    assert {entry.correlation_id for entry in written} == {CORRELATION}
+    # One that breaks a rule of the journal inscribes none of them.
+    broken = [*several, role_created(params={"token": "abc"})]
+    with (
+        pytest.raises(AuditError, match="secret"),
+        logging_context(correlation_id=CORRELATION),
+        database.transaction() as session,
+    ):
+        record_all(session, broken)
+    assert count(database) == 3
 
 
 def test_an_inscription_is_lost_with_the_action_whose_transaction_is_rolled_back(
