@@ -37,11 +37,13 @@ Risk:
     - audit
     - lock_version
   description: >-
-    The severity is the total of the risk's own structure and the provision is that severity
-    weighted by the probability: neither is entered (WF-RIS-0010), and the risk names what
-    they depend on (`computed_fields`). It carries its commands, available or not
-    (`available_commands`, WF-IHM-0090). Its probability is written only through the review
-    (`reviewRisk`, WF-RIS-0010).
+    The severity is the net gap that the risk's own estimate makes to the cost of the project,
+    signed — negative for an opportunity —, and the provision is that severity weighted by the
+    probability, never below zero: neither is entered (WF-RIS-0010, WF-RIS-0080), and the risk
+    names what they depend on (`computed_fields`). It carries its commands, available or not
+    (`available_commands`, WF-IHM-0090), and its trend since the previous marked revision
+    (`trend`, WF-RIS-0040). Its probability is written only through the review (`reviewRisk`,
+    WF-RIS-0010).
   properties:
     risk_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
@@ -54,34 +56,57 @@ Risk:
     probability: { $ref: ../common.yaml#/Percent }
     severity:
       allOf: [{ $ref: ../common.yaml#/Money }]
-      description: Computed, never entered (WF-RIS-0010).
+      description: >-
+        Computed, never entered (WF-RIS-0010), signed: the net gap of the re-estimated totals of
+        the main structure carrying what the own estimate designates — its additions, the values
+        it modifies, the tasks it abandons, and what the dates the engine then gives the tasks
+        downstream change to their amounts — and of the main structure without it, provision
+        lines excluded (WF-RIS-0080, WF-DEV-0030). Negative, the risk is an opportunity: the
+        register presents it so, with a provision of `0.00`, and the matrix at the lowest
+        severity level (`matrix_cell`, WF-RIS-0040). Zero as long as the own estimate designates
+        nothing. Recorded with the assessment of the risk in the revision read, at each write of
+        its own estimate and at each update (`rebaseCostStructure`), never recomputed at the
+        read: a write of the main structure does not change it, an out of date or pruned own
+        estimate giving the one it recorded (`CostStructure.is_up_to_date`,
+        `CostStructure.is_pruned`; WF-RIS-0070). For an occurred risk, its cost at occurrence
+        (`occurrence_cost`), in the revision where it occurred as in those that follow it, which
+        no longer take its own estimate over (#4400).
     provision_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
         For an identified risk, its current provision, the severity weighted by the probability,
-        which its provision line carries. For an occurred or dismissed risk, which no longer
+        to the cent, never below zero — that of an opportunity is `0.00`, and its provision line
+        remains, at a zero amount, so that an opportunity does not reduce the remaining to
+        commit before it is realised (WF-RIS-0010, WF-RIS-0080) —, which its provision line
+        carries. For an occurred or dismissed risk, which no longer
         carries a line, the provision it held in the reference revision, `0.00` if it was not
         identified there (WF-RIS-0040, WF-RIS-0050): the register row thus sums into the totals
         (`ProvisionTotals`). Never in the reference budget (WF-RIS-0050).
     occurrence_cost:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
       description: >-
-        The cost at occurrence of an occurred risk: the total of its own estimate at the moment
-        it was declared occurred, which neither the re-estimations nor the completion of the
-        merged tasks change, and which the coverage compares with the reserve (WF-RIS-0010,
-        WF-RIS-0050, WF-RIS-0060; `RiskCoverageTotals.occurred_cost`). A revision data item,
-        which abandoning the revision in which the risk occurred erases (WF-RIS-0020).
-        Null for an identified or dismissed risk.
+        The cost at occurrence of an occurred risk, signed: its severity at the moment it was
+        declared occurred, the net gap its own estimate then made to the project — negative for
+        a realised opportunity —, frozen: neither the re-estimations, nor the completion of the
+        tasks, nor an amendment change it. The coverage counts it as it is, a negative cost
+        offsetting the overrun of another occurred risk (WF-RIS-0010, WF-RIS-0050, WF-RIS-0060;
+        `RiskCoverageTotals.occurred_cost`). A revision data item, which abandoning the revision
+        in which the risk occurred erases (WF-RIS-0020). Null for an identified or dismissed
+        risk.
     occurred_reestimated_amount:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
       description: >-
-        For an occurred risk, the sum of the current reestimated amounts, inflation included, of
-        the lines of the revision read that came from it (`Node.origin_risk_id`, WF-RIS-0060):
-        what the lines that its occurrence merged cost today, which the register presents
-        alongside the cost at occurrence (`occurrence_cost`) to show its drift. Information
-        outside the coverage, whose variance remains computed on the cost at occurrence
-        (`RiskCoverageTotals.occurred_reestimated`, WF-RIS-0050; #1761). Null for an identified
-        or dismissed risk.
+        For an occurred risk, what it costs today, signed: the part of its cost at occurrence
+        that does not come from the lines its occurrence added — what it did to the lines it
+        modified and to the tasks it abandoned, frozen at the occurrence —, increased by the sum
+        of the current reestimated amounts, inflation included, of the lines of the revision read
+        that it added (`Node.origin_risk_id`, WF-RIS-0060). Equal to the cost at occurrence on
+        the day of the occurrence, it then follows the re-estimation of the added lines alone:
+        that of a line the risk modified does not change it (WF-RIS-0050; author's decision of
+        2026-11-19). The register presents it alongside the cost at occurrence
+        (`occurrence_cost`) to show its drift. Information outside the coverage, whose variance
+        remains computed on the cost at occurrence (`RiskCoverageTotals.occurred_reestimated`,
+        WF-RIS-0050; #1761). Null for an identified or dismissed risk.
     state: { $ref: '#/RiskState' }
     structure_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
@@ -159,11 +184,14 @@ Risk:
       description: >-
         The fields of the risk that the server computes, each with what it depends on, which the
         refusal of an entry names (WF-IHM-0030): the severity and the provision, in that order,
-        for every risk, then the cost at occurrence of an occurred risk. The severity depends on
-        the own estimate (`own_estimate`); the provision of an identified risk, on its severity
-        and its probability (`severity_and_probability`), that of an occurred or dismissed risk,
-        on the reference revision (`reference_provision`); the cost at occurrence, on the own
-        estimate at the moment of the occurrence (`occurrence_estimate`). The rules of the
+        for every risk, then the cost at occurrence of an occurred risk. The severity of an
+        identified or dismissed risk depends on its own estimate and on its base, the gap of
+        their totals (`own_estimate`, WF-RIS-0080); that of an occurred risk, its cost at
+        occurrence, on its own estimate at the moment of the occurrence (`occurrence_estimate`,
+        #4400); the provision of an identified risk, on its severity and its probability
+        (`severity_and_probability`), that of an occurred or dismissed risk, on the reference
+        revision (`reference_provision`); the cost at occurrence, on the own estimate at the
+        moment of the occurrence (`occurrence_estimate`). The rules of the
         computation, not the lines of the own estimate: they are read with the risk, without
         calling on the refusal.
       minItems: 2
@@ -181,6 +209,18 @@ Risk:
         `RevisionCommand.edit_risks`). The risk of a terminal project lists none
         (US-0702/L3). A call sent despite the list is refused with its error code.
       items: { $ref: '#/RiskCommandAvailability' }
+    trend:
+      anyOf: [{ $ref: '#/RiskTrend' }, { type: 'null' }]
+      description: >-
+        The trend of an identified risk since the marked revision that precedes the revision
+        read (`RiskTrend`, WF-RIS-0040), computed by the server at the read: the front compares
+        nothing (WF-ARC-0020). Null for an occurred or dismissed risk, and for every risk when
+        no revision was marked before the revision read, as the variance of the remaining to
+        commit is then absent (WF-RAE-0020). That of a marked revision is the one it had against
+        the marked revision preceding it, and no longer changes; that of the current revision
+        follows the severity and the probability recorded, hence each entry in the own estimate,
+        each update and each review. The register filters and sorts on it (`listRisks`,
+        `trends`, `sort_by`).
     audit: { $ref: ../common.yaml#/Audit }
     lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
@@ -196,13 +236,29 @@ Risk:
         likewise advances when the subproject it designated is deleted
         (`provision_subproject_id`, #732).
 
+RiskTrend:
+  type: string
+  enum: [up, down, stable, new]
+  description: >-
+    The trend of an identified risk since the previous marked revision (WF-RIS-0040): the signed
+    product of its severity by its probability in the revision read, against that of its
+    assessment in the marked revision preceding it, both as recorded — `up` when it has grown,
+    `down` when it has shrunk, `stable` when it is the same; the provision, floored at zero,
+    plays no part, and an opportunity that goes from −30 to −45 is `down`. `new` for a risk
+    identified in the revision read that was not identified in that marked revision: declared
+    since, or dismissed there and identified again. The order of the values is that of the sort
+    of the register (`listRisks`, `sort_by=trend`), as the order of `RiskState` is that of the
+    sort on the state.
+
 ProvisionTask:
   type: object
   required: [node_id, label]
   description: >-
-    The task of the main structure that carries the provision line of a risk
-    (WF-RIS-0010), by its node and its label, as a refusal names a task. The report of an
-    occurrence names it the same way when it is completed
+    The task of the main structure that carries the provision line of a risk (WF-RIS-0010), by
+    its node and its label, as a refusal names a task. The designation says only where the
+    provision weighs, in which subproject and at which dates: the occurrence places nothing
+    under it (WF-RIS-0060; author's decision of 2026-11-21). The report of an occurrence that
+    grafts names it the same way when it is completed
     (`RiskOccurrenceReport.completed_provision_task`, #4240).
   properties:
     node_id: { $ref: ../common.yaml#/Uuid }
@@ -235,7 +291,14 @@ RiskCommand:
     includes the merge that it triggers and does not require `structure_merge` (WF-ADM-0100) —;
     unavailable for a risk that is not identified, `risk_identified` missing, and, when the
     project has no current revision, for whoever lacks `revisions.write`,
-    `may_create_revision` missing: it would create it (WF-RIS-0060).
+    `may_create_revision` missing: it would create it (WF-RIS-0060). The own estimate of an
+    identified risk weighs last on `review` and `declare_occurrence`: pruned by a marking, it
+    lacks `own_estimate_whole`, and out of date, the main structure having changed since its
+    last update, `own_estimate_up_to_date` — the screen recomposes and updates it first
+    (`recomposeCostStructure`, `rebaseCostStructure`), the review and the occurrence not
+    updating it themselves (WF-RIS-0070). The `review` of a dismissed risk does not name them:
+    confirming it dismissed requires neither, and its return to the identified state is refused
+    by its 409, as the return names `at_least_one_task` (`reviewRisk`).
 
 RiskCommandAvailability:
   type: object
@@ -377,7 +440,12 @@ RiskReview:
   properties:
     reviewed_on: { $ref: ../common.yaml#/PlanningDate }
     probability: { $ref: ../common.yaml#/Percent }
-    severity: { $ref: ../common.yaml#/Money }
+    severity:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        The severity the review retained, signed, as the risk recorded it then (`Risk.severity`,
+        WF-RIS-0040, WF-RIS-0080): negative for an opportunity; for the review of an occurrence,
+        the cost at occurrence (`Risk.occurrence_cost`).
     state: { $ref: '#/RiskState' }
     actor: { $ref: ../common.yaml#/ActorRef }
 
@@ -424,13 +492,15 @@ RiskOccurrence:
   type: object
   required: [confirmed, main_structure_lock_version, risk_lock_version, creates_current_revision]
   description: >-
-    Declares the risk occurred: merges its own estimate into the main structure of the current
-    revision, at the place that `declareRiskOccurrence` states, each merged line keeping its
-    quantities, with a zero budgeted amount and as reestimated amount the amount that its
-    quantities and its dates give; the provision line is removed, and the risk keeps its cost
-    at occurrence (`Risk.occurrence_cost`). Marks no revision and does not move the reference
-    (WF-RIS-0060). Final: no command undoes it, only abandoning the current revision reverts it
-    (WF-RIS-0060). The confirmation follows the preliminary report
+    Declares the risk occurred: merges into the main structure of the current revision what its
+    own estimate designates, on the current figures alone — the tasks and the lines it adds,
+    the lines created with a zero budgeted amount; the lines it modifies, which keep their
+    reference figures and take its current ones; the tasks it abandons, kept and completed on
+    the day of the occurrence whatever their state —, as `declareRiskOccurrence` states; the
+    provision line is removed, and the risk keeps its cost at occurrence
+    (`Risk.occurrence_cost`). Marks no revision and does not move the reference (WF-RIS-0060).
+    Final: no command undoes it, only abandoning the current revision reverts it (WF-RIS-0060).
+    The confirmation follows the preliminary report
     (`getRiskOccurrenceReport`) and carries the two lock versions it read, and whether it was
     creating the current revision: with the main structure or the risk changed since — and the
     risk also changes on any entry in its own estimate (`Risk.lock_version`) —, or a current
@@ -471,12 +541,16 @@ RiskOccurrenceReport:
     - refusals
   description: >-
     Report of the occurrence of a risk, presented before its confirmation (WF-RIS-0060;
-    US-0680, #1383): what it would do to the main structure of the current revision, and to the
-    remaining to commit. It takes up the elements of the report of the merge of a differential
-    (`StructureMergeReport`), and reads the same way. Both arrays are always returned, empty when
-    there is nothing to say; the occurrence applies only if `refusals` is empty. It returns the
-    lock versions read, and whether it creates the current revision, which the confirmation
-    sends back (`RiskOccurrence`).
+    US-0680, #1383): what it would do to the main structure of the current revision, to the
+    remaining to commit and to the earned value. The occurrence is the merge of what the own
+    estimate designates (WF-RIS-0060): the report has the form of the report of the merge of a
+    differential (`StructureMergeReport`), and reads the same way — the differences, the tasks it
+    completes, the reasons that refuse it, the counters read —, with what is its own: the tasks
+    it reopens, the earned value it brings and withdraws (WF-IND-0030, WF-IND-0140), the amount
+    of the provision removed. Its arrays are empty when there is nothing to say; the occurrence
+    applies only if `refusals` is empty. It returns the lock versions read,
+    and whether it creates the current revision, which the confirmation sends back
+    (`RiskOccurrence`).
   properties:
     main_structure_lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
@@ -507,32 +581,67 @@ RiskOccurrenceReport:
     differences:
       type: array
       description: >-
-        The differences that the occurrence would make in the main structure, like those of a
-        merge (`ImportDifference`), in this order: the tasks and the lines of the own estimate,
-        added (`added`) in the order of its plan — its top-level tasks in last position under the
-        task that carries the provision line, or, when that is a milestone, immediately after
-        it, under its parent task or at the top level; an addition has no lineage yet, and the
-        internal links of the own estimate come with its tasks —; the carrying task changed
-        (`updated`), now the summary task of these tasks, `fields` naming what changes about
-        it, its dates and its duration now covering those of its subordinates (WF-PLA-0040)
-        — a milestone, which remains a milestone without subtasks, is not changed —; the
-        provision line removed (`removed`). The added tasks keep their subordinates, their
-        internal links, their durations and their modes, a task without a predecessor in the own
-        estimate switching to manual mode at the dates it had there; the added lines take a zero
-        budgeted amount (WF-RIS-0060). Each other task of the main structure whose calculated
-        dates the graft changes — a task linked to the carrying task, now a summary task, or to
-        one of its ancestors —, is one more `updated` difference, after the carrying task and in
-        the order of the plan, `fields` naming its dates by the columns of the grid (`start`,
-        `finish`, in the order of `NodeColumn`): the dates are those the scheduling engine gives,
-        replayed once on the structure the occurrence leaves, the very pass that judges the
-        grounds for refusal; a task that nothing links to the graft does not appear (#4134).
+        The differences that the occurrence would make in the main structure, those of a merge
+        (`ImportDifference`, `StructureMergeReport.differences`): what the own estimate
+        designates against the main structure, tasks, estimate lines and links — the tasks, the
+        lines and the links it adds (`added`), at the place it gives them, an addition having no
+        lineage yet in the main structure, the lines created with a zero budgeted amount; the
+        values it modifies (`updated`), `fields` naming them, a modified line taking them as its
+        current figures and keeping its reference figures; the tasks it abandons, kept in the
+        main structure and completed whatever their state (`kept`), which `completed_tasks` also
+        names when they are not completed yet —, then the provision line removed (`removed`).
+        The occurrence places nothing under the task that carried the provision line
+        (WF-RIS-0060; author's decision of 2026-11-21). Provisional rule of EP-08, as long as
+        the occurrence grafts the own estimate (US-3100): each other task of the main structure
+        whose calculated dates the graft changes is one more `updated` difference, in the order
+        of the plan, `fields` naming its dates by the columns of the grid (`start`, `finish`, in
+        the order of `NodeColumn`): the dates are those the scheduling engine gives, replayed
+        once on the structure the occurrence leaves, the very pass that judges the grounds for
+        refusal (#4134).
       items: { $ref: exchanges.yaml#/ImportDifference }
+    completed_tasks:
+      type: array
+      description: >-
+        The tasks that the own estimate abandons and that are not completed yet, started or not,
+        which the occurrence keeps and completes on its day, their remaining to commit brought to
+        zero and their budgeted amount unchanged (`completed_on` null as long as the occurrence
+        is not applied): the rule an amendment applies to a started task it removes
+        (`StructureMergeReport.completed_tasks`, WF-REV-0050), applied here to every task, which
+        thus acquires its budgeted amount (WF-RIS-0060, WF-IND-0030). A task already completed
+        that it abandons stays as it is, kept (`differences`), and is not named here. Empty when
+        it abandons none.
+      items: { $ref: exchanges.yaml#/ImportCompletedTask }
+    reopened_tasks:
+      type: array
+      description: >-
+        The completed tasks that the occurrence reopens, by their lineage and their label: a task
+        one of whose lines the own estimate modifies, or a completed summary task under which it
+        adds a task (WF-RIS-0060, WF-PLA-0040). A warning, not a refusal: it is not in
+        `refusals`, and the occurrence applies; the earned value these tasks had acquired falls
+        back (`earned_value_removed`, WF-IND-0030). It extends to every reopened task the warning
+        of a completed carrying task (`completed_provision_task`, #4240). Empty when it reopens
+        none.
+      items: { $ref: '#/RiskOccurrenceReopenedTask' }
+    earned_value_added:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        The earned value that the occurrence brings at once, on its day: the budgeted amount of
+        the tasks it completes (`completed_tasks`, WF-IND-0030), `0.00` when it completes none.
+        With `earned_value_removed`, the step of the occurrence on the earned value curve
+        (`CurveSeries.steps`, WF-IND-0140).
+    earned_value_removed:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        The earned value that the occurrence withdraws at once: what the tasks it reopens had
+        acquired (`reopened_tasks`, WF-IND-0030), `0.00` when it reopens none. The step of the
+        occurrence is `earned_value_added` minus this amount (WF-IND-0140).
     provision_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
         The amount of the removed provision line, which leaves the remaining to commit — the
-        provision of the risk (`Risk.provision_amount`); the remaining to commit increases by the
-        total of the own estimate, minus this amount (WF-RIS-0060).
+        provision of the risk (`Risk.provision_amount`), `0.00` for an opportunity; the remaining
+        to commit increases by the severity of the risk, the net gap its own estimate makes,
+        minus this amount (WF-RIS-0060, WF-RIS-0080).
     refusals:
       type: array
       description: >-
@@ -550,7 +659,9 @@ RiskOccurrenceReport:
         `refusals`, the occurrence applies, and it redates nothing — the tasks keep the dates
         they had in the own estimate (WF-RIS-0060, WF-PLA-0020), which then lie in the past
         (#4133). A change of the start date of the own estimate (`updateCostStructure`) advances
-        `risk_lock_version`, so that a report read before it is stale.
+        `risk_lock_version`, so that a report read before it is stale. A provisional rule of
+        EP-08, withdrawn with the graft (US-3100, #4632): the own estimate no longer has a start
+        date of its own, being that of the main structure.
     completed_provision_task:
       anyOf: [{ $ref: '#/ProvisionTask' }, { type: 'null' }]
       description: >-
@@ -561,19 +672,34 @@ RiskOccurrenceReport:
         the graft writes nothing else. The task becomes the summary task of the grafted tasks,
         its state derived from theirs, not started (WF-PLA-0040): it is not started again, and
         the earned value it had acquired falls back (WF-IND-0030) — `differences` does not say it:
-        no column of `NodeColumn` names the state (#4240). A provisional rule: EP-30, which
-        prepares the own estimate as a differential, takes it over, extending the warning to
-        every task the occurrence reopens.
+        no column of `NodeColumn` names the state (#4240). A provisional rule of the graft: the
+        occurrence that merges what the own estimate designates places nothing under the
+        carrying task, and names every task it reopens in `reopened_tasks`, which extends this
+        warning (WF-RIS-0060).
+
+RiskOccurrenceReopenedTask:
+  type: object
+  required: [lineage_id, label]
+  description: >-
+    A completed task of the main structure that the occurrence of a risk reopens, by its lineage
+    and its label, as the report names the tasks it completes (`ImportCompletedTask`): it is no
+    longer completed once the occurrence applies, and the earned value it had acquired falls back
+    (WF-RIS-0060, WF-IND-0030).
+  properties:
+    lineage_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string }
 
 RiskMatrixCell:
   type: object
   required: [probability_level, severity_level, zone]
   description: >-
     The cell of a risk: its levels on the bounds of the matrix, and the zone that the
-    installation gives to the cell (WF-RIS-0040, WF-REF-0160). On a zero base — a project
-    without a reference budget whose estimate carries only provisions so far —, the severity
-    relates to nothing: the risk is at the lowest severity level, `1`, its severity share not
-    computable (`RiskMatrixPoint.severity_ratio`, #1240).
+    installation gives to the cell (WF-RIS-0040, WF-REF-0160). The matrix classes the signed
+    share of the base: an opportunity, whose share is negative, is under the first bound, at the
+    lowest severity level, `1`, whatever its probability, and counted in its cell (WF-RIS-0080).
+    On a zero base — a project without a reference budget whose estimate carries only provisions
+    so far —, the severity relates to nothing: the risk is at the lowest severity level, `1`,
+    its severity share not computable (`RiskMatrixPoint.severity_ratio`, #1240).
   properties:
     probability_level: { type: integer, minimum: 1, maximum: 4 }
     severity_level: { type: integer, minimum: 1, maximum: 4 }
@@ -621,13 +747,16 @@ RiskMatrixPoint:
     probability: { $ref: ../common.yaml#/Percent }
     severity_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
-      description: The severity of the risk (`Risk.severity`), what it would cost if it occurred.
+      description: >-
+        The severity of the risk (`Risk.severity`), what it would cost if it occurred, signed:
+        negative for an opportunity, whose bubble is sized by its absolute value (WF-RIS-0080).
     severity_ratio:
       allOf: [{ $ref: indicators.yaml#/Computable }]
       description: >-
         The severity as a share of the base of the risk's project — its reference budget, or
         before it the total excluding provisions of the estimate of its current revision
-        (WF-REF-0160) —, rounded to four decimal places (README, "A share…"). The cell of the
+        (WF-REF-0160) —, rounded to four decimal places (README, "A share…"), signed: negative
+        for an opportunity, which is at the lowest severity level (`RiskMatrixCell`). The cell of the
         risk and its zone are those of the exact share, which the severity bounds classify
         before rounding: a bubble less than half a hundredth of a percent from a bound may be
         drawn on the line of that bound, in the cell that `zone` states. The level of a point
@@ -740,9 +869,9 @@ RiskCoverageTotals:
     reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050). The completion or the
     re-estimation of the tasks that came from an occurred risk changes neither the cost of the
     occurred risks nor the coverage variance (WF-RIS-0050). Alongside the cost of the occurred
-    risks, the current reestimated amount of the lines that came from them
-    (`occurred_reestimated`), which shows their drift without entering into the
-    variance (#1761).
+    risks, what they cost today (`occurred_reestimated`), which shows their drift without
+    entering into the variance (#1761). The costs at occurrence are signed, and the variance
+    counts them as they are (WF-RIS-0050).
   properties:
     reserve:
       allOf: [{ $ref: ../common.yaml#/Money }]
@@ -763,17 +892,20 @@ RiskCoverageTotals:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
         The sum of the costs at occurrence of the occurred risks (`Risk.occurrence_cost`,
-        WF-RIS-0010): the total of their own estimate at the moment of the occurrence, which
-        neither the re-estimations nor the completion of the merged tasks change (WF-RIS-0050).
+        WF-RIS-0010), signed: the severity of each at the moment of its occurrence, which neither
+        the re-estimations nor the completion of the tasks change (WF-RIS-0050). Counted as it
+        is: the negative cost of a realised opportunity offsets the overrun of another occurred
+        risk, and improves the coverage variance by as much (author's decision of 2026-11-21).
     occurred_reestimated:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        The sum of the current reestimated amounts of the lines that came from the occurred
-        risks (`Risk.occurred_reestimated_amount`), presented alongside the cost at occurrence
-        (`occurred_cost`): information on the drift of the occurred risks, which the coverage
-        variance does not count, and which follows the re-estimations and completions that the
-        cost at occurrence ignores (WF-RIS-0050, WF-RIS-0060; #1761). `0.00` without an occurred
-        risk.
+        The sum of what the occurred risks cost today, signed
+        (`Risk.occurred_reestimated_amount`): for each, the frozen part of its cost at occurrence
+        that does not come from the lines it added, increased by the current reestimated amount
+        of those lines, presented alongside the cost at occurrence (`occurred_cost`):
+        information on the drift of the occurred risks, which the coverage variance does not
+        count, and which follows the re-estimations of the added lines that the cost at
+        occurrence ignores (WF-RIS-0050, WF-RIS-0060; #1761). `0.00` without an occurred risk.
     coverage_variance:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-

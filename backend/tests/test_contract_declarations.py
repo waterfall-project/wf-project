@@ -565,6 +565,14 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     ("listRisks", "query", "occurred_reestimated_amount_max"): (
         r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
     ),
+    # The sort on the trend of a risk, written into the contract before the service sorts on it
+    # (US-3080/L1, #4628): US-3160, which serves the trend, declares it and takes this drift back.
+    ("listRisks", "query", "sort_by"): (
+        "declared enum={'label', 'last_review_on', 'occurred_reestimated_amount', "
+        "'occurrence_cost', 'probability', 'provision_amount', 'severity', 'state'}, "
+        "contract enum={'label', 'last_review_on', 'occurred_reestimated_amount', "
+        "'occurrence_cost', 'probability', 'provision_amount', 'severity', 'state', 'trend'}"
+    ),
     ("listResourceRoles", "query", "monthly_hours_min"): (
         r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
     ),

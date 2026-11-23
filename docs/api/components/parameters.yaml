@@ -761,15 +761,19 @@ RiskProbabilityMax:
 RiskSeverityMin:
   name: severity_min
   in: query
-  description: Restricts to the risks whose severity reaches this bound, inclusive (WF-RIS-0040).
+  description: >-
+    Restricts to the risks whose severity reaches this bound, inclusive (WF-RIS-0040): signed,
+    it accepts a negative value, an opportunity having a negative severity (WF-RIS-0080); that
+    of an occurred risk is its cost at occurrence (#4400).
   schema: { $ref: common.yaml#/Money }
 
 RiskSeverityMax:
   name: severity_max
   in: query
   description: >-
-    Restricts to the risks whose severity does not exceed this bound, inclusive; lower than
-    `severity_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/severity_max`.
+    Restricts to the risks whose severity does not exceed this bound, inclusive, signed:
+    `severity_max=-0.01` retains the opportunities; lower than `severity_min`, refused with 422
+    `VALUE_OUT_OF_RANGE` on `/query/severity_max`.
   schema: { $ref: common.yaml#/Money }
 
 RiskProvisionAmountMin:
@@ -793,7 +797,8 @@ RiskOccurrenceCostMin:
   in: query
   description: >-
     Restricts to the risks whose cost at occurrence reaches this bound, inclusive: occurred
-    risks, since another risk has none (`Risk.occurrence_cost`, WF-RIS-0010; #1761).
+    risks, since another risk has none (`Risk.occurrence_cost`, WF-RIS-0010; #1761). Signed, it
+    accepts a negative value, that of a realised opportunity (WF-RIS-0050).
   schema: { $ref: common.yaml#/Money }
 
 RiskOccurrenceCostMax:
@@ -801,7 +806,7 @@ RiskOccurrenceCostMax:
   in: query
   description: >-
     Restricts to the occurred risks whose cost at occurrence does not exceed this bound,
-    inclusive; lower than `occurrence_cost_min`, refused with 422 `VALUE_OUT_OF_RANGE` on
+    inclusive, signed; lower than `occurrence_cost_min`, refused with 422 `VALUE_OUT_OF_RANGE` on
     `/query/occurrence_cost_max`.
   schema: { $ref: common.yaml#/Money }
 
@@ -809,16 +814,17 @@ RiskOccurredReestimatedMin:
   name: occurred_reestimated_amount_min
   in: query
   description: >-
-    Restricts to the occurred risks whose re-estimated amount of the lines arising from them
-    reaches this bound, inclusive (`Risk.occurred_reestimated_amount`; #1761).
+    Restricts to the occurred risks whose cost today — the frozen part of their cost at
+    occurrence and the re-estimated amount of the lines they added — reaches this bound,
+    inclusive (`Risk.occurred_reestimated_amount`; #1761). Signed, it accepts a negative value.
   schema: { $ref: common.yaml#/Money }
 
 RiskOccurredReestimatedMax:
   name: occurred_reestimated_amount_max
   in: query
   description: >-
-    Restricts to the occurred risks whose re-estimated amount of the lines arising from them
-    does not exceed this bound, inclusive; lower than `occurred_reestimated_amount_min`, refused
+    Restricts to the occurred risks whose cost today does not exceed this bound, inclusive,
+    signed; lower than `occurred_reestimated_amount_min`, refused
     with 422 `VALUE_OUT_OF_RANGE` on `/query/occurred_reestimated_amount_max`.
   schema: { $ref: common.yaml#/Money }
 

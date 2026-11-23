@@ -534,7 +534,12 @@
       The planned value sums, month by month, the parts rounded to the cent of each line, each the
       difference of two roundings of its cumulative amount, a half away from zero, as
       `getCostCurve` spreads its reference budget: at a month-end it is the planned value of
-      `getProjectIndicators` at that day (WF-IND-0110).
+      `getProjectIndicators` at that day (WF-IND-0110). The occurrence of a risk that completes
+      the tasks it abandons, or reopens completed tasks, changes the earned value at once on its
+      day: the curves mark it by a step, dated, signed and attributed to the occurrence
+      (`steps`, cause `risk_occurrence`), as the cost curve marks an amendment (WF-IND-0140); the
+      schedule index read before and after it differs by what the step brings, the planned value
+      being the same.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/IndicatorsRevision
@@ -548,6 +553,7 @@
             schema: { $ref: ../components/schemas/indicators.yaml#/CurveSeries }
             examples:
               witness: { $ref: ../../../fixtures/api/earned_value_curves.json }
+              occurrence: { $ref: ../../../fixtures/api/earned_value_curves_occurrence.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':

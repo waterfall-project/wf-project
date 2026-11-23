@@ -1,5 +1,5 @@
 {
-  "summary": "Les préférences enregistrées après le dépliage de la matrice des risques sur l'écran d'un projet : elle se retrouve dépliée au rechargement comme sur l'écran de tout autre projet, au lieu de démarrer repliée (EP-15/US-0550, WF-ADM-0040).",
+  "summary": "Les préférences enregistrées après le dépliage de la matrice des risques sur l'écran d'un projet : elle se retrouve dépliée au rechargement comme sur l'écran de tout autre projet, au lieu de démarrer repliée (EP-15/US-0550, WF-ADM-0040). Depuis EP-30, ce graphique est toujours dessiné et cet état n'est plus lu ; le service le garde sans le refuser (ChartPreferences).",
   "value": {
     "language": "default",
     "theme": "default",

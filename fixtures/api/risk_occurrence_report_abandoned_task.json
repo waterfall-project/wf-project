@@ -1,0 +1,21 @@
+{
+  "summary": "Variante contrefactuelle : le témoin porte en plus « Mise en service par l'automaticien du client », identifiée le 2 mars 2026 à 50 %, après le marquage de la référence 101, dont le devis propre abandonne la « Mise en service », non démarrée, sans rien ajouter ; sa gravité, l'écart net que son devis propre fait au coût du projet, vaut -6 018,00, moins le réestimé de la ligne abandonnée. Le compte rendu préalable de sa survenance aujourd'hui, dans la forme de celui d'une fusion : la « Mise en service » abandonnée n'est pas retirée mais conservée (kept) et terminée le jour de la survenance, sans date tant qu'elle n'est pas appliquée (completed_tasks), son reste à engager porté à zéro et le montant budgété de sa ligne inchangé ; elle apporte d'un coup à la valeur acquise ce montant budgété, 6 074,57, et la survenance ne rouvre aucune tâche ; la ligne de provision, de montant nul, est retirée ; rien ne la refuse (WF-RIS-0060, WF-IND-0030).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "main_structure_lock_version": 9,
+    "risk_lock_version": 3,
+    "creates_current_revision": false,
+    "differences": [
+      {"change":"kept","target":"task","lineage_id":"01926f3a-7c00-7000-8000-000000000665","label":"Mise en service","predecessor_label":null,"fields":[]},
+      {"change":"removed","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000688","label":"Provision — Mise en service par l'automaticien du client","predecessor_label":null,"fields":[]}
+    ],
+    "completed_tasks": [
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000665","label":"Mise en service","completed_on":null}
+    ],
+    "reopened_tasks": [],
+    "earned_value_added": "6074.57",
+    "earned_value_removed": "0.00",
+    "provision_amount": "0.00",
+    "refusals": []
+  }
+}

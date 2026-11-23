@@ -1,5 +1,5 @@
 {
-  "summary": "« Risque de reprise du câblage », identifié : sa description, ses actions de mitigation, sa gravité de 1 250 000,00, total de son devis propre, et sa provision de 500 000,00, la gravité à 40 % — ni l'une ni l'autre saisies (WF-RIS-0010). Sa ligne de provision, portée par le « Câblage des armoires » (provision_task), porte la catégorie qu'il a désignée, « Provisions pour risques », hors sous-projet, aucun n'étant désigné (WF-RIS-0010). Il se modifie, change la catégorie ou le sous-projet de sa provision, se réexamine et se déclare survenu ; il ne se supprime pas (`risk_not_cited`) (WF-IHM-0090, WF-RIS-0020).",
+  "summary": "« Risque de reprise du câblage », identifié : sa description, ses actions de mitigation, sa gravité de 1 250 000,00, l'écart net que son devis propre fait au coût du projet, et sa provision de 500 000,00, la gravité à 40 % — ni l'une ni l'autre saisies (WF-RIS-0010). Sa ligne de provision, portée par le « Câblage des armoires » (provision_task), porte la catégorie qu'il a désignée, « Provisions pour risques », hors sous-projet, aucun n'étant désigné (WF-RIS-0010). Il se modifie, change la catégorie ou le sous-projet de sa provision, se réexamine et se déclare survenu ; il ne se supprime pas (`risk_not_cited`) (WF-IHM-0090, WF-RIS-0020).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "risk_id": "01926f3a-7c00-7000-8000-000000000751",
@@ -33,6 +33,7 @@
       {"command":"declare_occurrence","is_available":true,"missing_conditions":[]},
       {"command":"delete","is_available":false,"missing_conditions":["risk_not_cited"]}
     ],
+    "trend": "up",
     "audit": {"created_at":"2026-01-12T10:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-03-02T09:15:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},
     "lock_version": 10
   }

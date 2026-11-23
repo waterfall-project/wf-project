@@ -801,24 +801,55 @@ CurveSeries:
     steps:
       type: array
       description: >-
-        Steps of the reference budget, dated and with their cause: only amendments
-        move it (WF-IND-0100, WF-RIS-0050). Always returned, empty when no step falls
-        within the curve read (`cost_curve_subproject_empty`; G-03, #1780).
+        The steps of the curves read, dated, signed and with their cause, in the order of their
+        dates. On the cost curve (`getCostCurve`), the steps of the reference budget: only
+        amendments move it (WF-IND-0100, WF-RIS-0050). On the earned value curves
+        (`getEarnedValueCurves`), the steps of the earned value: each occurrence of a risk that
+        completes tasks it abandons or reopens completed tasks, what it brought to the earned
+        value minus what it withdrew from it (`RiskOccurrenceReport.earned_value_added`,
+        `earned_value_removed`; WF-IND-0140), an occurrence that completes and reopens no task
+        carrying none — the earned value series already carries it at the point of its month
+        (WF-IND-0110), and the step names it there without adding a point. Restricted to a scope
+        (`scope`), a step counts what changes in the scope, none if nothing does. Each step
+        belongs to the computation that reads it: those of a marked revision are kept with its
+        curves at its marking, and a reading `as_of` earlier than a step does not carry it
+        (WF-DAT-0040). Always returned, empty when no step falls within the curve read
+        (`cost_curve_subproject_empty`; G-03, #1780).
       items:
         type: object
         required: [date, amount, cause]
         properties:
-          date: { $ref: ../common.yaml#/PlanningDate }
+          date:
+            allOf: [{ $ref: ../common.yaml#/PlanningDate }]
+            description: >-
+              The day of the step: that of the contracted amendment, or that of the occurrence,
+              the day of its review of occurrence (`Risk.last_review_on`).
           amount:
             allOf: [{ $ref: ../common.yaml#/Money }]
             description: >-
               The amount of the step, signed: by how much the reference budget changes at its
               date — the contracted amendment, the only event that moves it (WF-REV-0040,
-              WF-RIS-0050) —, not the budget after it, which the series
-              `reference_budget` carries.
+              WF-RIS-0050) —, or by how much the earned value changes at once at the
+              occurrence — the budgeted amount of the tasks it completes, minus what the tasks
+              it reopens had acquired (WF-IND-0030, WF-IND-0140) —; not the value after it,
+              which the series `reference_budget` or `earned_value` carries.
           cause:
             type: string
-            enum: [amendment]
+            enum: [amendment, risk_occurrence]
+            description: >-
+              `amendment`, a step of the reference budget; `risk_occurrence`, a step of the
+              earned value, attributed to the occurrence of the risk that `risk_id` names
+              (WF-IND-0140).
+          risk_id:
+            allOf: [{ $ref: ../common.yaml#/Uuid }]
+            description: >-
+              The occurred risk the step is attributed to, present for the cause
+              `risk_occurrence` only.
+          risk_label:
+            type: string
+            description: >-
+              The label of that risk, as the computation read it, which the chart names without
+              reading the register (WF-ARC-0020); present with `risk_id` only.
     cash_out_by_month:
       anyOf:
         - type: array

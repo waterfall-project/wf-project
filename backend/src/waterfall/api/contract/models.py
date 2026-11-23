@@ -897,7 +897,7 @@ class DisplayPreferences(ContractModel):
     charts: Annotated[
         dict[Annotated[str, StringConstraints(max_length=64)], ChartPreferences | None] | None,
         Field(
-            description="The state of each chart the user has folded or unfolded, by the chart's name on its screen — `risk_matrix`, the risk matrix of a project's screen, the same for all their projects: a display preference, specific to each user (WF-ADM-0040, EP-15/US-0550).",
+            description="The state of each chart the user has folded or unfolded, by the chart's name on its screen: a display preference, specific to each user (WF-ADM-0040, EP-15/US-0550). `risk_matrix`, the risk chart of a project's screen, kept for all their projects since #1252, is no longer read: that chart is always drawn (`ChartPreferences`).",
             max_length=100,
         ),
     ] = None
@@ -4641,7 +4641,7 @@ class ImportDifference(ContractModel):
     change: Annotated[
         Change,
         Field(
-            description="Added, removed, modified — or kept and signalled (`kept`): a started or completed task that the file no longer carries, or an estimate line of such a task, that the import keeps instead of removing it (WF-INTF-0040, WF-INTF-0100); a provision line of a risk that the file of an estimate no longer carries, kept, the import never modifying a provision (WF-INTF-0100, WF-RIS-0010) — a remaining to commit leaves unchanged, without signalling them, all the lines absent from its file (WF-INTF-0120); for a merge, a started or completed task that the differential removes, and that the merge keeps — the started one completed, its remaining to commit brought to zero (WF-REV-0050, `StructureMergeReport`; EP-14/L42s); for an update of a differential, what the differential keeps against the main structure, by the four rules of `StructureRebaseReport.differences` (#4034). A `kept` has no `fields`, except that of an update which keeps values that the differential designates and that the main structure has changed too: `fields` then names them."
+            description="Added, removed, modified — or kept and signalled (`kept`): a started or completed task, or one that the occurrence of a risk abandons (`RiskOccurrenceReport`, even not started), that the file no longer carries, or an estimate line of such a task, that the import keeps instead of removing it (WF-INTF-0040, WF-INTF-0100); a provision line of a risk that the file of an estimate no longer carries, kept, the import never modifying a provision (WF-INTF-0100, WF-RIS-0010) — a remaining to commit leaves unchanged, without signalling them, all the lines absent from its file (WF-INTF-0120); for a merge, a started or completed task that the differential removes, and that the merge keeps — the started one completed, its remaining to commit brought to zero (WF-REV-0050, `StructureMergeReport`; EP-14/L42s); for an update of a differential, what the differential keeps against the main structure, by the four rules of `StructureRebaseReport.differences` (#4034). A `kept` has no `fields`, except that of an update which keeps values that the differential designates and that the main structure has changed too: `fields` then names them."
         ),
     ]
     target: Annotated[
@@ -5554,13 +5554,13 @@ class RiskCoverageTotals(ContractModel):
     occurred_cost: Annotated[
         Money,
         Field(
-            description="The sum of the costs at occurrence of the occurred risks (`Risk.occurrence_cost`, WF-RIS-0010): the total of their own estimate at the moment of the occurrence, which neither the re-estimations nor the completion of the merged tasks change (WF-RIS-0050)."
+            description="The sum of the costs at occurrence of the occurred risks (`Risk.occurrence_cost`, WF-RIS-0010), signed: the severity of each at the moment of its occurrence, which neither the re-estimations nor the completion of the tasks change (WF-RIS-0050). Counted as it is: the negative cost of a realised opportunity offsets the overrun of another occurred risk, and improves the coverage variance by as much (author's decision of 2026-11-21)."
         ),
     ]
     occurred_reestimated: Annotated[
         Money,
         Field(
-            description="The sum of the current reestimated amounts of the lines that came from the occurred risks (`Risk.occurred_reestimated_amount`), presented alongside the cost at occurrence (`occurred_cost`): information on the drift of the occurred risks, which the coverage variance does not count, and which follows the re-estimations and completions that the cost at occurrence ignores (WF-RIS-0050, WF-RIS-0060; #1761). `0.00` without an occurred risk."
+            description="The sum of what the occurred risks cost today, signed (`Risk.occurred_reestimated_amount`): for each, the frozen part of its cost at occurrence that does not come from the lines it added, increased by the current reestimated amount of those lines, presented alongside the cost at occurrence (`occurred_cost`): information on the drift of the occurred risks, which the coverage variance does not count, and which follows the re-estimations of the added lines that the cost at occurrence ignores (WF-RIS-0050, WF-RIS-0060; #1761). `0.00` without an occurred risk."
         ),
     ]
     coverage_variance: Annotated[
@@ -5830,17 +5830,40 @@ class Series(ContractModel):
 
 class Cause(StrEnum):
     amendment = "amendment"
+    risk_occurrence = "risk_occurrence"
 
 
 class Step(ContractModel):
-    date: PlanningDate
+    date: Annotated[
+        PlanningDate,
+        Field(
+            description="The day of the step: that of the contracted amendment, or that of the occurrence, the day of its review of occurrence (`Risk.last_review_on`)."
+        ),
+    ]
     amount: Annotated[
         Money,
         Field(
-            description="The amount of the step, signed: by how much the reference budget changes at its date — the contracted amendment, the only event that moves it (WF-REV-0040, WF-RIS-0050) —, not the budget after it, which the series `reference_budget` carries."
+            description="The amount of the step, signed: by how much the reference budget changes at its date — the contracted amendment, the only event that moves it (WF-REV-0040, WF-RIS-0050) —, or by how much the earned value changes at once at the occurrence — the budgeted amount of the tasks it completes, minus what the tasks it reopens had acquired (WF-IND-0030, WF-IND-0140) —; not the value after it, which the series `reference_budget` or `earned_value` carries."
         ),
     ]
-    cause: Cause
+    cause: Annotated[
+        Cause,
+        Field(
+            description="`amendment`, a step of the reference budget; `risk_occurrence`, a step of the earned value, attributed to the occurrence of the risk that `risk_id` names (WF-IND-0140)."
+        ),
+    ]
+    risk_id: Annotated[
+        Uuid | None,
+        Field(
+            description="The occurred risk the step is attributed to, present for the cause `risk_occurrence` only."
+        ),
+    ] = None
+    risk_label: Annotated[
+        str | None,
+        Field(
+            description="The label of that risk, as the computation read it, which the chart names without reading the register (WF-ARC-0020); present with `risk_id` only."
+        ),
+    ] = None
 
 
 class CurveSeries(ContractModel):
@@ -5855,7 +5878,7 @@ class CurveSeries(ContractModel):
     steps: Annotated[
         list[Step],
         Field(
-            description="Steps of the reference budget, dated and with their cause: only amendments move it (WF-IND-0100, WF-RIS-0050). Always returned, empty when no step falls within the curve read (`cost_curve_subproject_empty`; G-03, #1780)."
+            description="The steps of the curves read, dated, signed and with their cause, in the order of their dates. On the cost curve (`getCostCurve`), the steps of the reference budget: only amendments move it (WF-IND-0100, WF-RIS-0050). On the earned value curves (`getEarnedValueCurves`), the steps of the earned value: each occurrence of a risk that completes tasks it abandons or reopens completed tasks, what it brought to the earned value minus what it withdrew from it (`RiskOccurrenceReport.earned_value_added`, `earned_value_removed`; WF-IND-0140), an occurrence that completes and reopens no task carrying none — the earned value series already carries it at the point of its month (WF-IND-0110), and the step names it there without adding a point. Restricted to a scope (`scope`), a step counts what changes in the scope, none if nothing does. Each step belongs to the computation that reads it: those of a marked revision are kept with its curves at its marking, and a reading `as_of` earlier than a step does not carry it (WF-DAT-0040). Always returned, empty when no step falls within the curve read (`cost_curve_subproject_empty`; G-03, #1780)."
         ),
     ]
     cash_out_by_month: Annotated[
@@ -5919,6 +5942,13 @@ class RiskState(StrEnum):
     dismissed = "dismissed"
 
 
+class RiskTrend(StrEnum):
+    up = "up"
+    down = "down"
+    stable = "stable"
+    new = "new"
+
+
 class ProvisionTask(ContractModel):
     node_id: Uuid
     label: Annotated[str, Field(max_length=300, min_length=1)]
@@ -5966,23 +5996,28 @@ class Risk(ContractModel):
     description: Annotated[str | None, Field(description="Null when none is entered.")]
     mitigation_notes: Annotated[str | None, Field(description="Null when none is entered.")]
     probability: Percent
-    severity: Annotated[Money, Field(description="Computed, never entered (WF-RIS-0010).")]
+    severity: Annotated[
+        Money,
+        Field(
+            description="Computed, never entered (WF-RIS-0010), signed: the net gap of the re-estimated totals of the main structure carrying what the own estimate designates — its additions, the values it modifies, the tasks it abandons, and what the dates the engine then gives the tasks downstream change to their amounts — and of the main structure without it, provision lines excluded (WF-RIS-0080, WF-DEV-0030). Negative, the risk is an opportunity: the register presents it so, with a provision of `0.00`, and the matrix at the lowest severity level (`matrix_cell`, WF-RIS-0040). Zero as long as the own estimate designates nothing. Recorded with the assessment of the risk in the revision read, at each write of its own estimate and at each update (`rebaseCostStructure`), never recomputed at the read: a write of the main structure does not change it, an out of date or pruned own estimate giving the one it recorded (`CostStructure.is_up_to_date`, `CostStructure.is_pruned`; WF-RIS-0070). For an occurred risk, its cost at occurrence (`occurrence_cost`), in the revision where it occurred as in those that follow it, which no longer take its own estimate over (#4400)."
+        ),
+    ]
     provision_amount: Annotated[
         Money,
         Field(
-            description="For an identified risk, its current provision, the severity weighted by the probability, which its provision line carries. For an occurred or dismissed risk, which no longer carries a line, the provision it held in the reference revision, `0.00` if it was not identified there (WF-RIS-0040, WF-RIS-0050): the register row thus sums into the totals (`ProvisionTotals`). Never in the reference budget (WF-RIS-0050)."
+            description="For an identified risk, its current provision, the severity weighted by the probability, to the cent, never below zero — that of an opportunity is `0.00`, and its provision line remains, at a zero amount, so that an opportunity does not reduce the remaining to commit before it is realised (WF-RIS-0010, WF-RIS-0080) —, which its provision line carries. For an occurred or dismissed risk, which no longer carries a line, the provision it held in the reference revision, `0.00` if it was not identified there (WF-RIS-0040, WF-RIS-0050): the register row thus sums into the totals (`ProvisionTotals`). Never in the reference budget (WF-RIS-0050)."
         ),
     ]
     occurrence_cost: Annotated[
         Money | None,
         Field(
-            description="The cost at occurrence of an occurred risk: the total of its own estimate at the moment it was declared occurred, which neither the re-estimations nor the completion of the merged tasks change, and which the coverage compares with the reserve (WF-RIS-0010, WF-RIS-0050, WF-RIS-0060; `RiskCoverageTotals.occurred_cost`). A revision data item, which abandoning the revision in which the risk occurred erases (WF-RIS-0020). Null for an identified or dismissed risk."
+            description="The cost at occurrence of an occurred risk, signed: its severity at the moment it was declared occurred, the net gap its own estimate then made to the project — negative for a realised opportunity —, frozen: neither the re-estimations, nor the completion of the tasks, nor an amendment change it. The coverage counts it as it is, a negative cost offsetting the overrun of another occurred risk (WF-RIS-0010, WF-RIS-0050, WF-RIS-0060; `RiskCoverageTotals.occurred_cost`). A revision data item, which abandoning the revision in which the risk occurred erases (WF-RIS-0020). Null for an identified or dismissed risk."
         ),
     ]
     occurred_reestimated_amount: Annotated[
         Money | None,
         Field(
-            description="For an occurred risk, the sum of the current reestimated amounts, inflation included, of the lines of the revision read that came from it (`Node.origin_risk_id`, WF-RIS-0060): what the lines that its occurrence merged cost today, which the register presents alongside the cost at occurrence (`occurrence_cost`) to show its drift. Information outside the coverage, whose variance remains computed on the cost at occurrence (`RiskCoverageTotals.occurred_reestimated`, WF-RIS-0050; #1761). Null for an identified or dismissed risk."
+            description="For an occurred risk, what it costs today, signed: the part of its cost at occurrence that does not come from the lines its occurrence added — what it did to the lines it modified and to the tasks it abandoned, frozen at the occurrence —, increased by the sum of the current reestimated amounts, inflation included, of the lines of the revision read that it added (`Node.origin_risk_id`, WF-RIS-0060). Equal to the cost at occurrence on the day of the occurrence, it then follows the re-estimation of the added lines alone: that of a line the risk modified does not change it (WF-RIS-0050; author's decision of 2026-11-19). The register presents it alongside the cost at occurrence (`occurrence_cost`) to show its drift. Information outside the coverage, whose variance remains computed on the cost at occurrence (`RiskCoverageTotals.occurred_reestimated`, WF-RIS-0050; #1761). Null for an identified or dismissed risk."
         ),
     ]
     state: RiskState
@@ -6044,7 +6079,7 @@ class Risk(ContractModel):
     computed_fields: Annotated[
         list[RiskComputedField],
         Field(
-            description="The fields of the risk that the server computes, each with what it depends on, which the refusal of an entry names (WF-IHM-0030): the severity and the provision, in that order, for every risk, then the cost at occurrence of an occurred risk. The severity depends on the own estimate (`own_estimate`); the provision of an identified risk, on its severity and its probability (`severity_and_probability`), that of an occurred or dismissed risk, on the reference revision (`reference_provision`); the cost at occurrence, on the own estimate at the moment of the occurrence (`occurrence_estimate`). The rules of the computation, not the lines of the own estimate: they are read with the risk, without calling on the refusal.",
+            description="The fields of the risk that the server computes, each with what it depends on, which the refusal of an entry names (WF-IHM-0030): the severity and the provision, in that order, for every risk, then the cost at occurrence of an occurred risk. The severity of an identified or dismissed risk depends on its own estimate and on its base, the gap of their totals (`own_estimate`, WF-RIS-0080); that of an occurred risk, its cost at occurrence, on its own estimate at the moment of the occurrence (`occurrence_estimate`, #4400); the provision of an identified risk, on its severity and its probability (`severity_and_probability`), that of an occurred or dismissed risk, on the reference revision (`reference_provision`); the cost at occurrence, on the own estimate at the moment of the occurrence (`occurrence_estimate`). The rules of the computation, not the lines of the own estimate: they are read with the risk, without calling on the refusal.",
             max_length=3,
             min_length=2,
         ),
@@ -6055,6 +6090,12 @@ class Risk(ContractModel):
             description="Commands of the risk that the caller has permission to exercise, each available or not, with the conditions it lacks (WF-IHM-0090), in the order of `RiskCommand`. A command absent from the list is not presented. The risk names only what depends on it — its state, its citation by a marked revision — and, for the occurrence, the revision that the occurrence would create; the conditions of the project and of the revision are on their commands (`ProjectCommand.declare_risk_occurrence`, `RevisionCommand.edit_risks`). The risk of a terminal project lists none (US-0702/L3). A call sent despite the list is refused with its error code."
         ),
     ]
+    trend: Annotated[
+        RiskTrend | None,
+        Field(
+            description="The trend of an identified risk since the marked revision that precedes the revision read (`RiskTrend`, WF-RIS-0040), computed by the server at the read: the front compares nothing (WF-ARC-0020). Null for an occurred or dismissed risk, and for every risk when no revision was marked before the revision read, as the variance of the remaining to commit is then absent (WF-RAE-0020). That of a marked revision is the one it had against the marked revision preceding it, and no longer changes; that of the current revision follows the severity and the probability recorded, hence each entry in the own estimate, each update and each review. The register filters and sorts on it (`listRisks`, `trends`, `sort_by`)."
+        ),
+    ] = None
     audit: Audit
     lock_version: Annotated[
         LockVersion,
@@ -6138,7 +6179,12 @@ class RiskProvisionUpdate(ContractModel):
 class RiskReview(ContractModel):
     reviewed_on: PlanningDate
     probability: Percent
-    severity: Money
+    severity: Annotated[
+        Money,
+        Field(
+            description="The severity the review retained, signed, as the risk recorded it then (`Risk.severity`, WF-RIS-0040, WF-RIS-0080): negative for an opportunity; for the review of an occurrence, the cost at occurrence (`Risk.occurrence_cost`)."
+        ),
+    ]
     state: RiskState
     actor: ActorRef | None = None
 
@@ -6160,6 +6206,11 @@ class RiskReviewWrite(ContractModel):
         ),
     ] = None
     lock_version: LockVersion
+
+
+class RiskOccurrenceReopenedTask(ContractModel):
+    lineage_id: Uuid
+    label: str
 
 
 class RiskOccurrenceReport(ContractModel):
@@ -6184,13 +6235,37 @@ class RiskOccurrenceReport(ContractModel):
     differences: Annotated[
         list[ImportDifference],
         Field(
-            description="The differences that the occurrence would make in the main structure, like those of a merge (`ImportDifference`), in this order: the tasks and the lines of the own estimate, added (`added`) in the order of its plan — its top-level tasks in last position under the task that carries the provision line, or, when that is a milestone, immediately after it, under its parent task or at the top level; an addition has no lineage yet, and the internal links of the own estimate come with its tasks —; the carrying task changed (`updated`), now the summary task of these tasks, `fields` naming what changes about it, its dates and its duration now covering those of its subordinates (WF-PLA-0040) — a milestone, which remains a milestone without subtasks, is not changed —; the provision line removed (`removed`). The added tasks keep their subordinates, their internal links, their durations and their modes, a task without a predecessor in the own estimate switching to manual mode at the dates it had there; the added lines take a zero budgeted amount (WF-RIS-0060). Each other task of the main structure whose calculated dates the graft changes — a task linked to the carrying task, now a summary task, or to one of its ancestors —, is one more `updated` difference, after the carrying task and in the order of the plan, `fields` naming its dates by the columns of the grid (`start`, `finish`, in the order of `NodeColumn`): the dates are those the scheduling engine gives, replayed once on the structure the occurrence leaves, the very pass that judges the grounds for refusal; a task that nothing links to the graft does not appear (#4134)."
+            description="The differences that the occurrence would make in the main structure, those of a merge (`ImportDifference`, `StructureMergeReport.differences`): what the own estimate designates against the main structure, tasks, estimate lines and links — the tasks, the lines and the links it adds (`added`), at the place it gives them, an addition having no lineage yet in the main structure, the lines created with a zero budgeted amount; the values it modifies (`updated`), `fields` naming them, a modified line taking them as its current figures and keeping its reference figures; the tasks it abandons, kept in the main structure and completed whatever their state (`kept`), which `completed_tasks` also names when they are not completed yet —, then the provision line removed (`removed`). The occurrence places nothing under the task that carried the provision line (WF-RIS-0060; author's decision of 2026-11-21). Provisional rule of EP-08, as long as the occurrence grafts the own estimate (US-3100): each other task of the main structure whose calculated dates the graft changes is one more `updated` difference, in the order of the plan, `fields` naming its dates by the columns of the grid (`start`, `finish`, in the order of `NodeColumn`): the dates are those the scheduling engine gives, replayed once on the structure the occurrence leaves, the very pass that judges the grounds for refusal (#4134)."
         ),
     ]
+    completed_tasks: Annotated[
+        list[ImportCompletedTask] | None,
+        Field(
+            description="The tasks that the own estimate abandons and that are not completed yet, started or not, which the occurrence keeps and completes on its day, their remaining to commit brought to zero and their budgeted amount unchanged (`completed_on` null as long as the occurrence is not applied): the rule an amendment applies to a started task it removes (`StructureMergeReport.completed_tasks`, WF-REV-0050), applied here to every task, which thus acquires its budgeted amount (WF-RIS-0060, WF-IND-0030). A task already completed that it abandons stays as it is, kept (`differences`), and is not named here. Empty when it abandons none."
+        ),
+    ] = None
+    reopened_tasks: Annotated[
+        list[RiskOccurrenceReopenedTask] | None,
+        Field(
+            description="The completed tasks that the occurrence reopens, by their lineage and their label: a task one of whose lines the own estimate modifies, or a completed summary task under which it adds a task (WF-RIS-0060, WF-PLA-0040). A warning, not a refusal: it is not in `refusals`, and the occurrence applies; the earned value these tasks had acquired falls back (`earned_value_removed`, WF-IND-0030). It extends to every reopened task the warning of a completed carrying task (`completed_provision_task`, #4240). Empty when it reopens none."
+        ),
+    ] = None
+    earned_value_added: Annotated[
+        Money | None,
+        Field(
+            description="The earned value that the occurrence brings at once, on its day: the budgeted amount of the tasks it completes (`completed_tasks`, WF-IND-0030), `0.00` when it completes none. With `earned_value_removed`, the step of the occurrence on the earned value curve (`CurveSeries.steps`, WF-IND-0140)."
+        ),
+    ] = None
+    earned_value_removed: Annotated[
+        Money | None,
+        Field(
+            description="The earned value that the occurrence withdraws at once: what the tasks it reopens had acquired (`reopened_tasks`, WF-IND-0030), `0.00` when it reopens none. The step of the occurrence is `earned_value_added` minus this amount (WF-IND-0140)."
+        ),
+    ] = None
     provision_amount: Annotated[
         Money,
         Field(
-            description="The amount of the removed provision line, which leaves the remaining to commit — the provision of the risk (`Risk.provision_amount`); the remaining to commit increases by the total of the own estimate, minus this amount (WF-RIS-0060)."
+            description="The amount of the removed provision line, which leaves the remaining to commit — the provision of the risk (`Risk.provision_amount`), `0.00` for an opportunity; the remaining to commit increases by the severity of the risk, the net gap its own estimate makes, minus this amount (WF-RIS-0060, WF-RIS-0080)."
         ),
     ]
     refusals: Annotated[
@@ -6202,13 +6277,13 @@ class RiskOccurrenceReport(ContractModel):
     own_estimate_past_planning_start_on: Annotated[
         PlanningDate | None,
         Field(
-            description="The planning start date of the own estimate (`CostStructure.planning_start_on`) when it precedes the day of the declaration — the day of the read, in the time zone of the installation —; null otherwise, and when absent. A warning, not a refusal: it is not in `refusals`, the occurrence applies, and it redates nothing — the tasks keep the dates they had in the own estimate (WF-RIS-0060, WF-PLA-0020), which then lie in the past (#4133). A change of the start date of the own estimate (`updateCostStructure`) advances `risk_lock_version`, so that a report read before it is stale."
+            description="The planning start date of the own estimate (`CostStructure.planning_start_on`) when it precedes the day of the declaration — the day of the read, in the time zone of the installation —; null otherwise, and when absent. A warning, not a refusal: it is not in `refusals`, the occurrence applies, and it redates nothing — the tasks keep the dates they had in the own estimate (WF-RIS-0060, WF-PLA-0020), which then lie in the past (#4133). A change of the start date of the own estimate (`updateCostStructure`) advances `risk_lock_version`, so that a report read before it is stale. A provisional rule of EP-08, withdrawn with the graft (US-3100, #4632): the own estimate no longer has a start date of its own, being that of the main structure."
         ),
     ] = None
     completed_provision_task: Annotated[
         ProvisionTask | None,
         Field(
-            description="The task that carries the provision line (`Risk.provision_task`) when it is completed and the own estimate is grafted under it — a milestone, after which the graft goes, is never named —, by its node in the main structure read and its label; null otherwise, and when absent. A warning, not a refusal: it is not in `refusals`, the occurrence applies, and the graft writes nothing else. The task becomes the summary task of the grafted tasks, its state derived from theirs, not started (WF-PLA-0040): it is not started again, and the earned value it had acquired falls back (WF-IND-0030) — `differences` does not say it: no column of `NodeColumn` names the state (#4240). A provisional rule: EP-30, which prepares the own estimate as a differential, takes it over, extending the warning to every task the occurrence reopens."
+            description="The task that carries the provision line (`Risk.provision_task`) when it is completed and the own estimate is grafted under it — a milestone, after which the graft goes, is never named —, by its node in the main structure read and its label; null otherwise, and when absent. A warning, not a refusal: it is not in `refusals`, the occurrence applies, and the graft writes nothing else. The task becomes the summary task of the grafted tasks, its state derived from theirs, not started (WF-PLA-0040): it is not started again, and the earned value it had acquired falls back (WF-IND-0030) — `differences` does not say it: no column of `NodeColumn` names the state (#4240). A provisional rule of the graft: the occurrence that merges what the own estimate designates places nothing under the carrying task, and names every task it reopens in `reopened_tasks`, which extends this warning (WF-RIS-0060)."
         ),
     ] = None
 
@@ -6250,13 +6325,13 @@ class RiskMatrixPoint(ContractModel):
     severity_amount: Annotated[
         Money,
         Field(
-            description="The severity of the risk (`Risk.severity`), what it would cost if it occurred."
+            description="The severity of the risk (`Risk.severity`), what it would cost if it occurred, signed: negative for an opportunity, whose bubble is sized by its absolute value (WF-RIS-0080)."
         ),
     ]
     severity_ratio: Annotated[
         Computable,
         Field(
-            description='The severity as a share of the base of the risk\'s project — its reference budget, or before it the total excluding provisions of the estimate of its current revision (WF-REF-0160) —, rounded to four decimal places (README, "A share…"). The cell of the risk and its zone are those of the exact share, which the severity bounds classify before rounding: a bubble less than half a hundredth of a percent from a bound may be drawn on the line of that bound, in the cell that `zone` states. The level of a point is that of its cell, never computed again from the rounded share: an exact share just below a bound, rounded onto it, stays at the level below, although the bound opens the next level (#4027). Not computable on a zero base, reason `no_reference_budget` — a project without a reference budget whose estimate carries only provisions so far —: the risk is then at the lowest severity level (`RiskMatrixCell`), counted in its cell, and the chart, which has no y-value for it, does not draw its bubble (#1240).'
+            description='The severity as a share of the base of the risk\'s project — its reference budget, or before it the total excluding provisions of the estimate of its current revision (WF-REF-0160) —, rounded to four decimal places (README, "A share…"), signed: negative for an opportunity, which is at the lowest severity level (`RiskMatrixCell`). The cell of the risk and its zone are those of the exact share, which the severity bounds classify before rounding: a bubble less than half a hundredth of a percent from a bound may be drawn on the line of that bound, in the cell that `zone` states. The level of a point is that of its cell, never computed again from the rounded share: an exact share just below a bound, rounded onto it, stays at the level below, although the bound opens the next level (#4027). Not computable on a zero base, reason `no_reference_budget` — a project without a reference budget whose estimate carries only provisions so far —: the risk is then at the lowest severity level (`RiskMatrixCell`), counted in its cell, and the chart, which has no y-value for it, does not draw its bubble (#1240).'
         ),
     ]
     provision_amount: Annotated[

@@ -842,7 +842,7 @@ la survenance (US-3100) ; les écrans (US-3140) ; le témoin (US-3150).
 
 ## US-3080 — La gravité d'un risque, écart net, la provision qui en est tirée, et l'opportunité
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-RIS-0010-A`, `WF-RIS-0040-A`, `WF-RIS-0080-A`
 - **opérations** : `getRisk`, `listRisks`, `listRiskReviews`, `getProjectRiskMatrix`, `createRisk`,
   `reviewRisk`, `updateRiskProvision`, `listNodes` (la ligne de provision), `getEstimateIndicators`,
