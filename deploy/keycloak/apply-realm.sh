@@ -12,6 +12,11 @@
 # file that declares some, so that the development files do not undo what an administrator added.
 set -eu
 
+# Keycloak in TLS (US-2840): its certificate checked against the root of the platform,
+# WATERFALL_TLS_AUTHORITY, when it is given (trust-root.sh, beside this script).
+# shellcheck source=trust-root.sh
+. "$(dirname "$0")/trust-root.sh"
+
 exec java -jar /opt/keycloak-config-cli/keycloak-config-cli.jar \
     --keycloak.availability-check.enabled=true \
     --import.files.locations="${WATERFALL_REALM_FILES:-file:/opt/keycloak/realm/*.yaml}" \

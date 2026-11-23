@@ -2,11 +2,14 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The store of trust of the application of the realm, read back without a password (#4511).
 
-``deploy/keycloak/realm-service.sh`` makes, from the root of the platform, a store PKCS12 that Java
-reads without a password, by two options of keytool that a JDK 17 or later reads. A keytool that
-ignores them protects the root with the password drawn: the script must stop then, naming the cause,
-rather than let Keycloak's certificate be refused without a word. Played with the keytool of the
-workstation, as is, then wrapped so that it drops the options, as an older JDK would.
+``deploy/keycloak/trust-root.sh``, which ``realm-service.sh`` and ``apply-realm.sh`` read, makes,
+from the root of the platform, a store PKCS12 that Java reads without a password, by two options of
+keytool that a JDK 17 or later reads. A keytool that ignores them protects the root with the
+password drawn: the script must stop then, naming the cause, rather than let Keycloak's certificate
+be refused without a word. Played with the keytool of the workstation, as is, then wrapped so that
+it drops the options, as an older JDK would. ``apply-realm.sh`` alone — the Job of the hooks of the
+chart runs it so — makes the store too, which a run of the Compose by ``realm-service.sh`` makes
+once (US-2840).
 """
 
 import os
@@ -22,6 +25,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 SCRIPT = REPOSITORY / "deploy" / "keycloak" / "realm-service.sh"
+APPLY = REPOSITORY / "deploy" / "keycloak" / "apply-realm.sh"
 KEYTOOL = shutil.which("keytool")
 CAUSE = "is not readable without a password"
 
@@ -110,3 +114,54 @@ def test_a_keytool_that_ignores_the_options_stops_the_script_naming_the_cause(
     assert done.returncode == 1
     assert CAUSE in done.stderr
     assert "certProtectionAlgorithm" in done.stderr
+
+
+def _applied(folder: Path, given: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    """Run apply-realm with a java that says the options it is given, and nothing else."""
+    bin_folder = folder / "bin"
+    bin_folder.mkdir()
+    java = bin_folder / "java"
+    java.write_text('#!/bin/sh\nprintf "%s" "$JAVA_TOOL_OPTIONS"\n', encoding="utf-8")
+    java.chmod(0o755)
+    environment = {
+        "PATH": f"{bin_folder}:{os.environ.get('PATH', '')}",
+        "HOME": str(folder),
+        "TMPDIR": str(folder),
+        "WATERFALL_TLS_AUTHORITY": str(_root(folder)),
+        **given,
+    }
+    return subprocess.run(
+        ["sh", str(APPLY)], env=environment, capture_output=True, text=True, check=False
+    )
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_the_application_of_the_realm_alone_checks_keycloak_against_the_root(
+    tmp_path: Path,
+) -> None:
+    # The Job of the chart runs apply-realm without realm-service: it makes the store itself.
+    done = _applied(tmp_path, {})
+    assert done.returncode == 0, done.stderr
+    store = tmp_path / "realm-trust.p12"
+    assert done.stdout.split() == [
+        f"-Djavax.net.ssl.trustStore={store}",
+        "-Djavax.net.ssl.trustStoreType=PKCS12",
+    ]
+    listed = subprocess.run(
+        ["keytool", "-list", "-keystore", str(store), "-storetype", "PKCS12"],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert "platform" in listed.stdout
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_a_store_already_given_is_not_made_again(tmp_path: Path) -> None:
+    # realm-service made it, then runs apply-realm, which keeps it.
+    given = "-Djavax.net.ssl.trustStore=/made/before.p12 -Djavax.net.ssl.trustStoreType=PKCS12"
+    done = _applied(tmp_path, {"JAVA_TOOL_OPTIONS": given})
+    assert done.returncode == 0, done.stderr
+    assert done.stdout == given
+    assert not (tmp_path / "realm-trust.p12").exists()

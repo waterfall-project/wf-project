@@ -39,6 +39,7 @@ COPY --from=realm-applier /app/keycloak-config-cli.jar /opt/keycloak-config-cli/
 COPY realm/ /opt/keycloak/realm/
 COPY apply-realm.sh /opt/keycloak/bin/apply-realm
 COPY realm-service.sh /opt/keycloak/bin/realm-service
+COPY trust-root.sh /opt/keycloak/bin/trust-root.sh
 USER 1000
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
 CMD ["start", "--optimized"]
