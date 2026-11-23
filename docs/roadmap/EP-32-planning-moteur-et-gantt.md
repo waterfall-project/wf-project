@@ -207,6 +207,13 @@ Relevés à la livraison, arbitrés le 2026-11-23 :
 - #4833 — back : le test du critère Kanban d'US-3310 ne regarde pas une subordonnée démarrée — fermé
   sans suite, le code couvre le cas et aucun lot prévu ne touche `test_startable_tasks.py`
 
+Relevé dans la file de `main`, sur la pull request de livraison #4843, arbitré le 2026-11-23 :
+
+- #4856 — tests : le test du témoin des calendriers signe son jeton (300 s) avant de charger le
+  témoin, qui dure près de cinq minutes sous la charge du runner : 401 `SESSION_EXPIRED`, vu deux
+  fois → US-3290b, les sessions signées après le chargement, avant la livraison ; écarté : allonger
+  la durée de vie du jeton
+
 ## Conception
 
 Écrite le 2026-11-21, contre `main` (12a58bc27) et `epic/EP-08` (99d036957), dont EP-32 part une
@@ -397,7 +404,7 @@ autres sont des refus que les écrans montrent déjà par leur message.
 
 ## US-3290 — Le chemin critique que le Gantt montre est prouvé par un test du service
 
-- **statut** : fini
+- **statut** : en cours
 - **exigences** : `WF-PLA-0090-A`
 - **opérations** : `listNodes`
 - **issue** : #4550
@@ -418,7 +425,9 @@ la porte de publication d'US-3000 (EP-13) ne la nomme pas en échec (#4415).
 **Notes de réalisation.** La proposition (a) de FTE-01
 (`docs/reviews/2026-11-14-revue-complete/front-tests.md`) : le test va à côté de ceux de
 WF-PLA-0100. Cette US se livre la première, et ne touche que des tests : rien n'empêche de la
-fusionner avant US-3000.
+fusionner avant US-3000. US-3290b (#4856, ajouté le 2026-11-23) : une instabilité de la file vue
+deux fois sur la livraison d'EP-32 ; les tests qui chargent le témoin signent leurs sessions après
+le chargement. Il se fusionne avant la livraison.
 
 **Hors périmètre.** Déplacer `planning-service.spec.ts` sous `e2e/service/`, ou faire lire
 l'étiquette `@shared` à `wftools.coverage` : ce que `make requirements` ne lit pas est à EP-36.
