@@ -38,11 +38,10 @@ import type { components } from "@/api/generated/schema";
 import { useUnmet } from "@/components/commands/command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
-import { STRUCTURE_PARAMETER } from "@/components/context/structure";
-import { filterHref } from "@/components/grid/filters";
 import { useSaid } from "@/components/notices/said";
 import { Reactivations } from "@/components/reference/reactivation";
 
+import { estimateOf } from "./own-estimate-first";
 import type { ProvisionOptions } from "./provision-choices";
 import { OpensForm, Status, useRiskDialog } from "./risk-dialog";
 import { RiskForm } from "./risk-form";
@@ -54,15 +53,6 @@ type Risk = components["schemas"]["Risk"];
 
 /** The choices of a provision when the screen read none: the form asks nothing of the provision. */
 const NO_OPTIONS: ProvisionOptions = { categories: [], subprojects: [], tasks: [] };
-
-/**
- * The address of the estimate of a structure: the address of the estimate of the revision, its
- * reading context kept, and the structure the server named.
- */
-function estimateOf(base: string, structure: string): string {
-  const [path = "", query = ""] = base.split("?");
-  return filterHref(path, new URLSearchParams(query), STRUCTURE_PARAMETER, structure);
-}
 
 /**
  * « Identifier un risque », as `declare_risk` lists it, and its form; once declared, the risk opens

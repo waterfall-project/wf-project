@@ -2166,6 +2166,10 @@
     "refused": "La mise à jour du devis propre « {label} » est refusée : corrigez le devis propre dans la grille, puis recommencez.",
     "confirm": "Confirmer la mise à jour du devis propre",
     "skip": "Écarter le risque sans mise à jour",
+    "ask": "Le devis propre « {label} » est en retard sur le projet : mettez-le à jour pour réexaminer le risque, ou écartez le risque sans mise à jour.",
+    "update": "Mettre à jour le devis propre",
+    "openGrid": "Corriger le devis propre dans sa grille",
+    "reread": "Relire le compte rendu de la mise à jour",
     "close": "Fermer"
   },
   "rebaseReport": {

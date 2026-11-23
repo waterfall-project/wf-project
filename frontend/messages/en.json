@@ -2166,6 +2166,10 @@
     "refused": "The update of the own estimate “{label}” is refused: correct the own estimate in the grid, then start again.",
     "confirm": "Confirm the update of the own estimate",
     "skip": "Dismiss the risk without updating",
+    "ask": "The own estimate “{label}” is behind the project: update it to review the risk, or dismiss the risk without updating.",
+    "update": "Update the own estimate",
+    "openGrid": "Correct the own estimate in its grid",
+    "reread": "Read the report of the update anew",
     "close": "Close"
   },
   "rebaseReport": {

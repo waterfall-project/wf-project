@@ -10,7 +10,9 @@
  * applied without a question — the risk is read again, its severity recomputed, and the command goes on
  * with it. An update that keeps a value against the project is presented, with the severity and the
  * provision it recomputes, to confirm; one that is refused says what is to correct in the own estimate.
- * A review may leave the risk dismissed without the update (`onSkip`): it asks none.
+ * A review may leave the risk dismissed without the update (`onSkip`): it asks none, so the step
+ * starts by the choice — update, or dismiss without — and writes nothing before it, the dismissal
+ * staying possible once the update failed.
  *
  * The front decides none of it but by the conditions the risk lists and the word of the report.
  */
@@ -25,6 +27,8 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { type CommandOffer } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { STRUCTURE_PARAMETER } from "@/components/context/structure";
+import { filterHref } from "@/components/grid/filters";
 import { type Refused, settleOwnEstimate } from "@/components/revisions/own-estimate-settle";
 import { type Report, ReportBody } from "@/components/revisions/rebase-report";
 import { Button } from "@/components/ui/button";
@@ -57,11 +61,21 @@ export function lateOf(offer: CommandOffer | undefined): Lateness {
   return { late, pruned: late && missing.includes("own_estimate_whole") };
 }
 
-/** What the step shows: working, the report to confirm or to correct, or what refused. */
+/** What the step shows: the choice, working, the report to confirm or to correct, or what refused. */
 type Phase =
+  | { readonly kind: "asking" }
   | { readonly kind: "working"; readonly step: "recomposing" | "updating" }
   | { readonly kind: "presented"; readonly report: Report; readonly outcome?: Outcome<unknown> }
   | { readonly kind: "failed"; readonly outcome: Refused };
+
+/**
+ * The address of the estimate of a structure: the address of the estimate of the revision, its
+ * reading context kept, and the structure the server named.
+ */
+export function estimateOf(base: string, structure: string): string {
+  const [path = "", query = ""] = base.split("?");
+  return filterHref(path, new URLSearchParams(query), STRUCTURE_PARAMETER, structure);
+}
 
 /** The props of the step. */
 export interface OwnEstimateStepProps {
@@ -74,8 +88,14 @@ export interface OwnEstimateStepProps {
   readonly onReady: (fresh: Risk | undefined) => void;
   /** The step is left, nothing more asked. */
   readonly onClose: () => void;
-  /** The command goes on without the update, which it does not need (a review that dismisses). */
+  /**
+   * The command goes on without the update, which it does not need (a review that dismisses). Given,
+   * the step asks first, and writes nothing until the update is chosen: dismissing is possible before
+   * it and, the update failed or refused, after it.
+   */
   readonly onSkip?: (() => void) | undefined;
+  /** The identifier of the step, which the command that opens it controls. */
+  readonly id?: string | undefined;
 }
 
 /** Recompose, read and update the own estimate of a risk before the command that waited for it. */
@@ -87,13 +107,16 @@ export function OwnEstimateStep({
   onReady,
   onClose,
   onSkip,
+  id,
 }: OwnEstimateStepProps) {
   const t = useTranslations("ownEstimateFirst");
   const { structure_id: structureId, label, risk_id: riskId } = risk;
-  const [phase, setPhase] = useState<Phase>({
-    kind: "working",
-    step: pruned ? "recomposing" : "updating",
-  });
+  // A command that may go on without the update asks before it writes one.
+  const asks = onSkip !== undefined;
+  const [phase, setPhase] = useState<Phase>(
+    asks ? { kind: "asking" } : { kind: "working", step: pruned ? "recomposing" : "updating" },
+  );
+  const [begun, setBegun] = useState(!asks);
   const [busy, setBusy] = useState(false);
   const alive = useRef(false);
   const started = useRef(false);
@@ -121,8 +144,23 @@ export function OwnEstimateStep({
     }
   }, [projectId, riskId, revisionId]);
 
+  /** Read the report of the update, apply it when it signals nothing, else present it. */
+  const settle = useCallback(async () => {
+    const settled = await settleOwnEstimate(projectId, revisionId, structureId);
+    if (!alive.current) {
+      return;
+    }
+    if (settled.kind === "failed") {
+      setPhase({ kind: "failed", outcome: settled.outcome });
+    } else if (settled.kind === "presented") {
+      setPhase({ kind: "presented", report: settled.report });
+    } else {
+      await finish();
+    }
+  }, [projectId, revisionId, structureId, finish]);
+
   useEffect(() => {
-    if (started.current) {
+    if (!begun || started.current) {
       return;
     }
     started.current = true;
@@ -143,27 +181,61 @@ export function OwnEstimateStep({
           setPhase({ kind: "working", step: "updating" });
         }
       }
-      const settled = await settleOwnEstimate(projectId, revisionId, structureId);
-      if (!alive.current) {
-        return;
-      }
-      if (settled.kind === "failed") {
-        setPhase({ kind: "failed", outcome: settled.outcome });
-      } else if (settled.kind === "presented") {
-        setPhase({ kind: "presented", report: settled.report });
-      } else {
-        await finish();
-      }
+      await settle();
     })();
-  }, [pruned, projectId, revisionId, structureId, finish]);
+  }, [begun, pruned, projectId, revisionId, structureId, finish, settle]);
 
   const names = { [structureId]: label };
+  const skip =
+    onSkip === undefined ? null : (
+      <Button type="button" variant="outline" size="sm" onClick={onSkip}>
+        {t("skip")}
+      </Button>
+    );
+  const close = (
+    <Button type="button" variant="outline" size="sm" onClick={onClose}>
+      {t("close")}
+    </Button>
+  );
+  if (phase.kind === "asking") {
+    return (
+      <section
+        id={id}
+        aria-label={t("title")}
+        className="max-w-xl space-y-2 rounded-md border p-3 text-sm"
+      >
+        <h2 className="text-sm font-semibold">{t("title")}</h2>
+        <p>{t("ask", { label })}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              setPhase({ kind: "working", step: pruned ? "recomposing" : "updating" });
+              setBegun(true);
+            }}
+          >
+            {t("update")}
+          </Button>
+          {skip}
+          {close}
+        </div>
+      </section>
+    );
+  }
   if (phase.kind === "working") {
-    return <p role="status">{t(phase.step, { label })}</p>;
+    return (
+      <p id={id} role="status">
+        {t(phase.step, { label })}
+      </p>
+    );
   }
   if (phase.kind === "failed") {
     return (
-      <OutcomeNotice outcome={phase.outcome} names={names} subject={label} onClear={onClose} />
+      <div id={id} className="space-y-2">
+        <OutcomeNotice outcome={phase.outcome} names={names} subject={label} onClear={onClose} />
+        {skip}
+      </div>
     );
   }
   const { report } = phase;
@@ -194,7 +266,11 @@ export function OwnEstimateStep({
     });
   };
   return (
-    <section aria-label={t("title")} className="max-w-xl space-y-2 rounded-md border p-3 text-sm">
+    <section
+      id={id}
+      aria-label={t("title")}
+      className="max-w-xl space-y-2 rounded-md border p-3 text-sm"
+    >
       <h2 className="text-sm font-semibold">{t("title")}</h2>
       <p>{t(refused ? "refused" : "keeps", { label })}</p>
       <ReportBody report={report} nature="risk" />
@@ -214,14 +290,8 @@ export function OwnEstimateStep({
             {t("confirm")}
           </Button>
         )}
-        {onSkip === undefined ? null : (
-          <Button type="button" variant="outline" size="sm" onClick={onSkip}>
-            {t("skip")}
-          </Button>
-        )}
-        <Button type="button" variant="outline" size="sm" onClick={onClose}>
-          {t("close")}
-        </Button>
+        {skip}
+        {close}
       </div>
     </section>
   );

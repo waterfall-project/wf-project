@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import type { Problem } from "@/api/problem";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -77,6 +78,17 @@ function detail(risk: Risk) {
   );
 }
 
+/** Press « Réexaminer », which asks before it writes, and choose to update the own estimate. */
+async function reviewAndUpdate() {
+  await userEvent.click(screen.getByRole("button", { name: "Réexaminer" }));
+  await userEvent.click(
+    within(await screen.findByRole("region", { name: "Mise à jour du devis propre" })).getByRole(
+      "button",
+      { name: "Mettre à jour le devis propre" },
+    ),
+  );
+}
+
 const CLEAN: FakeAnswers = {
   [REPORT]: { example: "structure_rebase_report_risk_clean", status: 200 },
   [REBASE]: { example: "structure_rebased_risk", status: 200 },
@@ -97,7 +109,7 @@ describe("« Réexaminer » devant un devis propre en retard [US-3140] [WF-RIS-0
   it("met à jour sans rien demander quand le compte rendu ne signale rien, puis présente la gravité recalculée et réexamine depuis le risque relu", async () => {
     const client = serve({ ...CLEAN, [REVIEW]: { example: "risk_reviewed", status: 201 } });
     render(detail(LATE));
-    await userEvent.click(screen.getByRole("button", { name: "Réexaminer" }));
+    await reviewAndUpdate();
     const form = await screen.findByRole("dialog");
     expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, READ_RISK]);
     expect(form).toHaveTextContent(/gravité recalculée est de 1\s250\s000,00/);
@@ -114,7 +126,7 @@ describe("« Réexaminer » devant un devis propre en retard [US-3140] [WF-RIS-0
       [REPORT]: { example: "structure_rebase_report_risk", status: 200 },
     });
     render(detail(LATE));
-    await userEvent.click(screen.getByRole("button", { name: "Réexaminer" }));
+    await reviewAndUpdate();
     const step = await screen.findByRole("region", { name: "Mise à jour du devis propre" });
     expect(step).toHaveTextContent(/garde une valeur contre le projet/);
     expect(step).toHaveTextContent(/Gravité recalculée : 1\s249\s880,00/);
@@ -132,7 +144,7 @@ describe("« Réexaminer » devant un devis propre en retard [US-3140] [WF-RIS-0
       [REPORT]: { example: "structure_rebase_report_risk_refused", status: 200 },
     });
     render(detail(LATE));
-    await userEvent.click(screen.getByRole("button", { name: "Réexaminer" }));
+    await reviewAndUpdate();
     const step = await screen.findByRole("region", { name: "Mise à jour du devis propre" });
     expect(step).toHaveTextContent(/est refusée : corrigez le devis propre/);
     expect(within(step).getByRole("alert")).toBeVisible();
@@ -140,12 +152,21 @@ describe("« Réexaminer » devant un devis propre en retard [US-3140] [WF-RIS-0
     expect(client.calls.map((call) => call.route)).toEqual([REPORT]);
   });
 
-  it("laisse écarter le risque sans mise à jour : le réexamen qui écarte n'en demande pas", async () => {
-    const client = serve({
-      ...CLEAN,
-      [REPORT]: { example: "structure_rebase_report_risk_refused", status: 200 },
-      [REVIEW]: { example: "risk_reviewed", status: 201 },
-    });
+  it("met à jour quand on le choisit : l'étape demande d'abord, et n'écrit rien avant le choix", async () => {
+    const client = serve({ ...CLEAN, [REVIEW]: { example: "risk_reviewed", status: 201 } });
+    render(detail(LATE));
+    await userEvent.click(screen.getByRole("button", { name: "Réexaminer" }));
+    const step = await screen.findByRole("region", { name: "Mise à jour du devis propre" });
+    expect(client.calls).toHaveLength(0);
+    await userEvent.click(
+      within(step).getByRole("button", { name: "Mettre à jour le devis propre" }),
+    );
+    await screen.findByRole("dialog");
+    expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, READ_RISK]);
+  });
+
+  it("laisse écarter le risque sans mise à jour devant un compte rendu propre : ni mise à jour ni relecture n'est écrite [WF-RIS-0070-A]", async () => {
+    const client = serve({ ...CLEAN, [REVIEW]: { example: "risk_reviewed", status: 201 } });
     render(detail(LATE));
     await userEvent.click(screen.getByRole("button", { name: "Réexaminer" }));
     const step = await screen.findByRole("region", { name: "Mise à jour du devis propre" });
@@ -158,11 +179,36 @@ describe("« Réexaminer » devant un devis propre en retard [US-3140] [WF-RIS-0
     await vi.waitFor(() => {
       expect(client.calls.at(-1)?.route).toBe(REVIEW);
     });
-    expect(client.calls.some((call) => call.route === REBASE)).toBe(false);
+    expect(client.calls.map((call) => call.route)).toEqual([REVIEW]);
     expect(client.calls.at(-1)?.body).toMatchObject({
       state: "dismissed",
       lock_version: LATE.lock_version,
     });
+  });
+
+  it("laisse écarter le risque sans mise à jour quand la mise à jour a échoué [WF-RIS-0070-A]", async () => {
+    const client = serve({
+      ...CLEAN,
+      [RECOMPOSE]: {
+        problem: {
+          ...(example("structure_recompose_revision_marked") as Problem),
+          status: 409 as const,
+        },
+      },
+    });
+    render(detail(lacking(["own_estimate_whole", "own_estimate_up_to_date"])));
+    await userEvent.click(screen.getByRole("button", { name: "Réexaminer" }));
+    const step = await screen.findByRole("region", { name: "Mise à jour du devis propre" });
+    await userEvent.click(
+      within(step).getByRole("button", { name: "Mettre à jour le devis propre" }),
+    );
+    await screen.findByRole("alert");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Écarter le risque sans mise à jour" }),
+    );
+    const form = await screen.findByRole("dialog");
+    expect(within(form).getByRole("combobox", { name: /État retenu/ })).toHaveValue("dismissed");
+    expect(client.calls.map((call) => call.route)).toEqual([RECOMPOSE]);
   });
 
   it("recompose d'abord un devis propre élagué, puis le met à jour", async () => {
@@ -171,7 +217,7 @@ describe("« Réexaminer » devant un devis propre en retard [US-3140] [WF-RIS-0
       [RECOMPOSE]: { example: "structure_recomposed_late", status: 200 },
     });
     render(detail(lacking(["own_estimate_whole", "own_estimate_up_to_date"])));
-    await userEvent.click(screen.getByRole("button", { name: "Réexaminer" }));
+    await reviewAndUpdate();
     await screen.findByRole("dialog");
     expect(client.calls.map((call) => call.route)).toEqual([RECOMPOSE, REPORT, REBASE, READ_RISK]);
   });
