@@ -291,7 +291,6 @@ def test_a_file_saved_by_ms_project_is_imported_with_its_tasks_links_and_dates(
     calendars = calendars_of(project)
     for (_, task), each in zip(kept, project.tasks, strict=True):
         calendar = calendar_of(project, calendars, each)
-        assert calendar is not None
         assert each.start is not None
         assert each.finish is not None
         assert dates(task) == (calendar.instant(each.start), calendar.instant(each.finish))
