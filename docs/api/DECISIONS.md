@@ -12984,7 +12984,13 @@ révision marquée (`structure_recompose_revision_marked`). Les écritures de la
 `structure_rebase_report` le mettent en retard : son compte rendu garde la charge du raccordement
 (`structure_rebase_report_risk`), sa variante refusée ferme une boucle par la reprise
 (`structure_rebase_report_risk_refused`), et la mise à jour aboutie l'enregistre
-(`structure_rebased_risk`). Dans `structures`, 204 est entier et à jour, 206, celui d'un risque
+(`structure_rebased_risk`). Deux exemples complètent la branche principale de l'écran
+(#4775, US-3140/L1) : `structure_rebase_report_risk_clean` (clé `risk_clean`), la mise à jour
+qui ne signale rien — la principale n'ayant pas réestimé le raccordement des borniers, aucune
+valeur gardée, aucun refus — avec la gravité du registre et sa provision recalculées, et
+`structure_recomposed_late` (clé `recomposed_late`), la recomposition qui laisse le devis propre
+entier mais en retard, la principale de la révision 104 ayant changé depuis le marquage, sa mise à
+jour offerte. Dans `structures`, 204 est entier et à jour, 206, celui d'un risque
 écarté, entier et en retard, 205, consommé, élagué ; dans `structures_amendments`, que la fusion de
 l'avenant 1 a marquée, les trois sont entiers et en retard. `structures_next_revision` montre la recomposition offerte (`recompose`) sur le devis propre élagué non
 consommé de la révision 104, 209, dont la saisie et la mise à jour manquent de `own_estimate_whole`, et

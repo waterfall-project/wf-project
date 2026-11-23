@@ -698,7 +698,7 @@ fusion (`load_occurrence`), sous les identifiants que le témoin impose. Le calc
 
 Le devis propre s'ouvre dans les grilles du planning et du devis par ce qu'EP-08 a écrit pour un
 avenant : la lecture contre la base, la note de retard, la commande de mise à jour et son compte
-rendu (`amendment-late-note.tsx`, `rebase-amendment-command.tsx`), généralisés aux deux natures. S'y
+rendu (`structure-late-note.tsx`, `rebase-structure-command.tsx`), généralisés aux deux natures. S'y
 ajoutent : la recomposition à l'ouverture d'un devis propre élagué ; l'enchaînement de la mise à
 jour avant une saisie, un réexamen ou une survenance ; l'échec nommé d'un marquage ou d'une
 contractualisation, d'où l'écran mène aux risques à lire ; le compte rendu de survenance ;
@@ -1360,7 +1360,7 @@ d'une opportunité (US-3140).
 
 ## US-3140 — Les écrans des risques : le devis propre sur le projet, sa mise à jour, la survenance, l'opportunité
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — WF-IHM-0020, dont le texte ne change pas, reste close par EP-08
 - **opérations** : celles des US-3070 à US-3130, par le client engendré
 - **issue** : #4582
@@ -1416,7 +1416,7 @@ qu'il est.
 
 **Notes de réalisation.** Les écrans existent (EP-15, EP-17, EP-25, EP-08) : le registre, le détail,
 les formulaires, le réexamen, le compte rendu de survenance, et pour un avenant la note de retard et
-« Mettre à jour l'avenant » (`amendment-late-note.tsx`, `rebase-amendment-command.tsx`), que le
+« Mettre à jour l'avenant » (`structure-late-note.tsx`, `rebase-structure-command.tsx`), que le
 devis propre reprend. Cette US ne redessine aucun écran : la reprise du graphique à bulles et la
 colonne de tendance sont d'US-3160.
 

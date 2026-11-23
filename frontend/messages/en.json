@@ -1456,6 +1456,9 @@
       },
       "rebase": {
         "help": "Updates the amendment: carries into the differential what the main structure has received since it was opened, after the report and a confirmation. It can then be merged."
+      },
+      "rebaseOwn": {
+        "help": "Updates the own estimate: carries into it what the main structure has received since its last update, after the report and a confirmation."
       }
     },
     "deleteRisk": {
@@ -2134,7 +2137,29 @@
   "amendmentLate": {
     "note": "The amendment “{label}” is late: the main structure has received writes since it was opened. Update it before making it contractual."
   },
+  "ownEstimateLate": {
+    "note": "The own estimate “{label}” is late: the main structure has changed since its last update. At the first entry it is updated; the screen asks nothing when the update signals nothing."
+  },
+  "ownEstimateEntry": {
+    "recomposing": "Recomposing the own estimate “{label}”…",
+    "updating": "Updating the own estimate “{label}”…",
+    "title": "Update of the own estimate",
+    "keeps": "The update of the own estimate “{label}” keeps a value against the project: confirm it, then enter again.",
+    "refused": "The update of the own estimate “{label}” is refused: correct the own estimate, then enter again.",
+    "confirm": "Confirm the update of the own estimate",
+    "close": "Close",
+    "done": "The own estimate “{label}” is up to date. Enter again.",
+    "updated": "The own estimate “{label}” was updated."
+  },
   "rebaseReport": {
+    "labelOwn": "Update the own estimate",
+    "statementOwn": "The update carries into the own estimate what the main structure has received since its last update, changing nothing of what it designates, then recomputes the severity and the provision of the risk. Abandoning here changes nothing.",
+    "keptOwn": "{count, plural, one {# kept by the own estimate} other {# kept by the own estimate}}",
+    "recomputed": "Severity and provision recomputed",
+    "severity": "Severity recomputed: {amount}",
+    "provision": "Provision recomputed: {amount}",
+    "correctOwn": "Correct the own estimate in the grid, then read the report anew.",
+    "doneOwn": "The own estimate “{label}” is up to date.",
     "label": "Update the amendment",
     "statement": "The update carries into the amendment what the main structure has received since it was opened, changing nothing of what the amendment designates, then makes the main structure its new base. Abandoning here changes nothing.",
     "submit": "Confirm the update",

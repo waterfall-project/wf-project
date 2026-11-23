@@ -33,6 +33,11 @@ export interface ListedStructure {
    * structure, which has no base.
    */
   readonly is_up_to_date: boolean | null;
+  /**
+   * For the own estimate of a risk, whether it is pruned to what it designates
+   * (`CostStructure.is_pruned`, US-3070); null for any other structure, which is never pruned.
+   */
+  readonly is_pruned: boolean | null;
 }
 
 /** The structure a grid reads, and every structure of its revision, as the server lists them. */
@@ -48,10 +53,19 @@ export function listedStructure({
   kind,
   is_merged,
   is_up_to_date,
-}: Omit<ListedStructure, "is_up_to_date"> & {
+  is_pruned,
+}: Omit<ListedStructure, "is_up_to_date" | "is_pruned"> & {
   readonly is_up_to_date?: boolean | null | undefined;
+  readonly is_pruned?: boolean | null | undefined;
 }): ListedStructure {
-  return { structure_id, label, kind, is_merged, is_up_to_date: is_up_to_date ?? null };
+  return {
+    structure_id,
+    label,
+    kind,
+    is_merged,
+    is_up_to_date: is_up_to_date ?? null,
+    is_pruned: is_pruned ?? null,
+  };
 }
 
 /**

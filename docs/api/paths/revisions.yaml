@@ -1203,6 +1203,7 @@
               refused: { $ref: ../../../fixtures/api/structure_rebase_report_refused.json }
               risk: { $ref: ../../../fixtures/api/structure_rebase_report_risk.json }
               risk_refused: { $ref: ../../../fixtures/api/structure_rebase_report_risk_refused.json }
+              risk_clean: { $ref: ../../../fixtures/api/structure_rebase_report_risk_clean.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -1365,6 +1366,7 @@
             schema: { $ref: ../components/schemas/revisions.yaml#/CostStructure }
             examples:
               recomposed: { $ref: ../../../fixtures/api/structure_recomposed.json }
+              recomposed_late: { $ref: ../../../fixtures/api/structure_recomposed_late.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

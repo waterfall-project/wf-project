@@ -393,13 +393,22 @@ describe("« Écarts seulement » on the grid of the estimate [WF-REV-0100-A]", 
     expect(queryOf("/nodes")?.has("difference")).toBe(false);
   });
 
-  it("neither offers, nor sends, nor says it on the main structure and on the own estimate of a risk", async () => {
-    for (const search of [{ difference: ALL }, { structure: RISK, difference: ALL }]) {
-      server.clients = [];
-      const page = await estimatePage("me", search);
-      expect(queryOf("/nodes")?.has("difference")).toBe(false);
-      expect(page).not.toContain("Differences only");
-    }
+  it("neither offers, nor sends, nor says it on the main structure", async () => {
+    const page = await estimatePage("me", { difference: ALL });
+    expect(queryOf("/nodes")?.has("difference")).toBe(false);
+    expect(page).not.toContain("Differences only");
+  });
+
+  it("is offered, and sent, on the own estimate of a risk, which presents what it designates [US-3140] [WF-IHM-0020-A]", async () => {
+    const page = await estimatePage("me", { structure: RISK, difference: ALL });
+    expect(queryOf("/nodes")?.get("difference")).toBe(ALL);
+    expect(page).toContain("Differences only");
+  });
+
+  it("says the own estimate in arrears late, and opens its grid to entry, the first entry updating it [US-3140] [WF-RIS-0070-A]", async () => {
+    const page = await estimatePage("me", { structure: "01926f3a-7c00-7000-8000-000000000206" });
+    expect(page).toContain("is late");
+    expect(grids.estimate.at(-1)?.editable).toBe(true);
   });
 });
 

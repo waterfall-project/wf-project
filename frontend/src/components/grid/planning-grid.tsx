@@ -50,6 +50,7 @@ import {
   updateTaskFacet,
 } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
+import { counterOf, fieldsOf, useEntryGuard } from "@/components/revisions/entry-guard";
 import { Command } from "@/components/commands/command";
 import { rejectedRead } from "@/components/commands/rejection";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
@@ -133,9 +134,12 @@ export interface PlanningGridProps {
   /**
    * The planning start date of the structure read (`CostStructure.planning_start_on`) and how the
    * screen names the structure: shown above the grid, and entered where the structure lists
-   * `edit_planning` (`updateCostStructure`, WF-PLA-0020). None, and the grid shows none.
+   * `edit_planning` (`updateCostStructure`, WF-PLA-0020), where `editable` says so — the page says it
+   * once: not for the own estimate of a risk, which has none of its own, the main structure's being
+   * copied (WF-RIS-0030). None, and the grid shows none.
    */
-  readonly planningStart?: { readonly on: string; readonly label: string } | undefined;
+  readonly planningStart?:
+    { readonly on: string; readonly label: string; readonly editable: boolean } | undefined;
   /** What the revision offers of the skeleton (`generate_skeleton`); none, it does not list it. */
   readonly skeleton?: CommandOffer | undefined;
   /**
@@ -346,6 +350,8 @@ export function PlanningGrid({
   target,
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
+  // The own estimate of a risk in arrears is updated before the first entry (US-3140).
+  const guard = useEntryGuard();
   const kinds = useTranslations("enums.WorkBreakdownKind");
   const columns = useTranslations("enums.NodeColumn");
   const modes = useTranslations("enums.SchedulingMode");
@@ -416,10 +422,17 @@ export function PlanningGrid({
             rows: block.map((cells) => [...cells]),
           }),
         apply: async (plan) => {
-          const outcome = await applyPaste(structure, {
-            paste_id: plan.paste_id,
-            confirmed: true,
-            lock_version: version,
+          // A block has no node of its own: the counter of the structure, read again when the own
+          // estimate was updated first, is all the service judges it by.
+          const outcome = await guard({
+            nodes: [],
+            fields: [],
+            send: (fresh) =>
+              applyPaste(structure, {
+                paste_id: plan.paste_id,
+                confirmed: true,
+                lock_version: fresh?.structureLockVersion ?? version,
+              }),
           });
           if (outcome.kind !== "done") {
             return outcome;
@@ -445,9 +458,14 @@ export function PlanningGrid({
       // The field entered and the version of the node read, nothing else (#178).
       task: async (node, change) =>
         answered(
-          await updateTaskFacet(structure, node.node_id, {
-            ...change,
-            lock_version: node.lock_version,
+          await guard({
+            nodes: [node.node_id],
+            fields: fieldsOf("task", change),
+            send: (fresh) =>
+              updateTaskFacet(structure, node.node_id, {
+                ...change,
+                lock_version: counterOf(fresh, node.node_id, node.lock_version),
+              }),
           }),
         ),
       // The links of the task in place of its own, with the version of the node read: the rows the
@@ -459,9 +477,14 @@ export function PlanningGrid({
         ask: names.ask,
         write: async (node, predecessors) =>
           answered(
-            await setPredecessors(structure, node.node_id, {
-              predecessors: [...predecessors],
-              lock_version: node.lock_version,
+            await guard({
+              nodes: [node.node_id],
+              fields: ["task.predecessors"],
+              send: (fresh) =>
+                setPredecessors(structure, node.node_id, {
+                  predecessors: [...predecessors],
+                  lock_version: counterOf(fresh, node.node_id, node.lock_version),
+                }),
             }),
           ),
       },
@@ -489,6 +512,7 @@ export function PlanningGrid({
     router,
     timelines,
     names,
+    guard,
   ]);
   const config = useMemo(
     () => withDifference(read, differential, comparing),
@@ -581,7 +605,7 @@ export function PlanningGrid({
           read={structureVersion}
           label={planningStart.label}
           account={account}
-          editable={editable === true}
+          editable={planningStart.editable}
         />
       )}
       {offered && (skeleton !== undefined || ours !== undefined) ? (

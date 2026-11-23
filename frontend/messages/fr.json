@@ -1456,6 +1456,9 @@
       },
       "rebase": {
         "help": "Met l’avenant à jour : reporte dans le différentiel ce que la structure principale a reçu depuis son ouverture, après le compte rendu et confirmation. Il se fusionne ensuite."
+      },
+      "rebaseOwn": {
+        "help": "Met le devis propre à jour : reporte ce que la structure principale a reçu depuis sa dernière mise à jour, après le compte rendu et confirmation."
       }
     },
     "deleteRisk": {
@@ -2134,7 +2137,29 @@
   "amendmentLate": {
     "note": "L’avenant « {label} » est en retard : la structure principale a reçu des écritures depuis son ouverture. Mettez-le à jour avant de le contractualiser."
   },
+  "ownEstimateLate": {
+    "note": "Le devis propre « {label} » est en retard : la structure principale a changé depuis sa dernière mise à jour. À la première saisie, il est mis à jour ; l’écran ne demande rien si la mise à jour ne signale rien."
+  },
+  "ownEstimateEntry": {
+    "recomposing": "Recomposition du devis propre « {label} »…",
+    "updating": "Mise à jour du devis propre « {label} »…",
+    "title": "Mise à jour du devis propre",
+    "keeps": "La mise à jour du devis propre « {label} » garde une valeur contre le projet : confirmez-la, puis saisissez de nouveau.",
+    "refused": "La mise à jour du devis propre « {label} » est refusée : corrigez le devis propre, puis saisissez de nouveau.",
+    "confirm": "Confirmer la mise à jour du devis propre",
+    "close": "Fermer",
+    "done": "Le devis propre « {label} » est à jour. Saisissez de nouveau.",
+    "updated": "Le devis propre « {label} » a été mis à jour."
+  },
   "rebaseReport": {
+    "labelOwn": "Mettre à jour le devis propre",
+    "statementOwn": "La mise à jour reporte dans le devis propre ce que la structure principale a reçu depuis sa dernière mise à jour, sans rien changer de ce qu’il désigne, puis recalcule la gravité et la provision du risque. Abandonner ici ne change rien.",
+    "keptOwn": "{count, plural, one {# gardée par le devis propre} other {# gardées par le devis propre}}",
+    "recomputed": "Gravité et provision recalculées",
+    "severity": "Gravité recalculée : {amount}",
+    "provision": "Provision recalculée : {amount}",
+    "correctOwn": "Corrigez le devis propre dans la grille, puis relisez le compte rendu.",
+    "doneOwn": "Le devis propre « {label} » est à jour.",
     "label": "Mettre à jour l’avenant",
     "statement": "La mise à jour reporte dans l’avenant ce que la structure principale a reçu depuis son ouverture, sans rien changer de ce que l’avenant désigne, puis fait de la structure principale sa nouvelle base. Abandonner ici ne change rien.",
     "submit": "Confirmer la mise à jour",
