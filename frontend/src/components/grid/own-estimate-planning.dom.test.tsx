@@ -191,6 +191,12 @@ describe("the predecessors entered into the planning of an own estimate in arrea
     await userEvent.clear(within(screen.getByRole("treegrid")).getByRole("textbox"));
     await userEvent.keyboard("{Enter}");
     expect(await screen.findByText("Ce champ ne se saisit pas sur cette ligne.")).toBeVisible();
+    // Said on the cell of the predecessors, the one the user corrects, not merely somewhere on screen.
+    await vi.waitFor(() => {
+      expect(cellAt(ROW, "predecessors")).toHaveAccessibleDescription(
+        /Ce champ ne se saisit pas sur cette ligne\./,
+      );
+    });
     expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, NODES]);
   });
 });
