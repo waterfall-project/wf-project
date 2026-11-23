@@ -83,7 +83,13 @@ _NUMBER_HEADERS = (DAYS_HEADER, DISBURSEMENT_HEADER)
 _ALL_HEADERS = _TEXT_HEADERS + _NUMBER_HEADERS
 # The columns a tab of lines cannot lack, in the order of the writer (#4421): without one, a
 # remaining would be set to zero, a task finished, or a line created, on a column it cannot read.
-_REQUIRED_HEADERS = (DAYS_HEADER, DISBURSEMENT_HEADER, LINEAGE_HEADER)
+_REQUIRED_HEADERS = (
+    TASK_HEADER,
+    ROLE_OR_CATEGORY_HEADER,
+    DAYS_HEADER,
+    DISBURSEMENT_HEADER,
+    LINEAGE_HEADER,
+)
 _READ_HEADERS = frozenset(_ALL_HEADERS)
 # A tab of lines is the one that carries both of these, on whichever row.
 _KEY_HEADERS = frozenset({TASK_HEADER, ROLE_OR_CATEGORY_HEADER})
@@ -117,7 +123,8 @@ class RemainingRead:
     ``review_date`` is none when « Synthèse » holds no date the reading understands; then
     ``unreadable_review`` tells an absent date (none) from a cell that holds something else, by
     the value as the file carries it (``DATE_INVALID``, #2410). ``unread_sheets`` names the tabs
-    that are not fixed ones and carry no headers of lines; ``missing_headers`` gives, by tab read,
+    that are not fixed ones and carry no header read at all; ``missing_headers`` gives, by tab read
+    (one header read suffices, US-3200b),
     the headers of the columns read that the tab lacks (their cells read as none). ``tasks`` gives,
     by the entry « Tâches » lists, the lineage of its task: the analysis designates the task of a
     line by it.
@@ -217,11 +224,14 @@ def _read_sheet(
     lines: list[ReadRemainingLine] = []
     rejected: list[Rejection] = []
     columns: dict[str, int] | None = None
+    partial: dict[str, int] | None = None
     total_seen = note_seen = False
     for number, row in enumerate(rows, start=1):
         if columns is None:
             found = header_columns(row, _READ_HEADERS)
             columns = found if found.keys() >= _KEY_HEADERS else None
+            if columns is None and found and partial is None:
+                partial = found
             continue
         texts = {header: text(at(row, columns, header)) for header in _TEXT_HEADERS}
         raws = {header: at(row, columns, header) for header in _NUMBER_HEADERS}
@@ -261,7 +271,7 @@ def _read_sheet(
                 lineage=texts[LINEAGE_HEADER],
             )
         )
-    return lines, rejected, columns
+    return lines, rejected, columns or partial
 
 
 def read_remaining_workbook(content: bytes) -> RemainingRead:

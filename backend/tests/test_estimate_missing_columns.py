@@ -76,6 +76,8 @@ def held(api: ContractClient, stage: Scene) -> dict[str, Any]:
 @pytest.mark.parametrize(
     ("header", "new"),
     [
+        pytest.param("Tâche", "Tâche (x)", id="task-renamed"),
+        pytest.param("Rôle ou catégorie", "Rôle", id="role-renamed"),
         pytest.param("ID ligne", None, id="without-lineage"),
         pytest.param("Quantité", None, id="without-quantity"),
         pytest.param("Heures", None, id="without-hours"),
