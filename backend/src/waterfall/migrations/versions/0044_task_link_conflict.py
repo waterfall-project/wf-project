@@ -146,6 +146,8 @@ ON task_link_conflict FOR EACH ROW EXECUTE FUNCTION task_link_conflict_refuse_ma
 
 def upgrade() -> None:
     """Create the table and the partitions of the projects, fill it, then guard it; grant it."""
+    # The link of a conflict is of the structure of the row: the key names the structure too.
+    op.create_unique_constraint(None, "task_link", ["project_id", "id", "structure_id"])
     op.create_table(
         "task_link_conflict",
         sa.Column("project_id", sa.Uuid(), nullable=False),
@@ -160,7 +162,9 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
-            ["project_id", "link_id"], ["task_link.project_id", "task_link.id"], ondelete="CASCADE"
+            ["project_id", "link_id", "structure_id"],
+            ["task_link.project_id", "task_link.id", "task_link.structure_id"],
+            ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
             ["node_id", "project_id", "structure_id"],
@@ -180,5 +184,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Drop the table, its partitions and its functions: the links keep ``in_conflict``."""
     op.drop_table("task_link_conflict")
+    op.drop_constraint("uq_task_link_project_id", "task_link", type_="unique")
     op.execute("DROP FUNCTION task_link_conflict_refuse_marked_change()")
     op.execute("DROP FUNCTION task_link_conflict_refuse_truncate()")

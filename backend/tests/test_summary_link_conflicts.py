@@ -17,13 +17,20 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
+from amendments_support import OutOfDate, on, opened_amendment
+from estimate_support import costing
+from history_support import link
 from nodes_support import Tree, instant, mark, opened
 from planning_support import DAY
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
-from sqlalchemy import delete, func, select
+from rebases_support import rebased
+from risks_support import costed
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
+from waterfall.core.planning import rebasing_writing
+from waterfall.core.planning.rescheduling import Rescheduled
 from waterfall.core.planning.tables import Node, TaskLink, TaskLinkConflict
 
 if TYPE_CHECKING:
@@ -107,6 +114,16 @@ def kept(owner: Engine, revision_id: str) -> int:
             select(func.count())
             .select_from(TaskLinkConflict)
             .where(TaskLinkConflict.revision_id == UUID(revision_id))
+        ).scalar_one()
+
+
+def kept_by(owner: Engine, structure_id: str) -> int:
+    """Count the tasks in conflict a structure keeps."""
+    with owner.connect() as connection:
+        return connection.execute(
+            select(func.count())
+            .select_from(TaskLinkConflict)
+            .where(TaskLinkConflict.structure_id == UUID(structure_id))
         ).scalar_one()
 
 
@@ -197,6 +214,19 @@ def test_a_conflict_is_copied_with_its_link_kept_read_only_once_marked_and_aband
         connection.execute(
             delete(TaskLinkConflict).where(TaskLinkConflict.revision_id == UUID(marked))
         )
+    with owner.connect() as connection:
+        row = connection.execute(
+            select(TaskLinkConflict).where(TaskLinkConflict.revision_id == UUID(marked))
+        ).one()
+    # The guard refuses the insertion and the change of a row of a marked revision as well.
+    with pytest.raises(IntegrityError, match="never written"), owner.begin() as connection:
+        connection.execute(insert(TaskLinkConflict).values(**row._asdict()))
+    with pytest.raises(IntegrityError, match="never written"), owner.begin() as connection:
+        connection.execute(
+            update(TaskLinkConflict)
+            .where(TaskLinkConflict.revision_id == UUID(marked))
+            .values(node_id=TaskLinkConflict.node_id)
+        )
     current = Tree(api, stage, opened(api, stage))
     read = {item["task"]["label"]: item for item in current.items()}
     conflict = {
@@ -213,3 +243,37 @@ def test_a_conflict_is_copied_with_its_link_kept_read_only_once_marked_and_aband
     answer = api.delete(f"{path}?lock_version={lock_version}", headers=stage.manager.headers)
     assert answer.status_code == 204, answer.text
     assert (kept(owner, marked), kept(owner, current.revision["revision_id"])) == (1, 0)
+
+
+@pytest.mark.story("US-3300")
+def test_the_update_of_a_differential_renders_the_tasks_of_a_link_it_deletes_in_conflict(
+    api: ContractClient, stage: Scene, owner: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Propre à l'US (« Tables et migrations ») : the update reads the conflicts of the differential
+    # before it writes its links; the link P → S in conflict, which the main structure dropped, goes
+    # with its row, and P and M, which it named, are rendered again (``moved``), free of any
+    # conflict.
+    replays: list[Rescheduled] = []
+    real = rebasing_writing.replayed
+
+    def spy(*args: Any, **kwargs: Any) -> Rescheduled:
+        replays.append(real(*args, **kwargs))
+        return replays[-1]
+
+    monkeypatch.setattr(rebasing_writing, "replayed", spy)
+    project = costed(api, stage, costing(stage.database))
+    summary = summary_after(project.tree, "10", NEXT_WEDNESDAY)[1]
+    structure_id = opened_amendment(api, project)
+    amendment = on(project.tree, structure_id)
+    held = {item["task"]["label"]: item for item in amendment.items() if item["kind"] == "task"}
+    assert held["P"]["task"]["link_conflicts"] == held["M"]["task"]["link_conflicts"] != []
+    assert kept_by(owner, structure_id) == 1
+    dropped = link(project.tree, project.tree.node(summary["node_id"]), stage.manager)
+    assert dropped.status_code == 200, dropped.text
+    answer = rebased(api, OutOfDate(project, structure_id, amendment))
+    assert answer.status_code == 200, answer.text
+    read = {item["task"]["label"]: item for item in amendment.items() if item["kind"] == "task"}
+    assert read["P"]["task"]["link_conflicts"] == read["M"]["task"]["link_conflicts"] == []
+    assert kept_by(owner, structure_id) == 0
+    assert len(replays) == 1
+    assert {UUID(read["P"]["node_id"]), UUID(read["M"]["node_id"])} <= replays[0].moved

@@ -281,6 +281,8 @@ class TaskLink(Base):
         CheckConstraint(_in("link_type", LINK_TYPES), name="link_type_known"),
         CheckConstraint(_in("lag_unit", LAG_UNITS), name="lag_unit_known"),
         UniqueConstraint("structure_id", "predecessor_id", "successor_id", "project_id"),
+        # The key the conflicts of the link follow, so that they stay in its structure (0044).
+        UniqueConstraint("project_id", "id", "structure_id"),
         Index(None, "predecessor_id"),
         Index(None, "successor_id"),
         {"postgresql_partition_by": BY_PROJECT},
@@ -310,7 +312,9 @@ class TaskLinkConflict(Base):
     __table_args__ = (
         _in_revision(),
         ForeignKeyConstraint(
-            ["project_id", "link_id"], ["task_link.project_id", "task_link.id"], ondelete="CASCADE"
+            ["project_id", "link_id", "structure_id"],
+            ["task_link.project_id", "task_link.id", "task_link.structure_id"],
+            ondelete="CASCADE",
         ),
         _in_structure("node_id"),
         Index(None, "node_id"),
