@@ -369,9 +369,11 @@ def dated_otherwise(session: Session, number: int) -> list[str]:
     return found
 
 
+@pytest.mark.story("US-3300")
 def test_the_dates_differ_from_the_file_only_for_the_tasks_a_calendar_of_a_line_reaches(
     witness: Database,
 ) -> None:
+    # US-3300: « les dates ne changent pas : [...] le témoin rend[...] les dates d'avant ».
     # The computed is the expected: once the lines are loaded (US-1570/L2), the engine dates every
     # task of the three revisions as the file does, the tasks the 4x10 calendars of the lines reach,
     # their successors and their summaries included (#2594). Before them, at the stage of the

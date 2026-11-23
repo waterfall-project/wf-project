@@ -156,6 +156,7 @@ LINE_HOOKS = (
     f"{CORE}.copying.copy_lines",
     f"{ESTIMATE}.facet.delete_lines",
     f"{ESTIMATE}.facet.line_calendars",
+    f"{ESTIMATE}.facet.line_roles",
     f"{CORE}.writing.create_line",
     f"{ESTIMATE}.facet.snapshot_lines",
     f"{ESTIMATE}.facet.restore_lines",

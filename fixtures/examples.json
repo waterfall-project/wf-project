@@ -537,6 +537,11 @@
       "sentence": "Après contractualisation d'un avenant qui porte le budget de 1 000 à 1 200, la courbe du budget présente, au point du mois de l'avenant, une marche égale à l'écart des deux cumulés à cette date, et atteint 1 200 à la date de fin de la nouvelle référence."
     },
     {
+      "key": "WF-IND-0100-A#c0554918c80b",
+      "requirement": "WF-IND-0100-A",
+      "sentence": "Un projet dont l'offre v2, désignée par erreur, est remplacée par v3 avant tout coût réel présente la courbe du budget de v3 seule, sans marche."
+    },
+    {
       "key": "WF-IND-0100-A#e82fb54dd583",
       "requirement": "WF-IND-0100-A",
       "sentence": "Avec un délai de paiement de 60 jours saisi sur toutes les lignes, main-d'œuvre comprise, chaque montant de la courbe du budget de référence est compté au mois de sa date décalée de 60 jours ; ceux de la projection le sont aussi, hormis les lignes de provision, qui restent à leur date ; le coût réel n'est pas décalé."

@@ -107,6 +107,13 @@ Issues ouvertes, reportées d'EP-08 le 2026-11-22 :
 - #4324 — front : une recherche dans une grille où une branche est repliée boucle sur le rendu («
   Too many re-renders »)
 
+Reportée d'EP-32 le 2026-11-23 (arbitrage de l'utilisateur), relevée à la revue d'US-3350/L3
+#4563, à rattacher au lot qui touche `frontend/src/components/grid/folded-runs.dom.test.tsx` :
+
+- #4777 — front : deux tests de la ligne de marque disent plus qu'ils ne prouvent ; le test « suite
+  en tête et suite finale » pose un lien qui traverse les lignes montrées, et les deux tests du
+  clavier depuis `td[data-run]` sont renommés
+
 ## Conception
 
 À écrire au cadrage.

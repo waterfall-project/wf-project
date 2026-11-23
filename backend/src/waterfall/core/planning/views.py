@@ -34,8 +34,8 @@ from waterfall.core.planning.interface.physical_progress import (
     physical_progress_of,
 )
 from waterfall.core.planning.scheduling import WorkInstant
-from waterfall.core.planning.tree import TASK, NodeRow, TaskRow, tracking_of
-from waterfall.core.projects.interface import work_breakdown_items
+from waterfall.core.planning.tree import TASK, NodeRow, TaskRow, read_conflicts, tracking_of
+from waterfall.core.projects.interface import current_day, work_breakdown_items
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Mapping, Sequence
@@ -66,10 +66,15 @@ ATTACHMENT_AND_TRACKING = ("task.order_item_id", "task.work_package_id", "task.t
 
 @dataclass(frozen=True, slots=True)
 class ConflictView:
-    """A link in conflict, named by its two tasks and its type (``LinkConflict``)."""
+    """A link in conflict, named by its two tasks, its manual task and its type (``LinkConflict``).
+
+    ``manual_node_id`` the task in manual mode its predecessor cannot satisfy: the successor, or a
+    subordinate in manual mode of a summary successor (#3984).
+    """
 
     predecessor_id: UUID
     successor_id: UUID
+    manual_node_id: UUID
     link_type: str
 
 
@@ -314,24 +319,41 @@ class State:
     completed_on: date | None
 
 
-def _derived(states: list[State], own: tuple[bool, date | None] = (False, None)) -> State:
+def _derived(
+    states: list[State],
+    own: tuple[bool, date | None] = (False, None),
+    kept: date | None = None,
+) -> State:
     """Give the state of a summary: started as soon as one is, completed when all are (0040).
 
     ``own`` is what its own lines tell: whether one holds it open, and the day they were set to
     nought, if that completed it. Held, it stays started when all its subordinates are completed.
-    Its start date is the first of its subordinates', its completion date the last of theirs and
-    of that day (WF-PLA-0130).
+    ``kept`` is the start its facet keeps (``kept_start``): a leaf started or completed that
+    received a subtask stays started at least, until its subordinates and its own lines complete
+    it. Its start date is the first of its subordinates' and of that one, its completion date the
+    last of theirs and of the day its lines closed it (WF-PLA-0130).
     """
     held, closed_on = own
     started = [state.started_on for state in states if state.started_on is not None]
-    first = min(started, default=None)
+    first = min([*started, kept] if kept is not None else started, default=None)
     if not held and all(state.progress == COMPLETED for state in states):
         completed = [state.completed_on for state in states if state.completed_on is not None]
         completed += [closed_on] if closed_on is not None else []
         return State(COMPLETED, first, max(completed, default=None))
-    if any(state.progress != NOT_STARTED for state in states):
+    if kept is not None or any(state.progress != NOT_STARTED for state in states):
         return State(STARTED, first, None)
     return State(NOT_STARTED, None, None)
+
+
+def kept_start[N: NodeColumns, T: TaskColumns](tree: Tree[N, T], node_id: UUID) -> date | None:
+    """Give the start a summary keeps on its facet, none when its facet says it not started.
+
+    A leaf started or completed that receives a subtask keeps its start (WF-PLA-0040): its facet,
+    which the reading of a leaf reads, is read as the summary's own state, as it stands, whatever
+    wrote it — no migration rewrites the facets of the summaries (EP-32, US-3310).
+    """
+    task = tree.tasks[node_id]
+    return None if task.progress == NOT_STARTED else task.started_on
 
 
 def own_lines[N: NodeColumns, T: TaskColumns](
@@ -352,11 +374,13 @@ def own_lines[N: NodeColumns, T: TaskColumns](
 def state_of[N: NodeColumns, T: TaskColumns](tree: Tree[N, T], node_id: UUID) -> State:
     """Give the state of a task of a tree: its own for a leaf, derived for a summary (0040).
 
-    A summary's, from its subordinates and from its own lines (``own_lines``).
+    A summary's, from its subordinates, from its own lines (``own_lines``) and from the start its
+    facet keeps (``kept_start``).
     """
     below = tree.subtasks(node_id)
     if below:
-        return _derived([state_of(tree, child) for child in below], own_lines(tree, node_id))
+        states = [state_of(tree, child) for child in below]
+        return _derived(states, own_lines(tree, node_id), kept_start(tree, node_id))
     task = tree.tasks[node_id]
     return State(task.progress, task.started_on, task.completed_on)
 
@@ -366,8 +390,9 @@ def states_without(
 ) -> dict[UUID, State]:
     """Give the state each ancestor of tasks will have once they and their subtrees are gone.
 
-    Derived from the subordinates left (WF-PLA-0040), and from what ``own`` tells of the own lines
-    of a summary — held open, and the day they closed it —, ``own_lines`` for one it does not name.
+    Derived from the subordinates left (WF-PLA-0040), from what ``own`` tells of the own lines of a
+    summary — held open, and the day they closed it —, ``own_lines`` for one it does not name, and
+    from the start its facet keeps (``kept_start``).
     A summary left without subordinate becomes a leaf in the state it had (``emptied``). The
     deepest first, so that a summary reads the state its subordinates will have.
     """
@@ -380,7 +405,7 @@ def states_without(
             found[each] = state_of(tree, each)
             continue
         states = [found[sub] if sub in found else state_of(tree, sub) for sub in below]
-        found[each] = _derived(states, own.get(each, own_lines(tree, each)))
+        found[each] = _derived(states, own.get(each, own_lines(tree, each)), kept_start(tree, each))
     return found
 
 
@@ -403,8 +428,9 @@ def derived_states[N: NodeColumns, T: TaskColumns](
 ) -> dict[UUID, State]:
     """Give the state of each task of a tree: its own for a leaf, derived for a summary (0040).
 
-    The deepest first, each summary from its subordinates and from what ``own`` tells of its own
-    lines (``own_lines``, ``tallied_own_lines``): what a reading derives, and what the indicators
+    The deepest first, each summary from its subordinates, from what ``own`` tells of its own lines
+    (``own_lines``, ``tallied_own_lines``) and from the start its facet keeps (``kept_start``): what
+    a reading derives, and what the indicators
     read of the tasks alone (#3902).
     """
     states: dict[UUID, State] = {}
@@ -413,7 +439,8 @@ def derived_states[N: NodeColumns, T: TaskColumns](
             continue
         below = tree.subtasks(node_id)
         if below:
-            states[node_id] = _derived([states[child] for child in below], own(node_id))
+            below_states = [states[child] for child in below]
+            states[node_id] = _derived(below_states, own(node_id), kept_start(tree, node_id))
         else:
             task = tree.tasks[node_id]
             states[node_id] = State(task.progress, task.started_on, task.completed_on)
@@ -462,15 +489,13 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
         project_id = self.place.project_id
         self.tree = tree
         self.calendars = calendars
-        self.scheduled_on = scheduled_at.date()
+        self.scheduled_on = current_day(scheduled_at)
         self.links = links
-        # The links by their successor, and by each end, built once: a node asks for its own.
+        # The links by their successor, built once: a node asks for its own.
         self._incoming: dict[UUID, list[LinkColumns]] = {}
-        self._ends: dict[UUID, list[LinkColumns]] = {}
         for link in links:
             self._incoming.setdefault(link.successor_id, []).append(link)
-            for end in {link.predecessor_id, link.successor_id}:
-                self._ends.setdefault(end, []).append(link)
+        self._named = self._conflicts_named(session, links)
         lineages = {tree.nodes[node_id].lineage_id for node_id in tree.tasks}
         self.tracking = tracking_of(session, project_id, lineages)
         # The label of a work package or an order item borne, one marked deleted included, which
@@ -597,19 +622,48 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
         return total
 
     def conflicts(self, node_id: UUID) -> tuple[ConflictView, ...]:
-        """Give the links in conflict a task is an end of, in the order of the plan (0020)."""
+        """Give the links in conflict that name a task, none for a summary (0020)."""
         return () if self.tree.is_summary(node_id) else self._conflicts(node_id)
 
     def _conflicts(self, node_id: UUID) -> tuple[ConflictView, ...]:
-        """Give the links in conflict a task that is no summary is an end of (0020)."""
+        """Give the links in conflict that name a task that is no summary (0020).
+
+        As their predecessor, or as the task in manual mode they cannot satisfy, in the order of
+        the plan of their predecessor, then of their successor, then of that task.
+        """
         row = self.tree.row_number
-        held = sorted(
-            (link for link in self._ends.get(node_id, []) if link.in_conflict),
-            key=lambda link: (row[link.predecessor_id], row[link.successor_id]),
-        )
         return tuple(
-            ConflictView(link.predecessor_id, link.successor_id, link.link_type) for link in held
+            sorted(
+                self._named.get(node_id, ()),
+                key=lambda each: (
+                    row[each.predecessor_id],
+                    row[each.successor_id],
+                    row[each.manual_node_id],
+                ),
+            )
         )
+
+    def _conflicts_named(
+        self, session: Session, links: Sequence[LinkColumns]
+    ) -> dict[UUID, list[ConflictView]]:
+        """Read the conflicts of the structure, built once by each task they name (#3984).
+
+        Those of the links read, which name a task of the tree: a reading leaves out a link whose
+        ends a write committed after its tree, and the conflicts of that link with it.
+        """
+        typed = {(link.predecessor_id, link.successor_id): link.link_type for link in links}
+        named: dict[UUID, list[ConflictView]] = {}
+        place = self.place
+        for each in read_conflicts(session, place.project_id, place.structure_id):
+            link_type = typed.get((each.predecessor_id, each.successor_id))
+            if link_type is None or each.manual_node_id not in self.tree.tasks:
+                continue
+            view = ConflictView(
+                each.predecessor_id, each.successor_id, each.manual_node_id, link_type
+            )
+            for end in {each.predecessor_id, each.manual_node_id}:
+                named.setdefault(end, []).append(view)
+        return named
 
     def _overdue(self, node_id: UUID) -> bool:
         task = self.tree.tasks[node_id]

@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from waterfall.core.planning.calendars import Applicable
     from waterfall.core.planning.scheduling import Origin
     from waterfall.core.planning.tables import TaskLink
-    from waterfall.core.planning.tree import Tree
+    from waterfall.core.planning.tree import Conflict, Tree
     from waterfall.core.revisions.interface import StructureFacts
 
 
@@ -105,17 +105,18 @@ class Holding:
 
     ``facts`` the structure as the write read it under its lock, not read again (#2492), none to
     read it; ``blamed`` what the write names when the engine refuses it; ``conflicts`` the links
-    in conflict read under the lock before the write, each by its two tasks: a link it deletes in
-    conflict moves its ends that stay (``kept``). ``None`` takes the links of the replay as they
-    are, which a recalculation writes none of. ``repriced`` the tasks whose nodes of the other
-    kinds are priced again whether they moved or not: the bearer of a line written. ``tree`` the
-    tree the write read under the lock, before it wrote, none to read it: the replay brings it to
-    what the write made of it (``reshaped``), whatever the write created, deleted or moved.
+    in conflict read under the lock before the write, each by its two tasks and the manual task it
+    names: a link it deletes in conflict moves the tasks it named that stay (``kept``). ``None``
+    takes the conflicts of the structure as they are, which a recalculation writes none of.
+    ``repriced`` the tasks whose nodes of the other kinds are priced again whether they moved or
+    not: the bearer of a line written. ``tree`` the tree the write read under the lock, before it
+    wrote, none to read it: the replay brings it to what the write made of it (``reshaped``),
+    whatever the write created, deleted or moved.
     """
 
     facts: StructureFacts | None = None
     blamed: Blamed | None = None
-    conflicts: Collection[tuple[UUID, UUID]] | None = None
+    conflicts: Collection[Conflict] | None = None
     repriced: Collection[UUID] = ()
     tree: Tree | None = None
 
@@ -155,7 +156,7 @@ def replayed(
     replay = replay_of(
         session, (project_id, structure_id, facts.planning_start_on), tree, calendars
     )
-    computed = dated(replay, None if blamed is None else blamed.origin)
+    computed = dated(session, replay, None if blamed is None else blamed.origin)
     beyond = computed.horizon_exceeded_by
     if beyond is not None:
         named = _named(blamed, beyond, tree)
@@ -164,7 +165,7 @@ def replayed(
                 session, (project_id, structure_id), tree.nodes[beyond].lineage_id, named
             )
         raise horizon_exceeded(named.node_id, named.label, named.row)
-    moved = kept(replay, computed, held.conflicts)
+    moved = kept(session, replay, computed, held.conflicts)
     session.flush()
     bearers = {each for each in moved if each in tree.tasks}
     for each in held.repriced:

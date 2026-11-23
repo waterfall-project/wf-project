@@ -605,9 +605,10 @@ export function PlanningGrid({
             undo={undo}
             commands={zoomed}
             treeFilters={treeFilters}
-            around={(rows, table) => (
+            around={(rows, table, active) => (
               <GanttRows
                 rows={rows}
+                active={active}
                 scope={`${config.key}:${structure.revision_id}`}
                 hoursPerDay={gantt?.hoursPerDay}
                 exported={gantt?.exported}

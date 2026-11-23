@@ -172,6 +172,7 @@ def marked(roots: Iterable[Task] | None = None) -> list[JsonObject]:
                         **conflict,
                         "predecessor_node_id": own[cast("str", conflict["predecessor_node_id"])],
                         "successor_node_id": own[cast("str", conflict["successor_node_id"])],
+                        "manual_node_id": own[cast("str", conflict["manual_node_id"])],
                     }
                     for conflict in cast("list[JsonObject]", task["link_conflicts"])
                 ],

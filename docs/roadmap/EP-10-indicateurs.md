@@ -1369,6 +1369,9 @@ le projet dépense au rythme prévu et où il atterrira.
 - `WF-IND-0100-A` — « La somme des décaissements à venir égale le reste à engager, provisions des
   risques identifiés comprises. » : la somme des `forecast` de `cash_out_by_month` égale `remaining`
   d'US-1660 au centime ; les provisions sont d'EP-08, qui clôt, et comptent zéro ici ;
+- écart : `WF-IND-0100-A` — « Un projet dont l'offre v2, désignée par erreur, est remplacée par v3
+  avant tout coût réel présente la courbe du budget de v3 seule, sans marche. » : ajouté par la
+  spécification 1.0.10 (#4260) ; EP-35 (#4815) ;
 - `WF-IND-0110-A` — « À la date de calcul, l’écart vertical entre la courbe de valeur acquise et
   celle du coût réel égale la différence des deux grandeurs. » : au point de la date de calcul,
   `earned_value` moins `actual_cost` des séries vaut `cost_variance` d'US-1660 ;
