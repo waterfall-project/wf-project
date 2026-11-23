@@ -16,7 +16,7 @@ import pytest
 from estimate_support import YEAR, Costing, Lines, costing
 from fastapi.testclient import TestClient
 from imports_trial import import_worker, read
-from nodes_support import Tree, set_progress
+from nodes_support import Tree, put_facts, set_progress
 from projects_support import Scene
 from projects_support import scene as make_scene
 from remaining_import_support import (
@@ -38,6 +38,8 @@ from support import ContractClient
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.projects.tables import Project
+from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 
 if TYPE_CHECKING:
@@ -191,7 +193,8 @@ def test_an_amount_that_does_not_divide_by_the_quantity_is_signalled_with_both_a
 ) -> None:
     # [US-3230] #4428: 1,234.56 typed on a quantity of 1,000 write a unit disbursement of 1.23,
     # 1,230.00 in all; the bench, at 1,000.00 over a quantity of 1,000, divides exactly and is not
-    # signalled; the cables, of one unit, give 77.77 back.
+    # signalled; the cables, of a quantity of nought in the base
+    # brought to one at the writing, give 77.77 back.
     supplies = line_named(scene.tree, "Fournitures")
     with stage.owner.begin() as connection:
         connection.execute(
@@ -237,3 +240,89 @@ def test_a_workbook_reimported_as_exported_signals_nothing(
     # [US-3230] No line changes, so no amount is written and none signalled.
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: scene.exported()}, scene.tasks()))
     assert report(api, stage, import_id)["signals"] == []
+
+
+@pytest.mark.story("US-3230")
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_an_amount_typed_to_the_cent_it_writes_is_not_signalled(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # 1,230.004 typed on a quantity of 1,000 are 1,230.00 to the cent: the amount written is the
+    # amount typed, as the report would show it; no signal with two identical amounts.
+    supplies = line_named(scene.tree, "Fournitures")
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == UUID(supplies["node_id"]))
+            .values(quantity=1000)
+        )
+    rows = scene.exported()
+    rows[1][4] = Decimal("1230.004")
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert [each["label"] for each in found["differences"]] == ["Fournitures"]
+    assert found["signals"] == []
+
+
+@pytest.mark.story("US-3230")
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_labour_line_changed_is_not_signalled(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # Only the amounts of lines other than labour are signalled: the days of the labour line, whose
+    # hours are written to 0.01 h, change it without a signal.
+    rows = scene.exported()
+    rows[0][3] = Decimal("1.2345")
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert [each["label"] for each in found["differences"]] == ["Raccordement"]
+    assert found["signals"] == []
+
+
+@pytest.mark.story("US-3230")
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_the_amount_signalled_is_the_amount_the_projection_re_estimates(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # At 3 % over a task of two years (the last four days of the year, then six), the amount
+    # written is the one the projection re-estimates — the shares projected one by one, the sum
+    # rounded: the signal gives it, and gives none for an amount that divides exactly at the mean
+    # coefficient of the task (103 typed, 103.00 written).
+    december = [date(YEAR, 12, day) for day in range(1, 32) if date(YEAR, 12, day).weekday() < 5]
+    january = [
+        date(YEAR + 1, 1, day) for day in range(1, 32) if date(YEAR + 1, 1, day).weekday() < 5
+    ]
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(Project)
+            .where(Project.id == UUID(stage.project["project_id"]))
+            .values(inflation_rate=Decimal("0.03"))
+        )
+        connection.execute(
+            update(CostStructure)
+            .where(CostStructure.id == UUID(scene.tree.structure_id))
+            .values(planning_start_on=december[-4])
+        )
+    tests = task_named(scene.tree, "Essais")
+    put_facts(
+        stage,
+        tests["node_id"],
+        start_date=december[-4],
+        finish_date=january[5],
+        duration_value=Decimal(10),
+    )
+    rows = scene.exported()
+    rows[2][4], rows[3][4] = 103, Decimal("56.27")
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    applied(api, stage, worker, import_id)
+    bench = row_of(stage, line_named(scene.tree, "Banc")["node_id"])
+    cables = line_named(scene.tree, "Câbles")
+    written = row_of(stage, cables["node_id"]).reestimated_amount
+    assert bench.reestimated_amount == Decimal("103.00")
+    assert [each["label"] for each in found["signals"]] == ["Câbles"]
+    assert found["signals"][0]["params"] == {
+        "typed_amount": "56.27",
+        "written_amount": format(written, "f"),
+    }
+    assert written != Decimal("56.27")

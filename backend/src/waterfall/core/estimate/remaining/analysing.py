@@ -67,11 +67,15 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from waterfall.core.estimate import importing
-from waterfall.core.estimate.costing import basis_of
+from waterfall.core.estimate.costing import basis_of, priced
 from waterfall.core.estimate.entries import FIELD_NOT_ACCEPTED, LineEntry
 from waterfall.core.estimate.excel import reader as estimate_reader
 from waterfall.core.estimate.excel.reader import ReadLine
-from waterfall.core.estimate.pricing import inflation_factor, round_to_cent
+from waterfall.core.estimate.pricing import (
+    inflation_factor,
+    round_to_cent,
+    unrounded_disbursement_amount,
+)
 from waterfall.core.estimate.reading import COMPLETED, TASK_NOT_COMPLETED
 from waterfall.core.estimate.remaining.excel.layout import FORMAT_VERSION, tab_subprojects
 from waterfall.core.estimate.remaining.excel.model import remaining_days
@@ -316,7 +320,12 @@ def _create(
     named: tuple[Reference, Designations, Scale],
     outcome: tuple[Analysis, Judging],
 ) -> None:
-    """Plan a line without a lineage, a unit of its kind, under its task; or reject it."""
+    """Plan a line without a lineage, a unit of its kind, under its task; or reject it.
+
+    A line created is never signalled as rounded: the signal names its line by its lineage and its
+    label (``ImportSignal``), and a line the file creates has no lineage yet; only the lines known
+    are.
+    """
     reference, designations, scale = named
     text = line.role_or_category
     role, _ = (None, None) if text is None else reference.named(text)
@@ -376,13 +385,26 @@ def _known(
             importing.Planned(placed, task_id, entry, current, role, draft.label, fields)
         )
         if role is None and entry.unit_disbursement is not None:
-            bearer, year = held.bearer(task_id), current.consumption_year
-            coefficient = task_coefficient(scale.basis, bearer, year)
-            typed = line.disbursement or NOUGHT
-            quantity = entry.quantity or ONE
-            written = round_to_cent(entry.unit_disbursement * quantity * coefficient)
-            if not same_cell(typed, written):
+            typed = round_to_cent(line.disbursement or NOUGHT)
+            written = _written_amount(held.bearer(task_id), scale.basis, entry)
+            if typed != written:
                 rounded[current.node_id] = (typed, written)
+
+
+def _written_amount(bearer: BearingTask, basis: Basis | None, entry: LineEntry) -> Decimal:
+    """Give the amount the import leaves on a line other than labour: what the write computes.
+
+    The product of the quantity and the unit disbursement, priced as the write prices it
+    (``costing.priced``: shared on the years of the task, each share projected, the sum rounded),
+    so that the amount signalled is the amount re-estimated, never a second formula that could
+    differ by a cent. Without a revision there is no projection: the product, rounded.
+    """
+    product = unrounded_disbursement_amount(
+        entry.quantity or ONE, entry.unit_disbursement or NOUGHT
+    )
+    if basis is None:
+        return round_to_cent(product)
+    return priced(product, bearer, basis, None).reestimated
 
 
 def _figures(
@@ -518,7 +540,7 @@ def _rounded_signal(lineage: UUID, label: str, amounts: tuple[Decimal, Decimal])
         "column": "unit_disbursement",
         "code": AMOUNT_ROUNDED,
         "params": {
-            "typed_amount": format(round_to_cent(typed), "f"),
+            "typed_amount": format(typed, "f"),
             "written_amount": format(written, "f"),
         },
     }
