@@ -198,6 +198,14 @@ Relevés à la livraison, arbitrés le 2026-11-23 :
 - #4799 — contrat : l'import MS Project rend 500 sur une tâche créée sans heure travaillée, le
   contrat ne sait pas la nommer — reporté → EP-33 (US-3210b), qui écrit l'import MS Project ; il
   attend la livraison d'EP-32, qui apporte `TASK_WITHOUT_WORKING_HOURS`
+- #4822 — contrat : `completed_provision_task` dit la tâche porteuse terminée repassée « not
+  started », quand US-3310 en fait une récapitulative démarrée — reporté → EP-30 (US-3100/L2), qui
+  récrit le compte rendu de survenance
+- #4767 — front : la vue du Gantt se rend de nouveau à chaque pixel de défilement — écarté tant
+  qu'aucune mesure ne montre de gêne
+- #4823 — contrat : paragraphes mal rembourrés — fermé sans suite, mise en forme seulement
+- #4833 — back : le test du critère Kanban d'US-3310 ne regarde pas une subordonnée démarrée — fermé
+  sans suite, le code couvre le cas et aucun lot prévu ne touche `test_startable_tasks.py`
 
 ## Conception
 
