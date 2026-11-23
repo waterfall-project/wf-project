@@ -295,6 +295,7 @@ _KEYS = {
     "after_node_id": _STRUCTURE,
     "predecessor_node_id": _STRUCTURE,
     "successor_node_id": _STRUCTURE,
+    "manual_node_id": _STRUCTURE,
     "provision_node_id": _STRUCTURE,
     "parent_id": (*_STRUCTURE, "nœuds d'organisation"),
     "lineage_id": _LINEAGES,

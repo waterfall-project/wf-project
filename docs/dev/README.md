@@ -1223,8 +1223,12 @@ rendered with its visible rows only, and follows the width of its column, as a s
 The layout (`ganttLayout`, `layout.ts`) is computed once for the rows the grid shows, writes
 included, which `DenseGrid` hands to what a screen puts around it (`around`, `GanttRows`) — never as
 a prop of each row; the header draws the axis (`GridColumn.axis`), its label naming the column only
-to screen readers any more. Nothing is planned there: a task runs from the start of its first day to
-the end of the last, a finish at hour 0 being the start of its day, a milestone stands at its
+to screen readers any more. Nothing is planned there: a task runs from its start to its finish, each
+placed at its day plus its hours over the hours of that day on the task's calendar
+(`calendar_hours`) — two 4-hour tasks chained the same 8-hour day follow one another, the link
+arrives to the right of its origin, and the exported image follows the same placement —, and,
+without a calendar (the frieze of a timeline) or on a day without hours, from the start of its first
+day to the end of the last, a finish at hour 0 being the start of its day; a milestone stands at its
 finish, and the axis runs from the first of the month of the earliest to the first of the month that
 follows the latest (`monthTicks`, `chart/ticks.ts`, without ECharts). A link joins the place its
 type names on the predecessor to the one it names on the task; a predecessor outside the response

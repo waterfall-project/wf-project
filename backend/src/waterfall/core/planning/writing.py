@@ -43,7 +43,6 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.history import interface as history
 from waterfall.core.history.interface import RecordedChange, Recording, UndoStack
-from waterfall.core.planning.dating import conflicts_of
 from waterfall.core.planning.interface.facets import (
     calendars_of,
     facets,
@@ -52,6 +51,7 @@ from waterfall.core.planning.interface.facets import (
 from waterfall.core.planning.rescheduling import Blamed, Holding, Named, replayed
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tree import (
+    read_conflicts,
     read_inert,
     read_link_rows,
     read_links,
@@ -245,7 +245,7 @@ class Write:
             self._tree = read_tree(session, project_id, structure_id)
             self.links = read_links(session, project_id, structure_id)
         self.touched: set[UUID] = set()
-        self.conflicts = conflicts_of(self.links)
+        self.conflicts = read_conflicts(session, project_id, structure_id)
 
     @property
     def tree(self) -> Tree:

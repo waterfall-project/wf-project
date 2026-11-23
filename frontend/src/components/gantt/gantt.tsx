@@ -41,6 +41,7 @@ import { useLocale, useTranslations } from "next-intl";
 import {
   createContext,
   Fragment,
+  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
@@ -86,6 +87,7 @@ import {
   scaleTicks,
   widthAt,
   type Zoom,
+  visibleSpan,
   zoomed,
 } from "./scale";
 import { useKeptZoom } from "./zoom";
@@ -103,6 +105,13 @@ export interface GanttView {
   /** The boundaries of the lower and the upper row of the axis, in milliseconds. */
   readonly lower: readonly number[];
   readonly upper: readonly number[];
+  /**
+   * What a row draws of the axis: the stretch of time the frame shows, widened to half a frame on
+   * each side and in whole days, and the boundaries of the lower row within it. The whole axis
+   * where the drawing is fitted to its column.
+   */
+  readonly visible: { readonly from: number; readonly to: number };
+  readonly drawnLower: readonly number[];
   /** The frame that scrolls, in the header, and what tells the view where it is and how wide. */
   readonly scroller: (element: HTMLDivElement | null) => void;
   readonly scrolled: (offset: number) => void;
@@ -194,28 +203,32 @@ function useExporting(
   );
   const names = useMemo(() => namesWidth(tasks), [tasks]);
   const probes = useRef<HTMLSpanElement>(null);
+  const overflow = useMemo(
+    () => (exported === undefined ? undefined : ganttOverflow(width, tasks.length, tinted, names)),
+    [exported, width, tasks.length, tinted, names],
+  );
   const [refusal, setRefusal] = useState<GanttRefusal | undefined>(undefined);
   const refuse = useCallback((overflow: GanttOverflow | undefined) => {
     setRefusal((before) =>
       overflow === undefined ? undefined : { overflow, count: (before?.count ?? 0) + 1 },
     );
   }, []);
-  return exported === undefined
-    ? [undefined, null]
-    : [
-        {
-          exported,
-          rows: tasks,
-          width,
-          overflow: ganttOverflow(width, tasks.length, tinted, names),
-          probes,
-          refuse,
-        },
-        <Fragment key="probes">
-          <GanttProbes probes={probes} />
-          <GanttExportStatus refusal={refusal} />
-        </Fragment>,
-      ];
+  const exporting = useMemo(
+    () =>
+      exported === undefined
+        ? undefined
+        : { exported, rows: tasks, width, overflow, probes, refuse },
+    [exported, tasks, width, overflow, refuse],
+  );
+  return [
+    exporting,
+    exported === undefined ? null : (
+      <Fragment key="probes">
+        <GanttProbes probes={probes} />
+        <GanttExportStatus refusal={refusal} />
+      </Fragment>
+    ),
+  ];
 }
 
 /** Zoom by Ctrl and plus or minus pressed in the grid or the frieze. */
@@ -239,16 +252,23 @@ function zoomByKey(event: KeyboardEvent, zoomTo: (step: 1 | -1) => void) {
  * It is held for the commit of the mount alone: an axis mounted after it holds nothing back, the
  * legend following its measure (the axes of the screens are in the first render).
  * Given the hours of a day, its finest level is the worked hours; given
- * where it comes from, it is exported as an image.
+ * where it comes from, it is exported as an image. The view it hands is memoized, and the cells draw
+ * the axis within the stretch the frame shows alone (`visibleSpan`), so that a row holds a count of
+ * graduations that the width of the frame bounds, not the length of the project (US-3350). Where the
+ * active row of the grid changes and the drawing is zoomed, the bar of that row is scrolled into the
+ * frame, which writes nothing.
  */
 export function GanttRows({
   rows,
+  active,
   scope,
   hoursPerDay,
   exported,
   children,
 }: {
   readonly rows: readonly GanttRow[];
+  /** The row of the active cell of the grid: zoomed, its bar is brought into the frame (WF-IHM-0100). */
+  readonly active?: GanttRow | undefined;
   readonly scope?: string | undefined;
   /** The graduations of hours of a day (`hoursOfDay`); none, the scale stops at days. */
   readonly hoursPerDay?: number | undefined;
@@ -304,27 +324,63 @@ export function GanttRows({
     () => rows.some(({ task }) => hasDaysOff(task?.calendar_hours)),
     [rows],
   );
-  // The width of the frame that scrolls, as the header shows it; that of the column before it is drawn.
-  const seen = () => scroller.current?.clientWidth ?? frame;
-  const zoomTo = (step: 1 | -1 | "fit") => {
-    // The scroll of the frame itself, which a scroll not yet told to the view may have moved, and
-    // its width within the header, inset from the edges of the column.
-    const scrolled = width === undefined ? 0 : (scroller.current?.scrollLeft ?? offset);
-    // Fitted to the project, the drawing is the whole column and its frame stands inset from the
-    // edge (`left-2`): the centre of the frame is that of the column. Zoomed, the drawing begins
-    // with the frame.
-    const inset = width === undefined ? (scroller.current?.offsetLeft ?? 0) : 0;
-    centre.current = (inset + scrolled + seen() / 2) / Math.max(drawn, 1);
-    setZoom(step === "fit" ? "fit" : zoomed(zoom, fitted, step, levels));
-  };
-  const reveal = (from: number, to: number) => {
-    if (width === undefined || scroller.current === null) {
-      return;
+  // The stretch of the axis a row draws: the frame widened by half a frame each side, the whole axis when fitted.
+  const visible = useMemo(
+    () => visibleSpan({ first, last }, width, frame, offset),
+    [first, last, width, frame, offset],
+  );
+  const drawnLower = useMemo(
+    () =>
+      width === undefined
+        ? lower
+        : lower.filter((tick) => tick >= visible.from && tick <= visible.to),
+    [lower, width, visible],
+  );
+  const zoomTo = useCallback(
+    (step: 1 | -1 | "fit") => {
+      const seen = scroller.current?.clientWidth ?? frame;
+      // The scroll of the frame itself, which a scroll not yet told to the view may have moved, and
+      // its width within the header, inset from the edges of the column.
+      const scrolled = width === undefined ? 0 : (scroller.current?.scrollLeft ?? offset);
+      // Fitted to the project, the drawing is the whole column and its frame stands inset from the
+      // edge (`left-2`): the centre of the frame is that of the column. Zoomed, the drawing begins
+      // with the frame.
+      const inset = width === undefined ? (scroller.current?.offsetLeft ?? 0) : 0;
+      centre.current = (inset + scrolled + seen / 2) / Math.max(drawn, 1);
+      setZoom(step === "fit" ? "fit" : zoomed(zoom, fitted, step, levels));
+    },
+    [width, offset, drawn, frame, zoom, fitted, levels, setZoom],
+  );
+  const reveal = useCallback(
+    (from: number, to: number) => {
+      if (width === undefined || scroller.current === null) {
+        return;
+      }
+      const kept = revealedOffset({ from, to }, width, frame, scroller.current.scrollLeft);
+      scroller.current.scrollLeft = kept;
+      setOffset(kept);
+    },
+    [width, frame],
+  );
+  // The bar of the active row, brought into the frame when the active cell changes row, not before:
+  // a zoom, or a scroll by hand, keeps the drawing where it is.
+  const activeId = active?.node_id;
+  const shown = useRef(activeId);
+  const bringIn = useRef<() => void>(() => undefined);
+  useLayoutEffect(() => {
+    bringIn.current = () => {
+      const bar = active === undefined ? undefined : layout.bar(active);
+      if (bar !== undefined) {
+        reveal(bar.from, bar.to);
+      }
+    };
+  });
+  useLayoutEffect(() => {
+    if (shown.current !== activeId) {
+      shown.current = activeId;
+      bringIn.current();
     }
-    const kept = revealedOffset({ from, to }, width, frame, scroller.current.scrollLeft);
-    scroller.current.scrollLeft = kept;
-    setOffset(kept);
-  };
+  }, [activeId]);
   useLayoutEffect(() => {
     if (centre.current === undefined) {
       return;
@@ -379,29 +435,58 @@ export function GanttRows({
   const tinted =
     anyDayOff && (dayWidth >= MIN_DAY_WIDTH || (width === undefined && frame === 0 && !settled));
   const [exporting, probed] = useExporting(exported, rows, drawn, tinted);
-  const view: GanttView = {
-    layout,
-    level,
-    zoom,
-    width,
-    offset: width === undefined ? 0 : offset,
-    lower,
-    upper,
-    scroller: attach,
-    scrolled: setOffset,
-    framed: tell,
-    zoomTo,
-    reveal,
-    can: { in: level < levels - 1 || zoom === "fit", out: level > 0 || zoom === "fit" },
-    dayWidth,
-    // Fitted and not yet measured, the legend is held: rendered by the server, it keeps its place
-    // through the hydration, and the bands, which wait for the width of a day, come after the
-    // measure of the axis (#1539). The layout moves once only if the measure shows days under a
-    // pixel (the legend then goes), or if no axis is drawn.
-    tinted,
-    hoursPerDay,
-    exporting,
-  };
+  const can = useMemo(
+    () => ({ in: level < levels - 1 || zoom === "fit", out: level > 0 || zoom === "fit" }),
+    [level, levels, zoom],
+  );
+  const shownOffset = width === undefined ? 0 : offset;
+  const view = useMemo<GanttView>(
+    () => ({
+      layout,
+      level,
+      zoom,
+      width,
+      offset: shownOffset,
+      lower,
+      upper,
+      visible,
+      drawnLower,
+      scroller: attach,
+      scrolled: setOffset,
+      framed: tell,
+      zoomTo,
+      reveal,
+      can,
+      dayWidth,
+      // Fitted and not yet measured, the legend is held: rendered by the server, it keeps its place
+      // through the hydration, and the bands, which wait for the width of a day, come after the
+      // measure of the axis (#1539). The layout moves once only if the measure shows days under a
+      // pixel (the legend then goes), or if no axis is drawn.
+      tinted,
+      hoursPerDay,
+      exporting,
+    }),
+    [
+      layout,
+      level,
+      zoom,
+      width,
+      shownOffset,
+      lower,
+      upper,
+      visible,
+      drawnLower,
+      attach,
+      tell,
+      zoomTo,
+      reveal,
+      can,
+      dayWidth,
+      tinted,
+      hoursPerDay,
+      exporting,
+    ],
+  );
   return (
     <GanttContext value={view}>
       {scope === undefined ? (
@@ -601,12 +686,10 @@ function DaysOff({
   readonly calendar: GanttTask["calendar_hours"];
   readonly pattern: string;
 }) {
-  const { layout, dayWidth } = view;
-  const first = layout.ticks[0] ?? 0;
-  const last = layout.ticks.at(-1) ?? first;
+  const { layout, dayWidth, visible } = view;
   const bands = useMemo(
-    () => dayOffBands(calendar, { from: first, to: last }, dayWidth),
-    [calendar, first, last, dayWidth],
+    () => dayOffBands(calendar, visible, dayWidth),
+    [calendar, visible, dayWidth],
   );
   return bands.map((band) => (
     <rect
@@ -662,7 +745,7 @@ function LinkPart({ link }: { readonly link: GanttLinkPart }) {
   }[link.part];
   const rightward = link.in >= link.out;
   return (
-    <g className="fill-muted-foreground stroke-muted-foreground">
+    <g data-link="" className="fill-muted-foreground stroke-muted-foreground">
       <line x1={out} x2={out} y1={span[0]} y2={span[1]} />
       {link.part === "arrives" ? (
         <>
@@ -735,6 +818,40 @@ function togglePlace(bar: GanttBar | undefined, view: GanttView): string {
   return `max(0px, calc(${place} - 1.125rem))`;
 }
 
+/** How the drawing of a row sits in its cell: its width zoomed, scrolled by the offset of the frame. */
+function drawingStyle(view: GanttView): CSSProperties | undefined {
+  return view.width === undefined
+    ? undefined
+    : { width: view.width, transform: `translateX(-${String(view.offset)}px)` };
+}
+
+/**
+ * Render, in the row of a run of rows folded away (`FoldedRunRow`), the stretch of the links.
+ * It draws the stretch of the links that cross the run, so that a link down the grid is not cut.
+ * The layout reads the rows shown; `before` is the index of the one just after the run.
+ * It names nothing: the row of the run says what it folds (#3785, WF-PLA-0090).
+ */
+export function GanttRunCell({ before }: { readonly before: number }) {
+  const view = use(GanttContext);
+  if (view === undefined) {
+    return null;
+  }
+  return (
+    <div className="relative overflow-hidden" data-gantt="" data-gantt-run="">
+      <svg
+        aria-hidden="true"
+        className="pointer-events-none block h-7 w-full overflow-visible"
+        style={drawingStyle(view)}
+      >
+        <Months layout={view.layout} ticks={view.drawnLower} />
+        {view.layout.crossing(before).map((link, at) => (
+          <LinkPart key={at} link={link} />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 /**
  * Render the row of a task in the Gantt: the months, the links, its bar — named by its dates —, the
  * months and the links alone for a row without dates, hidden from the readers of the screen; before
@@ -771,11 +888,7 @@ export function GanttCell({ row }: { readonly row: GanttRow }) {
             : undefined
         }
         className="pointer-events-none block h-7 w-full overflow-visible"
-        style={
-          view.width === undefined
-            ? undefined
-            : { width: view.width, transform: `translateX(-${String(view.offset)}px)` }
-        }
+        style={drawingStyle(view)}
       >
         {view.tinted ? (
           <>
@@ -783,7 +896,7 @@ export function GanttCell({ row }: { readonly row: GanttRow }) {
             <DaysOff view={view} calendar={task?.calendar_hours} pattern={pattern} />
           </>
         ) : null}
-        <Months layout={layout} ticks={view.lower} />
+        <Months layout={layout} ticks={view.drawnLower} />
         {layout.links(row.node_id).map((link, at) => (
           <LinkPart key={at} link={link} />
         ))}

@@ -93,7 +93,7 @@ def test_the_example_of_a_conflict_names_the_link_on_both_tasks() -> None:
     written = mockwitness.fixture("task_dates_conflicting")
     [manual] = written["nodes"]
     [conflict] = manual["task"]["link_conflicts"]
-    assert conflict["successor_node_id"] == manual["node_id"]
+    assert conflict["successor_node_id"] == conflict["manual_node_id"] == manual["node_id"]
     assert manual["task"]["total_float"] is None
     redated = {entry["node_id"]: entry for entry in written["rescheduled"]}
     predecessor = redated[conflict["predecessor_node_id"]]

@@ -31,7 +31,7 @@ US-3350.
 - le conflit d'une tâche manuelle sous une récapitulative liée, signalé (spécification 1.0.7), et la
   passe arrière calculée une fois par liaison ;
 - l'état d'une feuille démarrée ou terminée qui reçoit une sous-tâche : elle le garde (décision de
-  l'auteur du 2026-11-21, que la spécification 1.0.9 écrit) ;
+  l'auteur du 2026-11-21, que la spécification 1.0.10 écrit) ;
 - le redatage et le rechiffrage des révisions en cours quand un calendrier de rôle change, ou qu'un
   rôle change de calendrier ;
 - « tâche sans heure travaillée » traduite en refus nommé, à l'ouverture d'une révision comme
@@ -67,10 +67,9 @@ les constate. Leur portée reste celle des EPIC qui les ouvrent et les closent :
 `WF-PLA-0010-A` et `WF-DAT-0010-A` (EP-07), `WF-PLA-0040-A` (EP-08), `WF-PLA-0070-A` (EP-09),
 `WF-REF-0130-A` (EP-10), `WF-IHM-0100-A` (EP-14).
 
-US-3310 réalise une règle que la spécification n'écrit pas encore : WF-PLA-0040 est amendée par la
-1.0.9, et les deux phrases que l'US cite comme « texte proposé » deviennent des citations à sa
-fusion ; les US d'EP-06, EP-08, EP-09, EP-17 et EP-22 qui citent WF-PLA-0040 les reçoivent alors en
-écart.
+US-3310 réalise la règle que la spécification 1.0.10 ajoute à WF-PLA-0040 (#4564, fusionnée par
+#4816) : l'US cite ses deux phrases nouvelles, et les US d'EP-06, EP-08, EP-09, EP-17 et EP-22 qui
+citent WF-PLA-0040 les ont reçues en écart.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -103,8 +102,8 @@ validé, et ses issues sont ouvertes sur GitHub »), écrit ici pour qu'il ne se
 oubli ; l'EPIC passe `en cours` quand l'auteur le décide.
 
 La règle de #3336 est tranchée (2026-11-21) : la feuille garde son état. US-3310, et elle seule,
-attend la fusion de la spécification 1.0.9, qui amende WF-PLA-0040 ; les autres US ne l'attendent
-pas.
+attendait la fusion de la spécification 1.0.10, qui amende WF-PLA-0040 : elle est fusionnée (#4816),
+et reprise dans la branche de l'EPIC.
 
 US-3290 se fusionne avant US-3000 (EP-13), qui branche `make requirements-release` sur la
 publication.
@@ -126,7 +125,7 @@ Vague 1 de la ventilation du 2026-11-21. Créneaux utiles sur le poste, qui port
 - deux récapitulatives de 500 feuilles reliées se calculent en un nombre de bornes de l'ordre de
   leur somme ; les dates du corpus MS Project et du témoin n'ont pas changé ;
 - une feuille démarrée qui reçoit une sous-tâche se lit démarrée à sa date, refuse sa suppression,
-  et retrouve son état en redevenant feuille ; la spécification 1.0.9 le dit, et l'US la cite ;
+  et retrouve son état en redevenant feuille ; la spécification 1.0.10 le dit, et l'US la cite ;
 - `updateCalendar` sur un calendrier qui n'est pas le calendrier par défaut, et `updateResourceRole`
   qui change le calendrier d'un rôle, redatent et rechiffrent les révisions en cours dans leur
   transaction, et laissent intacte une révision marquée ;
@@ -180,10 +179,33 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 Ouverts au cadrage du 2026-11-21, avec les issues de l'EPIC :
 
 - #4564 — spec : WF-PLA-0040, une feuille démarrée ou terminée qui reçoit une sous-tâche garde son
-  état — bloque US-3310, jusqu'à la fusion de la spécification 1.0.9
+  état — a bloqué US-3310 jusqu'à la fusion de la spécification 1.0.10 (#4816)
 - #4565 — contrat : `LinkConflict` nomme la tâche manuelle en cause
 - #4566 — contrat : `createRevision` déclare le refus d'une tâche sans heure travaillée
 - #4567 — contrat : `updateResourceRole` déclare les refus du redatage
+
+Relevés à la livraison, arbitrés le 2026-11-23 :
+
+- #4749 — back : une tâche suivie d'une durée écoulée qui atteint la fin du jour est critique malgré
+  un jeu apparent — écarté, la marge reste nulle ; l'écart est dit dans la conception (« Durée
+  écoulée »)
+- #4777 — front : deux tests de la ligne de marque disent plus qu'ils ne prouvent — reporté → EP-34,
+  au prochain lot qui touche `folded-runs.dom.test.tsx`
+- #4788 — back : le changement de catégorie d'un rôle ne rechiffre pas les révisions en cours —
+  reporté → EP-35, à vérifier d'abord par un test de service
+- #4789 — back : aucun test ne couvre le 409 du code tenu à la mise à jour d'un rôle, avant et après
+  le redatage — reporté → EP-35, qui touche `resource_roles.py`
+- #4799 — contrat : l'import MS Project rend 500 sur une tâche créée sans heure travaillée, le
+  contrat ne sait pas la nommer — reporté → EP-33 (US-3210b), qui écrit l'import MS Project ; il
+  attend la livraison d'EP-32, qui apporte `TASK_WITHOUT_WORKING_HOURS`
+- #4822 — contrat : `completed_provision_task` dit la tâche porteuse terminée repassée « not
+  started », quand US-3310 en fait une récapitulative démarrée — reporté → EP-30 (US-3100/L2), qui
+  récrit le compte rendu de survenance
+- #4767 — front : la vue du Gantt se rend de nouveau à chaque pixel de défilement — écarté tant
+  qu'aucune mesure ne montre de gêne
+- #4823 — contrat : paragraphes mal rembourrés — fermé sans suite, mise en forme seulement
+- #4833 — back : le test du critère Kanban d'US-3310 ne regarde pas une subordonnée démarrée — fermé
+  sans suite, le code couvre le cas et aucun lot prévu ne touche `test_startable_tasks.py`
 
 ## Conception
 
@@ -198,7 +220,7 @@ Sept décisions de l'auteur du 2026-11-21, chacune avec l'option écartée :
 | Sujet | Retenu | Écarté, et pourquoi |
 |---|---|---|
 | une feuille démarrée qui reçoit une sous-tâche (#3336) | elle garde son état, qui entre dans l'état dérivé | refuser la sous-tâche (422, comme `MILESTONE_HAS_NO_SUBTASK`) : on ne détaillerait plus une tâche démarrée, et le refus se répéterait à chaque entrée — création, déplacement, collage, import, fusion, greffe et mise à jour d'un différentiel |
-| la spécification de cette règle | un constat de spécification, porté par la 1.0.9 ; seul le lot d'US-3310 attend sa fusion | faire attendre tout l'EPIC, comme EP-30 : les bloquants du moteur n'ont rien à voir avec elle ; livrer sans attendre : la spécification précède le code |
+| la spécification de cette règle | un constat de spécification, porté par la 1.0.10 ; seul le lot d'US-3310 attend sa fusion | faire attendre tout l'EPIC, comme EP-30 : les bloquants du moteur n'ont rien à voir avec elle ; livrer sans attendre : la spécification précède le code |
 | une tâche sans heure à l'ouverture (#4413) | `createRevision` refuse, 422 `TASK_WITHOUT_WORKING_HOURS` | étendre la garde de la modification d'un calendrier à la dernière révision marquée des projets au repos : au-delà de WF-PLA-0010 (« d'une révision en cours »), et un projet au repos depuis des mois bloquerait le référentiel |
 | le niveau des heures du Gantt (FPL-04) | les barres et les liaisons placées à l'heure, à tous les niveaux | retirer le niveau des heures : la flèche en arrière de deux tâches du même jour restait aux autres niveaux |
 | l'axe zoomé (FPL-05) | corrigé sans mesure, prouvé par un compte d'éléments | mesurer d'abord : la mesure prend le poste entier, et le placement à l'heure touche déjà ce dessin ; abandonner |
@@ -222,12 +244,15 @@ Une seule table nouvelle, `task_link_conflict`, par US-3300 : pour une liaison e
 tâches manuelles que son prédécesseur ne peut pas satisfaire.
 
 - colonnes : `project_id`, `link_id`, `node_id` — la clé —, `revision_id`, `structure_id` ;
-- partitionnée par projet, comme `task_link` ; clés étrangères vers `task_link` et vers `node`, qui
-  suivent la suppression de la liaison ou de la tâche à l'intérieur d'une révision en cours (§4.4.1) ;
-  le déclencheur des révisions marquées la tient en lecture seule comme les autres tables d'une
-  révision ;
+- partitionnée par projet, comme `task_link` ; trois clés étrangères : vers `task_link` et vers
+  `node`, qui suivent la suppression de la liaison ou de la tâche à l'intérieur d'une révision en
+  cours (§4.4.1), et vers la structure avec sa révision (`cost_structure`), la convention des
+  tables d'une révision (migration 0022) ; le déclencheur des révisions marquées la tient en
+  lecture seule comme les autres tables d'une révision ;
 - écrite par `kept` (`dating.py`), dans l'écriture qui pose `task_link.in_conflict`, lequel reste :
-  une liaison est en conflit dès qu'elle a une ligne ici ;
+  une liaison est en conflit dès qu'elle a une ligne ici, équivalence qui tient dès le premier
+  rejeu de la structure — après la migration, une liaison vers une récapitulative n'a ses lignes
+  qu'au premier rejeu (ci-dessous) ;
 - copiée à l'ouverture d'une révision avec les liaisons, puis récrite par `redate_copy` ; supprimée à
   l'abandon avec elles (WF-DAT-0010) ;
 - la migration la crée vide et la remplit, pour chaque liaison `in_conflict` dont le successeur est
@@ -253,6 +278,13 @@ voulu — une inscription suit la lignée d'une révision à l'autre.
 - *Durée écoulée.* `latest_start` cherche le dernier départ du jour dont la fin placée tient encore
   le compte, au lieu de la première heure du jour (BPL-03). `entries.finish_after` borne la fin
   d'une tâche manuelle à durée écoulée par `calendar.bounded`, comme `placed` (BPL-08).
+  Écart retenu (#4749, arbitré le 2026-11-23) : une tâche suivie d'une durée écoulée qui atteint la
+  fin du jour garde une marge nulle, et toutes deux sont critiques, malgré un jeu apparent. Sur un
+  calendrier de 8 h, A (13 h) → B (10 eh) : A finit le mardi à 5 h, B va de 5 h à 8 h ; A pourrait
+  finir jusqu'à 8 h sans retarder B, mais décalée de ces 3 h elle pousserait B au mercredi. Ce jeu
+  est une borne qu'aucun décalage n'atteint, non une marge : la marge reste nulle, et l'invariant
+  des exemples (#2832) tient — une tâche décalée de sa marge laisse la fin du projet inchangée.
+  Écarté : une marge « strictement inférieure à » pour ces durées.
 - *Conflits.* `conflicts` juge chaque feuille manuelle sous le successeur d'une liaison, comme
   `place` et `backward` le font ; `LinkConflict` porte la tâche manuelle en cause, qui est le
   successeur quand celui-ci est une feuille.
@@ -275,8 +307,9 @@ une récapitulative dont la facette est « non démarrée ».
   (`Holding.repriced`) : calendrier de rôle, calendrier par défaut et constantes d'unités passent
   par elle.
 - `dated` traduit `TaskWithoutWorkingHoursError` en 422 `TASK_WITHOUT_WORKING_HOURS`, la tâche
-  nommée par son nœud et son libellé, ses rôles par ceux de ses lignes de main-d'œuvre, que le
-  crochet des calendriers du devis sait déjà lire. Les opérations d'EP-08 qui attrapent l'exception
+  nommée par son nœud et son libellé, ses rôles par ceux de ses lignes de main-d'œuvre, que lit
+  `named_roles`, par un crochet `roles` que `FacetHooks` gagne (le devis le remplit, comme il remplit
+  celui des calendriers) ; `dated` prend pour cela la session. Les opérations d'EP-08 qui attrapent l'exception
   avant elle (`grafting`, `merging`, `rebasing`) gardent leur traduction.
 - `redate_copy` ne change pas : le refus remonte de `dated`, et l'ouverture, qui est une
   transaction, n'écrit rien.
@@ -293,8 +326,9 @@ privée commune, que `closing._delete_where` appelle aussi — pour l'abandon d'
 la structure qui part avec son propriétaire. `task_tree.py` et `views.py` lisent le jour par
 `current_day`, de l'interface des projets, que le planning importe déjà.
 
-**Ce que chacun expose aux autres.** Rien de nouveau : aucune interface de module ne change de
-signature, hors `LinkConflict` et `ConflictView`, qui gagnent la tâche manuelle.
+**Ce que chacun expose aux autres.** `LinkConflict` et `ConflictView` gagnent la tâche manuelle ;
+`FacetHooks` gagne le crochet `roles`, que `named_roles` expose de l'interface du planning ; et
+`dated` prend la session. Aucune autre interface de module ne change de signature.
 
 ### Le contrat
 
@@ -342,7 +376,7 @@ autres sont des refus que les écrans montrent déjà par leur message.
    aussi ; l'abandon et le jour (US-3340), qui n'attendent pas le contrat.
 5. Le Gantt (US-3350), après le contrat, sans dépendre du back : le placement, puis l'axe et le
    clavier, puis la ligne de marque.
-6. US-3310 en dernier, quand la spécification 1.0.9 est fusionnée.
+6. US-3310 en dernier, quand la spécification 1.0.10 est fusionnée.
 
 ### Les EPIC voisins
 
@@ -363,7 +397,7 @@ autres sont des refus que les écrans montrent déjà par leur message.
 
 ## US-3290 — Le chemin critique que le Gantt montre est prouvé par un test du service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0090-A`
 - **opérations** : `listNodes`
 - **issue** : #4550
@@ -393,7 +427,7 @@ l'étiquette `@shared` à `wftools.coverage` : ce que `make requirements` ne lit
 
 ## US-3300 — Le moteur de planning : les liaisons d'une récapitulative et les durées écoulées de moins d'un jour rendent des marges justes, et une liaison entre récapitulatives se calcule une fois
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0100-A`, `WF-PLA-0020-A`, `WF-PLA-0030-A`, `WF-PLA-0160-A`
 - **opérations** : aucune en propre — le moteur ; `listNodes` rend les marges, le chemin critique et
   les conflits qu'il calcule
@@ -467,7 +501,7 @@ champs inertes ; les lectures de `node` sans le projet — EP-40.
 
 ## US-3310 — Une feuille démarrée ou terminée qui reçoit une sous-tâche garde son état, et ne se supprime pas
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0040-A`, `WF-PLA-0070-A`
 - **opérations** : `createNode`, `moveNodes`, `applyPaste`, `applyImport`, `deleteNode`, `listNodes`
 - **issue** : #4556
@@ -489,19 +523,10 @@ indicateurs, et que la tâche ne devienne pas supprimable (#3336, bloquant B2 de
 - écart : `WF-PLA-0040-A` — « Une récapitulative terminée dont la seule subordonnée, un jalon, est déplacée devient un jalon terminé. » : constaté par EP-06 (US-1380), EP-09 (US-1590) et EP-08 (US-2580), inchangé.
 - écart : `WF-PLA-0040-A` — « Le déplacement d'une sélection qui contient une récapitulative et l'une de ses subordonnées laisse la subordonnée sous la récapitulative : le groupe est déplacé entier, sans être aplati. » : constaté par EP-06 (US-1380), EP-09 (US-1590) et EP-08 (US-2580), inchangé.
 - écart : `WF-PLA-0040-A` — « Un déplacement qui placerait un nœud sous lui-même ou sous l'un de ses subordonnés est refusé. » : constaté par EP-06 (US-1380), EP-09 (US-1590) et EP-08 (US-2580), inchangé.
+- `WF-PLA-0040-A` — « Une feuille démarrée qui reçoit une sous-tâche non démarrée est une récapitulative démarrée, à sa date de démarrage ; privée de cette sous-tâche, elle redevient une feuille démarrée à cette date. » : par `createNode` sous P comme par `moveNodes` vers P (indentation), `listNodes` rend P `started`, `started_on` au 1er mars 2026 ; P quitte le Kanban tant qu'une subordonnée est ouverte, et y revient dans la colonne des tâches démarrées, à sa date, quand elle n'attend plus que ses lignes propres ; `finish_overdue` est jugé sur elle.
+- `WF-PLA-0040-A` — « Une feuille terminée qui reçoit une sous-tâche non terminée est une récapitulative démarrée, à sa date de démarrage. » : la terminaison, périmée, est effacée comme elle l'est aujourd'hui (#2769) ; la date de démarrage est gardée, et P redevient terminée quand sa sous-tâche l'est et que le reste à engager de ses lignes propres est nul.
 - écart : `WF-PLA-0070-A` — « La suppression d'une récapitulative supprime ses subordonnées et leurs lignes, et le devis diminue d'autant. » : constaté par EP-06 (US-1380), inchangé.
 - `WF-PLA-0070-A` — « La suppression d'une tâche démarrée est refusée, et l'utilisateur est renvoyé vers la mise à zéro de son reste à engager. » : sa forme pour une récapitulative née d'une feuille démarrée : P, feuille démarrée, reçoit une sous-tâche non démarrée ; `deleteNode(P)` est refusé (409, `task_not_started`), et ni P, ni sa sous-tâche, ni ses lignes ne sont supprimées.
-- propre à l'US, texte proposé pour `WF-PLA-0040-A` (spécification 1.0.9) : « Une feuille démarrée
-  qui reçoit une sous-tâche non démarrée est une récapitulative démarrée, à sa date de démarrage ;
-  privée de cette sous-tâche, elle redevient une feuille démarrée à cette date. » : par `createNode`
-  sous P comme par `moveNodes` vers P (indentation), `listNodes` rend P `started`, `started_on` au
-  1er mars 2026 ; P reste dans la colonne des tâches démarrées du Kanban, et `finish_overdue` est
-  jugé sur elle.
-- propre à l'US, texte proposé pour `WF-PLA-0040-A` (spécification 1.0.9) : « Une feuille terminée
-  qui reçoit une sous-tâche non terminée est une récapitulative démarrée, à sa date de démarrage. »
-  : la terminaison, périmée, est effacée comme elle l'est aujourd'hui (#2769) ; la date de démarrage
-  est gardée, et P redevient terminée quand sa sous-tâche l'est et que le reste à engager de ses
-  lignes propres est nul.
 - propre à l'US : la date de démarrage d'une récapitulative est la plus ancienne entre celle qu'elle
   portait comme feuille et celles de ses subordonnées.
 - propre à l'US : la règle vaut quelle que soit l'entrée — création, déplacement, collage
@@ -514,10 +539,14 @@ indicateurs, et que la tâche ne devienne pas supprimable (#3336, bloquant B2 de
 écarté : refuser la sous-tâche par un 422 sur le modèle de `MILESTONE_HAS_NO_SUBTASK`, qui
 interdirait de détailler une tâche démarrée et se répéterait à chaque entrée, fusion d'un
 différentiel comprise. La phrase de WF-PLA-0040 « tire de ses subordonnées […] son état » est
-amendée par un constat de spécification, que la 1.0.9 porte : **le lot de cette US attend la fusion
-de la 1.0.9**, et elle seule dans l'EPIC (décision du même jour) ; les deux phrases proposées
-deviennent alors des citations. Les fonctions en cause : `state_of` et `_derived`
+amendée par un constat de spécification, que la 1.0.10 porte : le lot de cette US a attendu sa fusion
+(#4816), et elle seule dans l'EPIC (décision du même jour) ; ses deux phrases nouvelles sont des
+citations de l'US. Les fonctions en cause : `state_of` et `_derived`
 (`core/planning/views.py`), `emptied` et `closed_above` (`shaping.py`), la garde de `deleteNode`.
+L'état propre d'une récapitulative est lu sur sa facette tel qu'il y est, quel que soit ce qui l'a
+écrit : une récapitulative dérivée terminée, dont le moteur a écrit la facette en terminée
+(`completed_again`, `reopened`), se lit démarrée, à sa date, quand toutes ses sous-tâches repassent
+à non démarré. Le critère du Kanban a été récrit le 2026-11-23 (option A de #4556, décision de l'auteur) : la règle d'EP-22 (#1851) est gardée — le Kanban ne liste une récapitulative que lorsqu'elle n'attend plus que ses lignes propres —, sans changement de code ni de contrat.
 
 **Hors périmètre.** L'état d'une récapitulative reste non saisissable ; une feuille démarrée à tort
 se corrige avant de la détailler. Les révisions où une feuille démarrée a déjà perdu son état par ce
@@ -527,7 +556,7 @@ défaut ne sont pas réparées : la date effacée n'est écrite nulle part.
 
 ## US-3320 — Un calendrier de rôle modifié, ou un rôle changé de calendrier, redate et rechiffre les révisions en cours
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0010-A`, `WF-REF-0130-A`
 - **opérations** : `updateCalendar`, `updateResourceRole`, `listNodes`
 - **issue** : #4552
@@ -570,7 +599,7 @@ L'ordre des verrous est celui d'EP-06 : le référentiel, la ligne, puis les str
 
 ## US-3330 — Une tâche sans heure travaillée refuse l'ouverture d'une révision en la nommant, au lieu d'une erreur inattendue
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0010-A`
 - **opérations** : `createRevision`, `createNode`
 - **issue** : #4553
@@ -610,7 +639,7 @@ d'une révision, qui montre déjà un refus 422 par son message.
 
 ## US-3340 — L'abandon d'une révision ne laisse aucune inscription orpheline, et le jour d'un planning est celui de l'installation
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DAT-0010-A`
 - **opérations** : `abandonRevision`, `deleteRisk`, `listNodes`, `requestExport`
 - **issue** : #4554
@@ -645,7 +674,7 @@ d'une tâche (`shaping.deleted`) : elle se met en commun. Le second site du jour
 
 ## US-3350 — Le Gantt zoomé : les barres et les liaisons à l'heure, un axe dessiné sur la seule fenêtre visible, la barre de la tâche active ramenée dans le cadre
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0090-A`, `WF-IHM-0100-A`
 - **opérations** : `listNodes`, `getDurationUnits`
 - **issue** : #4555

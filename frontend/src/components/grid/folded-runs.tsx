@@ -34,6 +34,7 @@ import {
 } from "react";
 
 import { TableCell, TableRow } from "@/components/ui/table";
+import { cn } from "@/components/ui/utils";
 
 import { BODY_ROW, CELL_BACKGROUND } from "./cell-attributes";
 import type { RowDifference } from "./columns";
@@ -47,6 +48,7 @@ import {
 } from "./difference-fold";
 import { foldShortcutHere, type GridFold, rowAfterFold, unfoldKeys, useFoldReach } from "./fold";
 import { type CellPosition, type Cursor, HEADER_ROW, moved, positionOf } from "./grid-keyboard";
+import type { Pinning } from "./pinning";
 
 /** The attribute that names the run of the cell that stands for it. */
 const RUN_ATTRIBUTE = "data-run";
@@ -252,16 +254,26 @@ export function useRunCommands<Row>({
   };
 }
 
+/** A column pinned at the end, which the row of a run leaves its own cell: what it draws there. */
+export interface RunEnd {
+  readonly id: string;
+  readonly pinning: Pinning;
+  readonly content: ReactNode;
+}
+
 /**
  * The row of a run folded away: one cell across the grid, the focus of the arrows, which says how
  * many rows it folds and unfolds them — its button at the start of the frame, out of the order of
- * tabulation, the click leaving the focus to the row it unfolds.
+ * tabulation, the click leaving the focus to the row it unfolds. The columns pinned at the end — the
+ * Gantt — keep a cell of their own, which draws what crosses the run (#3785): the cell of the run
+ * spans the others.
  */
 export function FoldedRunRow({
   run,
   before,
   index,
   span,
+  ended,
   commands,
 }: {
   readonly run: FoldedRun;
@@ -270,6 +282,8 @@ export function FoldedRunRow({
   /** Its place among the rows the grid renders. */
   readonly index: number;
   readonly span: number;
+  /** The columns pinned at the end, among those it spans, each in a cell of its own. */
+  readonly ended: readonly RunEnd[];
   readonly commands: RunCommands;
 }) {
   const t = useTranslations("grid.differenceFold");
@@ -277,7 +291,7 @@ export function FoldedRunRow({
   return (
     <TableRow aria-rowindex={index + 2} className={`${BODY_ROW} h-7`}>
       <TableCell
-        colSpan={span}
+        colSpan={Math.max(span - ended.length, 1)}
         tabIndex={-1}
         data-run={run.key}
         aria-keyshortcuts={keys}
@@ -310,6 +324,16 @@ export function FoldedRunRow({
           {t("run", { count: run.keys.length })}
         </button>
       </TableCell>
+      {ended.map(({ id, pinning, content }) => (
+        <TableCell
+          key={id}
+          data-run-end={id}
+          style={{ left: pinning.left, right: pinning.right }}
+          className={cn(CELL_BACKGROUND, "overflow-hidden", pinning.className)}
+        >
+          {content}
+        </TableCell>
+      ))}
     </TableRow>
   );
 }

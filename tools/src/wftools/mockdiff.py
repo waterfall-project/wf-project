@@ -21,7 +21,9 @@ A marked tree is read by a window (``window``, ``subtree_of``), or by its differ
 (``differences``, the filter ``difference``, #1398).
 
 A comparison of two revisions (``compareRevisions``, EP-27) judges a node on every value it
-carries, not on those alone: a value that differs and that none of the changes names is ``other``,
+carries, not on those alone (the total float and the membership of the critical path of a task,
+which the planning engine computes, are left out, #4312): a value that differs and that none of the
+changes names is ``other``,
 and each node modified renders the values its base carried (``base``) and the delta of each date,
 duration and amount among them (``deltas``), the revision read less the base (``compared``).
 """
@@ -97,11 +99,13 @@ identifiers and its counter, its row, its rank and its level — a parent is com
 and what it says is enterable or computed (EP-27, « Ce qui fait un nœud modifié »)."""
 
 FACET_NOT_COMPARED = {
-    mockcore.TASK: frozenset({"finish_overdue"}),
+    mockcore.TASK: frozenset({"finish_overdue", "total_float", "is_critical"}),
     mockcore.ESTIMATE_LINE: frozenset({"remaining_entry"}),
 }
 """What a facet carries without it being a value of the node: the overdue finish, a flag of the
-day it is computed on, and whether a line accepts a re-estimate, what is enterable."""
+day it is computed on, and whether a line accepts a re-estimate, what is enterable; the total float
+and the membership of the critical path of a task, which the planning engine computes from the
+whole structure and which change when another task does (WF-REV-0080, #4312)."""
 
 _NAMED = {
     mockcore.TASK: (
@@ -149,7 +153,7 @@ _NEVER_NULL = frozenset(
 null, absent when they do not differ (`TaskDeltas`, `EstimateLineDeltas`)."""
 
 _DATES = frozenset({"task.start", "task.finish", "task.started_on", "task.completed_on"})
-_DURATIONS = frozenset({"task.duration", "task.total_float"})
+_DURATIONS = frozenset({"task.duration"})
 _AMOUNTS = _NEVER_NULL | {
     "estimate_line.unit_disbursement",
     "estimate_line.previous_unit_disbursement",
