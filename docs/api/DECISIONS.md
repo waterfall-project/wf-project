@@ -12958,8 +12958,8 @@ déjà, et il les déclare dans les mêmes termes :
   dérivé qui déborde sa colonne est refusé au champ qui le provoque » (US-2260/L3, #3401), dont
   `/calendar_id` est le champ qui provoque le redatage.
 
-Rien n'est écrit. La déclaration précède US-3320, qui sert ces refus (#4411) : le service ne redate
-pas encore, et le contrat décrit le comportement voulu. Pas d'exemple ajouté : la conception d'EP-32
+Rien n'est écrit. La déclaration précède US-3320, qui sert ces refus (#4411) : le service redate
+depuis US-3320 et rend ces refus, comme le contrat les décrit. Pas d'exemple ajouté : la conception d'EP-32
 n'en prévoit pas, et le refus d'horizon d'`updateCalendar` (`calendar_update_horizon_exceeded`) en
 montre déjà la forme.
 

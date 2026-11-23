@@ -408,13 +408,13 @@ def test_a_role_change_that_prices_a_line_past_its_column_is_refused_at_the_fiel
 # --- The order of the locks ----------------------------------------------------------------------
 
 
-def changed_role(database: Database, role: UUID, calendar: UUID) -> None:
-    """Give a role another calendar by the module, in a transaction of its own."""
+def changed_role(database: Database, role: UUID, calendar: UUID, code: str | None = None) -> None:
+    """Give a role another calendar, and a code if given, by the module, in a transaction."""
     act = Act(None, utc_now())
     with database.transaction() as session:
         held = session.get_one(ResourceRole, role)
         change = RoleChange(
-            held.code,
+            held.code if code is None else code,
             held.label,
             None,
             held.cost_category_id,
@@ -425,6 +425,7 @@ def changed_role(database: Database, role: UUID, calendar: UUID) -> None:
         update_role(session, role, change, held.lock_version, act)
 
 
+@pytest.mark.story("US-3320")
 @pytest.mark.usefixtures("costs")
 def test_a_role_changed_takes_the_reference_before_the_role_and_any_structure(
     setting: Setting,
@@ -449,6 +450,7 @@ def test_a_role_changed_takes_the_reference_before_the_role_and_any_structure(
     assert finish(setting.tree, task) == instant(THURSDAY, "4")
 
 
+@pytest.mark.story("US-3320")
 @pytest.mark.usefixtures("costs")
 def test_a_role_changed_waiting_for_a_structure_leaves_a_line_free_to_name_the_role(
     setting: Setting,
@@ -471,3 +473,30 @@ def test_a_role_changed_waiting_for_a_structure_leaves_a_line_free_to_name_the_r
         holder.commit()
         changed.result(timeout=10)
     assert finish(setting.tree, task) == instant(THURSDAY, "4")
+
+
+@pytest.mark.story("US-3320")
+@pytest.mark.usefixtures("costs")
+def test_a_role_changed_of_code_and_calendar_waiting_for_a_structure_leaves_a_line_free(
+    setting: Setting,
+) -> None:
+    # The code, unique, takes the role ``FOR UPDATE`` when it is written: written last, after the
+    # structures, the change waiting for one does not hold the role strongly, and a line naming it
+    # is not waited for.
+    task = task_of_r(setting, "Études", SIXTEEN_HOURS)
+    half = UUID(new_calendar(setting, "Mi-temps", *FOUR_HOURS))
+    owner, database = setting.stage.owner, setting.stage.database
+    structure = CostStructure.id == UUID(setting.tree.structure_id)
+    with owner.connect() as holder, ThreadPoolExecutor(max_workers=1) as pool:
+        holder.execute(select(CostStructure.id).where(structure).with_for_update())
+        changed = pool.submit(changed_role, database, setting.role, half, "RENAMED")
+        wait_for_a_lock(database)
+        role = ResourceRole.id == setting.role
+        shared = select(ResourceRole.id).where(role)
+        holder.execute(shared.with_for_update(read=True, key_share=True, nowait=True))
+        assert not changed.done()
+        holder.commit()
+        changed.result(timeout=10)
+    assert finish(setting.tree, task) == instant(THURSDAY, "4")
+    with owner.connect() as check:
+        assert check.scalar(select(ResourceRole.code).where(role)) == "RENAMED"

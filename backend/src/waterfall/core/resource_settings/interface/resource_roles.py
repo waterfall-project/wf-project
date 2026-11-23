@@ -501,17 +501,20 @@ def _unique_code(session: Session, code: str) -> Generator[None]:
     except IntegrityError as error:
         if unique_violated(error) != CODE_INDEX:
             raise
-        holder = session.execute(
-            select(ResourceRole.id, ResourceRole.label).where(ResourceRole.code == code)
-        ).first()
-        params = (
-            {}
-            if holder is None
-            else {"conflicting_object_id": str(holder.id), "conflicting_object_label": holder.label}
-        )
-        raise ConflictError(
-            ALREADY_EXISTS, fields=(FieldError("/code", ALREADY_EXISTS, params),)
-        ) from None
+        raise _code_held(session, code) from None
+
+
+def _code_held(session: Session, code: str) -> ConflictError:
+    """Build the refusal of a code another role holds, naming that role if it is still there."""
+    holder = session.execute(
+        select(ResourceRole.id, ResourceRole.label).where(ResourceRole.code == code)
+    ).first()
+    params = (
+        {}
+        if holder is None
+        else {"conflicting_object_id": str(holder.id), "conflicting_object_label": holder.label}
+    )
+    return ConflictError(ALREADY_EXISTS, fields=(FieldError("/code", ALREADY_EXISTS, params),))
 
 
 def create_role(
@@ -663,7 +666,10 @@ def update_role(
     the structures, by the recalculation: the order of EP-06. The role is locked ``FOR NO KEY
     UPDATE`` (``key_share``): a write of the planning that holds a structure and adds a line of the
     role is not waited for while the change waits for that structure. A code changed with the
-    calendar takes the stronger lock at its write, as any write of a unique column does.
+    calendar is written last, once the structures are held: a write of a unique column takes the
+    role ``FOR UPDATE``, which such a line would wait for while the change waits for its structure.
+    A code another role holds is refused (409) before the recalculation, as the refusals come in
+    the order above; the unique index still decides a race, at that last write.
     """
     lock_reference(session)
     role = _lock_role(session, role_id, lock_version, key_share=True)
@@ -685,19 +691,29 @@ def update_role(
         idle = _role_left_idle(session, role_id, change.calendar_id)
         if idle:
             raise idle_tasks_refused(session, idle)
-    with _unique_code(session, change.code):
-        _write(
-            session,
-            role,
-            act,
-            code=change.code,
-            label=change.label,
-            cost_category_id=change.cost_category_id,
-            calendar_id=change.calendar_id,
-            headcount=change.headcount,
-        )
+    code_changed = change.code != role.code
+    if code_changed and session.scalar(
+        select(ResourceRole.id).where(ResourceRole.code == change.code, ResourceRole.id != role_id)
+    ):
+        raise _code_held(session, change.code)
+    _write(
+        session,
+        role,
+        act,
+        label=change.label,
+        cost_category_id=change.cost_category_id,
+        calendar_id=change.calendar_id,
+        headcount=change.headcount,
+    )
     if recalendared:
         recalculate(session, act.at, ("/calendar_id",))
+    if code_changed:
+        # Last: a write of a unique column takes the role ``FOR UPDATE``, which a line naming the
+        # role, holding a structure, would wait for while this change waits for that structure.
+        with _unique_code(session, change.code):
+            session.execute(
+                update(ResourceRole).where(ResourceRole.id == role_id).values(code=change.code)
+            )
     return read_role(session, role_id, may_change=True)
 
 
