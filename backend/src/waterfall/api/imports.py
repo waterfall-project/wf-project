@@ -67,6 +67,7 @@ from waterfall.core.exchanges.interface import (
     deposit,
     head_to_read,
     judge_deposit,
+    judge_room,
     list_imports,
     open_import,
     parse_head,
@@ -168,12 +169,16 @@ def post_file_upload(
     """Deposit a file for an import, in one piece, for twenty-four hours (WF-DAT-0120).
 
     Asked by an account that holds one of the permissions of an import at least (403 otherwise,
-    the first named). Refused before anything is written: a backup, deposited by parts (422
-    ``/purpose``), a file beyond 10 MiB (413), an empty one or one without a name (422 ``/file``).
-    The file is written to the storage, then its deposit recorded: a deposit is recorded once its
-    file is there.
+    the first named). Refused before anything is written, in this order: a backup, deposited by
+    parts (422 ``/purpose``), a file beyond 10 MiB (413), an empty one, one without a name, with a
+    name too long or holding the NUL character (422 ``/file``); then, the request valid, a deposit
+    beyond the twenty an account keeps pending (409 ``pending_uploads_below_limit``), counted in a
+    transaction of its own, without a lock (US-3240). The file is written to the storage, then its
+    deposit recorded: a deposit is recorded once its file is there.
     """
     judge_deposit(sent.purpose, sent.filename, len(sent.content))
+    with services.database.transaction() as session:
+        judge_room(session, Act(account.user_id, utc_now()))
     filename = sent.filename or ""
     upload_id = new_id()
     key = object_key_of(upload_id)
