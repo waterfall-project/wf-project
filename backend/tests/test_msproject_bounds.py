@@ -97,8 +97,17 @@ def test_an_integer_of_more_than_18_digits_is_refused(besides: str, element: str
 
 
 def test_an_integer_of_18_digits_is_read() -> None:
-    read = read_project(project(besides="<MinutesPerDay>-999999999999999999</MinutesPerDay>"))
-    assert read.project.minutes_per_day == -999_999_999_999_999_999
+    read = read_project(project(besides="<MinutesPerDay>999999999999999999</MinutesPerDay>"))
+    assert read.project.minutes_per_day == 999_999_999_999_999_999
+
+
+@pytest.mark.parametrize("element", ["MinutesPerDay", "MinutesPerWeek", "DaysPerMonth"])
+@pytest.mark.parametrize("value", ["0", "-480"])
+def test_a_constant_of_unit_that_is_not_positive_is_refused(element: str, value: str) -> None:
+    # The conversions of the engine divide by the constants of unit: a zero or a negative one is
+    # refused at the reading, an unreadable format, never an internal error of the analysis or of
+    # the application. No upper bound is added: the digits of the reader are the bound.
+    assert refused(project(besides=f"<{element}>{value}</{element}>")) == element
 
 
 @pytest.mark.parametrize(

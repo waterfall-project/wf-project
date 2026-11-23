@@ -97,6 +97,7 @@ HOSTILE = {
     "tasks": file_of(*on_levels(10_001, 1)),
     "levels": file_of(*on_levels(51, 51)),
     "integer": file_of(task(1, "A"), besides=f"<MinutesPerDay>{'4' * 19}</MinutesPerDay>"),
+    "negative-unit": file_of(task(1, "A"), besides="<MinutesPerDay>-480</MinutesPerDay>"),
     "uid": file_of(task(int("9" * 201), "A")),
     "duration": file_of(task(1, "A", timing=Timing(duration=f"PT{'9' * 400}H"))),
 }
