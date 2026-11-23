@@ -197,7 +197,7 @@ Relevés à la livraison, arbitrés le 2026-11-23 :
 - #4789 — back : aucun test ne couvre le 409 du code tenu à la mise à jour d'un rôle, avant et après
   le redatage — reporté → EP-35, qui touche `resource_roles.py`
 - #4799 — contrat : l'import MS Project rend 500 sur une tâche créée sans heure travaillée, le
-  contrat ne sait pas la nommer — reporté → EP-33 (US-3180c), qui écrit l'import MS Project ; il
+  contrat ne sait pas la nommer — reporté → EP-33 (US-3210b), qui écrit l'import MS Project ; il
   attend la livraison d'EP-32, qui apporte `TASK_WITHOUT_WORKING_HOURS`
 
 ## Conception
