@@ -13,9 +13,9 @@ it; a removed node is read-only, ``editable_fields`` empty.
 
 A node is ``added``, absent from the base structure; ``removed``, absent from the compared one;
 ``modified`` when one of its values differs, entered or computed, of either facet, whatever a
-reading returns of it (EP-27, « Ce qui fait un nœud modifié ») — save the total float and the
-membership of the critical path of a task, which the planning engine computes (WF-REV-0080, #4312)
-—, or when a node under it is added,
+reading returns of it (EP-27, « Ce qui fait un nœud modifié »; the total float and the
+membership of the critical path of a task, which the planning engine computes, are left out,
+WF-REV-0080, #4312), or when a node under it is added,
 removed or modified, or moved from under it, the content of a summary task changing
 (``NodeDifference``); ``unchanged`` otherwise. What differs is named by the change it makes
 (``NodeChange``, #1751): a task by its dates, its duration, its state or its parent, a line by its

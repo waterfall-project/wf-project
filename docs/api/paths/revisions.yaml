@@ -507,7 +507,8 @@
       its duration, its state or its parent —, a line in its amounts or its parent, any node in
       any other value it carries, entered or computed (`other`) — save the total float and the
       membership of the critical path of a task, which the planning engine computes and which
-      modify no task (#4312) —, and a summary task whose content changes, marked modified. The mark does not depend on `fields`. A modified node
+      modify no task (#4312) —, and a summary task whose content changes, marked modified. The
+      mark does not depend on `fields`. A modified node
       also carries the values the base carried of what differs and that the read returns
       (`base`), and the difference of each date, duration and amount among them (`deltas`):
       the grid marks a cell and fills a column of difference without comparing anything

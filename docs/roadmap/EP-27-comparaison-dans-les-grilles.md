@@ -180,7 +180,8 @@ engendrés, client du front régénéré, entrée de `docs/api/DECISIONS.md`.
   d'EP-32) : les valeurs calculées du moteur de planning, la marge totale et l'appartenance au
   chemin critique, n'y entrent pas non plus — WF-REV-0080 modifie une tâche par « ses dates, sa
   durée, son état et son parent », et ces deux valeurs changent quand une autre tâche change ; une
-  tâche dont seules elles diffèrent est inchangée, et ne rend pas ses récapitulatives modifiées. `NodeChange` garde ses valeurs, celles que WF-REV-0080 énumère, et
+  tâche dont seules elles diffèrent est inchangée, et ne rend pas ses récapitulatives modifiées.
+  `NodeChange` garde ses valeurs, celles que WF-REV-0080 énumère, et
   gagne `other` : une autre valeur du nœud, que `base` nomme. Une tâche modifiée par son seul
   contenu garde un `changes` vide.
 - **Les totaux.** `RevisionComparison` gagne `base_totals`, de la forme de `totals`, sur les

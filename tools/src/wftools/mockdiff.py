@@ -21,8 +21,8 @@ A marked tree is read by a window (``window``, ``subtree_of``), or by its differ
 (``differences``, the filter ``difference``, #1398).
 
 A comparison of two revisions (``compareRevisions``, EP-27) judges a node on every value it
-carries, not on those alone — save the total float and the membership of the critical path of a
-task, which the planning engine computes (#4312) —: a value that differs and that none of the
+carries, not on those alone (the total float and the membership of the critical path of a task,
+which the planning engine computes, are left out, #4312): a value that differs and that none of the
 changes names is ``other``,
 and each node modified renders the values its base carried (``base``) and the delta of each date,
 duration and amount among them (``deltas``), the revision read less the base (``compared``).

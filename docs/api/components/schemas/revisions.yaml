@@ -970,8 +970,9 @@ NodeChange:
     either facet — a label, a description, a predecessor, an amount at the rates of the
     reference year, the amounts of a task, the remaining to commit previously re-estimated of a
     line… —, which `ComparedNodeRead.base` names; the total float and the membership of the
-    critical path of a task are not compared (`ComparedNodeBase`, #4312); the subproject and the cost category bring
-    their labels with them, which `other` does not say again. A label that changes alone, its
+    critical path of a task are not compared (`ComparedNodeBase`, #4312); the subproject and the
+    cost category bring their labels with them, which `other` does not say again. A label that
+    changes alone, its
     identifier kept — a subproject or a category renamed —, changes nothing of the node, which
     it neither makes `modified` nor says `subproject`, `cost_category` or `other`
     (`ComparedNodeBase`). On the read of a differential
