@@ -259,6 +259,34 @@ def test_an_abandoned_import_stays_abandoned_until_the_purge_deletes_its_row(
 
 
 @pytest.mark.requirement("WF-DAT-0080-A")
+@pytest.mark.requirement("WF-ARC-0100-A")
+@pytest.mark.usefixtures("trial")
+def test_the_purge_deletes_a_row_an_earlier_version_wrote_expired(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    database: Database,
+    backups_bucket: Bucket,
+) -> None:
+    # No migration: a base purged by an earlier version keeps rows written ``expired``, which the
+    # first pass deletes, its file given, the import then unknown (404) to the three operations.
+    import_id = analysed(api, stage, worker)["import_id"]
+    key = stored(database, import_id).object_key
+    with database.transaction() as session:
+        session.execute(
+            update(ImportReport)
+            .where(ImportReport.id == UUID(import_id))
+            .values(status="expired", expires_at=utc_now() - timedelta(days=3))
+        )
+    gone = purged_at(database, backups_bucket, utc_now())
+    assert key in gone.objects
+    with database.transaction() as session:
+        assert session.get(ImportReport, UUID(import_id)) is None
+    assert backups_bucket.size(key) is None
+    unknown_after_the_purge(api, stage, import_id)
+
+
+@pytest.mark.requirement("WF-DAT-0080-A")
 @pytest.mark.usefixtures("trial")
 def test_the_purge_keeps_the_imports_applied_failed_and_refused_even_past_their_term(
     api: ContractClient,

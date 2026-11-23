@@ -7,11 +7,11 @@ imports ``analysed`` whose report expired and those ``abandoned``, report includ
 ``failed`` those whose task failed without leaving its trace (the attempts spent, never abandoned) —
 the file of each goes —, the imports ``applied``, ``failed`` and ``refused`` staying (US-3250,
 WF-DAT-0080-A). An import reads ``expired`` until the pass that finds its report expired, the state
-being read and never written, and is unknown after it (404); it deletes the rows of the deposits
-expired — those of EP-03 included, a deposit left in parts being aborted —, sparing the object of a
-deposit an import still keeps; it marks consumed the results of the exports of more than twenty-four
-hours, their file going; and it gives what the storage must lose, to which it adds what no row
-designates any more: the old objects of ``uploads/`` past the life of a deposit, those of
+being read and never written, and is unknown after it (404). The pass deletes the rows of the
+deposits expired — those of EP-03 included, a deposit left in parts being aborted —, sparing the
+object of a deposit an import still keeps. It marks consumed the results of the exports of more
+than twenty-four hours, their file going. And it gives what the storage must lose, to which it adds
+what no row designates any more: the old objects of ``uploads/`` past the life of a deposit, those of
 ``exports/`` past the life of an export, and the deposits in parts of ``uploads/`` left open past
 the life of a deposit (WF-DAT-0120-A). The worker hands all that to ``remove_purged`` once the
 transaction is validated, as EP-03 deletes its deposits: an object is never deleted for a row a
@@ -137,7 +137,8 @@ def _imports_ended(session: Session, now: datetime) -> list[str]:
 
     An import ``analysed`` whose report expired, and one ``abandoned`` — the file of which its
     abandonment deleted, unless the storage was out of reach then —, go with their report, in the
-    pass that finds them so: the state ``expired`` is read, never written. ``applied`` stays, which
+    pass that finds them so: the state ``expired`` is read, never written. The rows an earlier
+    version wrote ``expired`` go too, in the first pass that meets them. ``applied`` stays, which
     a line of costs may name; so do ``failed`` and ``refused``, the journal of the imports naming
     them. The deletion removes the row first: the file it gave is deleted once the pass is
     validated, and a deletion the storage fails leaves the object to the sweep.
@@ -151,7 +152,7 @@ def _imports_ended(session: Session, now: datetime) -> list[str]:
         delete(ImportReport)
         .where(
             (ImportReport.status == "analysed") & (ImportReport.expires_at <= now)
-            | (ImportReport.status == "abandoned")
+            | ImportReport.status.in_(("abandoned", "expired"))
         )
         .returning(ImportReport.object_key)
     ).all()
