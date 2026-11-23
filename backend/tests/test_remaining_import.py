@@ -323,8 +323,9 @@ def test_a_line_without_a_lineage_is_created_at_a_budget_of_nought_under_the_tas
 def test_a_task_whose_lines_the_file_sets_to_nought_is_completed_at_the_date_of_the_review(
     api: ContractClient, stage: Scene, worker: Worker, scene: Rows
 ) -> None:
-    # « Une tâche démarrée dont toutes les lignes du fichier portent zéro est terminée à la date
-    # de la revue ; une tâche non démarrée dont les lignes sont laissées telles quelles reste non
+    # « Une tâche démarrée dont toutes les lignes, celles absentes du fichier comprises, sont à zéro
+    # après l'import, et dont le fichier en met au moins une à zéro, est terminée à la date de la
+    # revue ; une tâche non démarrée dont les lignes sont laissées telles quelles reste non
     # réestimée. » The wiring started, its two lines at nought; the tests, not started, their
     # bench at nought — their cables already are —; the acceptance left as it is.
     tree = scene.tree
