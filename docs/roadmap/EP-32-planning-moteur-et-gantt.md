@@ -532,6 +532,10 @@ amendée par un constat de spécification, que la 1.0.10 porte : le lot de cette
 (#4816), et elle seule dans l'EPIC (décision du même jour) ; ses deux phrases nouvelles sont des
 citations de l'US. Les fonctions en cause : `state_of` et `_derived`
 (`core/planning/views.py`), `emptied` et `closed_above` (`shaping.py`), la garde de `deleteNode`.
+L'état propre d'une récapitulative est lu sur sa facette tel qu'il y est, quel que soit ce qui l'a
+écrit : une récapitulative dérivée terminée, dont le moteur a écrit la facette en terminée
+(`completed_again`, `reopened`), se lit démarrée, à sa date, quand toutes ses sous-tâches repassent
+à non démarré.
 
 **Hors périmètre.** L'état d'une récapitulative reste non saisissable ; une feuille démarrée à tort
 se corrige avant de la détailler. Les révisions où une feuille démarrée a déjà perdu son état par ce

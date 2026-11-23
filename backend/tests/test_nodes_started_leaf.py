@@ -27,6 +27,7 @@ from projects_support import scene as make_scene
 from risks_support import material
 from sqlalchemy import func, select
 
+from waterfall.core.planning.interface import tasks_for_indicators
 from waterfall.core.planning.tables import Node
 
 if TYPE_CHECKING:
@@ -271,3 +272,58 @@ def test_a_summary_never_a_leaf_started_is_read_as_before(tree: Tree, stage: Sce
     assert delete(tree, tree.node(lone["node_id"])).status_code == 200
     assert state(tree, other) == ("not_started", None, None)
     assert state(tree, first) == ("not_started", None, None)
+
+
+@pytest.mark.story("US-3310")
+def test_a_summary_whose_facet_says_not_started_with_a_date_is_read_not_started(
+    tree: Tree, stage: Scene
+) -> None:
+    # La contrainte ``started_on_when_started`` admet une date avec ``not_started`` : la facette
+    # d'une récapitulative dit alors qu'elle n'est pas démarrée, et ``listNodes`` la rend ainsi,
+    # sans date (``kept_start`` ne lit la date que d'une facette démarrée ou terminée).
+    parent = tree.made("Études")
+    tree.made("Avant-projet", parent_id=parent["node_id"])
+    put_facts(stage, parent["node_id"], progress="not_started", started_on=MARCH_FIRST)
+    assert state(tree, parent) == ("not_started", None, None)
+
+
+@pytest.mark.story("US-3310")
+def test_a_summary_completed_again_by_the_engine_is_read_started_when_its_subtasks_are_reset(
+    tree: Tree, stage: Scene
+) -> None:
+    # L'état propre lu sur la facette vaut quel que soit ce qui l'a écrit : une récapitulative
+    # dérivée terminée, dont ``completed_again`` a écrit la facette en ``completed``, se lit
+    # démarrée à sa date quand toutes ses sous-tâches repassent à non démarré. La facette est
+    # écrite autour du service, comme le fait ``completed_again``.
+    parent = tree.made("Études")
+    child = tree.made("Avant-projet", parent_id=parent["node_id"])
+    set_progress(stage, child["node_id"], "completed", MARCH_TENTH)
+    put_facts(
+        stage,
+        parent["node_id"],
+        progress="completed",
+        started_on=MARCH_TENTH,
+        completed_on=MARCH_TENTH,
+    )
+    assert state(tree, parent) == ("completed", MARCH_TENTH.isoformat(), MARCH_TENTH.isoformat())
+    put_facts(stage, child["node_id"], progress="not_started", started_on=None, completed_on=None)
+    assert state(tree, child) == ("not_started", None, None)
+    assert state(tree, parent) == ("started", MARCH_TENTH.isoformat(), None)
+
+
+@pytest.mark.story("US-3310")
+def test_the_indicators_count_started_a_summary_born_of_a_leaf_started(
+    tree: Tree, stage: Scene
+) -> None:
+    # Les indicateurs lisent l'état des récapitulatives par ``derived_states``, comme
+    # ``listNodes`` : la récapitulative née d'une feuille démarrée y est démarrée à son date, non
+    # non démarrée, et sa sous-tâche reste non démarrée.
+    parent = started_leaf(tree)
+    child = tree.made("Pose", parent_id=parent["node_id"])
+    with stage.database.transaction() as session:
+        tasks = tasks_for_indicators(
+            session, UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
+        )
+    read = {task.node_id: (task.progress, task.started_on) for task in tasks}
+    assert read[UUID(parent["node_id"])] == ("started", MARCH_FIRST)
+    assert read[UUID(child["node_id"])] == ("not_started", None)
