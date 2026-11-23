@@ -554,3 +554,26 @@ test = 'e2e/service/installation\.setup\.ts:39\b'
 message = "getByRole\\('grid', \\{ name: 'Comptes utilisateurs' \\}\\)"
 frequency = "1 passage, avant la référence : le 2026-11-01 (41319278707, #1807) ; aucun du 2026-11-05 au 2026-11-12"
 cause = "établie : `GET /reference/org-nodes` (#1807), lu par `readOrFail`, répond 404 — le service ne le servait pas encore — et `notFound()` remplace la page ; corrigé dans la pull request avant sa fusion (db6a135e). Le parcours attend depuis le titre de l'écran des comptes, qui dit « Introuvable » à sa place"
+
+# Les tests de Keycloak qui échouent ensemble dans la file, sans que le lot touche Keycloak (#4779).
+[[known]]
+class = "known flakiness"
+family = "jeton du compte de service de Keycloak"
+issue = "#4779"
+job = '^keycloak / check$'
+test = 'tests/test_keycloak_authentication\.py:538\b'
+message = 'assert 2 == 1'
+runs = [45100723995]
+frequency = "1 passage, le 2026-11-23 (45100723995, #4776)"
+cause = "hypothèse : le jeton du compte de service, en cache d'un test à l'autre ou renouvelé sous un runner lent, est demandé deux fois"
+
+[[known]]
+class = "known flakiness"
+family = "jeton du compte de service de Keycloak"
+issue = "#4779"
+job = '^keycloak / check$'
+test = 'test_an_account_withdrawn_all_its_roles_is_refused_its_next_request_and_its_sessions_closed'
+message = 'Exception ignored while finalizing socket <ssl\.SSLSocket'
+runs = [45100723995]
+frequency = "1 passage, le 2026-11-23 (45100723995, #4776)"
+cause = "hypothèse : une connexion TLS vers Keycloak laissée ouverte par un test précédent est finalisée pendant celui-ci"
