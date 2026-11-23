@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The proxy in TLS of the front (US-2840, WF-SEC-0010, #4508): the standalone server of Next does
+# not encrypt by itself, and listens where no other service reaches it — under the Compose, on the
+# network front, which it shares with this proxy alone (compose.prod.yaml, front-proxy), at
+# WATERFALL_FRONT_UPSTREAM; in the pod of the front of the chart, which gives none, on the loopback.
+# The door, the ingress and Keycloak, on its back channel (TFX-17), reach the front here, at port
+# 3443, with the certificate the authority of the platform issues for its name; nothing listens in
+# the clear elsewhere, but the port of the metrics, which the server of the front opens on its own
+# (TFX-09). The host of a request goes through unchanged.
+{
+	# Nothing changes the configuration once started.
+	admin off
+	# Its own certificate alone: no Let's Encrypt, no redirection from a port of HTTP.
+	auto_https off
+	servers {
+		protocols h1 h2
+	}
+}
+
+https://:3443 {
+	tls /tls/tls.crt /tls/tls.key
+	reverse_proxy {$WATERFALL_FRONT_UPSTREAM:127.0.0.1:3000}
+}

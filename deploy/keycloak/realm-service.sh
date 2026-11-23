@@ -34,7 +34,7 @@ ADMINISTRATOR=${KEYCLOAK_USER:?set KEYCLOAK_USER}
 APPLIED=/tmp/realm-applied
 # Where kcadm keeps the session of the temporary administrator: removed after each application,
 # at the start, and when the service stops.
-CONFIG=/tmp/realm-service.kcadm
+CONFIG=${TMPDIR:-/tmp}/realm-service.kcadm
 # What the identifier of a temporary administrator begins with.
 TEMPORARY=waterfall-realm-
 KC=/opt/keycloak/bin/kc.sh
@@ -53,25 +53,12 @@ drawn() {
     od -An -tx1 -N"$1" /dev/urandom | tr -d ' \n'
 }
 
-# Keycloak in TLS (US-2840): given the root of the authority of the platform, WATERFALL_TLS_AUTHORITY,
-# the Java of keycloak-config-cli and of kcadm checks the certificate of Keycloak against it alone,
-# by a store of trust made from it here — Java reads no root in PEM. The store holds the root alone,
-# no secret, and is protected by no password: neither its certificates encrypted nor its integrity
-# sealed, so that Java reads it without one. keytool asks one all the same: drawn here, given by the
-# environment of keytool alone, and forgotten. A root it cannot read stops the service, saying so.
-if [ -n "${WATERFALL_TLS_AUTHORITY:-}" ]; then
-    TRUST=/tmp/realm-service.trust.p12
-    rm -f "$TRUST"
-    if ! said=$(STORE_PASSWORD=$(drawn 16) keytool \
-            -J-Dkeystore.pkcs12.certProtectionAlgorithm=NONE -J-Dkeystore.pkcs12.macAlgorithm=NONE \
-            -importcert -noprompt -alias platform -file "$WATERFALL_TLS_AUTHORITY" \
-            -keystore "$TRUST" -storetype PKCS12 -storepass:env STORE_PASSWORD 2>&1); then
-        printf '%s\n' "$said" >&2
-        echo "realm-service: the root $WATERFALL_TLS_AUTHORITY cannot be read" >&2
-        exit 1
-    fi
-    export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Djavax.net.ssl.trustStore=$TRUST \
--Djavax.net.ssl.trustStoreType=PKCS12"
+# Keycloak in TLS (US-2840): the Java of kcadm, and of keycloak-config-cli that the command runs,
+# checks its certificate against the root of the platform, WATERFALL_TLS_AUTHORITY (trust-root.sh,
+# beside this script).
+trusted=$("$(dirname "$0")/trust-root.sh")
+if [ -n "$trusted" ]; then
+    export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-}$trusted"
 fi
 
 # Removes from master every temporary administrator, as the one signed in to kcadm, $1: the others

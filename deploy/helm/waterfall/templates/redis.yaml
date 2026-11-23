@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # Redis (compose.prod.yaml, redis): nothing durable is kept in it, the queue and the sessions are
-# lost with it, not the data; no volume, nothing saved.
+# lost with it, not the data; no volume, nothing saved. In TLS alone (TFX-04, TFX-10): no port in the
+# clear (--port 0), the certificate its container of initialisation issues; no certificate asked of
+# its clients, who sign in with the password (US-2840).
 {{- if .Values.redis.enabled }}
 {{- $name := include "waterfall.name" (list . "redis") }}
 apiVersion: v1
@@ -40,11 +42,16 @@ spec:
       securityContext:
         runAsUser: 999
         runAsNonRoot: true
+      initContainers:
+        {{- include "waterfall.transportInit" (list . "redis" 999 1000) | nindent 8 }}
       containers:
         - name: redis
           image: {{ include "waterfall.thirdParty" (list . .Values.redis.image) }}
           imagePullPolicy: IfNotPresent
-          command: [sh, -c, exec redis-server --requirepass "$REDISCLI_AUTH" --save '']
+          command:
+            - sh
+            - -c
+            - exec redis-server --requirepass "$REDISCLI_AUTH" --save '' --port 0 --tls-port 6379 --tls-cert-file /tls/tls.crt --tls-key-file /tls/tls.key --tls-ca-cert-file /tls/ca.crt --tls-auth-clients no
           env:
             {{- include "waterfall.secretEnv" (list . "WATERFALL_REDIS_PASSWORD" "REDISCLI_AUTH") | nindent 12 }}
           ports:
@@ -52,15 +59,19 @@ spec:
               containerPort: 6379
           readinessProbe:
             exec:
-              command: [sh, -c, redis-cli ping | grep -q PONG]
+              command: [sh, -c, redis-cli --tls --cacert /tls/ca.crt -h localhost ping | grep -q PONG]
             periodSeconds: 2
             timeoutSeconds: 3
           livenessProbe:
             exec:
-              command: [sh, -c, redis-cli ping | grep -q PONG]
+              command: [sh, -c, redis-cli --tls --cacert /tls/ca.crt -h localhost ping | grep -q PONG]
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 3
+          volumeMounts:
+            {{- include "waterfall.tlsMount" (list . "redis") | nindent 12 }}
           resources:
             {{- toYaml .Values.redis.resources | nindent 12 }}
+      volumes:
+        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}
 {{- end }}

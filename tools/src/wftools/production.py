@@ -15,8 +15,8 @@ come from the environment, as the chain gives them; no file holds them. Then it 
 - the API answers its liveness probe, ``status`` ``ok``;
 - the owner of the tables, ``waterfall``, is no superuser, and can create neither a role nor a
   database: the administrator of the server is ``postgres``, the services' of initialisation alone;
-- PostgreSQL, Redis, the API, Keycloak and the object storage refuse a connection in the clear and
-  serve in TLS, and nothing else of them is reached from the network of the platform
+- PostgreSQL, Redis, the API, Keycloak, the object storage and Prometheus refuse a connection in the
+  clear and serve in TLS, and nothing else of them is reached from the network of the platform
   (``wftools.transport``, US-2840, WF-SEC-0010);
 - the platform answers in HTTP by sending to the same page in HTTPS, at its published address
   (WF-SEC-0010); in HTTPS, with the headers that keep the browser there and its pages to
@@ -55,7 +55,7 @@ from pathlib import Path
 from typing import cast
 from urllib.parse import urlencode, urljoin, urlsplit
 
-from wftools import REPOSITORY
+from wftools import REPOSITORY, transport
 from wftools.restoration_trial import (
     API_REACHED,
     Administrator,
@@ -68,7 +68,7 @@ from wftools.restoration_trial import (
     wanted,
 )
 from wftools.restoretest_trial import GRACE, Run, restore_test, scheduled_backup
-from wftools.transport import PROBE, SERVED, TransportError, check_clear_refused
+from wftools.transport import SERVED, TransportError, check_clear_refused
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
 FILES = (COMPOSE / "compose.prod.yaml", COMPOSE / "compose.prod.local.yaml")
@@ -423,7 +423,7 @@ def liveness_command(compose: list[str]) -> list[str]:
 
 def transport_command(compose: list[str]) -> list[str]:
     """Return the command that tries every server in the clear, inside the container of the API."""
-    return [*compose, "exec", "-T", "api", "python", "-c", PROBE]
+    return [*compose, "exec", "-T", "api", *transport.COMPOSE.command()]
 
 
 def back_up_and_restore(

@@ -292,6 +292,52 @@ def handshake(server: ssl.SSLContext, client: ssl.SSLContext, name: str) -> bool
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")
+def test_a_certificate_names_its_issuer_by_the_identifier_the_authority_declares(
+    tmp_path: Path,
+) -> None:
+    # The authority the chart makes, by Helm's genCA, declares the identifier of its key by a
+    # truncated SHA-256 (Go), not by the SHA-1 of RFC 5280: a certificate that named it otherwise
+    # would find no issuer, and OpenSSL — Caddy's Go, libpq, Node — refuses it (US-2840).
+    provided, kept, trust, certificates = folders(tmp_path)
+    key = ec.generate_private_key(ec.SECP256R1())
+    declared = bytes(range(20))
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Waterfall platform authority")])
+    usage = x509.KeyUsage(
+        digital_signature=True,
+        content_commitment=False,
+        key_encipherment=True,
+        data_encipherment=False,
+        key_agreement=False,
+        key_cert_sign=True,
+        crl_sign=False,
+        encipher_only=False,
+        decipher_only=False,
+    )
+    root = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(NOW - timedelta(days=1))
+        .not_valid_after(NOW + timedelta(days=3650))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .add_extension(usage, critical=True)
+        .add_extension(x509.SubjectKeyIdentifier(declared), critical=False)
+        .sign(key, hashes.SHA256())
+    )
+    provide(provided, [root], key)
+    authority.run(provided, kept, trust, certificates, [own("api")])
+    leaf = certificate(certificates / "api" / "tls.crt")
+    named = leaf.extensions.get_extension_for_class(x509.AuthorityKeyIdentifier).value
+    assert named.key_identifier == declared
+    client = ssl.create_default_context(cafile=root_only(tmp_path, root))
+    served = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    served.load_cert_chain(certificates / "api" / "tls.crt", certificates / "api" / "tls.key")
+    assert handshake(served, client, "api")
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
 @pytest.mark.parametrize(
     ("given", "said"),
     [

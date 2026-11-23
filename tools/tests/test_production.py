@@ -115,7 +115,7 @@ def test_the_platform_is_complete_on_one_machine_its_data_in_named_volumes() -> 
         # The authority of the platform and what it issues (US-2840, test_transport_trial.py).
         "authority",
         "trust",
-        *(f"certificates-{name}" for name in transport.SERVED),
+        *(f"certificates-{name}" for name in transport.COMPOSE.hosts().values()),
     }
     for name, kept in {
         "postgres": "/var/lib/postgresql",
@@ -205,7 +205,7 @@ def test_caddy_is_the_only_door_and_serves_the_front_at_the_root_and_keycloak_un
     assert re.search(r"^\{\$WATERFALL_DOMAIN\} \{$", caddyfile, re.MULTILINE)
     assert "email {$WATERFALL_ACME_EMAIL}" in caddyfile
     assert re.search(r"handle /auth/\* \{\s*reverse_proxy https://keycloak:8443 \{", caddyfile)
-    assert re.search(r"handle \{\s*reverse_proxy front:3000\s*\}", caddyfile)
+    assert re.search(r"handle \{\s*import front\s*\}", caddyfile)
 
 
 def site(caddyfile: str, address: str) -> str:
@@ -262,7 +262,7 @@ def test_the_console_of_keycloak_and_its_realm_master_are_not_served() -> None:
 
 def test_every_route_of_the_front_under_auth_is_served_to_it_or_kept_inside_the_platform() -> None:
     # Keycloak is under /auth, and so are three routes of the front: those the browser opens pass
-    # to the front; its back channel, which Keycloak reaches at front:3000, is not served (#731).
+    # to the front; its back channel, Keycloak's at front-proxy:3443, is not served (#731).
     routes = {path.name for path in (REPOSITORY / "frontend/src/app/auth").iterdir()}
     served = re.search(r"@front path ([^\n]+)", CADDYFILE.read_text(encoding="utf-8"))
     assert served is not None
@@ -270,7 +270,7 @@ def test_every_route_of_the_front_under_auth_is_served_to_it_or_kept_inside_the_
         "backchannel-logout"
     }
     realm = environment("keycloak-realm")
-    assert realm["WATERFALL_FRONT_BACKCHANNEL"] == "http://front:3000"
+    assert realm["WATERFALL_FRONT_BACKCHANNEL"] == "https://front-proxy:3443"
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")
@@ -875,7 +875,7 @@ def test_the_trial_starts_bootstraps_holds_and_removes_the_platform(
     fake = FakePlatform(realm_routes())
     assert production.main(GIVEN, docker.run, docker.read, platform_sender(fake)) == 0
     assert docker.verbs() == ["up", "run", "exec", "exec", "exec", "cp", "down"]
-    assert docker.ran[4][-3:] == ["python", "-c", transport.PROBE]
+    assert docker.ran[4][-4:] == transport.COMPOSE.command()
     assert docker.ran[0][:5] == ["docker", "compose", "--project-name", "trial-a3", "--file"]
     assert docker.ran[0][-4:] == ["up", "--detach", "--wait", "--quiet-pull"]
     assert docker.ran[-1][-2:] == ["down", "--volumes"]
@@ -884,7 +884,7 @@ def test_the_trial_starts_bootstraps_holds_and_removes_the_platform(
     assert "HTTP sends to https://waterfall.localhost\n" in said
     assert "HTTPS answers with Strict-Transport-Security, X-Content-Type-Options" in said
     assert "/auth/admin/ and /auth/realms/master/ answer 404" in said
-    assert "postgres, redis, api, keycloak, storage refuse a connection in the clear" in said
+    assert f"{', '.join(transport.SERVED)} refuse a connection in the clear" in said
     assert "signs in at https://waterfall.localhost, and the front names them" in said
     assert "the backup and its restoration are left out (WATERFALL_TRIAL_RESTORATION)" in said
 

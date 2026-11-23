@@ -619,15 +619,48 @@ services:
     # The time k6 is given, once asked to stop, to end its users and write its summary.
     stop_grace_period: 60s
 
+  # The authority of the supervision, as the production platform has its own (US-2840): it issues
+  # the key and the certificate of Prometheus, Alertmanager and Grafana, which serve in TLS alone, on
+  # the same files as the production's, and writes the root the clients of each trust, then stops. An
+  # authority of its own, made at its first start and kept in its volume: the root of the service
+  # platform is no secret of anyone's. Started with the profile supervision alone, as root, to give
+  # each key to its user.
+  supervision-authority:
+    profiles: [supervision]
+    build:
+      context: ../../backend
+      args: [WATERFALL_MIRROR]
+    user: "0:0"
+    command:
+      - waterfall-authority
+      - --provided=/authority/none
+      - --kept=/authority/kept
+      - --trust=/trust
+      - --certificates=/certificates
+      - prometheus:65534:65534
+      - alertmanager:65534:65534
+      - grafana:472:0
+    volumes:
+      - supervision-authority:/authority/kept
+      - supervision-trust:/trust
+      - supervision-certificates-prometheus:/certificates/prometheus
+      - supervision-certificates-alertmanager:/certificates/alertmanager
+      - supervision-certificates-grafana:/certificates/grafana
+    restart: "no"
+
   # Prometheus, as the production platform runs it (US-2880): it collects the API and the worker —
   # there is no front here —, and evaluates the rules of the alerts at their shipped thresholds,
-  # unless the environment says others. Started by none of the targets of the Makefile, for the
-  # tests that read it (the profile supervision); its series are lost with the container.
+  # unless the environment says others. In TLS alone, as in production (US-2840): the files of the
+  # production, the certificate of the authority of the supervision. Started by none of the targets
+  # of the Makefile, for the tests that read it (the profile supervision); its series are lost with
+  # the container.
   prometheus:
     profiles: [supervision]
     image: ${WATERFALL_MIRROR:-}prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
     entrypoint: ["/bin/sh", "/etc/waterfall/prometheus.sh"]
-    command: ["--storage.tsdb.path=/prometheus"]
+    command:
+      - --storage.tsdb.path=/prometheus
+      - --web.config.file=/etc/waterfall/prometheus-web.yml
     environment:
       WATERFALL_METRICS_PORT: 9100
       WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS: ${WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS:-900}
@@ -638,32 +671,56 @@ services:
       - ./prometheus.sh:/etc/waterfall/prometheus.sh:ro
       - ./prometheus.yml:/etc/waterfall/prometheus.yml:ro
       - ./prometheus-alerts.yml:/etc/waterfall/prometheus-alerts.yml:ro
+      - ./prometheus-web.yml:/etc/waterfall/prometheus-web.yml:ro
+      - ./prometheus-client.yml:/etc/waterfall/prometheus-client.yml:ro
+      - supervision-certificates-prometheus:/tls:ro
+    depends_on:
+      supervision-authority:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/-/ready"]
+      test: ["CMD", "promtool", "check", "ready", "--url=https://localhost:9090", "--http.config.file=/etc/waterfall/prometheus-client.yml"]
       interval: 5s
       timeout: 3s
       retries: 30
 
   # Alertmanager and Grafana, as the production platform runs them (US-2880): the notification of the
   # alerts, here without a mail server — it notifies nothing —, and the dashboard, on a password of
-  # the chain. Started by none of the targets of the Makefile either (the profile supervision).
+  # the chain; in TLS alone, as Prometheus. Started by none of the targets of the Makefile either
+  # (the profile supervision).
   alertmanager:
     profiles: [supervision]
     image: ${WATERFALL_MIRROR:-}prom/alertmanager:v0.35.0@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
     entrypoint: ["/bin/sh", "/etc/waterfall/alertmanager.sh"]
-    command: ["--storage.path=/alertmanager", "--cluster.listen-address="]
+    command:
+      - --storage.path=/alertmanager
+      - --cluster.listen-address=
+      - --web.config.file=/etc/waterfall/alertmanager-web.yml
     volumes:
       - ./alertmanager.sh:/etc/waterfall/alertmanager.sh:ro
+      - ./alertmanager-web.yml:/etc/waterfall/alertmanager-web.yml:ro
+      - ./alertmanager-client.yml:/etc/waterfall/alertmanager-client.yml:ro
+      - supervision-certificates-alertmanager:/tls:ro
+    depends_on:
+      supervision-authority:
+        condition: service_completed_successfully
 
   grafana:
     profiles: [supervision]
     image: ${WATERFALL_MIRROR:-}grafana/grafana:13.1.0@sha256:121a7a9ece6dc10b969f1f96eed64b4f07dfac0d0b8abc070f7cb83bbde86f63
     environment:
       GF_SECURITY_ADMIN_PASSWORD: chain-only-grafana
+      GF_SERVER_PROTOCOL: https
+      GF_SERVER_CERT_FILE: /tls/tls.crt
+      GF_SERVER_CERT_KEY: /tls/tls.key
     volumes:
       - ./grafana-datasource.yml:/etc/grafana/provisioning/datasources/waterfall.yml:ro
       - ./grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/waterfall.yml:ro
       - ./grafana-dashboard.json:/var/lib/waterfall-dashboards/waterfall.json:ro
+      - supervision-trust:/trust:ro
+      - supervision-certificates-grafana:/tls:ro
+    depends_on:
+      supervision-authority:
+        condition: service_completed_successfully
 
 volumes:
   postgres-data:
@@ -680,3 +737,9 @@ volumes:
   openldap-config:
   keycloak-front-end-data:
   contract-proxy-npm:
+  # The authority of the supervision, its root, and the certificates it issues (supervision-authority).
+  supervision-authority:
+  supervision-trust:
+  supervision-certificates-prometheus:
+  supervision-certificates-alertmanager:
+  supervision-certificates-grafana:

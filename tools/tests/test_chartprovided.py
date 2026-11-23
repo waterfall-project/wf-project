@@ -25,6 +25,8 @@ PROVIDED: dict[str, dict[str, Any]] = {
     "redis": {"enabled": False, "host": "redis.data.svc", "port": 6380},
     "storage": {"enabled": False, "address": "https://s3.data.svc:9000"},
     "secrets": {"existingSecret": "operator", "values": None},
+    # The roots of the certificates of the components of the operator (US-2840).
+    "transport": {"providedAuthority": "operator-roots"},
     "restoreTest": {
         "egress": {
             "postgresql": [{"ipBlock": {"cidr": "10.0.0.5/32"}}],
@@ -33,6 +35,8 @@ PROVIDED: dict[str, dict[str, Any]] = {
     },
 }
 CHART_OWN = {"postgres", "redis", "storage"}
+# What an address of PostgreSQL asks: TLS, the certificate and its name checked (US-2840).
+VERIFIED = "?sslmode=verify-full&sslrootcert=/trust/root.crt"
 
 
 def main(item: dict[str, Any]) -> dict[str, Any]:
@@ -73,6 +77,7 @@ def test_each_data_component_is_disabled_alone_for_an_address_and_a_secret_of_th
     values["secrets"] = PROVIDED["secrets"]
     # The pod of the test of a restoration reaches it at the peers the operator names (US-2930).
     values["restoreTest"] = PROVIDED["restoreTest"]
+    values["transport"] = PROVIDED["transport"]
     objects = rendered(values)
     served = (
         components(objects, "Service")
@@ -92,18 +97,22 @@ def test_every_service_reaches_the_data_components_at_the_addresses_of_the_opera
     for component in ("api", "worker", "restore"):
         variables = main(of_kind(objects, "Deployment")[component])
         assert variables["WATERFALL_REDIS_URL"] == (
-            "redis://:$(WATERFALL_REDIS_PASSWORD)@redis.data.svc:6380/0"
+            "rediss://:$(WATERFALL_REDIS_PASSWORD)@redis.data.svc:6380/0"
+            "?ssl_ca_certs=/trust/root.crt"
         ), component
         assert variables["WATERFALL_STORAGE_ADDRESS"] == "https://s3.data.svc:9000", component
     api = main(of_kind(objects, "Deployment")["api"])
-    assert api["WATERFALL_DATABASE_URL"].endswith("@postgres.data.svc:6432/waterfall")
+    assert api["WATERFALL_DATABASE_URL"].endswith(f"@postgres.data.svc:6432/waterfall{VERIFIED}")
     worker = main(of_kind(objects, "Deployment")["worker"])
-    assert worker["WATERFALL_BACKUP_DATABASE_URL"].endswith("@postgres.data.svc:6432/waterfall")
-    assert worker["WATERFALL_KEYCLOAK_DATABASE_URL"].endswith("@postgres.data.svc:6432/keycloak")
+    backup = worker["WATERFALL_BACKUP_DATABASE_URL"]
+    assert backup.endswith(f"@postgres.data.svc:6432/waterfall{VERIFIED}")
+    backup = worker["WATERFALL_KEYCLOAK_DATABASE_URL"]
+    assert backup.endswith(f"@postgres.data.svc:6432/keycloak{VERIFIED}")
     keycloak = main(of_kind(objects, "Deployment")["keycloak"])
-    assert keycloak["KC_DB_URL"] == "jdbc:postgresql://postgres.data.svc:6432/keycloak"
+    assert keycloak["KC_DB_URL"] == f"jdbc:postgresql://postgres.data.svc:6432/keycloak{VERIFIED}"
     restore = main(of_kind(objects, "Deployment")["restore"])
-    assert restore["WATERFALL_KEYCLOAK_DATABASE_URL"].endswith("@postgres.data.svc:6432/keycloak")
+    owner = restore["WATERFALL_KEYCLOAK_DATABASE_URL"]
+    assert owner.endswith(f"@postgres.data.svc:6432/keycloak{VERIFIED}")
     # The waits and the steps of the database sign in to the server of the operator, as the
     # administrator it names.
     for wait in (
@@ -114,18 +123,19 @@ def test_every_service_reaches_the_data_components_at_the_addresses_of_the_opera
         assert environment(wait)["PGHOST"] == "postgres.data.svc"
         assert environment(wait)["PGPORT"] == "6432"
     install = main(of_kind(objects, "Job")["install"])
-    assert install["WATERFALL_DATABASE_URL"].endswith("@postgres.data.svc:6432/waterfall")
+    owner = install["WATERFALL_DATABASE_URL"]
+    assert owner.endswith(f"@postgres.data.svc:6432/waterfall{VERIFIED}")
 
 
 def test_the_buckets_are_made_on_the_storage_of_the_operator() -> None:
-    (buckets,) = containers(of_kind(rendered(PROVIDED), "Job")["buckets"])
+    (buckets,) = pod(of_kind(rendered(PROVIDED), "Job")["buckets"])["containers"]
     assert environment(buckets)["STORAGE_ADDRESS"] == "https://s3.data.svc:9000"
 
 
 def test_the_steps_of_the_database_sign_in_as_the_administrator_the_operator_names() -> None:
     objects = rendered({**PROVIDED, "postgresql": {**PROVIDED["postgresql"], "adminUser": "dba"}})
     for step in containers(of_kind(objects, "Job")["migrate"]):
-        if step["name"] != "migrate":
+        if step["name"] not in {"migrate", "transport"}:
             assert environment(step)["PGUSER"] == "dba", step["name"]
             assert environment(step)["PGPORT"] == "6432", step["name"]
 
@@ -152,7 +162,9 @@ def test_the_migrations_run_before_the_installation_on_a_postgresql_of_the_opera
 def test_the_files_of_a_hook_before_the_installation_are_a_configmap_made_for_it() -> None:
     objects = rendered(PROVIDED)
     migrate = of_kind(objects, "Job")["migrate"]
-    claimed = {volume["configMap"]["name"] for volume in pod(migrate)["volumes"]}
+    claimed = {
+        volume["configMap"]["name"] for volume in pod(migrate)["volumes"] if "configMap" in volume
+    }
     hook = of_kind(objects, "ConfigMap")["hook-files"]
     assert claimed == {hook["metadata"]["name"]}
     annotations = hook["metadata"]["annotations"]
@@ -186,7 +198,7 @@ def test_a_component_provided_without_its_address_stops_the_rendering_naming_it(
     given: dict[str, Any], named: str
 ) -> None:
     with pytest.raises(ChartError, match=named):
-        rendered({**given, "secrets": PROVIDED["secrets"]})
+        rendered({**given, "secrets": PROVIDED["secrets"], "transport": PROVIDED["transport"]})
 
 
 @pytest.mark.parametrize(
@@ -213,13 +225,17 @@ def test_the_connections_of_postgresql_cover_the_instances_of_the_api_or_the_ren
 
 
 def test_the_api_scales_from_one_instance_to_three_by_one_value_that_no_pod_reads() -> None:
-    """Only `api.replicas` changes: no checksum, no flag, no other object follows it."""
+    """Only `api.replicas` changes: no checksum, no flag, no other object follows it.
+
+    The authority the chart makes is drawn at each rendering, and made once, at the installation:
+    an upgrade never writes it again (US-2840).
+    """
     one, three = rendered({"api": {"replicas": 1}}), rendered({"api": {"replicas": 3}})
     assert len(one) == len(three)
     differences = [
         (a["kind"], a["metadata"]["name"], a["spec"].get("replicas"), b["spec"].get("replicas"))
         for a, b in zip(one, three, strict=True)
-        if a != b
+        if a != b and a["metadata"]["name"] != "waterfall-authority"
     ]
     assert differences == [("Deployment", "waterfall-api", 1, 3)]
 
@@ -244,8 +260,9 @@ def test_the_chart_and_the_compose_of_production_designate_the_same_images() -> 
         }
 
     every = images({})
-    # Caddy is the door of the Compose; the ingress is the chart's.
-    assert every == {image for image in tagged if not image.startswith("caddy:")}
+    # Caddy is the door of the Compose, and the proxy in TLS of its front and its storage: the
+    # chart runs the proxies alone, the ingress is its door (US-2840).
+    assert every == tagged
     # Provided components or not, nothing the chart runs is an image the Compose does not name.
     assert images(PROVIDED) <= tagged
     # A mirror is a prefix of the third parties alone, as WATERFALL_MIRROR is in the Compose.

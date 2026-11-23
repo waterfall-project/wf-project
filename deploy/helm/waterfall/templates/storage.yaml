@@ -3,9 +3,30 @@
 
 # The object storage (PBS-3.3, compose.prod.yaml, storage): Garage on one node, its layout made at
 # its start and the key of the platform taken from the environment (garage.toml), its data in a
-# volume of its own. The buckets are made by a step of the hooks (hooks.yaml).
+# volume of its own. The buckets are made by a step of the hooks (hooks.yaml). Garage does not
+# encrypt by itself: it listens on the loopback of its pod alone, and its proxy in TLS beside it, the
+# Caddy of the Compose (storage-proxy, Caddyfile.storage), serves it on the port of the Service, with
+# the certificate its container of initialisation issues (TFX-05, US-2840). The configuration of
+# both is the Compose's, the addresses of Garage moved to the loopback.
 {{- if .Values.storage.enabled }}
 {{- $name := include "waterfall.name" (list . "storage") }}
+{{- $garage := .Files.Get "files/garage.toml" | replace "\"[::]:3900\"" "\"127.0.0.1:3902\"" | replace "\"[::]:3901\"" "\"127.0.0.1:3901\"" | trimSuffix "\n" }}
+{{- $proxy := .Files.Get "files/Caddyfile.storage" | replace "reverse_proxy garage:3900" "reverse_proxy 127.0.0.1:3902" | trimSuffix "\n" }}
+{{- if or (contains "[::]" $garage) (not (contains "127.0.0.1:3902" $proxy)) }}
+{{- fail "files/garage.toml or files/Caddyfile.storage: an address of Garage the chart moves to the loopback of its pod is not found" }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "storage") | nindent 4 }}
+data:
+  garage.toml: |-
+    {{- $garage | nindent 4 }}
+  Caddyfile.storage: |-
+    {{- $proxy | nindent 4 }}
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -36,8 +57,12 @@ spec:
     metadata:
       labels:
         {{- include "waterfall.selector" (list . "storage") | nindent 8 }}
+      annotations:
+        checksum/configuration: {{ printf "%s%s" $garage $proxy | sha256sum }}
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
+      initContainers:
+        {{- include "waterfall.transportInit" (list . "storage" 0 0) | nindent 8 }}
       containers:
         - name: storage
           image: {{ include "waterfall.thirdParty" (list . .Values.storage.image) }}
@@ -48,9 +73,6 @@ spec:
             - name: GARAGE_DEFAULT_ACCESS_KEY
               value: {{ .Values.storage.accessKey | quote }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_STORAGE_SECRET" "GARAGE_DEFAULT_SECRET_KEY") | nindent 12 }}
-          ports:
-            - name: s3
-              containerPort: 3900
           readinessProbe:
             exec:
               command: [/garage, status]
@@ -65,15 +87,37 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/garage
-            - name: files
+            - name: configuration
               mountPath: /etc/garage.toml
               subPath: garage.toml
+              readOnly: true
           resources:
             {{- toYaml .Values.storage.resources | nindent 12 }}
+        - name: storage-proxy
+          image: {{ include "waterfall.thirdParty" (list . .Values.transport.proxyImage) }}
+          imagePullPolicy: IfNotPresent
+          command: [caddy, run, --config, /etc/caddy/Caddyfile.storage, --adapter, caddyfile]
+          ports:
+            - name: s3
+              containerPort: 3900
+          readinessProbe:
+            tcpSocket:
+              port: s3
+            periodSeconds: 2
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: configuration
+              mountPath: /etc/caddy/Caddyfile.storage
+              subPath: Caddyfile.storage
+              readOnly: true
+            {{- include "waterfall.tlsMount" (list . "storage") | nindent 12 }}
+          resources:
+            {{- toYaml .Values.storage.proxyResources | nindent 12 }}
       volumes:
-        - name: files
+        - name: configuration
           configMap:
-            name: {{ include "waterfall.name" (list . "files") }}
+            name: {{ $name }}
+        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}
   volumeClaimTemplates:
     - metadata:
         name: data

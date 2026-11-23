@@ -32,6 +32,8 @@ from wftools.restoration_trial import ACCEPTED, CREATED, OK, Api, Ask, Clock, as
 RELEASE = "waterfall"
 STREAM = "waterfall:tasks"
 GROUP = "workers"
+REDIS_CLI = ("redis-cli", "--tls", "--cacert", "/tls/ca.crt", "-h", "localhost", "--raw")
+"""redis-cli in the pod of Redis, in TLS against the root its certificate is issued under."""
 PATIENCE = 300.0
 """How long, in seconds, the other worker may take to claim the entry the killed one left: the
 delay of its claim is thirty seconds."""
@@ -377,9 +379,17 @@ class Stateless:
         """Wait until a worker holds an entry its marking, held by the lock, cannot end.
 
         The marking is the session that waits, in the database, to inscribe the journal (``WAITING``
-        reads its query), and its entry the one pending in the stream. Give its consumer.
+        reads its query), and its entry the one pending in the stream. Give its consumer. Redis is
+        asked in its pod, in TLS, as its probes ask it: it opens no port in the clear (US-2840),
+        and its password is in the environment of its container, which redis-cli reads.
         """
-        redis = [*self.kubectl, "exec", f"deployment/{RELEASE}-redis", "--", "redis-cli", "--raw"]
+        redis = [
+            *self.kubectl,
+            "exec",
+            f"deployment/{RELEASE}-redis",
+            "--",
+            *REDIS_CLI,
+        ]
         deadline = self.clock.now() + PATIENCE
         while self.clock.now() < deadline:
             waiting = self.sql(WAITING, "look for a worker held up by the lock")

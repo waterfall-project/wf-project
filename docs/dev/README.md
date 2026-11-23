@@ -4649,8 +4649,23 @@ platform that already holds it receives nothing more.
 Once the paths are played, `make e2e-service` searches the logs of every service of the platform,
 Keycloak included, under all the profiles of Compose, and that of the front of the paths
 (`frontend/.e2e/front.log`, which git ignores: the server of Next is a web server of Playwright,
-which Compose does not hold) for the secrets and tokens known (`make service-logs-search`,
-WF-OBS-0020, US-2900); it fails if it finds one, or if the logs could not be read or are empty. It
+which Compose does not hold), and those of the bootstrap and of the witness, which it runs by
+`run --rm` and keeps in `frontend/.e2e/install.log` and `witness.log` — of the bootstrap, its log
+alone: its standard output is the link of the first administrator, printed on purpose (#4395) —,
+for the secrets and tokens known (`make service-logs-search`, WF-OBS-0020, US-2900); it fails if it
+finds one, or if the logs could not be read or are empty. It also searches every file git tracks
+for the secrets of the platform of service (`python -m wftools.logsearch repository`, WF-SEC-0010,
+US-2840), and fails if it finds one. That search is narrower than the search of the logs: the values
+alone that the platform is given for its secrets — the variables of `SECRET_VARIABLES` —, as they
+are written, escaped in JSON or quoted in a URL. It looks neither for the shapes of the tokens,
+which tests write on purpose, nor for the password of the accounts of the paths (`FIXED_SECRETS`),
+a constant of the repository written in `frontend/e2e/service/realm.ts`, nor for a value a workflow
+of `.github/workflows/` sets in clear for one of those variables (`chain_values`): the workstation
+values of the chain, public and named as such, which the images must not hold (`wftools.images`)
+and which a workstation takes from `keycloak.yml` (`INSTALL.md`); none is a secret of a platform.
+Under the chain, and on a workstation that took those values, every one is such a value: the
+search says so, searches nothing and passes; it bites on a workstation with values of its own, or
+at an operator's. It says nothing of a secret of operation none of those variables holds. It
 then checks that every line of the logs of the API, the worker, its schedule and the service of the
 restoration is a record that carries its correlation identifier, its author and its severity
 (`make service-logs-fields`). An import that fails in the worker is followed in these logs by the

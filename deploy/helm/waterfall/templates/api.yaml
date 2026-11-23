@@ -4,8 +4,14 @@
 # The API (compose.prod.yaml, api), a deployment of its own, of api.replicas replicas
 # (WF-ARC-0050), each of api.processes processes. As the role of the service, which holds only what
 # the tables grant it (#701): it waits until that role signs in, which it can once the migrations
-# have run (hooks.yaml).
+# have run (hooks.yaml). In TLS alone, on 8443, with the certificate its container of initialisation
+# issues (TFX-02, US-2840); its metrics alone in HTTP, on 8000, which the headless Service of
+# Prometheus alone routes, and nothing else is served there (TFX-09). It reads the Prometheus of the
+# chart in HTTPS for the status screen (TFX-14) — that of the operator, prometheus.enabled false, is
+# not given it: the screen says the metrics unavailable —, and presents the operating parameters the
+# worker and the rules of the alerts are given (#4636).
 {{- $name := include "waterfall.name" (list . "api") }}
+{{- $thresholds := .Values.prometheus.thresholds }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -16,9 +22,9 @@ spec:
   selector:
     {{- include "waterfall.selector" (list . "api") | nindent 4 }}
   ports:
-    - name: http
-      port: 8000
-      targetPort: http
+    - name: https
+      port: 8443
+      targetPort: https
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -38,6 +44,7 @@ spec:
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
       initContainers:
+        {{- include "waterfall.transportInit" (list . "api" 1000 1000) | nindent 8 }}
         {{- include "waterfall.waitForDatabase" (list . "waterfall_service" "waterfall" "WATERFALL_SERVICE_DATABASE_PASSWORD") | nindent 8 }}
       containers:
         - name: api
@@ -53,21 +60,54 @@ spec:
               value: {{ .Values.api.processes | quote }}
             # The capacities of the spaces, of which the metrics say what is left (#4229).
             {{- include "waterfall.capacities" . | nindent 12 }}
+            - name: WATERFALL_PORT
+              value: "8443"
+            - name: WATERFALL_TLS_CERTIFICATE
+              value: /tls/tls.crt
+            - name: WATERFALL_TLS_KEY
+              value: /tls/tls.key
+            - name: WATERFALL_METRICS_PORT
+              value: "8000"
+            {{- if .Values.prometheus.enabled }}
+            - name: WATERFALL_PROMETHEUS_ADDRESS
+              value: {{ printf "https://%s:9090" (include "waterfall.name" (list . "prometheus")) | quote }}
+            {{- end }}
+            # What the status screen presents (WF-ADM-0130): the retention the purge of the worker
+            # applies, the thresholds the rules of the alerts are written with (_prometheus.tpl).
+            - name: WATERFALL_BACKGROUND_TASK_RETENTION_DAYS
+              value: {{ .Values.worker.backgroundTaskRetentionDays | quote }}
+            - name: WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS
+              value: {{ include "waterfall.wholeNumber" (list "prometheus.thresholds.taskQueueAgeSeconds" $thresholds.taskQueueAgeSeconds) | quote }}
+            - name: WATERFALL_STORAGE_USAGE_THRESHOLD
+              value: {{ include "waterfall.ratio" (list "prometheus.thresholds.storageUsage" $thresholds.storageUsage) | quote }}
+            - name: WATERFALL_ERROR_RATE_THRESHOLD
+              value: {{ include "waterfall.ratio" (list "prometheus.thresholds.errorRate" $thresholds.errorRate) | quote }}
+            - name: WATERFALL_ERROR_RATE_WINDOW_SECONDS
+              value: {{ include "waterfall.wholeNumber" (list "prometheus.thresholds.errorRateWindowSeconds" $thresholds.errorRateWindowSeconds) | quote }}
           ports:
-            - name: http
+            - name: https
+              containerPort: 8443
+            - name: metrics
               containerPort: 8000
           readinessProbe:
             httpGet:
               path: /api/v1/health
-              port: http
+              port: https
+              scheme: HTTPS
             periodSeconds: 2
             timeoutSeconds: 3
           livenessProbe:
             httpGet:
               path: /api/v1/health
-              port: http
+              port: https
+              scheme: HTTPS
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 3
+          volumeMounts:
+            {{- include "waterfall.trustMount" . | nindent 12 }}
+            {{- include "waterfall.tlsMount" (list . "api") | nindent 12 }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
+      volumes:
+        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}

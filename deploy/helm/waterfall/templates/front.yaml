@@ -1,11 +1,27 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# The front (compose.prod.yaml, front), a deployment of its own. Its server reaches Keycloak at the
-# published address, in HTTPS, through the ingress: its client of the realm admits no address in
-# HTTP. HOSTNAME is set here: Kubernetes sets it to the name of the pod over the ENV of the image,
-# and the standalone server of Next would listen on the address of the pod alone (#826).
+# The front (compose.prod.yaml, front and front-proxy), a deployment of its own. Its server reaches
+# Keycloak at the published address, in HTTPS, through the ingress: its client of the realm admits no
+# address in HTTP; it trusts the root of the platform besides the usual ones (NODE_EXTRA_CA_CERTS),
+# which reaches the API and Redis in TLS. In TLS alone (US-2840, #4508): the standalone server of Next
+# does not encrypt by itself, and listens on the loopback of the pod alone — HOSTNAME is set here,
+# which Kubernetes sets to the name of the pod over the ENV of the image (#826) —, and its proxy beside
+# it, the Caddy of the Compose (Caddyfile.front), serves it on the port of the Service, with the
+# certificate its container of initialisation issues. Its metrics alone stay in HTTP, on a port of
+# their own the Service and the ingress do not route (TFX-09).
 {{- $name := include "waterfall.name" (list . "front") }}
+{{- $proxy := .Files.Get "files/Caddyfile.front" | trimSuffix "\n" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "front") | nindent 4 }}
+data:
+  Caddyfile.front: |-
+    {{- $proxy | nindent 4 }}
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -16,9 +32,9 @@ spec:
   selector:
     {{- include "waterfall.selector" (list . "front") | nindent 4 }}
   ports:
-    - name: http
-      port: 3000
-      targetPort: http
+    - name: https
+      port: 3443
+      targetPort: https
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -35,21 +51,27 @@ spec:
     metadata:
       labels:
         {{- include "waterfall.selector" (list . "front") | nindent 8 }}
+      annotations:
+        checksum/configuration: {{ $proxy | sha256sum }}
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
       {{- with .Values.front.hostAliases }}
       hostAliases:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      initContainers:
+        {{- include "waterfall.transportInit" (list . "front" 0 0) | nindent 8 }}
       containers:
         - name: front
           image: {{ include "waterfall.image" (list . "front") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
           env:
             - name: HOSTNAME
-              value: 0.0.0.0
+              value: 127.0.0.1
             - name: WATERFALL_API_ADDRESS
-              value: {{ printf "http://%s:8000" (include "waterfall.name" (list . "api")) | quote }}
+              value: {{ printf "https://%s:8443" (include "waterfall.name" (list . "api")) | quote }}
+            - name: NODE_EXTRA_CA_CERTS
+              value: {{ include "waterfall.roots" . }}
             - name: WATERFALL_FRONT_ADDRESS
               value: {{ include "waterfall.address" . | quote }}
             - name: WATERFALL_KEYCLOAK_ADDRESS
@@ -59,49 +81,59 @@ spec:
               value: {{ printf "https://%s/auth" .Values.platform.domain | quote }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_FRONT_CLIENT_SECRET") | nindent 12 }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_REDIS_PASSWORD") | nindent 12 }}
+            # Redis in TLS, its certificate checked against the roots NODE_EXTRA_CA_CERTS gives.
             - name: WATERFALL_REDIS_URL
-              value: {{ include "waterfall.redisUrl" . | quote }}
+              value: {{ printf "rediss://:$(WATERFALL_REDIS_PASSWORD)@%s/0" (include "waterfall.redisAddress" .) | quote }}
             # The key of the server actions, the same for every start and every replica (#825).
             {{- include "waterfall.secretEnv" (list . "WATERFALL_SERVER_ACTIONS_KEY" "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") | nindent 12 }}
             # The metrics, on a port the Service and the ingress do not route (TFX-09).
             - name: WATERFALL_METRICS_PORT
               value: {{ .Values.metrics.port | quote }}
-            {{- if .Values.transport.authority }}
-            - name: NODE_EXTRA_CA_CERTS
-              value: /authority/ca.crt
-            {{- end }}
           ports:
-            - name: http
-              containerPort: 3000
             - name: metrics
               containerPort: {{ .Values.metrics.port }}
+          # Through its proxy: the front answers on the loopback alone.
           readinessProbe:
             httpGet:
               path: /
-              port: http
+              port: 3443
+              scheme: HTTPS
             periodSeconds: 5
             timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /
-              port: http
+              port: 3443
+              scheme: HTTPS
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
-          {{- if .Values.transport.authority }}
           volumeMounts:
-            - name: authority
-              mountPath: /authority
-              readOnly: true
-          {{- end }}
+            {{- include "waterfall.trustMount" . | nindent 12 }}
           resources:
             {{- toYaml .Values.front.resources | nindent 12 }}
-      {{- if .Values.transport.authority }}
+        - name: front-proxy
+          image: {{ include "waterfall.thirdParty" (list . .Values.transport.proxyImage) }}
+          imagePullPolicy: IfNotPresent
+          command: [caddy, run, --config, /etc/caddy/Caddyfile.front, --adapter, caddyfile]
+          ports:
+            - name: https
+              containerPort: 3443
+          readinessProbe:
+            tcpSocket:
+              port: https
+            periodSeconds: 2
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: configuration
+              mountPath: /etc/caddy/Caddyfile.front
+              subPath: Caddyfile.front
+              readOnly: true
+            {{- include "waterfall.tlsMount" (list . "front") | nindent 12 }}
+          resources:
+            {{- toYaml .Values.front.proxyResources | nindent 12 }}
       volumes:
-        - name: authority
-          secret:
-            secretName: {{ .Values.transport.authority }}
-            items:
-              - key: ca.crt
-                path: ca.crt
-      {{- end }}
+        - name: configuration
+          configMap:
+            name: {{ $name }}
+        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}

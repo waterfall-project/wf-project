@@ -6,10 +6,12 @@
 # instance. It starts as the Compose starts it, by the same script (alertmanager.sh), which writes its
 # configuration from the environment and refuses, naming it, a value that is not what it must be: the
 # pod does not start on it. The password of the mail server, if it asks one, is read from the Secret
-# of the platform, where nothing requires it.
+# of the platform, where nothing requires it. It serves in TLS alone (US-2840, #4508), with the
+# certificate its container of initialisation issues, as the Compose's does (alertmanager-web.yml).
 {{- $name := include "waterfall.name" (list . "alertmanager") }}
 {{- $smtp := .Values.alertmanager.smtp }}
 {{- $script := .Files.Get "files/alertmanager.sh" | trimSuffix "\n" }}
+{{- $web := .Files.Get "files/alertmanager-web.yml" | trimSuffix "\n" }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -19,6 +21,8 @@ metadata:
 data:
   alertmanager.sh: |-
     {{- $script | nindent 4 }}
+  alertmanager-web.yml: |-
+    {{- $web | nindent 4 }}
 ---
 apiVersion: v1
 kind: Service
@@ -30,9 +34,9 @@ spec:
   selector:
     {{- include "waterfall.selector" (list . "alertmanager") | nindent 4 }}
   ports:
-    - name: http
+    - name: https
       port: 9093
-      targetPort: http
+      targetPort: https
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -50,7 +54,7 @@ spec:
       labels:
         {{- include "waterfall.selector" (list . "alertmanager") | nindent 8 }}
       annotations:
-        checksum/script: {{ $script | sha256sum }}
+        checksum/script: {{ printf "%s%s" $script $web | sha256sum }}
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
       # The user of the image, nobody, who writes its configuration and its silences in /alertmanager.
@@ -59,13 +63,18 @@ spec:
         runAsUser: 65534
         runAsGroup: 65534
         fsGroup: 65534
+      initContainers:
+        {{- include "waterfall.transportInit" (list . "alertmanager" 65534 65534) | nindent 8 }}
       containers:
         - name: alertmanager
           image: {{ include "waterfall.thirdParty" (list . .Values.alertmanager.image) }}
           imagePullPolicy: IfNotPresent
           command: [/bin/sh, /etc/waterfall/alertmanager.sh]
           # Alone: no cluster of replicas to join.
-          args: [--storage.path=/alertmanager, --cluster.listen-address=]
+          args:
+            - --storage.path=/alertmanager
+            - --cluster.listen-address=
+            - --web.config.file=/etc/waterfall/alertmanager-web.yml
           env:
             - name: WATERFALL_ALERT_SMTP_HOST
               value: {{ $smtp.host | quote }}
@@ -84,18 +93,20 @@ spec:
                   key: WATERFALL_ALERT_SMTP_PASSWORD
                   optional: true
           ports:
-            - name: http
+            - name: https
               containerPort: 9093
           readinessProbe:
             httpGet:
               path: /-/ready
-              port: http
+              port: https
+              scheme: HTTPS
             periodSeconds: 5
             timeoutSeconds: 3
           livenessProbe:
             httpGet:
               path: /-/healthy
-              port: http
+              port: https
+              scheme: HTTPS
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 3
@@ -105,6 +116,7 @@ spec:
               readOnly: true
             - name: state
               mountPath: /alertmanager
+            {{- include "waterfall.tlsMount" (list . "alertmanager") | nindent 12 }}
           resources:
             {{- toYaml .Values.alertmanager.resources | nindent 12 }}
       volumes:
@@ -113,3 +125,4 @@ spec:
             name: {{ $name }}
         - name: state
           emptyDir: {}
+        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}

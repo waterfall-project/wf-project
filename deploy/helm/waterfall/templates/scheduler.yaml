@@ -31,6 +31,8 @@ spec:
           serviceAccountName: {{ include "waterfall.name" (list . "scheduler") }}
           {{- end }}
           restartPolicy: Never
+          initContainers:
+            {{- include "waterfall.transportInit" (list .) | nindent 12 }}
           containers:
             - name: schedule
               image: {{ include "waterfall.image" (list . "waterfall") }}
@@ -48,15 +50,19 @@ spec:
                 {{- end }}
               resources:
                 {{- toYaml .Values.scheduler.resources | nindent 16 }}
-              {{- if .Values.restoreTest.enabled }}
               volumeMounts:
+                {{- include "waterfall.trustMount" . | nindent 16 }}
+                {{- if .Values.restoreTest.enabled }}
                 - name: restore-test
                   mountPath: /restore-test
                   readOnly: true
+                {{- end }}
           volumes:
+            {{- include "waterfall.transportVolumes" (list .) | nindent 12 }}
+            {{- if .Values.restoreTest.enabled }}
             - name: restore-test
               configMap:
                 name: {{ include "waterfall.name" (list . "restore-test") }}
                 items:
                   - { key: job.json, path: job.json }
-              {{- end }}
+            {{- end }}

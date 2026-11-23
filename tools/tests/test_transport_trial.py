@@ -13,6 +13,7 @@ these tests hold what the trial concludes from what the probe answers.
 import ipaddress
 import json
 import re
+import shlex
 from typing import Any
 
 import pytest
@@ -34,6 +35,10 @@ SERVERS = {
     "api": "api",
     "keycloak": "keycloak",
     "storage": "storage-proxy",
+    "prometheus": "prometheus",
+    "alertmanager": "alertmanager",
+    "grafana": "grafana",
+    "front": "front-proxy",
 }
 # A variable that gives a service the address of another: Waterfall's, and their equivalents in the
 # services of Keycloak's image and of the buckets of the storage.
@@ -99,11 +104,14 @@ def test_the_authority_issues_the_certificate_of_each_server_for_it_alone() -> N
     authority = services()["authority"]
     command = authority["command"]
     assert command[0] == "waterfall-authority"
-    served = {each.split(":")[0] for each in command if re.fullmatch(r"[a-z]+:\d+:\d+", each)}
-    assert served == set(transport.SERVED) == set(SERVERS)
+    served = {each.split(":")[0] for each in command if re.fullmatch(r"[a-z-]+:\d+:\d+", each)}
+    # Each for the name the probe and the clients reach it at.
+    names = transport.COMPOSE.hosts()
+    assert set(names) == set(transport.SERVED) == set(SERVERS)
+    assert served == set(names.values())
     for name, server in SERVERS.items():
-        volume = f"certificates-{name}"
-        assert f"{volume}:/certificates/{name}" in authority["volumes"]
+        volume = f"certificates-{names[name]}"
+        assert f"{volume}:/certificates/{names[name]}" in authority["volumes"]
         mounting = [
             service
             for service, found in services().items()
@@ -174,15 +182,120 @@ def test_postgresql_redis_keycloak_and_the_api_serve_in_tls_alone() -> None:
     assert (job["metrics_path"], job["dns_sd_configs"][0]["port"]) == ("/api/v1/metrics", 8000)
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_the_front_grafana_and_alertmanager_serve_in_tls_alone() -> None:
+    # #4508, all in TLS: the front behind its proxy, the server of Next listening on the network
+    # front alone, which they alone share, as Garage and its proxy share theirs (M3 of the review
+    # of US-2840/L2: in the network of its proxy, the front was cut off by a restart of the proxy);
+    # Grafana and Alertmanager with the certificate the authority issues them.
+    found = services()
+    front = found["front"]
+    assert "network_mode" not in front
+    assert front["networks"] == {"default": {}, "front": {"aliases": ["front-next"]}}
+    assert environment("front")["HOSTNAME"] == "front-next"
+    assert "front-next:3000" in front["healthcheck"]["test"][-1]
+    assert "ports" not in front
+    assert compose()["networks"]["front"] == {"internal": True}
+    joining = [name for name, service in found.items() if "front" in service.get("networks", {})]
+    assert sorted(joining) == ["front", "front-proxy"]
+    proxy = found["front-proxy"]
+    assert proxy["networks"] == {"default": {}, "front": {}}
+    assert proxy["depends_on"]["front"] == {"condition": "service_healthy"}
+    assert "./Caddyfile.front:/etc/caddy/Caddyfile.front:ro" in proxy["volumes"]
+    assert proxy["environment"]["WATERFALL_FRONT_UPSTREAM"] == "front-next:3000"
+    served = (COMPOSE / "Caddyfile.front").read_text(encoding="utf-8")
+    # The upstream the Compose gives, the loopback of the pod in the chart, which gives none.
+    assert re.search(
+        r"^https://:3443 \{\s*tls /tls/tls.crt /tls/tls.key\s*"
+        r"reverse_proxy \{\$WATERFALL_FRONT_UPSTREAM:127\.0\.0\.1:3000\}\s*\}",
+        served,
+        re.MULTILINE,
+    )
+    # Keycloak tells the front of a closed session in HTTPS, trusting the root (TFX-17).
+    backchannel = environment("keycloak-realm")["WATERFALL_FRONT_BACKCHANNEL"]
+    assert backchannel == "https://front-proxy:3443"
+    assert environment("keycloak")["KC_TRUSTSTORE_PATHS"] == ROOT
+    assert TRUST in found["keycloak"]["volumes"]
+    grafana = environment("grafana")
+    assert (grafana["GF_SERVER_PROTOCOL"], grafana["GF_SERVER_CERT_FILE"]) == (
+        "https",
+        "/tls/tls.crt",
+    )
+    assert grafana["GF_SERVER_CERT_KEY"] == "/tls/tls.key"
+    web = "--web.config.file=/etc/waterfall/alertmanager-web.yml"
+    assert web in found["alertmanager"]["command"]
+    collected = yaml.safe_load((COMPOSE / "prometheus.yml").read_text(encoding="utf-8"))
+    (manager,) = collected["alerting"]["alertmanagers"]
+    assert (manager["scheme"], manager["tls_config"]) == ("https", {"ca_file": "/tls/ca.crt"})
+    assert {"front", "grafana", "alertmanager"} <= set(transport.SERVED)
+    assert {"front-http", "front-next"} <= set(transport.CLOSED)
+
+
+def instructions(dockerfile: str) -> list[tuple[str, str]]:
+    """Read the instructions of a Dockerfile, each as its keyword and its arguments, on one line.
+
+    A line ended by a backslash goes on on the next; a comment, or a blank line, between them is
+    skipped, as Docker does.
+    """
+    found: list[tuple[str, str]] = []
+    pending = ""
+    for line in dockerfile.splitlines():
+        if not pending and not line.strip():
+            continue
+        if line.lstrip().startswith("#"):
+            continue
+        if line.endswith("\\"):
+            pending += line[:-1] + " "
+            continue
+        keyword, _, arguments = (pending + line).strip().partition(" ")
+        found.append((keyword.upper(), arguments.strip()))
+        pending = ""
+    return found
+
+
+def environment_set(arguments: str) -> dict[str, str]:
+    """Read what an ENV sets: ``KEY=value ...``, quoted or not, or the older ``KEY value``."""
+    words = shlex.split(arguments)
+    if words and "=" not in words[0]:
+        return {words[0]: " ".join(words[1:])}
+    return dict(word.split("=", 1) for word in words)
+
+
+def stage_environment(dockerfile: str, stage: str) -> dict[str, str]:
+    """Read the variables the ENV of a stage of a Dockerfile set, in order."""
+    found: dict[str, str] = {}
+    current = None
+    for keyword, arguments in instructions(dockerfile):
+        if keyword == "FROM":
+            words = arguments.split()
+            current = words[2] if len(words) == 3 and words[1].upper() == "AS" else None
+        elif keyword == "ENV" and current == stage:
+            found.update(environment_set(arguments))
+    return found
+
+
 def image_environment(stage: str) -> dict[str, str]:
     """Read the variables the ENV of a stage of the image of the back sets."""
     dockerfile = (REPOSITORY / "backend" / "Dockerfile").read_text(encoding="utf-8")
-    lines = re.MULTILINE | re.DOTALL
-    (body,) = re.findall(rf"^FROM \S+ AS {stage}\n(.*?)(?=^FROM |\Z)", dockerfile, lines)
-    found: dict[str, str] = {}
-    for instruction in re.findall(r"^ENV (.*?)(?<!\\)\n", body, lines):
-        found.update(re.findall(r"(\w+)=(\S+?)\"?(?:\s|\\|$)", instruction))
-    return found
+    return stage_environment(dockerfile, stage)
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+@pytest.mark.parametrize(
+    ("dockerfile", "expected"),
+    [
+        ('FROM base AS production\nENV A=1 \\\n  B="two words"\n', {"A": "1", "B": "two words"}),
+        ("FROM base AS production\nENV A=1\nENV B 2 3\n", {"A": "1", "B": "2 3"}),
+        ("FROM base AS production\nENV A=1 \\\n# a comment\n    B=2\n", {"A": "1", "B": "2"}),
+        ("FROM base AS build\nENV A=1\nFROM base AS production\nenv B=2\n", {"B": "2"}),
+    ],
+)
+def test_the_environment_of_a_stage_is_read_in_every_form_an_env_takes(
+    dockerfile: str, expected: dict[str, str]
+) -> None:
+    # The forms an ENV takes (#4512): several variables on lines continued, quoted values, the older
+    # form of one variable and its value, a comment between continued lines, another stage before.
+    assert stage_environment(dockerfile, "production") == expected
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")
@@ -236,10 +349,9 @@ def test_every_client_reaches_its_server_encrypted_and_checks_it_against_the_roo
             assert value.endswith(f"?{VERIFIED}"), where
         elif value.startswith("redis"):
             assert value.startswith("rediss://"), where
-        # The only addresses in HTTP: those of the browser's side, which Keycloak gives back to the
-        # front by its back channel (TFX-17), out of this lot.
-        elif value.startswith("http://"):
-            assert (service, variable) == ("keycloak-realm", "WATERFALL_FRONT_BACKCHANNEL"), where
+        # No address in HTTP: Keycloak reaches the front by its back channel in HTTPS (TFX-17).
+        else:
+            assert not value.startswith("http://"), where
     for name, service in services().items():
         values = " ".join(environment(name).values())
         if ROOT in values:
@@ -256,11 +368,20 @@ def test_every_client_reaches_its_server_encrypted_and_checks_it_against_the_roo
     assert front["NODE_EXTRA_CA_CERTS"] == ROOT
     assert environment("keycloak-realm")["KEYCLOAK_URL"] == "https://keycloak:8443/auth"
     door = (COMPOSE / "Caddyfile.prod").read_text(encoding="utf-8")
+    # The door reaches Keycloak, the front and Grafana in TLS, each checked against the root.
     assert re.search(
-        r"reverse_proxy https://keycloak:8443 \{\s*header_up Host \{host\}\s*transport http \{\s*"
+        r"^\(trusted\) \{\s*header_up Host \{host\}\s*transport http \{\s*"
         rf"tls_trust_pool file {ROOT}\s*\}}",
         door,
+        re.MULTILINE,
     )
+    upstreams = re.findall(r"reverse_proxy (\S+) \{\s*import trusted\s*\}", door)
+    assert sorted(upstreams) == [
+        "https://front-proxy:3443",
+        "https://grafana:3000",
+        "https://keycloak:8443",
+    ]
+    assert not re.search(r"reverse_proxy (?!https://)", door)
     assert "keycloak:8080" not in door
     assert TRUST in services()["caddy"]["volumes"]
 

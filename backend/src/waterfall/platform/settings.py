@@ -516,8 +516,9 @@ class ApiSettings(ServiceSettings):
     serves its metrics over HTTP, and nothing else (``getMetrics``, TFX-09): none by default, and
     then they are served on the port of the API alone.
     ``prometheus_address`` is where it reaches the query API of Prometheus, for the status screen
-    (TFX-14): none by default, and then the screen says the metrics unavailable. The thresholds of
-    the alerts are those the rules of Prometheus are written with, which it presents
+    (TFX-14): in ``https://``, the certificate checked against ``tls_authority``, when an authority
+    is given (US-2840); none by default, and then the screen says the metrics unavailable. The
+    thresholds of the alerts are those the rules of Prometheus are written with, which it presents
     (``OperatingParameters``).
     """
 

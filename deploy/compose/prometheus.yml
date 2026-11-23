@@ -12,10 +12,15 @@ global:
   evaluation_interval: 15s
 rule_files:
   - alerts.yml
-# Where the alerts are sent: the Alertmanager of the platform, which notifies them (US-2880).
+# Where the alerts are sent: the Alertmanager of the platform, which notifies them (US-2880), in
+# HTTPS, its certificate checked against the root of the platform, written beside the certificate of
+# Prometheus (US-2840, #4508).
 alerting:
   alertmanagers:
-    - static_configs:
+    - scheme: https
+      tls_config:
+        ca_file: /tls/ca.crt
+      static_configs:
         - targets: [alertmanager:9093]
 scrape_configs:
   - job_name: front

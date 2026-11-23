@@ -6,11 +6,16 @@
 # or the one grafana.prometheusUrl names. It has an account of its own, outside Keycloak (TFX-15),
 # whose password is the key WATERFALL_GRAFANA_ADMIN_PASSWORD of the Secret of the platform. It reads
 # neither PostgreSQL nor Redis, and keeps nothing: its account is written at each start, so that the
-# password of the Secret is the one that opens it. The ingress serves it under /grafana.
+# password of the Secret is the one that opens it. The ingress serves it under /grafana, in HTTPS:
+# it serves in TLS alone, with the certificate its container of initialisation issues (US-2840,
+# #4508). It reads the Prometheus of the chart in HTTPS, its certificate checked against the roots of
+# the pod (TFX-14), as the Compose's source does (grafana-datasource.yml); another, as its address
+# says, against the usual roots.
 {{- $name := include "waterfall.name" (list . "grafana") }}
 {{- $source := .Values.grafana.prometheusUrl }}
+{{- $own := and .Values.prometheus.enabled (not $source) }}
 {{- if .Values.prometheus.enabled }}
-{{- $source = $source | default (printf "http://%s:9090" (include "waterfall.name" (list . "prometheus"))) }}
+{{- $source = $source | default (printf "https://%s:9090" (include "waterfall.name" (list . "prometheus"))) }}
 {{- else }}
 {{- $source = required "grafana.prometheusUrl: the Prometheus the dashboard reads, since prometheus.enabled is false" $source }}
 {{- end }}
@@ -33,6 +38,12 @@ data:
         url: {{ $source | quote }}
         isDefault: true
         editable: false
+        {{- if $own }}
+        jsonData:
+          tlsAuthWithCACert: true
+        secureJsonData:
+          tlsCACert: $__file{{ printf "{%s}" (include "waterfall.roots" .) }}
+        {{- end }}
   dashboards.yml: |-
     {{- $providers | nindent 4 }}
   waterfall.json: |-
@@ -48,9 +59,9 @@ spec:
   selector:
     {{- include "waterfall.selector" (list . "grafana") | nindent 4 }}
   ports:
-    - name: http
+    - name: https
       port: 3000
-      targetPort: http
+      targetPort: https
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -77,6 +88,8 @@ spec:
         runAsUser: 472
         runAsGroup: 472
         fsGroup: 472
+      initContainers:
+        {{- include "waterfall.transportInit" (list . "grafana" 472 472) | nindent 8 }}
       containers:
         - name: grafana
           image: {{ include "waterfall.thirdParty" (list . .Values.grafana.image) }}
@@ -89,6 +102,12 @@ spec:
               value: {{ printf "%s/grafana/" (include "waterfall.address" .) | quote }}
             - name: GF_SERVER_SERVE_FROM_SUB_PATH
               value: "true"
+            - name: GF_SERVER_PROTOCOL
+              value: https
+            - name: GF_SERVER_CERT_FILE
+              value: /tls/tls.crt
+            - name: GF_SERVER_CERT_KEY
+              value: /tls/tls.key
             - name: GF_AUTH_ANONYMOUS_ENABLED
               value: "false"
             - name: GF_USERS_ALLOW_SIGN_UP
@@ -112,18 +131,20 @@ spec:
             - name: GF_PLUGINS_PREINSTALL_DISABLED
               value: "true"
           ports:
-            - name: http
+            - name: https
               containerPort: 3000
           readinessProbe:
             httpGet:
               path: /grafana/api/health
-              port: http
+              port: https
+              scheme: HTTPS
             periodSeconds: 5
             timeoutSeconds: 3
           livenessProbe:
             httpGet:
               path: /grafana/api/health
-              port: http
+              port: https
+              scheme: HTTPS
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 3
@@ -142,6 +163,8 @@ spec:
               readOnly: true
             - name: data
               mountPath: /var/lib/grafana
+            {{- include "waterfall.trustMount" . | nindent 12 }}
+            {{- include "waterfall.tlsMount" (list . "grafana") | nindent 12 }}
           resources:
             {{- toYaml .Values.grafana.resources | nindent 12 }}
       volumes:
@@ -150,3 +173,4 @@ spec:
             name: {{ $name }}
         - name: data
           emptyDir: {}
+        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}

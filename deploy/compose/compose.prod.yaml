@@ -20,13 +20,14 @@
 # container stays readable by `docker inspect` on the machine, as for any service: what these files
 # avoid is a secret in a command line or in an image.
 #
-# Every exchange inside the platform is encrypted (US-2840, WF-SEC-0010): PostgreSQL, Redis, the API
-# and Keycloak serve in TLS alone, the object storage behind a proxy in TLS, and their clients check
-# the certificate and its name against the root of the authority of the platform — the operator's,
-# put in ./authority (ca.crt and ca.key), or one the service authority makes at the first start and
-# keeps. That service issues again the certificate of each server at each start, in a volume of its
-# own, and the root in the volume trust, which every client reads at /trust/root.crt. The metrics
-# alone stay in HTTP, on ports no door routes (TFX-09).
+# Every exchange inside the platform is encrypted (US-2840, WF-SEC-0010): PostgreSQL, Redis, the API,
+# Keycloak, Prometheus, Alertmanager and Grafana serve in TLS alone, the object storage and the front
+# behind a proxy in TLS each, and their clients — the door Caddy included — check the certificate
+# and its name against the root of the authority of the platform — the operator's, put in
+# ./authority (ca.crt and ca.key), or one the service authority makes at the first start and keeps.
+# That service issues again the certificate of each server at each start, in a volume of its own,
+# and the root in the volume trust, which every client reads at /trust/root.crt. The metrics alone
+# stay in HTTP, on ports no door routes (TFX-09).
 name: waterfall
 
 # Where the browser reaches the platform: the domain, and the port of HTTPS when it is not 443.
@@ -89,7 +90,8 @@ x-storage-environment: &storage-environment
   WATERFALL_BACKUPS_BUCKET: backups
 
 # The three thresholds of the alerts (WF-OBS-0030), operating parameters, shipped at fifteen minutes,
-# 85 % and 5 % over five minutes: the rules of Prometheus are written with them (prometheus.sh).
+# 85 % and 5 % over five minutes: the rules of Prometheus are written with them (prometheus.sh), and
+# the API presents them on the status screen, with the same values (#4636).
 x-alert-thresholds: &alert-thresholds
   WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS: ${WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS:-900}
   WATERFALL_STORAGE_USAGE_THRESHOLD: ${WATERFALL_STORAGE_USAGE_THRESHOLD:-0.85}
@@ -124,6 +126,10 @@ services:
       - api:1000:1000
       - keycloak:1000:0
       - storage:0:0
+      - prometheus:65534:65534
+      - alertmanager:65534:65534
+      - grafana:472:0
+      - front-proxy:0:0
     volumes:
       - ${WATERFALL_AUTHORITY_DIRECTORY:-./authority}:/authority/provided:ro
       - authority:/authority/kept
@@ -133,12 +139,16 @@ services:
       - certificates-api:/certificates/api
       - certificates-keycloak:/certificates/keycloak
       - certificates-storage:/certificates/storage
+      - certificates-prometheus:/certificates/prometheus
+      - certificates-alertmanager:/certificates/alertmanager
+      - certificates-grafana:/certificates/grafana
+      - certificates-front-proxy:/certificates/front-proxy
     restart: "no"
 
   # The only door: 80, which Let's Encrypt asks and which sends to HTTPS, and 443. It answers for
   # the domain under its own name too, inside the network: the front reaches Keycloak there, in
-  # HTTPS, at the address the browser knows. It reaches Keycloak in TLS, trusting the root of the
-  # platform (Caddyfile.prod).
+  # HTTPS, at the address the browser knows. It reaches the front, Keycloak and Grafana in TLS,
+  # trusting the root of the platform (Caddyfile.prod).
   caddy:
     image: ${WATERFALL_MIRROR:-}caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
     command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.prod", "--adapter", "caddyfile"]
@@ -164,9 +174,43 @@ services:
           - ${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}
     restart: unless-stopped
 
+  # The front in TLS (#4508, Caddyfile.front): its proxy serves it at https://front-proxy:3443, with
+  # the certificate the authority issues for that name, and reaches the server of Next on the network
+  # front, which they alone share, as storage-proxy reaches Garage: each restarts alone, and the proxy
+  # finds the front again by its name there.
+  front-proxy:
+    image: ${WATERFALL_MIRROR:-}caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.front", "--adapter", "caddyfile"]
+    environment:
+      WATERFALL_FRONT_UPSTREAM: front-next:3000
+    volumes:
+      - ./Caddyfile.front:/etc/caddy/Caddyfile.front:ro
+      - certificates-front-proxy:/tls:ro
+    networks:
+      default: {}
+      front: {}
+    restart: unless-stopped
+    depends_on:
+      authority: *done
+      front: *healthy
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "3443"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # The server of Next listens on the network front alone, at its name there, front-next, which no
+  # other network knows: no port of it is reached in the clear from the network of the platform,
+  # which it joins to reach the API, Redis and Keycloak. The port of the metrics of the front is its
+  # own, in HTTP, on every interface, published nowhere (TFX-09).
   front:
     image: ghcr.io/waterfall-project/front:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
+    networks:
+      default: {}
+      front:
+        aliases: [front-next]
     environment:
+      HOSTNAME: front-next
       # The API and Redis in TLS (TFX-02, TFX-04), their certificates checked against the root of
       # the platform, which NODE_EXTRA_CA_CERTS adds to the authorities the server of Next knows.
       WATERFALL_API_ADDRESS: https://api:8443
@@ -178,7 +222,7 @@ services:
       WATERFALL_KEYCLOAK_BACKCHANNEL: https://${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}/auth
       WATERFALL_FRONT_CLIENT_SECRET: ${WATERFALL_FRONT_CLIENT_SECRET:?set WATERFALL_FRONT_CLIENT_SECRET in .env}
       # The port of the metrics of the front (WF-OBS-0010), the worker's variable: published nowhere,
-      # and Caddy sends to port 3000 alone, which answers 404 to /metrics (TFX-09).
+      # and the door sends to its proxy alone, whose front answers 404 to /metrics (TFX-09).
       WATERFALL_METRICS_PORT: ${WATERFALL_METRICS_PORT:-9100}
       WATERFALL_REDIS_URL: rediss://:${WATERFALL_REDIS_PASSWORD:?set WATERFALL_REDIS_PASSWORD in .env}@redis:6379/0
       # The key of the server actions, the same for every start and every instance (#825).
@@ -191,7 +235,7 @@ services:
       keycloak-realm: *healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/', {headers: {'user-agent': 'waterfall-healthcheck'}}).then(r => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://front-next:3000/', {headers: {'user-agent': 'waterfall-healthcheck'}}).then(r => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -355,7 +399,7 @@ services:
   api:
     image: *waterfall-image
     environment:
-      <<: [*back-environment, *keycloak-client-environment, *storage-environment]
+      <<: [*back-environment, *keycloak-client-environment, *storage-environment, *alert-thresholds]
       WATERFALL_INDICATORS_CACHE_TTL: ${WATERFALL_INDICATORS_CACHE_TTL:-600}
       WATERFALL_API_PROCESSES: *api-processes
       # The capacities of the spaces, of which the metrics say what is left, and without which the
@@ -366,6 +410,11 @@ services:
       WATERFALL_TLS_CERTIFICATE: /tls/tls.crt
       WATERFALL_TLS_KEY: /tls/tls.key
       WATERFALL_METRICS_PORT: 8000
+      # The query API of Prometheus, in HTTPS, its certificate checked against the root (TFX-14).
+      WATERFALL_PROMETHEUS_ADDRESS: https://prometheus:9090
+      # What the status screen presents (WF-ADM-0130, #4636): the retention the purge of the worker
+      # applies, and the thresholds the rules of Prometheus are written with (x-alert-thresholds).
+      WATERFALL_BACKGROUND_TASK_RETENTION_DAYS: ${WATERFALL_BACKGROUND_TASK_RETENTION_DAYS:-30}
     volumes:
       - certificates-api:/tls:ro
       - *trust
@@ -482,6 +531,8 @@ services:
       WATERFALL_CURRENCY: ${WATERFALL_CURRENCY:?set WATERFALL_CURRENCY in .env}
       WATERFALL_COMPANY_NAME: "${WATERFALL_COMPANY_NAME:?set WATERFALL_COMPANY_NAME in .env}"
       WATERFALL_TIME_ZONE: ${WATERFALL_TIME_ZONE:-}
+      # The largest avatar, in bytes, which the bootstrap writes for the installation (#4636).
+      WATERFALL_AVATAR_MAX_BYTES: ${WATERFALL_AVATAR_MAX_BYTES:-524288}
     command: ["waterfall-api", "install"]
     volumes:
       - *trust
@@ -560,10 +611,11 @@ services:
   # Keycloak behind Caddy, under /auth: the issuer of every token is the address of the browser; the
   # services reach it at keycloak:8443, on the back channel. No mail server: the links that set a
   # password are handed over by createPasswordSetupLink (WF-CMP-0030). In TLS alone, with the
-  # certificate of the authority (TFX-08): no listener in HTTP. Its interface of management, which
-  # answers its health check, stays in HTTP on the loopback of its container, which no other
-  # service reaches. One instance, its caches its own (KC_CACHE=local): it opens no port of a
-  # cluster, neither 7800 nor 57800, where JGroups would detect its peers in the clear.
+  # certificate of the authority (TFX-08): no listener in HTTP. It reaches the front on its back
+  # channel in HTTPS, trusting the root of the platform (TFX-17, KC_TRUSTSTORE_PATHS). Its interface
+  # of management, which answers its health check, stays in HTTP on the loopback of its container,
+  # which no other service reaches. One instance, its caches its own (KC_CACHE=local): it opens no
+  # port of a cluster, neither 7800 nor 57800, where JGroups would detect its peers in the clear.
   keycloak:
     image: *keycloak-image
     environment:
@@ -576,6 +628,7 @@ services:
       KC_HTTP_ENABLED: "false"
       KC_HTTPS_CERTIFICATE_FILE: /tls/tls.crt
       KC_HTTPS_CERTIFICATE_KEY_FILE: /tls/tls.key
+      KC_TRUSTSTORE_PATHS: /trust/root.crt
       KC_HTTP_MANAGEMENT_SCHEME: http
       KC_HTTP_MANAGEMENT_HOST: 127.0.0.1
       KC_CACHE: local
@@ -596,10 +649,11 @@ services:
 
   # Applies the realm of the image at each start: a setting changed by hand in the console comes back
   # to what the realm says. Keycloak tells the front of a closed session on its back channel, inside
-  # the network of the platform (#731). Then stays, and applies it again when the service of the
-  # restoration asks, over the database it has restored (#955): as a temporary administrator it
-  # makes on the database of Keycloak (realm-service), the administrator of master being then the
-  # backup's, whose password it gives back.
+  # the network of the platform (#731), in HTTPS, through the proxy of the front (TFX-17). Then
+  # stays, and applies it again when the service of the restoration asks, over the database it has
+  # restored (#955): as a temporary administrator it makes on the database of Keycloak
+  # (realm-service), the administrator of master being then the backup's, whose password it gives
+  # back.
   keycloak-realm:
     image: *keycloak-image
     entrypoint: ["/opt/keycloak/bin/realm-service", "/opt/keycloak/bin/apply-realm"]
@@ -611,7 +665,7 @@ services:
       KEYCLOAK_USER: admin
       KEYCLOAK_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?set WATERFALL_KEYCLOAK_ADMIN_PASSWORD in .env}
       WATERFALL_FRONT_ADDRESS: *address
-      WATERFALL_FRONT_BACKCHANNEL: http://front:3000
+      WATERFALL_FRONT_BACKCHANNEL: https://front-proxy:3443
       WATERFALL_FRONT_CLIENT_SECRET: ${WATERFALL_FRONT_CLIENT_SECRET:?set WATERFALL_FRONT_CLIENT_SECRET in .env}
       WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?set WATERFALL_SERVICE_CLIENT_SECRET in .env}
       WATERFALL_INSTALLATION_CLIENT_SECRET: ${WATERFALL_INSTALLATION_CLIENT_SECRET:?set WATERFALL_INSTALLATION_CLIENT_SECRET in .env}
@@ -631,11 +685,16 @@ services:
   # Prometheus (US-2880, WF-OBS-0010, WF-OBS-0030): it collects the front, the API and the worker,
   # inside the network of the platform, and evaluates the rules of the alerts, written at each start
   # with the thresholds of .env (prometheus.sh, prometheus-alerts.yml); its series in a volume. It
-  # publishes no port: the status screen and the dashboard read it inside the network.
+  # publishes no port: the status screen and the dashboard read it inside the network, in TLS alone,
+  # with the certificate of the authority (TFX-14, prometheus-web.yml); it collects the metrics in
+  # HTTP, which is theirs (TFX-09). Its health check reaches it in TLS (prometheus-client.yml).
   prometheus:
     image: ${WATERFALL_MIRROR:-}prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
     entrypoint: ["/bin/sh", "/etc/waterfall/prometheus.sh"]
-    command: ["--storage.tsdb.path=/prometheus", "--storage.tsdb.retention.time=15d"]
+    command:
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.config.file=/etc/waterfall/prometheus-web.yml
     environment:
       <<: *alert-thresholds
       WATERFALL_METRICS_PORT: ${WATERFALL_METRICS_PORT:-9100}
@@ -643,22 +702,32 @@ services:
       - ./prometheus.sh:/etc/waterfall/prometheus.sh:ro
       - ./prometheus.yml:/etc/waterfall/prometheus.yml:ro
       - ./prometheus-alerts.yml:/etc/waterfall/prometheus-alerts.yml:ro
+      - ./prometheus-web.yml:/etc/waterfall/prometheus-web.yml:ro
+      - ./prometheus-client.yml:/etc/waterfall/prometheus-client.yml:ro
       - prometheus-data:/prometheus
+      - certificates-prometheus:/tls:ro
+    depends_on:
+      authority: *done
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/-/ready"]
+      test: ["CMD", "promtool", "check", "ready", "--url=https://localhost:9090", "--http.config.file=/etc/waterfall/prometheus-client.yml"]
       interval: 5s
       timeout: 3s
       retries: 30
 
   # Alertmanager (US-2880, WF-OBS-0030): it notifies each alert of Prometheus by e-mail, through the
   # mail server .env names — none, nothing is notified —, its configuration written at each start
-  # (alertmanager.sh). It publishes no port: Prometheus reaches it inside the network of the platform.
+  # (alertmanager.sh). It publishes no port: Prometheus reaches it inside the network of the platform,
+  # in TLS alone, with the certificate of the authority (#4508, alertmanager-web.yml); its health
+  # check reaches it in TLS too (alertmanager-client.yml).
   alertmanager:
     image: ${WATERFALL_MIRROR:-}prom/alertmanager:v0.35.0@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
     entrypoint: ["/bin/sh", "/etc/waterfall/alertmanager.sh"]
     # Alone: no cluster of replicas to join.
-    command: ["--storage.path=/alertmanager", "--cluster.listen-address="]
+    command:
+      - --storage.path=/alertmanager
+      - --cluster.listen-address=
+      - --web.config.file=/etc/waterfall/alertmanager-web.yml
     environment:
       WATERFALL_ALERT_SMTP_HOST: ${WATERFALL_ALERT_SMTP_HOST:-}
       WATERFALL_ALERT_SMTP_FROM: ${WATERFALL_ALERT_SMTP_FROM:-}
@@ -668,10 +737,15 @@ services:
       WATERFALL_ALERT_SMTP_PASSWORD: ${WATERFALL_ALERT_SMTP_PASSWORD:-}
     volumes:
       - ./alertmanager.sh:/etc/waterfall/alertmanager.sh:ro
+      - ./alertmanager-web.yml:/etc/waterfall/alertmanager-web.yml:ro
+      - ./alertmanager-client.yml:/etc/waterfall/alertmanager-client.yml:ro
       - alertmanager-data:/alertmanager
+      - certificates-alertmanager:/tls:ro
+    depends_on:
+      authority: *done
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9093/-/ready"]
+      test: ["CMD", "amtool", "config", "show", "--alertmanager.url=https://localhost:9093", "--http.config.file=/etc/waterfall/alertmanager-client.yml"]
       interval: 5s
       timeout: 3s
       retries: 30
@@ -680,7 +754,9 @@ services:
   # is the Prometheus of the platform. It has its own account, outside Keycloak (TFX-15), whose password
   # .env must hold — it does not start without. It reads neither PostgreSQL nor Redis, and keeps nothing
   # in a volume: its account is written at each start, so that the password of .env is the one that
-  # opens it. Served under /grafana by the door.
+  # opens it. Served under /grafana by the door, in TLS alone, with the certificate of the authority
+  # (#4508). It reads Prometheus in HTTPS, its certificate checked against the root of the platform
+  # (grafana-datasource.yml).
   grafana:
     image: ${WATERFALL_MIRROR:-}grafana/grafana:13.1.0@sha256:121a7a9ece6dc10b969f1f96eed64b4f07dfac0d0b8abc070f7cb83bbde86f63
     environment:
@@ -688,6 +764,9 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${WATERFALL_GRAFANA_ADMIN_PASSWORD:?set WATERFALL_GRAFANA_ADMIN_PASSWORD in .env}
       GF_SERVER_ROOT_URL: https://${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}${WATERFALL_HTTPS_PORT:+:${WATERFALL_HTTPS_PORT}}/grafana/
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SERVER_PROTOCOL: https
+      GF_SERVER_CERT_FILE: /tls/tls.crt
+      GF_SERVER_CERT_KEY: /tls/tls.key
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_USERS_ALLOW_SIGN_UP: "false"
       # The door serves the platform in HTTPS alone: the cookie of the session never goes in the clear.
@@ -704,9 +783,13 @@ services:
       - ./grafana-datasource.yml:/etc/grafana/provisioning/datasources/waterfall.yml:ro
       - ./grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/waterfall.yml:ro
       - ./grafana-dashboard.json:/var/lib/waterfall-dashboards/waterfall.json:ro
+      - *trust
+      - certificates-grafana:/tls:ro
+    depends_on:
+      authority: *done
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/grafana/api/health"]
+      test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "--cacert", "/trust/root.crt", "https://localhost:3000/grafana/api/health"]
       interval: 5s
       timeout: 3s
       retries: 30
@@ -714,6 +797,9 @@ services:
 networks:
   # Where Garage listens in the clear: its proxy in TLS alone joins it, and nothing leaves it.
   storage:
+    internal: true
+  # Where the server of Next listens in the clear: it and its proxy in TLS alone join it.
+  front:
     internal: true
 
 volumes:
@@ -734,6 +820,10 @@ volumes:
   certificates-api:
   certificates-keycloak:
   certificates-storage:
+  certificates-prometheus:
+  certificates-alertmanager:
+  certificates-grafana:
+  certificates-front-proxy:
   # Where the service of the restoration asks keycloak-realm to apply the realm again, and reads the
   # answer: in memory, theirs alone, written by the user of both images.
   realm-requests:

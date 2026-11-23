@@ -13,12 +13,21 @@ has just built (``make check-chart``) and which are loaded into the cluster. The
 ``WATERFALL_CHART_CLUSTER`` (``waterfall-chart``), is made by kind, with Traefik as its controller
 of ingresses, the one k3s ships, and is reached on a free port of the loopback; under a local name,
 ``waterfall.localhost``, whose certificate an authority of the trial signs, which the front and
-this tool alone trust. Every secret of the platform is drawn for it. Then it holds, as
+this tool alone trust. That authority is the platform's too (``transport.authority``, US-2840): it
+signs the certificate of each service, which Traefik reaches in HTTPS without checking it — the
+check is the controller's configuration, which a cluster of kind has no root for —, and those of the
+data components of the operator, whose root the platform is given apart
+(``transport.providedAuthority``). Every secret of the platform is drawn for it. Then it holds, as
 ``wftools.production`` holds the Compose, and by its functions, that, in each case:
 
 - the installation ends, its hooks included: the migrations, the realm applied, and the bootstrap,
   whose Job wrote the link of the first administrator;
 - the API answers its liveness probe, ``status`` ``ok``;
+- inside the cluster, every server refuses a connection in the clear and serves in TLS, and nothing
+  else answers but the metrics of the API, as ``wftools.production`` holds it of the Compose, by the
+  probe of ``wftools.transport`` run in the container of the API (WF-SEC-0010-A, US-2840); on the
+  components of the chart, whose servers it names by their Services and whose listeners that must
+  not be reached by the addresses of their pods;
 - the first administrator sets their password by the link, signs in through the front and Keycloak
   under ``/auth``, behind the ingress, and the front names them;
 
@@ -86,6 +95,7 @@ from wftools.production import (
     sign_in,
 )
 from wftools.restoration_trial import access_token
+from wftools.transport import Plan, TransportError, check_clear_refused
 
 TOOL = "wftools.charttrial"
 NOINDEX = re.compile(
@@ -221,6 +231,49 @@ def chart_values(
     }
 
 
+INSTANCE = f"app.kubernetes.io/instance={chart.RELEASE}"
+PODS = ("api", "keycloak", "storage", "front")
+"""The components whose pods hold a listener that must not be reached, or the metrics of the API."""
+
+
+def chart_plan(pods: Mapping[str, str]) -> Plan:
+    """Return where the probe of the transport reaches each listener of the chart.
+
+    The servers by the names of their Services, which their certificates name; what must not be
+    reached at all by the addresses of the pods, as a pod of the cluster reaches another — the
+    Services do not route these ports, the addresses do. ``pods`` gives the address of a pod of
+    each of ``PODS``. The management of Keycloak, closed under Compose, answers the probes of the
+    kubelet here: it serves in TLS.
+    """
+
+    def service(component: str) -> str:
+        return f"{chart.RELEASE}-{component}"
+
+    return Plan(
+        postgres=(service("postgres"), 5432),
+        redis=(service("redis"), 6379),
+        served={
+            "api": (service("api"), 8443),
+            "keycloak": (service("keycloak"), 8443),
+            "keycloak-management": (service("keycloak"), 9000),
+            "storage": (service("storage"), 3900),
+            "prometheus": (service("prometheus"), 9090),
+            "alertmanager": (service("alertmanager"), 9093),
+            "grafana": (service("grafana"), 3000),
+            "front": (service("front"), 3443),
+        },
+        closed={
+            "keycloak-http": (pods["keycloak"], 8080),
+            "keycloak-cluster": (pods["keycloak"], 7800),
+            "keycloak-cluster-detection": (pods["keycloak"], 57800),
+            "garage": (pods["storage"], 3902),
+            "garage-rpc": (pods["storage"], 3901),
+            "front-http": (pods["front"], 3000),
+        },
+        metrics=(pods["api"], 8000),
+    )
+
+
 def free_port() -> int:
     """Return a port of the loopback no one listens on."""
     with socket.socket() as probe:
@@ -245,24 +298,20 @@ def _output(read: Read, command: list[str], what: str) -> str:
     return output
 
 
+KEY = ["-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-noenc"]
+"""A key of the trial, made with its request: P-256, unencrypted."""
+
+
 def make_authority(read: Read, folder: Path, domain: str) -> None:
     """Make an authority of the trial, and the certificate of the domain it signs, by OpenSSL."""
-    extensions = folder / "server.ext"
-    extensions.write_text(
-        f"subjectAltName=DNS:{domain}\nbasicConstraints=critical,CA:FALSE\n"
-        "keyUsage=critical,digitalSignature\nextendedKeyUsage=serverAuth\n"
-        "subjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid\n",
-        encoding="utf-8",
-    )
-    key = ["-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-noenc"]
-    authority, certificate = folder / "ca", folder / "tls"
+    authority = folder / "ca"
     _output(
         read,
         [
             "openssl",
             "req",
             "-x509",
-            *key,
+            *KEY,
             "-days",
             "1",
             "-subj",
@@ -278,14 +327,30 @@ def make_authority(read: Read, folder: Path, domain: str) -> None:
         ],
         "make the authority of the trial",
     )
+    issue(read, folder, "tls", domain)
+
+
+def issue(read: Read, folder: Path, stem: str, name: str) -> None:
+    """Issue, by the authority of the trial, the key and the certificate of a server of a name.
+
+    They are ``<stem>.key`` and ``<stem>.crt`` of the folder, beside the authority, ``ca.crt``.
+    """
+    extensions = folder / f"{stem}.ext"
+    extensions.write_text(
+        f"subjectAltName=DNS:{name}\nbasicConstraints=critical,CA:FALSE\n"
+        "keyUsage=critical,digitalSignature\nextendedKeyUsage=serverAuth\n"
+        "subjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid\n",
+        encoding="utf-8",
+    )
+    authority, certificate = folder / "ca", folder / stem
     _output(
         read,
         [
             "openssl",
             "req",
-            *key,
+            *KEY,
             "-subj",
-            f"/CN={domain}",
+            f"/CN={name}",
             "-keyout",
             f"{certificate}.key",
             "-out",
@@ -378,8 +443,19 @@ class Trial:
         )
 
     def ingress(self) -> str:
-        """Install Traefik, serving HTTPS on the port of the node; return its address inside."""
-        settings = ["service.spec.type=NodePort", f"ports.websecure.nodePort={NODE_PORT}"]
+        """Install Traefik, serving HTTPS on the port of the node; return its address inside.
+
+        It reaches the front, Keycloak and Grafana in HTTPS, by the name https of the port of their
+        Services, without checking their certificates: Traefik checks a server by the address it
+        dials, an address of a pod, which no certificate names, unless a resource of its own says
+        another name, which the chart does not write (WF-CMP-0020, docs/exploitation/
+        chiffrement-chart.md).
+        """
+        settings = [
+            "service.spec.type=NodePort",
+            f"ports.websecure.nodePort={NODE_PORT}",
+            "additionalArguments[0]=--serversTransport.insecureSkipVerify=true",
+        ]
         _must(
             self.run,
             [
@@ -407,7 +483,11 @@ class Trial:
         return found.strip()
 
     def prepare(self) -> None:
-        """Make the namespace of the platform, with its certificate and the authority."""
+        """Make the namespace of the platform, with its certificate and the authority.
+
+        The authority is the platform's: its certificate and its key, which sign the certificates of
+        the services (US-2840).
+        """
         _must(
             self.run,
             [*self.tools.kubectl, "create", "namespace", NAMESPACE],
@@ -438,6 +518,7 @@ class Trial:
                 "generic",
                 AUTHORITY,
                 f"--from-file=ca.crt={self.folder / 'ca.crt'}",
+                f"--from-file=ca.key={self.folder / 'ca.key'}",
             ],
             "make the secret of the authority",
         )
@@ -446,8 +527,12 @@ class Trial:
         """Pose the data components of an operator, and the Secret of the platform it gives.
 
         The Secret holds the keys of the platform, as the operator makes it before the installation:
-        from a file, never the command line, which the processes of the workstation list.
+        from a file, never the command line, which the processes of the workstation list. Each
+        component serves in TLS, with the certificate the authority of the trial issues for its
+        name; the operator gives the root of them to the platform apart (``chartdata.ROOTS``).
         """
+        for component in chartdata.COMPONENTS:
+            issue(self.read, self.folder, component, chartdata.host(component))
         manifests = self.folder / "data.json"
         manifests.write_text(
             json.dumps(
@@ -461,6 +546,33 @@ class Trial:
             "pose the data components of the operator",
         )
         data = [*self.tools.kubectl, "--namespace", chartdata.NAMESPACE]
+        for component in chartdata.COMPONENTS:
+            _must(
+                self.run,
+                [
+                    *data,
+                    "create",
+                    "secret",
+                    "generic",
+                    chartdata.certificates(component),
+                    f"--from-file=tls.crt={self.folder / f'{component}.crt'}",
+                    f"--from-file=tls.key={self.folder / f'{component}.key'}",
+                    f"--from-file=ca.crt={self.folder / 'ca.crt'}",
+                ],
+                f"make the secret of the certificate of {component}",
+            )
+        _must(
+            self.run,
+            [
+                *self.kubectl,
+                "create",
+                "secret",
+                "generic",
+                chartdata.ROOTS,
+                f"--from-file=ca.crt={self.folder / 'ca.crt'}",
+            ],
+            "make the secret of the roots of the data components",
+        )
         _must(
             self.run,
             [*data, "rollout", "status", "deployment", "--timeout", ROLLOUT],
@@ -552,6 +664,46 @@ class Trial:
             flush=True,
         )
         return browser
+
+    def hold_transport(self) -> None:
+        """Hold that every server refuses the clear and serves in TLS, inside the cluster.
+
+        The probe runs in the container of the API, which trusts the root of the platform, on the
+        plan of the chart (``chart_plan``).
+        """
+        pods: dict[str, str] = {}
+        for component in PODS:
+            selector = f"{INSTANCE},app.kubernetes.io/component={component}"
+            pods[component] = _output(
+                self.read,
+                [
+                    *self.kubectl,
+                    "get",
+                    "pods",
+                    "--selector",
+                    selector,
+                    "--field-selector",
+                    "status.phase=Running",
+                    "--output",
+                    "jsonpath={.items[0].status.podIP}",
+                ],
+                f"read the address of a pod of {component}",
+            ).strip()
+        plan = chart_plan(pods)
+        said = _output(
+            self.read,
+            [*self.kubectl, "exec", f"deployment/{chart.RELEASE}-api", "--", *plan.command()],
+            "try every server in the clear",
+        )
+        try:
+            check_clear_refused(said, plan)
+        except TransportError as error:
+            raise TrialError(str(error)) from error
+        print(
+            f"  {', '.join(plan.servers())} refuse a connection in the clear, and serve in TLS; "
+            f"{', '.join(plan.closed)} are not reached",
+            flush=True,
+        )
 
     def sender(self) -> Send:
         """Return the sender of the requests: it trusts the authority of the trial alone."""
@@ -768,6 +920,7 @@ def main(environment: Mapping[str, str] | None = None) -> int:
             trial.prepare()
             trial.install(values)
             browser = trial.hold(ADMIN)
+            trial.hold_transport()
             trial.scale(values, browser, ADMIN, SCALED_TO)
             trial.hold_stateless(values, browser)
             trial.hold_restore_test(tag)

@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# What the health check of Alertmanager, `amtool config show`, reaches it with (US-2840): in TLS,
+# its certificate checked against the root the authority wrote beside it.
+tls_config:
+  ca_file: /tls/ca.crt

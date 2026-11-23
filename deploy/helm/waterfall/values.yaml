@@ -42,6 +42,19 @@ ingress:
   annotations: {}
   # The Secret of type kubernetes.io/tls that holds the certificate of the domain.
   tlsSecret: ""
+  # The front, Keycloak and Grafana serve in HTTPS alone (US-2840), each behind an Ingress of its
+  # own, whose annotations, added to those above, tell the controller to reach it in HTTPS and to
+  # check its certificate against the root of the platform, under its name — <release>-front,
+  # -keycloak, -grafana: that depends on the controller, the chart writes none
+  # (docs/exploitation/chiffrement-chart.md). Their Services name their port https, which Traefik
+  # reads as HTTPS by itself.
+  backends:
+    front:
+      annotations: {}
+    keycloak:
+      annotations: {}
+    grafana:
+      annotations: {}
 
 # The front: its replicas, and the hosts its pods resolve otherwise than the cluster does — the
 # server of Next reaches Keycloak at the published address, in HTTPS, through the ingress.
@@ -49,6 +62,8 @@ front:
   replicas: 1
   hostAliases: []
   resources: {}
+  # The proxy in TLS beside it in its pod (transport.proxyImage).
+  proxyResources: {}
 
 # The API: its replicas (WF-ARC-0050), and the processes of each (WATERFALL_API_PROCESSES), which
 # PostgreSQL counts fifteen connections for.
@@ -86,13 +101,15 @@ scheduler:
   resources: {}
 
 # The bootstrap (US-0420), run once after the installation: the link of the first administrator is
-# in the log of its Job.
+# in the log of its Job. `avatarMaxBytes` is the largest avatar a user may give, in bytes, at most
+# 8 MiB (WATERFALL_AVATAR_MAX_BYTES).
 bootstrap:
   adminEmail: ""
   defaultLanguage: fr
   currency: ""
   companyName: ""
   timeZone: ""
+  avatarMaxBytes: 524288
 
 # Keycloak, behind the ingress under /auth, and the application of its realm after each
 # installation and each upgrade.
@@ -147,12 +164,29 @@ storage:
   resources:
     limits:
       memory: 256Mi
+  # The proxy in TLS beside Garage in its pod (transport.proxyImage).
+  proxyResources: {}
 
-# The encryption between the services, and the authority that signs their certificates (US-2840).
-# Until then, `authority` names a Secret whose key ca.crt is a root the front trusts besides the
-# usual ones, to reach Keycloak through the ingress: that of a certificate of a local name.
+# The encryption between the services, and the authority that signs their certificates (US-2840,
+# WF-SEC-0010): every component serves in TLS alone — the front and the storage behind a proxy in
+# TLS in their pod —, and every client checks the certificate against the root of the platform. The
+# metrics alone stay in HTTP, on ports no ingress routes (TFX-09). docs/exploitation/
+# chiffrement-chart.md says it all.
+# `authority` names the Secret of the authority the operator provides: ca.crt, its certificate —
+# followed by those up to its root —, and ca.key, its key, unencrypted. Empty, the chart makes one
+# at the installation (a hook pre-install, <release>-authority), which an upgrade keeps. Every
+# client trusts its root, the front too, when it reaches Keycloak through the ingress: a
+# certificate of the domain it signs is trusted.
+# `providedAuthority` names the Secret whose key ca.crt holds the roots the certificates of the data
+# components the operator provides are checked against (postgresql, redis or storage with enabled
+# false), which the clients trust besides the root of the platform; it may name the Secret of
+# `authority`. A component provided without it stops the rendering.
 transport:
   authority: ""
+  providedAuthority: ""
+  # The proxy in TLS of the front and of the storage, which do not encrypt by themselves: the Caddy of
+  # the Compose, beside each in its pod.
+  proxyImage: caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
 
 # The metrics of the front, the API and the worker (US-2870).
 # `port` is that of the front (WATERFALL_METRICS_PORT, the worker's variable): a port of its own on
@@ -164,7 +198,9 @@ metrics:
 # and evaluates the rules of the alerts. `enabled: false` leaves both to a Prometheus of the
 # operator: the chart still renders the rules, the key alerts.yml of the ConfigMap
 # <release>-prometheus, and the headless Services <release>-front-metrics, -api-metrics and
-# -worker-metrics its collection finds the instances by, as prometheus.yml beside them does.
+# -worker-metrics its collection finds the instances by, as prometheus.yml beside them does. The API
+# is then given the address of no Prometheus: the status screen shows no metrics, and says them
+# unavailable (docs/exploitation/chiffrement-chart.md).
 prometheus:
   enabled: true
   image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06

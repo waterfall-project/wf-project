@@ -6,7 +6,9 @@
 # database alone (hooks.yaml). One lock table per project at restoration, hence 1 024 locks per
 # transaction; the connections are a value of their own (postgresql.maxConnections), never computed
 # from the replicas: a flag that followed them would change the template of this pod and restart it
-# when the API scales (WF-ARC-0050-A).
+# when the API scales (WF-ARC-0050-A). In TLS, with the certificate its container of initialisation
+# issues (TFX-03, TFX-10, TFX-12); pg_hba.conf, the Compose's, refuses a connection in the clear
+# through the network, whoever asks (US-2840).
 {{- if .Values.postgresql.enabled }}
 {{- /* The connections PostgreSQL must accept: fifteen for each process of each instance of the API,
 and two hundred for the others, Keycloak's hundred included. A value that falls short stops the
@@ -50,6 +52,7 @@ spec:
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
       initContainers:
+        {{- include "waterfall.transportInit" (list . "postgres" 999 999) | nindent 8 }}
         # Refuses a volume that holds the data of another major version (US-1130), read-only.
         - name: postgres-volume
           image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
@@ -74,6 +77,14 @@ spec:
             - max_locks_per_transaction=1024
             - -c
             - max_connections={{ int .Values.postgresql.maxConnections }}
+            - -c
+            - ssl=on
+            - -c
+            - ssl_cert_file=/tls/tls.crt
+            - -c
+            - ssl_key_file=/tls/tls.key
+            - -c
+            - hba_file=/files/pg_hba.conf
           env:
             - name: POSTGRES_USER
               value: postgres
@@ -96,12 +107,17 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql
+            - name: files
+              mountPath: /files
+              readOnly: true
+            {{- include "waterfall.tlsMount" (list . "postgres") | nindent 12 }}
           resources:
             {{- toYaml .Values.postgresql.resources | nindent 12 }}
       volumes:
         - name: files
           configMap:
             name: {{ include "waterfall.name" (list . "files") }}
+        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}
   volumeClaimTemplates:
     - metadata:
         name: data

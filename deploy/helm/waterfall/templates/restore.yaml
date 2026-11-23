@@ -7,8 +7,8 @@
 # which clears the caches of Keycloak (#954), and the service account, which closes the sessions.
 # Beside it, the application of the realm, as the service keycloak-realm of the Compose: it applies
 # the realm at its start, then again whenever the restoration asks it through the folder they alone
-# share, in memory (#955). It opens no port.
-{{- $host := include "waterfall.postgresAddress" . }}
+# share, in memory (#955). It opens no port. Every component in TLS, checked against the roots of the
+# pod (US-2840).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -30,9 +30,10 @@ spec:
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
       initContainers:
+        {{- include "waterfall.transportInit" (list .) | nindent 8 }}
         {{- include "waterfall.waitForDatabase" (list . "waterfall" "waterfall" "WATERFALL_POSTGRES_PASSWORD") | nindent 8 }}
         {{- /* The hook applies the realm first: two applications that both found no realm would both make it. */}}
-        {{- include "waterfall.waitForKeycloak" (list . "8080" "/auth/realms/waterfall") | nindent 8 }}
+        {{- include "waterfall.waitForKeycloak" (list . "8443" "/auth/realms/waterfall") | nindent 8 }}
       containers:
         - name: restore
           image: {{ include "waterfall.image" (list . "waterfall") }}
@@ -44,13 +45,14 @@ spec:
             {{- include "waterfall.storageEnvironment" . | nindent 12 }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_KEYCLOAK_DATABASE_PASSWORD") | nindent 12 }}
             - name: WATERFALL_KEYCLOAK_DATABASE_URL
-              value: {{ printf "postgresql://keycloak:$(WATERFALL_KEYCLOAK_DATABASE_PASSWORD)@%s/keycloak" $host | quote }}
+              value: {{ include "waterfall.databaseUrl" (list . "keycloak" "$(WATERFALL_KEYCLOAK_DATABASE_PASSWORD)" "keycloak") | quote }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_INSTALLATION_CLIENT_SECRET") | nindent 12 }}
             - name: WATERFALL_REALM_REQUESTS
               value: /realm-requests
           volumeMounts:
             - name: realm-requests
               mountPath: /realm-requests
+            {{- include "waterfall.trustMount" . | nindent 12 }}
           resources:
             {{- toYaml .Values.restore.resources | nindent 12 }}
         - name: realm
@@ -66,6 +68,7 @@ spec:
           volumeMounts:
             - name: realm-requests
               mountPath: /realm-requests
+            {{- include "waterfall.trustMount" . | nindent 12 }}
           resources:
             {{- toYaml .Values.restore.realm.resources | nindent 12 }}
       volumes:
@@ -73,3 +76,4 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 1Mi
+        {{- include "waterfall.transportVolumes" (list .) | nindent 8 }}

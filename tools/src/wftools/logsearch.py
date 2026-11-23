@@ -5,6 +5,7 @@
 Usage::
 
     python -m wftools.logsearch secrets [--name VARIABLE ...] [FILE ...]
+    python -m wftools.logsearch repository
     python -m wftools.logsearch follow IDENTIFIER [FILE ...]
     python -m wftools.logsearch fields [FILE ...]
 
@@ -21,6 +22,18 @@ variables it left out, absent or too short. ``fields`` ends with 2 on an empty t
 the search of the logs of the platform (WF-OBS-0020, US-2900) and that of the repository
 (WF-SEC-0010, US-2840) are this one.
 
+``repository`` looks in every file git tracks for the secrets of the platform of service — the
+values of ``SECRET_VARIABLES`` alone —, in each of their spellings: no secret is written in the
+repository (WF-SEC-0010, US-2840). It prints the file and the name of each one found, never the
+value, and ends as ``secrets`` does. Its reach is narrower than that of ``secrets``: neither the
+shapes of the tokens nor the password of the accounts of the paths (``FIXED_SECRETS``) are looked
+for there — the tests write such shapes on purpose, and that password is a constant of the
+repository, no secret of a platform —, nor the values a workflow of the chain sets in clear
+(``chain_values``): those of a workstation, public and named as such, which the chain starts its
+platforms with and a workstation reuses (``keycloak.yml``, INSTALL.md); a secret no variable holds
+is not known to it. Under the chain, every value is one of those: the search says so, searches
+nothing and passes; it bites where the values are a workstation's own, or an operator's.
+
 ``follow`` prints the lines of the logs of an identifier of correlation, and those that name what
 they name — the deposit a file was made under, the import, the task (``LINKS``) —: the story of an
 import by the identifier its user was given. Records are JSON lines, which Compose may prefix with
@@ -36,10 +49,15 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from urllib.parse import quote, quote_plus
+
+import yaml
+
+from wftools import REPOSITORY
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
@@ -50,7 +68,6 @@ SECRET_VARIABLES = (
     "WATERFALL_BACKUP_DATABASE_PASSWORD",
     "WATERFALL_REDIS_PASSWORD",
     "WATERFALL_KEYCLOAK_DATABASE_PASSWORD",
-    "WATERFALL_STORAGE_ACCESS_KEY",
     "WATERFALL_STORAGE_SECRET",
     "WATERFALL_STORAGE_RPC_SECRET",
     "WATERFALL_KEYCLOAK_ADMIN_PASSWORD",
@@ -58,12 +75,20 @@ SECRET_VARIABLES = (
     "WATERFALL_SERVICE_CLIENT_SECRET",
     "WATERFALL_INSTALLATION_CLIENT_SECRET",
 )
-"""The secrets of the platform of service, which the guide lists (« Commandes »)."""
+"""The secrets of the platform of service, which the guide lists (« Commandes »). The identifier of
+its key on the object storage, WATERFALL_STORAGE_ACCESS_KEY, is no secret (``IDENTIFIERS``)."""
+
+IDENTIFIERS = ("WATERFALL_STORAGE_ACCESS_KEY",)
+"""The variables whose names look like a secret's and which hold none: the identifier of the key of
+the object storage, whose shipped value is public (compose.service.yaml). Not searched for."""
 
 FIXED_SECRETS = {"E2E_LOCAL_PASSWORD": "k7#Qw2ZpX9vR"}
 """The passwords of the accounts of the paths, which no variable holds: the constant of the paths
 (``frontend/e2e/service/realm.ts``, ``LOCAL_PASSWORD``), which the administrator of the
 installation and the local accounts of the realm are given; a test keeps the two equal."""
+
+WORKFLOWS = Path(".github") / "workflows"
+"""The workflows of the chain, under the root of the repository."""
 
 SHORTEST = 6
 """A value shorter than this is not searched for: it would be found in any text."""
@@ -109,6 +134,32 @@ def find_secrets(text: str, secrets: Mapping[str, str]) -> list[str]:
         if value and any(spelling in text for spelling in spellings(value))
     ]
     return found + [name for name, shape in TOKENS.items() if shape.search(text)]
+
+
+def tracked(root: Path) -> list[Path]:
+    """Give the files git tracks under a folder, those of the worktree as they stand."""
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", "--cached"], cwd=root, capture_output=True, check=True
+    ).stdout
+    return [root / name for name in listed.decode().split("\0") if name]
+
+
+def find_in_files(files: Iterable[Path], secrets: Mapping[str, str]) -> list[tuple[Path, str]]:
+    """Name, for each file, the secrets its text carries; the values are never given back.
+
+    A file git tracks but the worktree has not — removed, not yet committed — is not read.
+    """
+    found: list[tuple[Path, str]] = []
+    for path in files:
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        found += [
+            (path, name)
+            for name, value in secrets.items()
+            if any(spelling in text for spelling in spellings(value))
+        ]
+    return found
 
 
 def record_of(line: str) -> dict[str, object] | None:
@@ -192,7 +243,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     story.add_argument("files", nargs="*")
     fields = commands.add_parser("fields", help="check that every record carries its fields")
     fields.add_argument("files", nargs="*")
+    commands.add_parser("repository", help="look for the secrets known in the files git tracks")
     arguments = parser.parse_args(argv)
+    if arguments.command == "repository":
+        return search_repository(os.environ)
     text = read_texts(arguments.files)
     if arguments.command != "follow" and not text.strip():
         # An empty text — a reading of the logs that failed — would pass whatever was searched for.
@@ -221,6 +275,71 @@ def main(argv: Sequence[str] | None = None) -> int:
     for name in found:
         print(f"found in the text: {name}", file=sys.stderr)
     print(f"searched {len(known)} secrets and the shapes of tokens in {len(text)} characters")
+    return 1 if found else 0
+
+
+def set_by(workflow: object) -> set[str]:
+    """Give the values a workflow, as YAML reads it, sets in clear for ``SECRET_VARIABLES``.
+
+    Wherever the variable is set — the workflow, a job, a step —; an expression of GitHub
+    (``${{ secrets.… }}``) is no value of the file.
+    """
+    found: set[str] = set()
+    if isinstance(workflow, dict):
+        for key, value in cast("dict[object, object]", workflow).items():
+            if key in SECRET_VARIABLES and isinstance(value, str | int) and "${{" not in str(value):
+                found.add(str(value))
+            found |= set_by(value)
+    elif isinstance(workflow, list):
+        for each in cast("list[object]", workflow):
+            found |= set_by(each)
+    return found
+
+
+def chain_values(files: Iterable[Path], root: Path) -> set[str]:
+    """Give the values the workflows of the chain, among the files, set for its secrets.
+
+    Values of a workstation, written in clear on purpose, named as such: ``keycloak.yml`` is where
+    a workstation takes its own (INSTALL.md), and the images are searched for them
+    (``wftools.images``). Public, they are no secret of a platform, as ``FIXED_SECRETS`` is not.
+    """
+    workflows = root / WORKFLOWS
+    found: set[str] = set()
+    for path in files:
+        if path.parent == workflows and path.suffix in {".yml", ".yaml"} and path.is_file():
+            found |= set_by(yaml.safe_load(path.read_text(encoding="utf-8")))
+    return found
+
+
+def search_repository(environment: Mapping[str, str], root: Path = REPOSITORY) -> int:
+    """Look for the secrets the environment holds, those of ``SECRET_VARIABLES``, in the repository.
+
+    Their values alone, in each of their spellings; never ``FIXED_SECRETS``, the shapes of the
+    tokens, nor a value a workflow of the chain sets in clear (``chain_values``). 1 if one is found,
+    2 if none is known, 0 otherwise — when every one is a value of the chain too, which is said.
+    """
+    known = secrets_from(environment)
+    skipped = left_out(environment)
+    if skipped:
+        print(f"not searched, absent or too short: {', '.join(skipped)}", file=sys.stderr)
+    if not known:
+        print("no secret to look for: the variables of the platform are not set", file=sys.stderr)
+        return 2
+    files = tracked(root)
+    public = chain_values(files, root)
+    if of_the_chain := [name for name, value in known.items() if value in public]:
+        print(
+            f"not searched, values a workflow of the chain sets: {', '.join(of_the_chain)}",
+            file=sys.stderr,
+        )
+        known = {name: value for name, value in known.items() if name not in of_the_chain}
+    if not known:
+        print("every secret known is a value of the chain: none of a platform to look for")
+        return 0
+    found = find_in_files(files, known)
+    for path, name in found:
+        print(f"found in {path.relative_to(root)}: {name}", file=sys.stderr)
+    print(f"searched {len(known)} secrets in the {len(files)} files git tracks")
     return 1 if found else 0
 
 

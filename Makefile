@@ -422,13 +422,28 @@ service-logs: ## Print the logs of the services of the platform (SERVICES, all o
 
 # The logs the search reads (WF-OBS-0020, US-2900), put in a file — a pipe would pass whatever the
 # reading did, the shell having no pipefail: those of every service of Compose, under all its
-# profiles, and the log of the front end of the paths (FRONT_LOG, which Compose does not hold: the
-# server of Next is a web server of Playwright). A reading that fails fails the search; so does an
-# empty text (logsearch).
+# profiles, the log of the front end of the paths (FRONT_LOG, which Compose does not hold: the
+# server of Next is a web server of Playwright), and those of the bootstrap and of the witness, which
+# e2e-service runs by `run --rm` and whose containers go with their logs (RUN_LOGS, #4395): of the
+# bootstrap, its log alone, its standard output being the link of the first administrator, a token
+# of one use it prints on purpose. A reading that fails fails the search; so does an empty text
+# (logsearch).
 SERVICE_LOGS = $(FRONT)/.e2e/service-logs.txt
 SERVICE_LOGS_OF_WATERFALL = $(FRONT)/.e2e/service-logs-waterfall.txt
-service-logs-text = mkdir -p $(FRONT)/.e2e && { $(COMPOSE_SERVICE_ALL) logs --no-color $(SERVICES) && { test ! -f $(FRONT_LOG) || cat $(FRONT_LOG); }; } > $(SERVICE_LOGS)
+INSTALL_LOG = $(FRONT)/.e2e/install.log
+WITNESS_LOG = $(FRONT)/.e2e/witness.log
+RUN_LOGS = $(INSTALL_LOG) $(WITNESS_LOG)
+service-logs-text = mkdir -p $(FRONT)/.e2e && { $(COMPOSE_SERVICE_ALL) logs --no-color $(SERVICES) && { test ! -f $(FRONT_LOG) || cat $(FRONT_LOG); } && for each in $(RUN_LOGS); do test ! -f $$each || cat $$each; done; } > $(SERVICE_LOGS)
+# A service run once, what it writes kept in a file, then shown: (call run-logged,<service>,<file>,
+# <redirection to the file>) — `2>` for its log alone, `>` then `2>&1` for both its outputs.
+run-logged = { $(COMPOSE_SERVICE) run --rm --no-TTY $(1) $(3); ran=$$?; cat $(2) >&2; [ $$ran -eq 0 ]; }
 service-logs-secrets = $(service-logs-text) && $(WFTOOLS).logsearch secrets $(SERVICE_LOGS)
+# The secrets of the platform of service, by their values, in every file git tracks (WF-SEC-0010,
+# US-2840): e2e-service, which the chain plays with them, searches them there too. Those values
+# alone: neither the shapes of the tokens, nor the password of the paths, a constant of the
+# repository (FIXED_SECRETS), nor the values a workflow sets in clear, those of a workstation, public
+# (wftools.logsearch, chain_values): under the chain, it searches nothing and says so.
+repository-secrets = $(WFTOOLS).logsearch repository
 service-logs-check = mkdir -p $(FRONT)/.e2e && $(COMPOSE_SERVICE_ALL) logs --no-color api worker scheduler restore > $(SERVICE_LOGS_OF_WATERFALL) && $(WFTOOLS).logsearch fields $(SERVICE_LOGS_OF_WATERFALL)
 service-logs-search: ## Search the logs of the platform and the log of the front of the last e2e-service for the secrets and tokens known; CORRELATION=<identifier>: the story of an identifier instead (its lines, and those of the deposit, the import and the task they name). The front log is the last run's, kept until e2e-service empties it
 	@$(if $(CORRELATION),$(service-logs-text) && $(WFTOOLS).logsearch follow $(CORRELATION) $(SERVICE_LOGS),$(service-logs-secrets))
@@ -872,8 +887,9 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
 	@$(COMPOSE_SERVICE) build --quiet install witness
-	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
-		$(COMPOSE_SERVICE) run --rm --no-TTY witness && \
+	@mkdir -p $(FRONT)/.e2e && \
+		E2E_INSTALLATION_LINK=$$($(call run-logged,install,$(INSTALL_LOG),2> $(INSTALL_LOG))) && \
+		$(call run-logged,witness,$(WITNESS_LOG),> $(WITNESS_LOG) 2>&1) && \
 		E2E_CONTRACT_PROXY=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
 		E2E_SERVICE_DATABASE=$$($(COMPOSE_SERVICE) ps --quiet postgres) && \
 		E2E_SERVICE_CACHE=$$($(COMPOSE_SERVICE) ps --quiet redis) && \
@@ -891,7 +907,10 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 		$(service-logs-secrets); found=$$?; \
 		echo 'Checking the records of the services of Waterfall for their fields (WF-OBS-0020, US-2900).'; \
 		$(service-logs-check); fields=$$?; \
-		if [ $$played -ne 0 ]; then exit $$played; fi; if [ $$found -ne 0 ]; then exit $$found; fi; exit $$fields; }
+		echo 'Searching the files of the repository for the secrets of the platform of service (WF-SEC-0010, US-2840).'; \
+		$(repository-secrets); written=$$?; \
+		if [ $$played -ne 0 ]; then exit $$played; fi; if [ $$found -ne 0 ]; then exit $$found; fi; \
+		if [ $$written -ne 0 ]; then exit $$written; fi; exit $$fields; }
 
 # The measure of the journey of the grids against the service (US-2210, frontend/e2e/measure/): the
 # platform started as e2e-service starts it — its realm told the address of the front of the

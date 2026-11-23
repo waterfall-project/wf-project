@@ -31,8 +31,11 @@ def test_the_three_components_run_the_images_the_chart_pins_behind_the_mirror() 
     deployments = by_kind(objects, "Deployment")
     assert set(deployments) == set(chartdata.COMPONENTS)
     for component, key in (("postgres", "postgresql"), ("redis", "redis"), ("storage", "storage")):
-        (container,) = deployments[component]["spec"]["template"]["spec"]["containers"]
+        container = deployments[component]["spec"]["template"]["spec"]["containers"][0]
         assert container["image"] == f"mirror.example/{shipped[key]['image']}"
+    # Garage behind the proxy in TLS the chart runs beside its own (US-2840).
+    _, proxy = deployments["storage"]["spec"]["template"]["spec"]["containers"]
+    assert proxy["image"] == f"mirror.example/{shipped['transport']['proxyImage']}"
     assert {item["metadata"]["namespace"] for item in objects if item["kind"] != "Namespace"} == {
         chartdata.NAMESPACE
     }
@@ -73,8 +76,10 @@ def test_the_operator_values_name_each_component_by_its_service_and_the_operator
     assert values["redis"] == {"enabled": False, "host": "redis.data.svc.cluster.local"}
     assert values["storage"] == {
         "enabled": False,
-        "address": "http://storage.data.svc.cluster.local:3900",
+        "address": "https://storage.data.svc.cluster.local:3900",
     }
+    # Their certificates are checked against the roots the operator gives apart (US-2840).
+    assert values["transport"] == {"providedAuthority": chartdata.ROOTS}
     # The pod of the test of a restoration goes out to the pods of the two components alone.
     postgres, storage = (values["restoreTest"]["egress"][key] for key in ("postgresql", "storage"))
     assert postgres == [chartdata.peer(chartdata.POSTGRES)]
@@ -133,8 +138,21 @@ def test_the_trial_poses_the_components_then_makes_the_secret_from_a_file(tmp_pa
     )
     drawn = charttrial.drawn_secrets()
     trial.provide(drawn, "")
-    applied, rollout, secret = ran
+    applied, *made, roots, rollout, secret = ran
     assert applied[:3] == ["kubectl", "apply", "--filename"]
+    # The certificate of each component, which the authority of the trial issued for its name, and
+    # the root of them for the platform (US-2840).
+    assert [command[6] for command in made] == [
+        chartdata.certificates(component) for component in chartdata.COMPONENTS
+    ]
+    assert made[0][7:] == [
+        f"--from-file=tls.crt={tmp_path / 'postgres.crt'}",
+        f"--from-file=tls.key={tmp_path / 'postgres.key'}",
+        f"--from-file=ca.crt={tmp_path / 'ca.crt'}",
+    ]
+    assert roots[-2:] == [chartdata.ROOTS, f"--from-file=ca.crt={tmp_path / 'ca.crt'}"]
+    issued = (tmp_path / "storage.ext").read_text(encoding="utf-8")
+    assert "subjectAltName=DNS:storage.data.svc.cluster.local" in issued
     listed = json.loads((tmp_path / "data.json").read_text(encoding="utf-8"))
     assert listed["kind"] == "List"
     assert rollout[:5] == ["kubectl", "--namespace", chartdata.NAMESPACE, "rollout", "status"]
