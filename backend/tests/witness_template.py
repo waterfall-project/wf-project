@@ -25,6 +25,11 @@ the deadline fails with what the loading said, the loading is ended by the syste
 (``SIGALRM``), and the process that started it kills it if it still runs when that process ends.
 Neither a test nor the end of pytest waits for a loading that froze: the part of the chain fails,
 a test named, rather than being cancelled by the deadline of its job.
+
+The loader runs under a watcher of its own (``--watch``), which holds the lock in its place, writes
+how the loader ended (``exit``: its status, or minus the signal that ended it) and ends as it did: a
+test that waits reads there whether the loading failed, was ended at its deadline or was killed. The
+loader writes how long it took, which the end of the run says (``took``).
 """
 
 import fcntl
@@ -38,10 +43,10 @@ import sys
 import tempfile
 import time
 import warnings
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, NoReturn, cast
 from uuid import uuid4
 
 import pytest
@@ -73,9 +78,14 @@ _STARTED = "started"
 _BUILD_LOCK = "build.lock"
 _RECORDS = "records"
 _LOG = "loading.log"
+_EXIT = "exit"
+# The argument that runs this module as the watcher of the loader that follows it.
+_WATCH = "--watch"
 # What the loading writes in its log when it has loaded and recorded the template: a log that lacks
-# it is that of a loading killed, whatever it said before.
-_ENDED = "the loading wrote its records"
+# it is that of a loading that did not end so, which the watcher's ``exit`` names.
+ENDED = "the loading wrote its records"
+# What the loading writes before, followed by its duration in seconds.
+TOOK = "the loading took"
 # The end of what the loading said, given with the failure of a test that waited for it.
 _TAIL = 4000
 # The seconds a loading may last. It took 134 to 290 seconds on a runner of the chain, loaded by
@@ -176,13 +186,14 @@ class Loading:
     def ended(self) -> int:
         """Wait for the loading until its deadline, kill it if it still runs; give how it ended.
 
-        Killed, it releases the lock of the loading: the tests that wait for it, and the end of the
-        run, go on.
+        Killed, with its watcher, whose group it is in, it releases the lock of the loading: the
+        tests that wait for it, and the end of the run, go on.
         """
         try:
             return self.process.wait(timeout=max(0.0, self.deadline - time.time()))
         except subprocess.TimeoutExpired:
-            self.process.kill()
+            with suppress(ProcessLookupError):
+                os.killpg(self.process.pid, signal.SIGKILL)
             return self.process.wait()
 
 
@@ -192,6 +203,8 @@ _STARTED_HERE: list[Loading] = []
 _RECORDS_READ: dict[Path, str] = {}
 # The command that loads the template, given its directory: this module.
 LOADER = (sys.executable, __file__)
+# The command that watches the loader given after it: this module too.
+_WATCHER = (sys.executable, __file__, _WATCH)
 
 
 def start(
@@ -200,9 +213,10 @@ def start(
     """Start the loading of the template, unless a process of the run has already started it.
 
     ``loader`` is the command that loads, given the directory of the template after it; ``timeout``
-    the seconds it may last, its deadline written before it starts. The process that loads holds the
-    exclusive lock of ``build.lock`` from before it starts: taken here, then handed to it, it is
-    released when it ends, however it ends.
+    the seconds it may last, its deadline written before it starts. Its watcher holds the exclusive
+    lock of ``build.lock`` from before it starts: taken here, then handed to it, it is released when
+    it ends, however it ends, once it has written how the loader ended. The watcher leads a group of
+    its own, which the loader joins: killed, the group goes whole.
     """
     with _locked(template.directory / _START_LOCK, fcntl.LOCK_EX):
         started = template.directory / _STARTED
@@ -216,11 +230,12 @@ def start(
             with (template.directory / _LOG).open("wb") as log:
                 try:
                     process = subprocess.Popen(
-                        [*loader, str(template.directory)],
+                        [*_WATCHER, *loader, str(template.directory)],
                         pass_fds=(descriptor,),
                         stdin=subprocess.DEVNULL,
                         stdout=log,
                         stderr=subprocess.STDOUT,
+                        start_new_session=True,
                     )
                 except OSError as error:
                     log.write(f"the loader did not start: {error}\n".encode())
@@ -260,15 +275,35 @@ def _awaited(template: Template, until: float) -> bool:
 def _said(template: Template) -> str:
     """Give the end of what the loading said, and how it ended when it did not say so itself."""
     said = (template.directory / _LOG).read_text("utf-8", errors="replace")[-_TAIL:]
-    if _ENDED in said:
+    if ENDED in said:
         return said
-    # The loading ended without saying so: past its deadline, the system ended it; before, it failed
-    # (its traceback is above) or was killed, which leaves no word at all.
-    if time.time() >= deadline_of(template) - 1:
-        how = "was ended by the system at its deadline (SIGALRM): it lasted past LOADING_TIMEOUT"
-    else:
-        how = "ended before its deadline, no records: it failed, or, saying nothing, was killed"
-    return f"{said}\n[the loading {how}]"
+    return f"{said}\n[the loading {_how(template)}]"
+
+
+def _how(template: Template) -> str:
+    """Say how the loading ended, as its watcher wrote it; or that it had not ended."""
+    written = template.directory / _EXIT
+    if not written.exists():
+        # The watcher writes before it releases the lock: without it, the loading still runs, or
+        # was killed with its watcher by the process that started it.
+        return "had not ended, or was killed with its watcher (SIGKILL)"
+    status = int(written.read_text("utf-8"))
+    if status == -signal.SIGALRM:
+        return "was ended by the system at its deadline (SIGALRM): it lasted past LOADING_TIMEOUT"
+    if status == -signal.SIGKILL:
+        return "was killed (SIGKILL), saying nothing"
+    if status < 0:
+        return f"was ended by the signal {signal.Signals(-status).name}"
+    return f"ended with the status {status}, no records"
+
+
+def took(template: Template) -> str | None:
+    """Give what the loading said of its duration, none if it did not say it (or did not run)."""
+    log = template.directory / _LOG
+    if not log.exists():
+        return None
+    said = log.read_text("utf-8", errors="replace")
+    return next((line for line in said.splitlines() if line.startswith(TOOK)), None)
 
 
 def built(template: Template) -> str:
@@ -437,21 +472,47 @@ def recorded(template: Template, address: str) -> None:
     written.replace(template.directory / _RECORDS)
 
 
+def watch(loader: Sequence[str]) -> NoReturn:
+    """Run the loader, write how it ended in the directory of the template, then end as it did.
+
+    ``loader`` ends with that directory. The watcher holds the lock of the loading, which the loader
+    is not handed: it is released once ``exit`` is written. A loader that cannot start is said in
+    the log, its status 127, as a shell says it.
+    """
+    directory = Path(loader[-1])
+    try:
+        status = subprocess.call(loader, stdin=subprocess.DEVNULL)
+    except OSError as error:
+        sys.stdout.write(f"the loader did not start: {error}\n")
+        sys.stdout.flush()
+        status = 127
+    (directory / _EXIT).write_text(str(status), encoding="utf-8")
+    if status < 0:
+        if -status != signal.SIGKILL:
+            signal.signal(-status, signal.SIG_DFL)
+        os.kill(os.getpid(), -status)
+    raise SystemExit(status)
+
+
 def main() -> None:
     """Load the template whose directory is given, and write its records there once it is loaded.
 
-    Warnings are errors, as in the tests (``filterwarnings``). Past its deadline the process is
-    ended by the system (``SIGALRM``, whose default action ends it wherever it stands), even when
-    the process that started it is gone.
+    Or, given ``--watch`` and a loader, watch it (``watch``). Warnings are errors, as in the tests
+    (``filterwarnings``). Past its deadline the process is ended by the system (``SIGALRM``, whose
+    default action ends it wherever it stands), even when the process that started it is gone. It
+    says how long it took: the end of the run says it again (``took``).
     """
+    if sys.argv[1] == _WATCH:
+        watch(sys.argv[2:])
     warnings.simplefilter("error")
     template = Template.read(Path(sys.argv[1]))
     signal.signal(signal.SIGALRM, signal.SIG_DFL)
     signal.alarm(max(1, math.ceil(deadline_of(template) - time.time())))
     sys.stdout.write(f"the loading started, its deadline {deadline_of(template):.0f}\n")
     sys.stdout.flush()
+    began = time.monotonic()
     recorded(template, os.environ[TEST_DATABASE_VARIABLE])
-    sys.stdout.write(f"{_ENDED}\n")
+    sys.stdout.write(f"{TOOK} {time.monotonic() - began:.0f} s\n{ENDED}\n")
     sys.stdout.flush()
 
 

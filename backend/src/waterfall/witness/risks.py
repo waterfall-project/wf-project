@@ -52,6 +52,7 @@ from waterfall.core.risks.interface import (
     read_risk,
     review_risk,
 )
+from waterfall.platform.logs import get_logger
 from waterfall.witness.estimate_lines import write_lines
 from waterfall.witness.filling import LineRow, Strict, TaskRow, node_identifier
 from waterfall.witness.tasks import add_tasks
@@ -66,6 +67,8 @@ if TYPE_CHECKING:
     from waterfall.platform.audit import Act
     from waterfall.witness.description import Witness
     from waterfall.witness.timeline import RiskDeclared, RiskOccurred, RiskReviewed
+
+logger = get_logger(__name__)
 
 RISKS_FILE = "witness_risks.json"
 NOT_STARTED = "not_started"
@@ -276,6 +279,8 @@ def enter_estimate(
             raise ValueError(message)
         main_place = Place(project_id, revision_id, main)
         load_own_estimate_again(session, main_place, structure_id, made.writer.act)
+        # Each copy again costs the copy of two structures as large as the main one: counted.
+        logger.info("witness.own_estimate_copied_again", risk=str(risk.risk_id), revision=number)
     place = Place(project_id, revision_id, structure_id)
 
     def identified(row: TaskRow | LineRow) -> UUID:

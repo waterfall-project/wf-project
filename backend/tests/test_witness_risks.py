@@ -38,7 +38,7 @@ from waterfall.platform.audit import AuditEntry
 if TYPE_CHECKING:
     from realm import TestRealm
     from sqlalchemy import Engine
-    from support import ContractClient
+    from support import ContractClient, Logs
 
     from waterfall.platform.database import Database
 
@@ -160,6 +160,23 @@ def test_the_101_is_opened_by_the_risks_and_marked_the_reference_by_the_merge_of
     assert not structures[AMENDMENT_2].is_merged
     assert structures[AMENDMENT_2].main_lock_version == structures[MAIN_102].lock_version
     assert structures[OWN_102[DELAY]].is_merged
+
+
+@pytest.mark.story("US-3070")
+def test_the_loading_copies_an_own_estimate_again_only_where_the_main_structure_moved_past_it(
+    logs: Logs, witness_logged: Database
+) -> None:
+    # Each copy again of the main structure into an own estimate and its base costs two structures
+    # as large as the main one, some seven seconds of the loading on a workstation: the loader
+    # does it once by revision opened and by risk it enters there, and before an occurrence — the
+    # 751 in the 102 opened, the 752 before it occurs —, never for an own estimate declared whole.
+    del witness_logged  # asked for its side effect: the records of the loading, in ``logs``
+    assert logs.named("witness.loaded"), "the records of the loading do not say it loaded"
+    copied = logs.named("witness.own_estimate_copied_again")
+    assert [(UUID(each["risk"]), each["revision"]) for each in copied] == [
+        (REWORK, 102),
+        (DELAY, 102),
+    ]
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")

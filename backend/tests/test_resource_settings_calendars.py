@@ -750,18 +750,20 @@ def test_the_witness_loads_the_calendars_and_designates_its_default_one(
     api: ContractClient,
     database: Database,
     owner: Engine,
-    sessions: PartSessions,
+    reference_sessions: ReferenceSessions,
     service_database_url: str,
 ) -> None:
     # `load-witness` writes `calendars_with_inactive.json` with its identifiers and its default
     # calendar, the one the platform held losing the designation, then deactivates the one it says
     # deactivated (#2131); the list reads back the example of the contract, the audit columns
-    # apart. A second loading writes nothing.
+    # apart. A second loading writes nothing. Each read signs in after the loading before it: a
+    # token taken before would outlive its five minutes on a slow runner (EP-30, US-3070/L3).
     install(owner)
     held = seed(database, "Installé", default=True)
     assert load(service_database_url) == 0
     example = example_items()
     wanted = {each["calendar_id"] for each in example}
+    sessions = reference_sessions("resource_settings")
     read = listing(api, sessions.changing, "include_inactive=true")["items"]
     ours = sorted((each for each in read if each["calendar_id"] in wanted), key=identifier)
     assert without_audit(ours) == without_audit(sorted(example, key=identifier))
@@ -770,6 +772,7 @@ def test_the_witness_loads_the_calendars_and_designates_its_default_one(
         retired = read_calendar(session, held)
     assert (retired.is_default, retired.lock_version) == (False, 2)
     assert load(service_database_url) == 0
+    sessions = reference_sessions("resource_settings")
     assert listing(api, sessions.changing, "include_inactive=true")["items"] == read
 
 

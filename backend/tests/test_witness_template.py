@@ -16,8 +16,10 @@ import pytest
 from project_rows import unguarded
 from sqlalchemy import Engine, delete, func, select, text
 from witness_template import (
+    ENDED,
     LOADING_TIMEOUT,
     TEMPLATE,
+    TOOK,
     Template,
     built,
     cloned,
@@ -26,6 +28,7 @@ from witness_template import (
     recorded,
     said_loaded,
     start,
+    took,
 )
 
 from waterfall.core.users.tables import UserAccount
@@ -50,6 +53,12 @@ ALARMED = (
 )
 # A loader that ends at once, having loaded nothing.
 IDLE = (sys.executable, "-c", "")
+# A loader that says how long it took and that it wrote its records, then fails all the same.
+ENDED_THEN_FAILING = (
+    sys.executable,
+    "-c",
+    f"print('{TOOK} 3 s'); print('{ENDED}'); raise SystemExit(1)",
+)
 
 
 @pytest.fixture
@@ -147,20 +156,21 @@ def test_a_loading_that_fails_fails_the_test_that_waits_with_what_it_said(
 def test_a_loader_that_does_not_start_fails_the_test_that_waits_with_the_reason(
     planned: Template,
 ) -> None:
-    """A loader the system cannot run is written in the records, and fails the test that waits."""
-    with pytest.raises(OSError, match="nonexistent"):
-        start(planned, ["/nonexistent"])
-    with pytest.raises(pytest.fail.Exception, match="the loader did not start"):
+    """A loader the system cannot run is written in the log, and fails the test that waits."""
+    loading = start(planned, ["/nonexistent"])
+    assert loading is not None
+    with pytest.raises(pytest.fail.Exception, match=r"the loader did not start: .*nonexistent"):
         built(planned)
+    assert loading.ended() == 127
 
 
 def test_a_loading_killed_without_a_word_says_so_to_the_test_that_waits(
     planned: Template,
 ) -> None:
-    """The message is never empty: a loading killed before its deadline is named as such."""
+    """The message is never empty: a loading killed before its deadline is named by its signal."""
     loading = start(planned, KILLED)
     assert loading is not None
-    with pytest.raises(pytest.fail.Exception, match=r"(?s)was not loaded; .*was killed\]"):
+    with pytest.raises(pytest.fail.Exception, match=r"(?s)was not loaded; .*killed \(SIGKILL\)"):
         built(planned)
     assert loading.ended() == -signal.SIGKILL
 
@@ -168,12 +178,36 @@ def test_a_loading_killed_without_a_word_says_so_to_the_test_that_waits(
 def test_a_loading_ended_by_its_alarm_says_it_lasted_past_its_deadline(
     planned: Template,
 ) -> None:
-    """The loading the system ended at its deadline, silent, is named as such, not left empty."""
+    """The loading the system ended at its deadline, silent, is named by its signal (SIGALRM)."""
     loading = start(planned, ALARMED, timeout=1)
     assert loading is not None
     assert loading.process.wait(timeout=30) == -signal.SIGALRM
     with pytest.raises(pytest.fail.Exception, match=r"ended by the system at its deadline"):
         built(planned)
+    assert (planned.directory / "exit").read_text("utf-8") == str(-signal.SIGALRM)
+
+
+def test_a_loading_that_said_it_ended_is_not_given_a_cause_when_it_fails(
+    planned: Template,
+) -> None:
+    """A log that says the loading wrote its records is given as it is: it names no cause."""
+    loading = start(planned, ENDED_THEN_FAILING)
+    assert loading is not None
+    with pytest.raises(pytest.fail.Exception, match=ENDED) as failed:
+        built(planned)
+    assert "[the loading" not in str(failed.value)
+    assert loading.ended() == 1
+
+
+def test_the_duration_the_loading_said_is_given_to_the_end_of_the_run(
+    planned: Template,
+) -> None:
+    """The line by which the loading says how long it took is read back; none before it runs."""
+    assert took(planned) is None
+    loading = start(planned, ENDED_THEN_FAILING)
+    assert loading is not None
+    assert loading.ended() == 1
+    assert took(planned) == f"{TOOK} 3 s"
 
 
 def test_a_loading_past_its_deadline_fails_the_test_that_waits_and_is_killed(

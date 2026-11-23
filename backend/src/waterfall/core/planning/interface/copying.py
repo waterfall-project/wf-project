@@ -17,7 +17,7 @@ from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.planning.tallying import provision_lines
 from waterfall.core.projects.interface import work_breakdown_items
-from waterfall.platform.database import Base, UtcDateTime, among, copied_columns, copies
+from waterfall.platform.database import Base, UtcDateTime, among, copied_columns, copies, unnested
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
@@ -83,41 +83,56 @@ def _copy_tasks(
 
 
 def _copy_links(copy: RevisionCopy, nodes: dict[UUID, UUID], structures: dict[UUID, UUID]) -> None:
-    """Copy the links of the structures copied, each under an identifier of its own."""
+    """Copy the links of the structures copied, each under an identifier of its own.
+
+    The copies of a link's structure and of its two tasks are found here, by the link: joined in
+    the statement to the copies of every node of the revision — tens of thousands once the own
+    estimates of the risks are born whole —, the copy took 0.2 to 39 seconds by the plan the server
+    chose (EP-30, US-3070/L3). It joins the links alone.
+    """
     session = copy.session
-    links = {
-        each: new_id()
-        for each in session.scalars(
-            select(TaskLink.id).where(
-                TaskLink.project_id == copy.project_id,
-                TaskLink.revision_id == copy.source,
-                among(TaskLink.structure_id, structures),
-            )
+    found = session.execute(
+        select(
+            TaskLink.id, TaskLink.structure_id, TaskLink.predecessor_id, TaskLink.successor_id
+        ).where(
+            TaskLink.project_id == copy.project_id,
+            TaskLink.revision_id == copy.source,
+            among(TaskLink.structure_id, structures),
         )
-    }
-    if not links:
+    ).all()
+    # A link keeps its two tasks in its own structure (``_in_structure``), and every node of a
+    # structure copied is copied above, but those left out, which no link names.
+    kept = [
+        (each, structure_id, predecessor_id, successor_id)
+        for each, structure_id, predecessor_id, successor_id in found
+        if predecessor_id in nodes and successor_id in nodes
+    ]
+    if not kept:
         return
-    # The joins on the nodes lose no link: a link keeps its two tasks in its own structure
-    # (``_in_structure``), and every node of a structure copied is copied above.
-    link, structure = copies(links, "copied_link"), copies(structures, "copied_structure")
-    predecessor, successor = copies(nodes, "predecessor"), copies(nodes, "successor")
+    link = unnested(
+        "copied_link",
+        {
+            "source": [each for each, _, _, _ in kept],
+            "copy": [new_id() for _ in kept],
+            "structure": [structures[structure_id] for _, structure_id, _, _ in kept],
+            "predecessor": [nodes[predecessor_id] for _, _, predecessor_id, _ in kept],
+            "successor": [nodes[successor_id] for _, _, _, successor_id in kept],
+        },
+    )
     names, columns = copied_columns(
         LINK,
         {
             "id": link.c.copy,
             "revision_id": literal(copy.target, Uuid()),
-            "structure_id": structure.c.copy,
-            "predecessor_id": predecessor.c.copy,
-            "successor_id": successor.c.copy,
+            "structure_id": link.c.structure,
+            "predecessor_id": link.c.predecessor,
+            "successor_id": link.c.successor,
         },
     )
     rows = (
         select(*columns)
         .select_from(LINK)
         .join(link, link.c.source == LINK.c.id)
-        .join(structure, structure.c.source == LINK.c.structure_id)
-        .join(predecessor, predecessor.c.source == LINK.c.predecessor_id)
-        .join(successor, successor.c.source == LINK.c.successor_id)
         .where(LINK.c.project_id == copy.project_id)
     )
     session.execute(insert(LINK).from_select(names, rows))
