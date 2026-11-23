@@ -41,6 +41,7 @@ import { useLocale, useTranslations } from "next-intl";
 import {
   createContext,
   Fragment,
+  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
@@ -744,7 +745,7 @@ function LinkPart({ link }: { readonly link: GanttLinkPart }) {
   }[link.part];
   const rightward = link.in >= link.out;
   return (
-    <g className="fill-muted-foreground stroke-muted-foreground">
+    <g data-link="" className="fill-muted-foreground stroke-muted-foreground">
       <line x1={out} x2={out} y1={span[0]} y2={span[1]} />
       {link.part === "arrives" ? (
         <>
@@ -817,6 +818,40 @@ function togglePlace(bar: GanttBar | undefined, view: GanttView): string {
   return `max(0px, calc(${place} - 1.125rem))`;
 }
 
+/** How the drawing of a row sits in its cell: its width zoomed, scrolled by the offset of the frame. */
+function drawingStyle(view: GanttView): CSSProperties | undefined {
+  return view.width === undefined
+    ? undefined
+    : { width: view.width, transform: `translateX(-${String(view.offset)}px)` };
+}
+
+/**
+ * Render, in the row of a run of rows folded away (`FoldedRunRow`), the stretch of the links.
+ * It draws the stretch of the links that cross the run, so that a link down the grid is not cut.
+ * The layout reads the rows shown; `before` is the index of the one just after the run.
+ * It names nothing: the row of the run says what it folds (#3785, WF-PLA-0090).
+ */
+export function GanttRunCell({ before }: { readonly before: number }) {
+  const view = use(GanttContext);
+  if (view === undefined) {
+    return null;
+  }
+  return (
+    <div className="relative overflow-hidden" data-gantt="" data-gantt-run="">
+      <svg
+        aria-hidden="true"
+        className="pointer-events-none block h-7 w-full overflow-visible"
+        style={drawingStyle(view)}
+      >
+        <Months layout={view.layout} ticks={view.drawnLower} />
+        {view.layout.crossing(before).map((link, at) => (
+          <LinkPart key={at} link={link} />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 /**
  * Render the row of a task in the Gantt: the months, the links, its bar — named by its dates —, the
  * months and the links alone for a row without dates, hidden from the readers of the screen; before
@@ -853,11 +888,7 @@ export function GanttCell({ row }: { readonly row: GanttRow }) {
             : undefined
         }
         className="pointer-events-none block h-7 w-full overflow-visible"
-        style={
-          view.width === undefined
-            ? undefined
-            : { width: view.width, transform: `translateX(-${String(view.offset)}px)` }
-        }
+        style={drawingStyle(view)}
       >
         {view.tinted ? (
           <>
