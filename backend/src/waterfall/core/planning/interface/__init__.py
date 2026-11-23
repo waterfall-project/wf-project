@@ -168,6 +168,9 @@ from waterfall.core.planning.interface.facets import (
     named_calendars as named_calendars,
 )
 from waterfall.core.planning.interface.facets import (
+    named_roles as named_roles,
+)
+from waterfall.core.planning.interface.facets import (
     refused_at as refused_at,
 )
 from waterfall.core.planning.interface.facets import (

@@ -156,7 +156,7 @@ def replayed(
     replay = replay_of(
         session, (project_id, structure_id, facts.planning_start_on), tree, calendars
     )
-    computed = dated(replay, None if blamed is None else blamed.origin)
+    computed = dated(session, replay, None if blamed is None else blamed.origin)
     beyond = computed.horizon_exceeded_by
     if beyond is not None:
         named = _named(blamed, beyond, tree)

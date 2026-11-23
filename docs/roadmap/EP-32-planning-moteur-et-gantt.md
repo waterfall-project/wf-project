@@ -570,7 +570,7 @@ L'ordre des verrous est celui d'EP-06 : le référentiel, la ligne, puis les str
 
 ## US-3330 — Une tâche sans heure travaillée refuse l'ouverture d'une révision en la nommant, au lieu d'une erreur inattendue
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0010-A`
 - **opérations** : `createRevision`, `createNode`
 - **issue** : #4553
