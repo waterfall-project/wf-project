@@ -77,13 +77,14 @@ markers = [
 xfail_strict = true
 filterwarnings = ["error"]
 # A test that hangs fails after fifteen minutes, named, its traceback where it stood, rather than
-# freezing its part of the chain until the job is cancelled (#4653). The longest test that does not
-# hang loads the witness itself: 216 seconds at most on a runner (run 44957647502), and a runner is up
-# to twice as slow as another; the template of the witness, loaded once by a part, takes up to 780
-# seconds (``LOADING_TIMEOUT``), the test that waits for it must outlast it (EP-30, US-3070/L3). By SIGALRM, in the main thread where pytest-xdist runs the tests: the
-# test fails and its process goes on with the next. The one delay covers the whole item, its
-# teardown included: a teardown that follows a freeze may freeze in turn, and the delay of the job
-# (25 minutes, back.yml) remains the net.
+# freezing its part of the chain until the job is cancelled (#4653). A test on the witness waits for
+# its template up to the deadline of the loading, 780 seconds (``LOADING_TIMEOUT``, for 280 to 570
+# measured on a runner, run 45209389445), then does its own work: 120 seconds are left it. The
+# longest test that does not hang loads the witness itself, twice: 167 seconds on a workstation,
+# where the template takes 140 (EP-30, US-3070/L3). By SIGALRM, in the main thread where
+# pytest-xdist runs the tests: the test fails and its process goes on with the next. The one delay
+# covers the whole item, its teardown included: a teardown that follows a freeze may freeze in
+# turn, and the delay of the job (25 minutes, back.yml) remains the net.
 timeout = 900
 timeout_method = "signal"
 

@@ -13,6 +13,7 @@ import time
 from typing import TYPE_CHECKING
 
 import pytest
+from loading_watcher import EXIT, NOT_STARTED
 from project_rows import unguarded
 from sqlalchemy import Engine, delete, func, select, text
 from witness_template import (
@@ -161,7 +162,7 @@ def test_a_loader_that_does_not_start_fails_the_test_that_waits_with_the_reason(
     assert loading is not None
     with pytest.raises(pytest.fail.Exception, match=r"the loader did not start: .*nonexistent"):
         built(planned)
-    assert loading.ended() == 127
+    assert loading.ended() == NOT_STARTED
 
 
 def test_a_loading_killed_without_a_word_says_so_to_the_test_that_waits(
@@ -184,7 +185,7 @@ def test_a_loading_ended_by_its_alarm_says_it_lasted_past_its_deadline(
     assert loading.process.wait(timeout=30) == -signal.SIGALRM
     with pytest.raises(pytest.fail.Exception, match=r"ended by the system at its deadline"):
         built(planned)
-    assert (planned.directory / "exit").read_text("utf-8") == str(-signal.SIGALRM)
+    assert (planned.directory / EXIT).read_text("utf-8") == str(-signal.SIGALRM)
 
 
 def test_a_loading_that_said_it_ended_is_not_given_a_cause_when_it_fails(

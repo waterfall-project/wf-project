@@ -26,7 +26,7 @@ the deadline fails with what the loading said, the loading is ended by the syste
 Neither a test nor the end of pytest waits for a loading that froze: the part of the chain fails,
 a test named, rather than being cancelled by the deadline of its job.
 
-The loader runs under a watcher of its own (``--watch``), which holds the lock in its place, writes
+The loader runs under a watcher of its own (``loading_watcher``), which holds the lock, writes
 how the loader ended (``exit``: its status, or minus the signal that ended it) and ends as it did: a
 test that waits reads there whether the loading failed, was ended at its deadline or was killed. The
 loader writes how long it took, which the end of the run says (``took``).
@@ -46,12 +46,13 @@ import warnings
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, NoReturn, cast
+from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
 import pytest
 from estimate_support import pin_year
 from installed_reference import install
+from loading_watcher import EXIT
 from pydantic import SecretStr
 from sqlalchemy import text
 from support import WITNESS, recorded_logs
@@ -78,9 +79,6 @@ _STARTED = "started"
 _BUILD_LOCK = "build.lock"
 _RECORDS = "records"
 _LOG = "loading.log"
-_EXIT = "exit"
-# The argument that runs this module as the watcher of the loader that follows it.
-_WATCH = "--watch"
 # What the loading writes in its log when it has loaded and recorded the template: a log that lacks
 # it is that of a loading that did not end so, which the watcher's ``exit`` names.
 ENDED = "the loading wrote its records"
@@ -88,13 +86,11 @@ ENDED = "the loading wrote its records"
 TOOK = "the loading took"
 # The end of what the loading said, given with the failure of a test that waited for it.
 _TAIL = 4000
-# The seconds a loading may last. It took 134 to 290 seconds on a runner of the chain, loaded by
-# each of the four processes of a part at once (#4657), a runner up to twice as slow as another. The
-# own estimate of a risk is born whole, copied from the main structure at each revision (EP-30,
-# US-3070/L3): the loading took 74 seconds and takes 170 on a workstation, and on a runner of the
-# chain it went past the 420 seconds it was given (run 45181091842, the loading ended by its alarm
-# without a word). 780 seconds leave it, at the ratio of a runner to a workstation (two to four),
-# the margin of the slowest; under the fifteen minutes of a test (``timeout``, pyproject.toml), so
+# The seconds a loading may last. Since the own estimates of the risks are born whole, each a copy
+# of the main structure with its base (EP-30, US-3070/L3), it takes 130 to 140 seconds on a
+# workstation (79 before), and on the six runners of a run of the chain 280, 312, 316, 319, 541 and
+# 570, as it says (run 45209389445): 780 seconds leave the slowest 210 more, as 420 left 130 to the
+# 290 measured before (#4657). Under the fifteen minutes of a test (``timeout``, pyproject.toml), so
 # that the test that waits fails with what the loading said, rather than by its own timeout.
 LOADING_TIMEOUT = 780
 # The seconds the end of a run waits past the deadline, for the process that started the loading to
@@ -203,8 +199,8 @@ _STARTED_HERE: list[Loading] = []
 _RECORDS_READ: dict[Path, str] = {}
 # The command that loads the template, given its directory: this module.
 LOADER = (sys.executable, __file__)
-# The command that watches the loader given after it: this module too.
-_WATCHER = (sys.executable, __file__, _WATCH)
+# The command that watches the loader given after it, of the standard library alone: quick to start.
+_WATCHER = (sys.executable, str(Path(__file__).with_name("loading_watcher.py")))
 
 
 def start(
@@ -282,7 +278,7 @@ def _said(template: Template) -> str:
 
 def _how(template: Template) -> str:
     """Say how the loading ended, as its watcher wrote it; or that it had not ended."""
-    written = template.directory / _EXIT
+    written = template.directory / EXIT
     if not written.exists():
         # The watcher writes before it releases the lock: without it, the loading still runs, or
         # was killed with its watcher by the process that started it.
@@ -472,38 +468,14 @@ def recorded(template: Template, address: str) -> None:
     written.replace(template.directory / _RECORDS)
 
 
-def watch(loader: Sequence[str]) -> NoReturn:
-    """Run the loader, write how it ended in the directory of the template, then end as it did.
-
-    ``loader`` ends with that directory. The watcher holds the lock of the loading, which the loader
-    is not handed: it is released once ``exit`` is written. A loader that cannot start is said in
-    the log, its status 127, as a shell says it.
-    """
-    directory = Path(loader[-1])
-    try:
-        status = subprocess.call(loader, stdin=subprocess.DEVNULL)
-    except OSError as error:
-        sys.stdout.write(f"the loader did not start: {error}\n")
-        sys.stdout.flush()
-        status = 127
-    (directory / _EXIT).write_text(str(status), encoding="utf-8")
-    if status < 0:
-        if -status != signal.SIGKILL:
-            signal.signal(-status, signal.SIG_DFL)
-        os.kill(os.getpid(), -status)
-    raise SystemExit(status)
-
-
 def main() -> None:
     """Load the template whose directory is given, and write its records there once it is loaded.
 
-    Or, given ``--watch`` and a loader, watch it (``watch``). Warnings are errors, as in the tests
-    (``filterwarnings``). Past its deadline the process is ended by the system (``SIGALRM``, whose
-    default action ends it wherever it stands), even when the process that started it is gone. It
-    says how long it took: the end of the run says it again (``took``).
+    Warnings are errors, as in the tests (``filterwarnings``). Past its deadline the process is
+    ended by the system (``SIGALRM``, whose default action ends it wherever it stands), even when
+    the process that started it is gone. It says how long it took: the end of the run says it again
+    (``took``).
     """
-    if sys.argv[1] == _WATCH:
-        watch(sys.argv[2:])
     warnings.simplefilter("error")
     template = Template.read(Path(sys.argv[1]))
     signal.signal(signal.SIGALRM, signal.SIG_DFL)
