@@ -262,8 +262,7 @@ def test_the_console_of_keycloak_and_its_realm_master_are_not_served() -> None:
 
 def test_every_route_of_the_front_under_auth_is_served_to_it_or_kept_inside_the_platform() -> None:
     # Keycloak is under /auth, and so are three routes of the front: those the browser opens pass
-    # to the front; its back channel, which Keycloak reaches at front-proxy:3443, is not served
-    # (#731).
+    # to the front; its back channel, Keycloak's at front-proxy:3443, is not served (#731).
     routes = {path.name for path in (REPOSITORY / "frontend/src/app/auth").iterdir()}
     served = re.search(r"@front path ([^\n]+)", CADDYFILE.read_text(encoding="utf-8"))
     assert served is not None
