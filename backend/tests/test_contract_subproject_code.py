@@ -1,11 +1,11 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The generated model of the code of a declared subproject keeps the bounds of the contract.
+r"""The generated model of the code of a declared subproject keeps the bounds of the contract.
 
 Since the specification 1.0.7, the code of a subproject is free (#3966): from 1 to 100 characters,
 never blank, a slash, the characters a tab refuses and the names of the tabs Waterfall writes
-included. The generated model compiles its pattern with ``re`` (``regex_engine="python-re"``), as
-it did the former one (EP-16/US-0610).
+included. The pattern of the generated model is ``\S``, with no lookahead: the default engine of
+pydantic compiles it, and the model carries no ``model_config``.
 """
 
 import pytest

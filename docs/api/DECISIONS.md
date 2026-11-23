@@ -13037,7 +13037,8 @@ reste `1.0.0` (« La règle d'après le gel ») : le lot ajoute et assouplit. Ex
 
 - **Le code d'un sous-projet est libre, et n'est jamais celui de son projet** (WF-PRJ-0050).
   `DeclaredSubprojectCode` : de 1 à 100 caractères, jamais blanc — le motif `\S`, celui d'un
-  libellé —, sans caractère interdit ni nom réservé ; 100, parce que la reprise écrit le code du
+  libellé ; l'issue disait « sans motif », et le motif reste un écart assumé : un code blanc reste
+  un refus du contrat, comme pour `ProjectCode` —, sans caractère interdit ni nom réservé ; 100, parce que la reprise écrit le code du
   projet (50 au plus), une barre oblique et l'ancien code (31 au plus), soit 82 (conception
   d'EP-33). Vide ou blanc, `VALUE_REQUIRED`, comme le service le rend déjà ; trop long,
   `VALUE_TOO_LONG`, `max_length` à `100`. Égal au code du projet, comparé en entier :
@@ -13084,8 +13085,11 @@ reste `1.0.0` (« La règle d'après le gel ») : le lot ajoute et assouplit. Ex
   `subproject_code_reserved`, `import_actual_costs_wbs_invalid`, et
   `import_actual_costs_dotted_code`, écrit sous l'ancienne règle —, comme le témoin, dont les codes
   de sous-projets et l'extraction d'avril, qui demande `unknown_subproject`, changent avec la
-  reprise. D'ici là, le service refuse encore un code de sous-projet de plus de 31 caractères, et
-  rend `unknown_wbs_elements` vide : un compte rendu écrit sans la clé se lit vide
+  reprise. D'ici là, le service refuse encore un code de sous-projet de plus de 31 caractères, rend
+  encore la borne `max_length` à 50 de `VALUE_TOO_LONG` sur `wbs_element` — le contrat ne la dit
+  plus —, n'impute pas encore à la création d'un sous-projet, et `Subproject.has_actual_costs`,
+  que le contrat dit « born false » et dont « creation charges no line », est en avance sur lui
+  jusqu'à L2 ; il rend `unknown_wbs_elements` vide : un compte rendu écrit sans la clé se lit vide
   (`waterfall.api.imports`). Les exemples de compte rendu existants portent la clé : vide, ou
   l'élément de la ligne d'un autre projet qu'ils rejettent (l'extraction d'avril, son témoin et
   `import_actual_costs_dotted_code`).

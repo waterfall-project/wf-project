@@ -427,7 +427,8 @@ Problem:
         strings (`VALUE_OUT_OF_RANGE`, `column` at `amount`), and `max_length` the largest number
         of characters of the document number, `200` (`VALUE_TOO_LONG`, `column` at
         `document_number`) — a WBS element has no bound of its own: one longer than any code is no
-        code, and is rejected for it (`WBS_ELEMENT_OUTSIDE_PROJECT`; #3966);
+        code, and is rejected for it (`WBS_ELEMENT_OUTSIDE_PROJECT`; #3966); the bound of `50` at
+        `wbs_element` is no longer given, which the service still gives until US-3270/L2;
         `label`, the label of a task that several tasks carry, with `tasks` those that carry it
         (`AMBIGUOUS_TASK_LABEL`, `ImportRejection.params`, annex B); `start` and `finish`, the
         dates that an MS Project planning gives to a summary task in manual mode, imported in

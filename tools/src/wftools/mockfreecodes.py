@@ -148,7 +148,10 @@ def _unknown_said() -> str:
         f"à ce sous-projet ; les {counted} autres sont rejetées, et le compte rendu nomme chaque "
         f"élément inconnu une fois, avec le nombre de ses lignes — {named} —, ce qui dit quels "
         f"sous-projets déclarer avant de réimporter. L'application demande une confirmation "
-        f"explicite pour les lignes rejetées pour leur élément (WF-CRE-0020, #3966)."
+        f"explicite pour les lignes rejetées pour leur élément (WF-CRE-0020, #3966). L'import et "
+        f"les tâches sont ceux d'import_actual_costs_dotted_code, dont la famille des tâches de "
+        f"fond 920-959 est pleine : les deux exemples décrivent le même import, avec deux comptes "
+        f"rendus que seul le contenu du fichier distingue."
     )
 
 
