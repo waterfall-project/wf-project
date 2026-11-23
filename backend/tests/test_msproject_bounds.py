@@ -97,8 +97,37 @@ def test_an_integer_of_more_than_18_digits_is_refused(besides: str, element: str
 
 
 def test_an_integer_of_18_digits_is_read() -> None:
-    read = read_project(project(besides="<MinutesPerDay>-999999999999999999</MinutesPerDay>"))
-    assert read.project.minutes_per_day == -999_999_999_999_999_999
+    # « De même […] un entier au-delà de la borne de chiffres du lecteur » : 18 digits are read,
+    # positive on a constant of unit, negative on an identifier of calendar.
+    read = read_project(project(besides="<MinutesPerDay>999999999999999999</MinutesPerDay>"))
+    assert read.project.minutes_per_day == 999_999_999_999_999_999
+    negative = read_project(project(besides="<CalendarUID>-999999999999999999</CalendarUID>"))
+    assert negative.project.calendar_uid == -999_999_999_999_999_999
+
+
+@pytest.mark.parametrize("element", ["MinutesPerDay", "MinutesPerWeek", "DaysPerMonth"])
+@pytest.mark.parametrize("value", ["0", "-480"])
+def test_a_constant_of_unit_that_is_not_positive_is_refused(element: str, value: str) -> None:
+    # « Et une constante d'unité — `MinutesPerDay`, `MinutesPerWeek`, `DaysPerMonth` — nulle ou
+    # négative » : the conversions of the engine divide by the constants of unit, so a zero or a
+    # negative one is refused at the reading, an unreadable format, never an internal error of the
+    # analysis or of the application. No upper bound is added: the digits of the reader are the
+    # bound.
+    assert refused(project(besides=f"<{element}>{value}</{element}>")) == element
+
+
+@pytest.mark.parametrize(
+    ("element", "attribute"),
+    [
+        ("MinutesPerDay", "minutes_per_day"),
+        ("MinutesPerWeek", "minutes_per_week"),
+        ("DaysPerMonth", "days_per_month"),
+    ],
+)
+def test_a_constant_of_unit_of_1_is_read(element: str, attribute: str) -> None:
+    # The positive value next to the refused ones: the smallest constant of unit is read.
+    read = read_project(project(besides=f"<{element}>1</{element}>"))
+    assert getattr(read.project, attribute) == 1
 
 
 @pytest.mark.parametrize(
