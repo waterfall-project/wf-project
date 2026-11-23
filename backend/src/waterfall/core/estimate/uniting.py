@@ -13,7 +13,9 @@ it; a removed node is read-only, ``editable_fields`` empty.
 
 A node is ``added``, absent from the base structure; ``removed``, absent from the compared one;
 ``modified`` when one of its values differs, entered or computed, of either facet, whatever a
-reading returns of it (EP-27, « Ce qui fait un nœud modifié »), or when a node under it is added,
+reading returns of it (EP-27, « Ce qui fait un nœud modifié ») — save the total float and the
+membership of the critical path of a task, which the planning engine computes (WF-REV-0080, #4312)
+—, or when a node under it is added,
 removed or modified, or moved from under it, the content of a summary task changing
 (``NodeDifference``); ``unchanged`` otherwise. What differs is named by the change it makes
 (``NodeChange``, #1751): a task by its dates, its duration, its state or its parent, a line by its
@@ -80,9 +82,12 @@ NOT_COMPARED = frozenset(
     }
 )
 # What a facet carries that is no value of the node: the overdue finish of a task, a flag of the day
-# it is computed on, and whether a line accepts a re-estimate, what is enterable.
+# it is computed on, and whether a line accepts a re-estimate, what is enterable. The total float
+# and the membership of the critical path of a task are not either: the planning engine computes
+# them from the whole structure, and they change when another task does, the task itself unchanged
+# — WF-REV-0080 modifies a task by « ses dates, sa durée, son état et son parent » (#4312).
 FACET_NOT_COMPARED = {
-    TASK: frozenset({"finish_overdue"}),
+    TASK: frozenset({"finish_overdue", "total_float", "is_critical"}),
     LINE: frozenset({"remaining_entry"}),
 }
 # The identifiers of a facet that name a node, compared by the lineage of that node, as the parent

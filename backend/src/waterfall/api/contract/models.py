@@ -3871,10 +3871,6 @@ class TaskDeltas(ContractModel):
             description="The duration read minus that of the base, in working time, in the unit of the duration read (WF-PLA-0160); signed, negative for a shorter task."
         ),
     ] = None
-    total_float: Annotated[
-        Duration | None,
-        Field(description="The total float read minus that of the base, in working days, signed."),
-    ] = None
     base_amount: Annotated[
         Money | None,
         Field(
@@ -3967,7 +3963,7 @@ class ComparedNodeRead(ContractModel):
     difference: Annotated[
         NodeDifference,
         Field(
-            description="The node's difference from the base revision (`from_revision_id`), which the server returns and the front does not compute (WF-REV-0080, C-361): always returned, whether `fields` names it or not, never null. It does not depend on `fields` either: a node is `modified` as soon as a value it carries differs, entered or computed, of either facet, whether the read returns it or not (`NodeChange`, EP-27) — a task said modified on the estimate is said so on the planning."
+            description="The node's difference from the base revision (`from_revision_id`), which the server returns and the front does not compute (WF-REV-0080, C-361): always returned, whether `fields` names it or not, never null. It does not depend on `fields` either: a node is `modified` as soon as a value it carries differs, entered or computed, of either facet, whether the read returns it or not (`NodeChange`, EP-27) — a task said modified on the estimate is said so on the planning —, save the total float and the membership of the critical path of a task (`TaskFacet.total_float`, `TaskFacet.is_critical`), which the planning engine computes from the whole structure: a task whose float alone changes, or which enters or leaves the critical path without its dates changing, is `unchanged`, and makes no summary modified (WF-REV-0080, #4312)."
         ),
     ]
     changes: Annotated[

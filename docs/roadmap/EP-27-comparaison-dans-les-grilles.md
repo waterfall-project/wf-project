@@ -176,7 +176,11 @@ engendrés, client du front régénéré, entrée de `docs/api/DECISIONS.md`.
   calculée du nœud diffère, toutes facettes comprises, que `fields` la nomme ou non. N'y entrent
   pas ce qui change d'une révision à l'autre sans que rien n'ait changé : les identifiants, les
   compteurs, le numéro de ligne, le rang, les champs modifiables ; un parent et un prédécesseur se
-  rapprochent par la lignée. `NodeChange` garde ses valeurs, celles que WF-REV-0080 énumère, et
+  rapprochent par la lignée. Exception, décidée le 2026-11-22 (#4312, réalisée par US-3300/L5
+  d'EP-32) : les valeurs calculées du moteur de planning, la marge totale et l'appartenance au
+  chemin critique, n'y entrent pas non plus — WF-REV-0080 modifie une tâche par « ses dates, sa
+  durée, son état et son parent », et ces deux valeurs changent quand une autre tâche change ; une
+  tâche dont seules elles diffèrent est inchangée, et ne rend pas ses récapitulatives modifiées. `NodeChange` garde ses valeurs, celles que WF-REV-0080 énumère, et
   gagne `other` : une autre valeur du nœud, que `base` nomme. Une tâche modifiée par son seul
   contenu garde un `changes` vide.
 - **Les totaux.** `RevisionComparison` gagne `base_totals`, de la forme de `totals`, sur les
