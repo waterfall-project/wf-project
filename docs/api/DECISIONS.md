@@ -13052,6 +13052,27 @@ refus : le service ne le rend pas encore. Écarté : étendre la garde de la mod
 calendrier à la dernière révision marquée des projets au repos, au-delà de WF-PLA-0010 (« d'une
 révision en cours »).
 
+### L'import MS Project nomme une tâche créée sans heure travaillée (US-3210b, #4799)
+
+L'import d'un planning MS Project rejoue le moteur sans passer par la traduction d'US-3330 : une
+tâche que le fichier crée sur un calendrier par défaut sans heure faisait échouer l'analyse, ou
+l'application, en erreur interne. Le refus `TASK_WITHOUT_WORKING_HOURS` ne pouvait pas nommer
+cette tâche : `ProblemTask` exige un nœud, `ProblemImportedTask` une lignée, et elle n'a encore
+ni l'un ni l'autre. Décision de l'auteur du 2026-11-23 (option 1 de #4799) :
+
+- **`ProblemImportedTask.lineage_id` devient nullable**, toujours exigé : nul pour une tâche que
+  le fichier crée, nommée par son libellé, comme `ImportDifference.lineage_id` l'est pour un
+  ajout. Le refus entre dans `ImportReport.refusals` (`ReportRefusal`), et l'application qui le
+  rencontre de nouveau, le calendrier changé depuis l'analyse, échoue sur lui.
+- **La forme de celle d'US-3330** : `params.resource_roles`, les rôles des lignes de
+  main-d'œuvre d'une tâche existante, aucun pour une tâche créée, qui n'en porte pas encore ;
+  `params.tasks`, la tâche par sa lignée et son libellé, comme le compte rendu nomme ses objets :
+  une analyse faite sur la révision marquée vise des nœuds que l'application ne garde pas.
+
+La version reste `1.0.0` : une forme assouplie, qu'aucun client ne lisait nulle. Pas d'exemple :
+aucun calendrier du témoin n'est sans heure. Écartés : une troisième forme de tâche, nommée par son
+seul libellé, que `ProblemParams.tasks` aurait dû distinguer des deux autres ; reporter le refus.
+
 ### Le changement de calendrier d'un rôle déclare les refus du redatage (US-3300/L1, #4567)
 
 Un rôle qui change de calendrier ne redatait aucune révision en cours (#4411). US-3320 fait le

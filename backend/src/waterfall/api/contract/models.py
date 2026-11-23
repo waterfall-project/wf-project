@@ -167,7 +167,12 @@ class ProblemImportedTask(ContractModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    lineage_id: Uuid
+    lineage_id: Annotated[
+        Uuid | None,
+        Field(
+            description="The lineage of the task; null for a task that an MS Project schedule creates, which has none yet, as `ImportDifference.lineage_id` is for an addition (#4799)."
+        ),
+    ]
     label: str
 
 
@@ -290,7 +295,7 @@ class ProblemParams(ContractModel):
     tasks: Annotated[
         list[ProblemTask | ProblemImportedTask] | None,
         Field(
-            description="The tasks that an entry in a revision, a merge, a pasted or imported line, or the opening of a revision, would leave without a working hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010): by their project, their node and their label for an entry, a paste, a merge or an opening — the node of the copy, for an opening (`createRevision`, #4413); by their lineage and their label in the report of an import, which names its objects this way (`ImportDifference`) and may concern a project without a current revision, of which no node exists yet (WF-INTF-0090; #768, point 2); by its lineage and its label also, for a merge or the update of a differential, a task that the structure written does not hold yet, which the differential or the main structure adds (`ReportRefusal`; #4245). Likewise, by their lineage and their label, the tasks that carry the ambiguous label an imported line cites (`AMBIGUOUS_TASK_LABEL`, annex B). Each task follows one form only: both are closed, and each requires what the other does not declare — `project_id` and `node_id`, or `lineage_id` (#2635)."
+            description="The tasks that an entry in a revision, a merge, a pasted or imported line, or the opening of a revision, would leave without a working hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010): by their project, their node and their label for an entry, a paste, a merge or an opening — the node of the copy, for an opening (`createRevision`, #4413); by their lineage and their label in the report of an import, which names its objects this way (`ImportDifference`) and may concern a project without a current revision, of which no node exists yet (WF-INTF-0090; #768, point 2) — the lineage null for a task that an MS Project schedule creates, which has none yet (`ReportRefusal`; #4799); by its lineage and its label also, for a merge or the update of a differential, a task that the structure written does not hold yet, which the differential or the main structure adds (`ReportRefusal`; #4245). Likewise, by their lineage and their label, the tasks that carry the ambiguous label an imported line cites (`AMBIGUOUS_TASK_LABEL`, annex B). Each task follows one form only: both are closed, and each requires what the other does not declare — `project_id` and `node_id`, or `lineage_id` (#2635)."
         ),
     ] = None
     estimate_lines: Annotated[
