@@ -30,7 +30,6 @@ from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
 from waterfall.core.planning import rebasing_writing
-from waterfall.core.planning.rescheduling import Rescheduled
 from waterfall.core.planning.tables import Node, TaskLink, TaskLinkConflict
 
 if TYPE_CHECKING:
@@ -38,6 +37,7 @@ if TYPE_CHECKING:
     from sqlalchemy import Engine
     from support import ContractClient
 
+    from waterfall.core.planning.rescheduling import Rescheduled
     from waterfall.platform.database import Database
 
 WEDNESDAY = DAY + timedelta(days=2)
@@ -220,7 +220,15 @@ def test_a_conflict_is_copied_with_its_link_kept_read_only_once_marked_and_aband
         ).one()
     # The guard refuses the insertion and the change of a row of a marked revision as well.
     with pytest.raises(IntegrityError, match="never written"), owner.begin() as connection:
-        connection.execute(insert(TaskLinkConflict).values(**row._asdict()))
+        connection.execute(
+            insert(TaskLinkConflict).values(
+                project_id=row.project_id,
+                link_id=row.link_id,
+                node_id=row.node_id,
+                revision_id=row.revision_id,
+                structure_id=row.structure_id,
+            )
+        )
     with pytest.raises(IntegrityError, match="never written"), owner.begin() as connection:
         connection.execute(
             update(TaskLinkConflict)

@@ -338,8 +338,9 @@ REFUSALS: list[Refusal] = [
     (PastePlan, {"user_account_id": uuid4()}, "fk_paste_plan_user_account_id_user_account"),
 ]
 # The constraints a key holds already, never broken without it: what a facet and a task name, and
-# what the evaluation of a risk names (EP-08).
-UNBROKEN = {"uq_node_project_id", "uq_node_id", "uq_node_revision_id"}
+# what the evaluation of a risk names (EP-08); and the key of a link the primary key contains,
+# which the conflicts of its structure refer to (``uq_task_link_project_id``, US-3300/L3).
+UNBROKEN = {"uq_node_project_id", "uq_node_id", "uq_node_revision_id", "uq_task_link_project_id"}
 UPLOAD = uuid4()
 
 
