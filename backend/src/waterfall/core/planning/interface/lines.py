@@ -590,8 +590,9 @@ def write_lines(session: Session, place: Place, lines: LinesWrite, writer: Write
     structure, or written under one, refused (409 ``task_not_completed``), and a provision line of
     the main structure removed refused, as its deletion is (409 ``line_not_provision``, #4007).
     The lines removed go first, as their deletion takes a line (``delete_node``): their facets by
-    the hooks of their kind, their nodes; a line bears no node, so no provision passes to another
-    task, and no summary is left without subordinate. The lines moved go after those that stay
+    the hooks of their kind, their nodes; a line bears no node, as the guard that refuses a task
+    among them (``NOT_FOUND``) sees to, so no provision passes to another task, and no summary is
+    left without subordinate. The lines moved go after those that stay
     under the task that receives them, in the order given, the lines created after them; the facet
     of each line changed, then created, writes what it sends under its task as the removals and
     the moves leave it. Nothing is judged across lines before the end — the hooks of the kind do

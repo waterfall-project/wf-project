@@ -24,6 +24,7 @@ from imports_trial import apply, import_worker, nodes, read, run
 from nodes_support import Tree, opened, set_progress
 from projects_support import Scene
 from projects_support import scene as make_scene
+from risks_support import Risks, costed
 from support import ContractClient
 from test_inert_writes import counting, trees_read
 
@@ -270,3 +271,22 @@ def test_the_write_of_the_lines_refuses_to_remove_a_task_or_an_unknown_line_writ
     with pytest.raises(ValueError, match="neither moved nor changed"):
         written_directly(stage, tree, both)
     assert (nodes(stage.database), tree.items()) == before
+
+
+@pytest.mark.story("US-3220")
+def test_the_write_of_the_lines_refuses_a_provision_line_removed_writing_nothing(
+    api: ContractClient, stage: Scene, costs: Costing
+) -> None:
+    # As the deletion of a line (``line_not_provision``, #4007): the provision line of a risk of
+    # the main structure is written by its risk alone, so removing it is refused (409), with the
+    # line created beside it; nothing goes.
+    project = costed(api, stage, costs)
+    risk = Risks(api, project).declared_costed()
+    provision = UUID(risk["provision_node_id"])
+    before = (nodes(stage.database), project.tree.items())
+    created = ((project.tasks["Étude"], LineEntry(label="Ajout")),)
+    with pytest.raises(ConflictError) as raised:
+        written_directly(stage, project.tree, LinesWrite({}, {}, created, (provision,)))
+    assert (raised.value.status, raised.value.code) == (409, STATE)
+    assert raised.value.params["missing_condition"] == "line_not_provision"
+    assert (nodes(stage.database), project.tree.items()) == before
