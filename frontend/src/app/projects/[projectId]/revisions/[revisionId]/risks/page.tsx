@@ -509,6 +509,7 @@ export default async function RisksPage({
                 projectId={at.revision.projectId}
                 revisionId={at.revision.revisionId}
                 options={choices}
+                estimate={estimate}
               />
             </aside>
           )}

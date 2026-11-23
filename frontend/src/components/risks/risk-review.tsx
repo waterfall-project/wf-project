@@ -190,6 +190,7 @@ export function ReviewRisk({
   revisionId,
   risk: listed,
   options,
+  estimate,
   writing,
   onWriting,
   onAnswered,
@@ -199,6 +200,8 @@ export function ReviewRisk({
   readonly risk: Risk;
   /** What the provision is chosen among; read while the risk lists `review` available. */
   readonly options: ProvisionOptions | undefined;
+  /** The address of the estimate of the revision, where a refused update is corrected. */
+  readonly estimate?: string | undefined;
   readonly writing: boolean;
   readonly onWriting: (writing: boolean) => void;
   readonly onAnswered: (answer: Risk) => void;
@@ -249,6 +252,7 @@ export function ReviewRisk({
           revisionId={revisionId}
           risk={listed}
           pruned={pruned}
+          estimate={estimate}
           onReady={(read) => {
             setStepping(false);
             if (read !== undefined) {

@@ -62,7 +62,7 @@ function serve(answers: FakeAnswers): FakeClient {
   return client;
 }
 
-function detail(risk: Risk) {
+function detail(risk: Risk, estimate?: string) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PendingAddress>
@@ -72,6 +72,7 @@ function detail(risk: Risk) {
           projectId={PROJECT}
           revisionId={REVISION}
           options={undefined}
+          estimate={estimate}
         />
       </PendingAddress>
     </NextIntlClientProvider>
@@ -184,6 +185,39 @@ describe("« Réexaminer » devant un devis propre en retard [US-3140] [WF-RIS-0
       state: "dismissed",
       lock_version: LATE.lock_version,
     });
+  });
+
+  it("mène, d'une mise à jour refusée, à la grille du devis propre du risque [US-3140] [WF-RIS-0070-A]", async () => {
+    serve({ ...CLEAN, [REPORT]: { example: "structure_rebase_report_risk_refused", status: 200 } });
+    render(detail(LATE, `/projects/${PROJECT}/revisions/${REVISION}/estimate`));
+    await reviewAndUpdate();
+    const step = await screen.findByRole("region", { name: "Mise à jour du devis propre" });
+    const link = within(step).getByRole("link", { name: "Corriger le devis propre dans sa grille" });
+    expect(link.getAttribute("href")).toContain(`/projects/${PROJECT}/revisions/${REVISION}/estimate`);
+    expect(link.getAttribute("href")).toContain(IDENTIFIED.structure_id);
+  });
+
+  it("offre de relire le compte rendu quand la confirmation est périmée (412), et le relit [US-3140] [WF-RIS-0070-A]", async () => {
+    const client = serve({
+      ...CLEAN,
+      [REPORT]: { example: "structure_rebase_report_risk", status: 200 },
+      [REBASE]: { problem: example("stale_lock_version") as Problem & { status: 412 } },
+    });
+    render(detail(LATE));
+    await reviewAndUpdate();
+    const step = await screen.findByRole("region", { name: "Mise à jour du devis propre" });
+    await userEvent.click(
+      within(step).getByRole("button", { name: "Confirmer la mise à jour du devis propre" }),
+    );
+    await userEvent.click(
+      await within(step).findByRole("button", { name: "Relire le compte rendu de la mise à jour" }),
+    );
+    await vi.waitFor(() => {
+      expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, REPORT]);
+    });
+    expect(
+      await screen.findByRole("button", { name: "Confirmer la mise à jour du devis propre" }),
+    ).toBeVisible();
   });
 
   it("laisse écarter le risque sans mise à jour quand la mise à jour a échoué [WF-RIS-0070-A]", async () => {

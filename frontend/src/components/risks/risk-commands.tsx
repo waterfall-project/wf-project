@@ -168,12 +168,15 @@ export function RiskCommands({
   revisionId,
   risk,
   options,
+  estimate,
 }: {
   readonly projectId: string;
   readonly revisionId: string;
   readonly risk: Risk;
   /** What the provision is chosen among; read while the risk lists `update` or `review` available. */
   readonly options: ProvisionOptions | undefined;
+  /** The address of the estimate of the revision, where a refused update is corrected. */
+  readonly estimate?: string | undefined;
 }) {
   const [writes, setWrites] = useState<Readonly<Record<string, Write>>>({});
   useRereadWhenShown();
@@ -215,6 +218,7 @@ export function RiskCommands({
           revisionId={revisionId}
           risk={shown}
           options={options}
+          estimate={estimate}
           writing={write?.writing ?? false}
           onWriting={onWriting}
           onAnswered={onAnswered}
@@ -225,6 +229,7 @@ export function RiskCommands({
         projectId={projectId}
         revisionId={revisionId}
         risk={shown}
+        estimate={estimate}
       />
       <DeleteRisk key={`delete-${id}`} projectId={projectId} risk={shown} />
     </div>

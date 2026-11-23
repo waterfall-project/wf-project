@@ -90,10 +90,13 @@ export function DeclareOccurrence({
   projectId,
   revisionId,
   risk,
+  estimate,
 }: {
   readonly projectId: string;
   readonly revisionId: string;
   readonly risk: Risk;
+  /** The address of the estimate of the revision, where a refused update is corrected. */
+  readonly estimate?: string | undefined;
 }) {
   const t = useTranslations("riskOccurrence");
   const reading = useTranslations("riskOccurrenceReport");
@@ -134,6 +137,7 @@ export function DeclareOccurrence({
       revisionId={revisionId}
       risk={risk}
       pruned={pruned}
+      estimate={estimate}
       onReady={(fresh) => {
         setStepping(false);
         setUpdatedAt(fresh?.lock_version ?? risk.lock_version);

@@ -18,6 +18,7 @@
  */
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -96,6 +97,11 @@ export interface OwnEstimateStepProps {
   readonly onSkip?: (() => void) | undefined;
   /** The identifier of the step, which the command that opens it controls. */
   readonly id?: string | undefined;
+  /**
+   * The address of the estimate of the revision, where a refused update is corrected: the step leads
+   * to the grid of the own estimate of the risk. None for a session that may not read it.
+   */
+  readonly estimate?: string | undefined;
 }
 
 /** Recompose, read and update the own estimate of a risk before the command that waited for it. */
@@ -108,6 +114,7 @@ export function OwnEstimateStep({
   onClose,
   onSkip,
   id,
+  estimate,
 }: OwnEstimateStepProps) {
   const t = useTranslations("ownEstimateFirst");
   const { structure_id: structureId, label, risk_id: riskId } = risk;
@@ -273,12 +280,27 @@ export function OwnEstimateStep({
     >
       <h2 className="text-sm font-semibold">{t("title")}</h2>
       <p>{t(refused ? "refused" : "keeps", { label })}</p>
+      {refused && estimate !== undefined ? (
+        <p>
+          <Link className="underline" href={estimateOf(estimate, structureId)}>
+            {t("openGrid")}
+          </Link>
+        </p>
+      ) : null}
       <ReportBody report={report} nature="risk" />
       {phase.outcome === undefined ? null : (
         <OutcomeNotice
           outcome={phase.outcome}
           names={names}
           subject={label}
+          // A stale counter (412) is not read again by the same ones: the report is read anew.
+          reread={{
+            label: t("reread"),
+            run: () => {
+              setPhase({ kind: "working", step: "updating" });
+              void settle();
+            },
+          }}
           onClear={() => {
             setPhase({ kind: "presented", report });
           }}
