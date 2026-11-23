@@ -3164,6 +3164,7 @@
     "RESOURCE_ROLE_REQUIRED": "Un rôle de ressource est requis.",
     "LABOUR_CATEGORY_REQUIRED": "Une catégorie de coût de main-d’œuvre est requise.",
     "HOURLY_RATE_MISSING": "Aucun taux horaire n’est défini pour ce rôle et cette année.",
+    "OWN_ESTIMATES_OUT_OF_DATE": "Le devis propre de certains risques est en retard sur la structure principale et sa mise à jour garde une valeur ou est refusée : rien n’a été écrit. Mettez-les à jour depuis leur devis propre, puis recommencez.",
     "PASTE_TOO_WIDE": "Les données collées ont plus de colonnes que la grille.",
     "FILE_FORMAT_UNREADABLE": "Le format du fichier est illisible.",
     "TASK_WITHOUT_WORKING_HOURS": "Une tâche n’aurait plus aucune heure travaillée dans la semaine.",
@@ -3680,6 +3681,9 @@
       "main_structure": "opération permise sur la structure principale seulement",
       "structure_up_to_date": "avenant à jour de la structure principale",
       "structure_out_of_date": "avenant en retard sur la structure principale",
+      "own_estimate_whole": "devis propre entier",
+      "own_estimate_up_to_date": "devis propre à jour de la structure principale",
+      "own_estimate_pruned": "devis propre élagué",
       "main_structure_without_tasks": "structure principale sans aucune tâche",
       "import_awaiting_decision": "import en attente de décision",
       "import_file_accepted": "fichier accepté par le compte rendu",
@@ -3796,7 +3800,8 @@
       "edit_estimate": "Modifier le devis",
       "edit_remaining": "Réestimer le reste à engager",
       "delete": "Abandonner l’avenant",
-      "rebase": "Mettre à jour l’avenant"
+      "rebase": "Mettre à jour l’avenant",
+      "recompose": "Recomposer le devis propre"
     },
     "StructureCreate": {
       "kind": {

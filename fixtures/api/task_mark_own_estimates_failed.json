@@ -1,0 +1,25 @@
+{
+  "summary": "Une autre issue du marquage de la révision courante demandé à 14 h 05 (task_mark_queued), après les écritures de la structure principale de structure_rebase_report_risk : la tâche de fond met d'abord à jour le devis propre de chaque risque identifié ; celui de « Risque de reprise du câblage », en retard, garde contre le projet la charge du « Raccordement des borniers » (structure_rebase_report_risk), une mise à jour qui ne s'applique pas sans être présentée. Échouée à 14 h 07 sans rien écrire — ni les autres mises à jour, ni le marquage —, le motif nomme le risque, que l'utilisateur met à jour depuis son devis propre avant de marquer de nouveau (WF-RIS-0070, WF-IHM-0080).",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000931",
+    "kind": "revision_mark",
+    "status": "failed",
+    "progress": 10,
+    "submitted_at": "2026-06-03T14:05:00Z",
+    "finished_at": "2026-06-03T14:07:00Z",
+    "problem": {
+      "code": "OWN_ESTIMATES_OUT_OF_DATE",
+      "status": 409,
+      "params": {
+        "risks": [
+          {
+            "risk_id": "01926f3a-7c00-7000-8000-000000000751",
+            "label": "Risque de reprise du câblage"
+          }
+        ]
+      },
+      "correlation_id": "01926f3a-7c00-7000-8000-000000001992"
+    },
+    "result_url": null
+  }
+}

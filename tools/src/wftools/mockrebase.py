@@ -62,14 +62,14 @@ CYCLE = (N.MOUNTING, N.TESTS_RESUMED, N.COMMISSIONING)
 """The loop the refused variant closes, in the order of the plan, each preceding the next."""
 
 
-def _labels() -> dict[int, str]:
+def node_labels() -> dict[int, str]:
     """Return the labels of the nodes of the differential, by their number in the witness."""
     labels = {row.number: row.label for row in mockcore.current()}
     labels[N.TESTS_RESUMED] = mockamendment.TESTS_RESUMED.label
     return labels
 
 
-def _difference(change: str, target: str, number: int, label: str, fields: list[str]) -> JsonObject:
+def difference(change: str, target: str, number: int, label: str, fields: list[str]) -> JsonObject:
     """Return a node of the main structure as the report names it (`ImportDifference`).
 
     An addition carries its lineage in the main structure, under which it enters the differential.
@@ -84,7 +84,7 @@ def _difference(change: str, target: str, number: int, label: str, fields: list[
     }
 
 
-def _counters() -> tuple[int, int]:
+def counters() -> tuple[int, int]:
     """Return the counters the report reads: the main structure after its writes, the amendment."""
     main = cast("int", mockamendment.structure("main")["lock_version"])
     return main + MAIN_WRITES, cast("int", mockamendment.structure("amendment")["lock_version"])
@@ -92,14 +92,14 @@ def _counters() -> tuple[int, int]:
 
 def report() -> JsonObject:
     """Return what getStructureRebaseReport answers of the amendment 2 out of date (#4034)."""
-    labels = _labels()
-    main, amendment = _counters()
+    labels = node_labels()
+    main, amendment = counters()
     differences: list[JsonValue] = [
-        _difference("added", "task", CREATED_MANUAL, CREATED_LABEL, []),
-        _difference("updated", "task", N.WIRING, RENAMED, ["label"]),
-        _difference("updated", "estimate_line", N.LABOUR, labels[N.LABOUR], ["hours"]),
-        _difference("removed", "estimate_line", N.BLOCKS, labels[N.BLOCKS], []),
-        _difference(
+        difference("added", "task", CREATED_MANUAL, CREATED_LABEL, []),
+        difference("updated", "task", N.WIRING, RENAMED, ["label"]),
+        difference("updated", "estimate_line", N.LABOUR, labels[N.LABOUR], ["hours"]),
+        difference("removed", "estimate_line", N.BLOCKS, labels[N.BLOCKS], []),
+        difference(
             "kept", "estimate_line", N.COMMISSIONING_LINE, labels[N.COMMISSIONING_LINE], ["hours"]
         ),
     ]
@@ -108,18 +108,20 @@ def report() -> JsonObject:
         "structure_lock_version": amendment,
         "differences": differences,
         "refusals": [],
+        "severity": None,
+        "provision_amount": None,
     }
 
 
 def cycle() -> JsonObject:
     """Return the loop the refused variant closes, each task by its node in the differential."""
-    labels = _labels()
+    labels = node_labels()
     return {"cycle": [{"node_id": own_id(number), "label": labels[number]} for number in CYCLE]}
 
 
 def report_refused() -> JsonObject:
     """Return the report of the refused variant: the link added, the loop it closes."""
-    labels = _labels()
+    labels = node_labels()
     applicable = report()
     link: JsonObject = {
         "change": "added",
@@ -147,9 +149,9 @@ def rebased() -> JsonObject:
 
 def examples() -> dict[str, JsonObject]:
     """Return the examples of the update of the amendment 2, by file name."""
-    labels = _labels()
+    labels = node_labels()
     read, refused = report(), report_refused()
-    main, amendment = _counters()
+    main, amendment = counters()
     after = rebased()
     hours = mocktext.amount(mockamendment.COMMISSIONING_HOURS, 0)
     writes = (

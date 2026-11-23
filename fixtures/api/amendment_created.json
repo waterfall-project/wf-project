@@ -8,6 +8,7 @@
     "planning_start_on": "2026-03-02",
     "is_merged": false,
     "is_up_to_date": true,
+    "is_pruned": null,
     "available_commands": [
       {
         "command": "edit_planning",

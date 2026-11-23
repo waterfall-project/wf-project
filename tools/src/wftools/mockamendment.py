@@ -55,7 +55,7 @@ from wftools.mockwitness import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
     from wftools.mockstructure import JsonObject, JsonValue
 
@@ -140,17 +140,24 @@ def _copied(roots: Iterable[Task]) -> tuple[Task, ...]:
     return rewritten(roots, lambda task: replace(task, bears=None, inscriptions=()))
 
 
-def marked(roots: Iterable[Task] | None = None) -> list[JsonObject]:
+def marked(
+    roots: Iterable[Task] | None = None,
+    *,
+    base: Iterable[Task] | None = None,
+    renamed: Callable[[int], str] = own_id,
+) -> list[JsonObject]:
     """Return the whole differential read today, marked against the main structure.
 
     The main structure as the differential copies it, so that a node removed renders as a node of
     the differential would; the marks are those of its values alone (``mockdiff``); every node
     named by its identifier in the differential (``own_id``). The differential as described, or
-    as a write leaves it (``roots``).
+    as a write leaves it (``roots``). Another differential of the main structure — the own estimate
+    of a risk — gives its base and the identifiers of its nodes (``base``, ``renamed``).
     """
-    before, after = mockcore.opened(mockcore.current(_copied(described()))), rows(roots)
+    copied = _copied(described()) if base is None else base
+    before, after = mockcore.opened(mockcore.current(copied)), rows(roots)
     nodes = mockdiff.marked(before, after)
-    own = {node_id(row.number): own_id(row.number) for row in (*before, *after)}
+    own = {node_id(row.number): renamed(row.number) for row in (*before, *after)}
     for node in nodes:
         fields = cast("list[JsonValue]", node["editable_fields"])
         node["editable_fields"] = [field for field in fields if field not in MAIN_ONLY]

@@ -241,6 +241,8 @@ paths:
     $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1merge
   /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase:
     $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1rebase
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/recompose:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1recompose
   /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes:
     $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1nodes
   /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}:

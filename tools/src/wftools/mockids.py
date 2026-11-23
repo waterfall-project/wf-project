@@ -68,6 +68,10 @@ audit, its inscriptions and the correlations of their requests (``mockaudit``, E
 lines of actual cost of the tasks drawn about the core (``mockcosts``, EP-14/L45a); and the nodes
 the amendment 2 copies of those drawn (``mockamendment``, #421)."""
 
+OWN_ESTIMATE_NODES = 17
+"""The generated family of the nodes the own estimate of the risk 751 copies of those drawn, read
+as a differential of the main structure (``mockownestimate``, US-3070/L2)."""
+
 SLICE_PROJECTS, SLICE_REVISIONS, SLICE_NODES, SLICE_RISKS, SLICE_COST_LINES, SLICE_IMPORTS = range(
     11, 17
 )
@@ -103,6 +107,7 @@ IDENTIFIERS = (
     Family("nœuds de l'avenant 2, celui du nœud 5nn de la principale en 12nn", 1200, 1299),
     Family("corrélations, seconde suite", 1300, 1599),
     Family("corrélations, troisième suite", 1600, 1999),
+    Family("nœuds du devis propre du risque 751, le nœud 5nn de la principale en 20nn", 2000, 2099),
     Family("imports et téléversements", 0xA00, 0xAFF, hexadecimal=True),
     Family("lignes de coût réel", 0xC00, 0xC0F, hexadecimal=True),
     Family("imports de coûts réels", 0xC10, 0xCFF, hexadecimal=True),
@@ -122,6 +127,7 @@ IDENTIFIERS = (
     Family("risques de la tranche du portefeuille", 1, _GENERATED, SLICE_RISKS),
     Family("lignes de coût réel de la tranche du portefeuille", 1, _GENERATED, SLICE_COST_LINES),
     Family("imports de coûts réels de la tranche du portefeuille", 1, _GENERATED, SLICE_IMPORTS),
+    Family("nœuds engendrés du devis propre du risque 751", 1, _GENERATED, OWN_ESTIMATE_NODES),
 )
 """Every family of identifier, on disjoint ranges: an identifier names one kind of object.
 

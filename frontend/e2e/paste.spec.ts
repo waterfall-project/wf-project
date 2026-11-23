@@ -27,11 +27,16 @@ import { isServerAction } from "./server-action";
 //
 // Two journeys stay on the own estimate of the risk of the rewiring (`structure=`, the structure
 // 204 of `structures`), which the fake back serves the first example of `listNodes` at, the
-// structure of the witness at the sizes of §4.6.2, its core first (#376), and which the journeys
-// read by marks the generator writes (`test_the_marks_the_journeys_read`,
-// tools/tests/test_mockstructure.py): rows 28 to 30, « Heures d'ingénierie », « Heures de mise en
-// service » and « Matériel ». The case of an unknown category and the one of a block too wide have
-// no example of their own on the amendment, and need none: the front judges neither, and the
+// `risk_estimate` example (`nodes_risk_estimate.json`): the own estimate of the risk 751, read as
+// a differential, by its differences, seven rows of the tree. The journeys read three of them by
+// their place among the rows served, not the `row_number` of the fixture, which skips the rows
+// the differential does not carry: the places 5 to 7 (`first` is 5, counted from 1 like `rowAt`,
+// whose `aria-rowindex` has the header first), the line « Raccordement des borniers »
+// (row_number 10, the node 2053, where the paste starts), the task « Reprise du câblage des
+// armoires » (row_number 12) and the line « Recâblage des armoires » (row_number 13). The
+// `data-row` of a cell counts from 0 over the same rows, so `labels` reads 4 to 6.
+// The case of an unknown category and the one of a block too wide have no example of their own on
+// the amendment, and need none: the front judges neither, and the
 // examples of the other differentials, like those of the risks, are EP-16's.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -55,9 +60,9 @@ const AMENDMENT: Site = {
 /** The own estimate of the risk of the rewiring, a structure of the current revision. */
 const OWN: Site = {
   structure: "01926f3a-7c00-7000-8000-000000000204",
-  node: "01926f3a-7c00-7000-8000-000100000028",
-  first: 28,
-  read: ["Heures d'ingénierie", "Heures de mise en service", "Matériel"],
+  node: "01926f3a-7c00-7000-8000-000000002053",
+  first: 5,
+  read: ["Raccordement des borniers", "Reprise du câblage des armoires", "Recâblage des armoires"],
 };
 
 // The columns the journeys read, by their heading (`columnsOf`).
@@ -206,9 +211,9 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
 });
 
 // Fake back only, untagged (`@shared` marks what plays the service too): the own estimate of the
-// risk of the rewiring is the witness's, which the account of the run does not write (#2193). Its
-// twin plays the service on a project of the run, the path of the own estimate of a risk the run
-// identifies, below.
+// risk of the rewiring is the one the fake back serves (`risk_estimate`), which the account of the
+// run does not write (#2193). Its twin plays the service on a project of the run, the path of the
+// own estimate of a risk the run identifies, below.
 test("a block whose cell names an unknown category is sent as copied for the server to judge, and modifies no row once abandoned [WF-IHM-0050-A]", async ({
   page,
 }) => {
@@ -231,13 +236,12 @@ test("a block whose cell names an unknown category is sent as copied for the ser
   await expect(cellAt(grid, OWN.first, at.label)).toBeFocused();
   expect(argumentsWith(posted, "paste_id")).toBeUndefined();
   expect(await labels(page, OWN)).toEqual(OWN.read);
-  await expect(cellAt(grid, OWN.first + 2, at.quantity)).toHaveText("2");
 });
 
 // Fake back only, untagged (`@shared` marks what plays the service too): the own estimate of the
-// risk of the rewiring is the witness's, which the account of the run does not write (#2193). Its
-// twin plays the service on a project of the run, the path of the own estimate of a risk the run
-// identifies, below.
+// risk of the rewiring is the one the fake back serves (`risk_estimate`), which the account of the
+// run does not write (#2193). Its twin plays the service on a project of the run, the path of the
+// own estimate of a risk the run identifies, below.
 test("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async ({ page }) => {
   const posted = actions(page);
   const { grid, at } = await openOnFirstLine(page, OWN);

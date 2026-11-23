@@ -18,7 +18,10 @@ These differences, and only these, so that the fake back answers what the contra
   repeated for each structure of kind ``amendment`` that the first example of
   ``listCostStructures`` lists, its identifier written in, and each operation there leads with its
   example ``amendment`` (#1219, #1277). Prism ranks a path by its segments written in, ahead of
-  one that templates them;
+  one that templates them. The nodes of the own estimate of a risk are read at its address too:
+  the path of ``listNodes`` is repeated for each structure of kind ``risk`` that the same example
+  lists, leading with its example ``risk_estimate``, the own estimate of the risk 751 (#4409,
+  US-3070/L2); its writes answer as the main structure's;
 - the comparison of the volume is read at the address of a project of the volume: Prism serves
   the first example of ``compareRevisions`` and cannot route on its query (``from_revision_id``,
   ``to_revision_id``), so the path of the comparison is repeated for the project of the volume
@@ -71,6 +74,9 @@ AMENDMENT_PATHS = (
 """The paths served at the address of each differential: its nodes read, its estimate entered and
 pasted (#1219, #1277). The others — its gestures, its planning — answer as the main structure's."""
 AMENDMENT_EXAMPLE = "amendment"
+RISK_PATHS = (NODES_PATH,)
+"""The paths served at the address of the own estimate of each risk: its nodes read (#4409)."""
+RISK_EXAMPLE = "risk_estimate"
 HTTP_METHODS = frozenset({"get", "put", "post", "delete", "options", "head", "patch", "trace"})
 STRUCTURE_PARAMETER = "#/components/parameters/StructureId"
 COMPARISON_PATH = "/projects/{project_id}/revisions/comparison"
@@ -92,7 +98,8 @@ type Json = dict[str, Any]
 
 def _with_literal_paths(contract: Json, paths: Json, prefix: str) -> Json:
     """Return the paths, plus those the fake back serves at a literal address (#1219, #1201)."""
-    served = _with_volume_comparison(_with_amendment_nodes(contract, paths, prefix), prefix)
+    differentials = _with_amendment_nodes(contract, paths, prefix)
+    served = _with_volume_comparison(_with_risk_nodes(contract, differentials, prefix), prefix)
     return _with_created_project(served, prefix)
 
 
@@ -136,14 +143,34 @@ def _with_amendment_nodes(contract: Json, paths: Json, prefix: str) -> Json:
     """Return the paths, plus those of each differential structure at its own address."""
     if prefix + NODES_PATH not in paths:
         return paths
+    structures = _amendment_structures(contract, paths.get(prefix + STRUCTURES_PATH))
+    return _at_structures(paths, prefix, structures, AMENDMENT_PATHS, AMENDMENT_EXAMPLE)
+
+
+def _with_risk_nodes(contract: Json, paths: Json, prefix: str) -> Json:
+    """Return the paths, plus the nodes of the own estimate of each risk at its own address.
+
+    A listing that names no structure of kind ``risk`` routes none: a contract may have no risk.
+    """
+    listing = paths.get(prefix + STRUCTURES_PATH)
+    if prefix + NODES_PATH not in paths or listing is None:
+        return paths
+    structures = _listed_of_kind(contract, listing, "risk")
+    return _at_structures(paths, prefix, structures, RISK_PATHS, RISK_EXAMPLE)
+
+
+def _at_structures(
+    paths: Json, prefix: str, structures: list[str], routed: tuple[str, ...], example: str
+) -> Json:
+    """Return the paths, plus those routed at the address of each structure, leading with one."""
     served = dict(paths)
-    for structure in _amendment_structures(contract, paths.get(prefix + STRUCTURES_PATH)):
-        for path in AMENDMENT_PATHS:
+    for structure in structures:
+        for path in routed:
             if prefix + path not in paths:
                 continue
             address = path.replace("{structure_id}", structure)
             served[prefix + address] = _at_a_literal(
-                paths[prefix + path], STRUCTURE_PARAMETER, AMENDMENT_EXAMPLE
+                paths[prefix + path], STRUCTURE_PARAMETER, example
             )
     return served
 
@@ -176,11 +203,7 @@ def _amendment_structures(contract: Json, path: Json | None) -> list[str]:
     if path is None:
         message = f"{NODES_PATH} is served but {STRUCTURES_PATH} is not: no amendment to route"
         raise ValueError(message)
-    examples = list(_examples(path.get("get", {})).values())
-    first = _resolved(contract, cast("Json", examples[0])) if examples else {}
-    listed = first.get("value")
-    structures = cast("list[Json]", listed) if isinstance(listed, list) else []
-    found = [str(item["structure_id"]) for item in structures if item.get("kind") == "amendment"]
+    found = _listed_of_kind(contract, path, "amendment")
     if not found:
         message = (
             f"the first example of {STRUCTURES_PATH} lists no structure of kind "
@@ -188,6 +211,15 @@ def _amendment_structures(contract: Json, path: Json | None) -> list[str]:
         )
         raise ValueError(message)
     return found
+
+
+def _listed_of_kind(contract: Json, path: Json, kind: str) -> list[str]:
+    """Return the identifiers of the structures of a kind that the first listing example names."""
+    examples = list(_examples(path.get("get", {})).values())
+    first = _resolved(contract, cast("Json", examples[0])) if examples else {}
+    listed = first.get("value")
+    structures = cast("list[Json]", listed) if isinstance(listed, list) else []
+    return [str(item["structure_id"]) for item in structures if item.get("kind") == kind]
 
 
 def _at_a_literal(path: Json, parameter: str, example: str) -> Json:

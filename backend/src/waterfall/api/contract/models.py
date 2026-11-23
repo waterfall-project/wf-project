@@ -41,6 +41,7 @@ class ErrorCode(StrEnum):
     RESOURCE_ROLE_REQUIRED = "RESOURCE_ROLE_REQUIRED"
     LABOUR_CATEGORY_REQUIRED = "LABOUR_CATEGORY_REQUIRED"
     HOURLY_RATE_MISSING = "HOURLY_RATE_MISSING"
+    OWN_ESTIMATES_OUT_OF_DATE = "OWN_ESTIMATES_OUT_OF_DATE"
     PASTE_TOO_WIDE = "PASTE_TOO_WIDE"
     PASTE_TARGET_REMOVED = "PASTE_TARGET_REMOVED"
     FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
@@ -253,7 +254,7 @@ class ProblemParams(ContractModel):
     risks: Annotated[
         list[ProblemRisk] | None,
         Field(
-            description="The risks whose provision line would no longer have a task to be placed in, each by its identifier and its label, in the order of the list of risks: the deletion that would leave without a task a main structure that carries one (`STATE_FORBIDS_OPERATION`, `at_least_one_task`, `deleteNode`, WF-RIS-0010; H-05, US-0702/L2), and the schedule of MS Project that would leave it so (`PROVISION_WITHOUT_TASK`, `ReportRefusal.params`; #4011). Or the risk whose provision line a deletion designates, the line being written by its risk alone (`STATE_FORBIDS_OPERATION`, `line_not_provision`, `deleteNode`, WF-RIS-0010; #4007).",
+            description="The risks whose provision line would no longer have a task to be placed in, each by its identifier and its label, in the order of the list of risks: the deletion that would leave without a task a main structure that carries one (`STATE_FORBIDS_OPERATION`, `at_least_one_task`, `deleteNode`, WF-RIS-0010; H-05, US-0702/L2), and the schedule of MS Project that would leave it so (`PROVISION_WITHOUT_TASK`, `ReportRefusal.params`; #4011). Or the risk whose provision line a deletion designates, the line being written by its risk alone (`STATE_FORBIDS_OPERATION`, `line_not_provision`, `deleteNode`, WF-RIS-0010; #4007). Or the identified risks whose own estimate a marking or the merge of a differential could not update without presenting its update, which keeps a value against the project or is refused, in the order of the list of risks (`OWN_ESTIMATES_OUT_OF_DATE`, `BackgroundTaskRef.problem`, WF-RIS-0070).",
             min_length=1,
         ),
     ] = None
@@ -578,7 +579,7 @@ class BackgroundTaskRef(ContractModel):
     kind: Annotated[
         Kind,
         Field(
-            description="What the task does. `backup` takes the backup of the two databases and verifies it; `restore` follows the whole restore, from entering maintenance to leaving it: it only moves to `succeeded` once maintenance is lifted, and an interrupted restore resumes from the beginning; an archive from a version more recent than the installation is refused before maintenance, the task failing with `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160); `identity_sync` reads the accounts of the identity provider (WF-ADM-0070); `revision_mark` freezes the revision and calculates its indicators, and fails without freezing anything with `HOURLY_RATE_MISSING`, `params.missing_rates` naming the labour categories without a rate for the reference year (`markRevision`, WF-DEV-0010); `import_analysis` analyses an imported file before anything is applied (`openImport`); `import_apply` applies an analysed import (`applyImport`); `structure_merge` merges a differential into the main structure (`mergeCostStructure`); `risk_occurrence` merges the own estimate of a risk declared occurred into the main structure (`declareRiskOccurrence`); `export` produces an export file, read through `getBackgroundTaskResult` (`requestExport`); the image of the task tree is not drawn beyond one hundred million pixels, the task then failing with `TASK_TREE_IMAGE_TOO_LARGE` (WF-PLA-0120)."
+            description="What the task does. `backup` takes the backup of the two databases and verifies it; `restore` follows the whole restore, from entering maintenance to leaving it: it only moves to `succeeded` once maintenance is lifted, and an interrupted restore resumes from the beginning; an archive from a version more recent than the installation is refused before maintenance, the task failing with `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160); `identity_sync` reads the accounts of the identity provider (WF-ADM-0070); `revision_mark` freezes the revision and calculates its indicators, and fails without freezing anything with `HOURLY_RATE_MISSING`, `params.missing_rates` naming the labour categories without a rate for the reference year (`markRevision`, WF-DEV-0010); `import_analysis` analyses an imported file before anything is applied (`openImport`); `import_apply` applies an analysed import (`applyImport`); `structure_merge` merges a differential into the main structure (`mergeCostStructure`); `revision_mark` and `structure_merge` first update the own estimate of each identified risk, and fail without writing anything with `OWN_ESTIMATES_OUT_OF_DATE`, `params.risks` naming the risks whose update keeps a value or is refused (WF-RIS-0070); `risk_occurrence` merges the own estimate of a risk declared occurred into the main structure (`declareRiskOccurrence`); `export` produces an export file, read through `getBackgroundTaskResult` (`requestExport`); the image of the task tree is not drawn beyond one hundred million pixels, the task then failing with `TASK_TREE_IMAGE_TOO_LARGE` (WF-PLA-0120)."
         ),
     ]
     status: BackgroundTaskStatus
@@ -1035,6 +1036,9 @@ class CommandCondition(StrEnum):
     main_structure = "main_structure"
     structure_up_to_date = "structure_up_to_date"
     structure_out_of_date = "structure_out_of_date"
+    own_estimate_whole = "own_estimate_whole"
+    own_estimate_up_to_date = "own_estimate_up_to_date"
+    own_estimate_pruned = "own_estimate_pruned"
     import_awaiting_decision = "import_awaiting_decision"
     import_file_accepted = "import_file_accepted"
     import_not_applied = "import_not_applied"
@@ -4099,6 +4103,7 @@ class StructureCommand(StrEnum):
     edit_remaining = "edit_remaining"
     delete = "delete"
     rebase = "rebase"
+    recompose = "recompose"
 
 
 class StructureCommandAvailability(ContractModel):
@@ -4117,7 +4122,7 @@ class CostStructure(ContractModel):
     planning_start_on: Annotated[
         PlanningDate,
         Field(
-            description="The structure's planning start date, entered (`updateCostStructure`): by default the day of its first creation; a structure taken over from a marked revision keeps its own (WF-PLA-0020, WF-REV-0100, WF-REV-0010), and a differential, a copy of the main structure at its creation, takes the main structure's. An automatic task without a predecessor starts on it, at the first working hour of its applicable calendar (WF-PLA-0020). The MS Project import reads it from the file's project start date, and the export writes it there (WF-INTF-0040, WF-INTF-0050)."
+            description="The structure's planning start date, entered (`updateCostStructure`): by default the day of its first creation; a structure taken over from a marked revision keeps its own (WF-PLA-0020, WF-REV-0100, WF-REV-0010), and a differential, a copy of the main structure at its creation, takes the main structure's. The own estimate of a risk has no date of its own: it is the main structure's, copied at its birth (`createRisk`), at its recomposition (`recomposeCostStructure`) and at its update (`rebaseCostStructure`), and `updateCostStructure` refuses it (`FIELD_READ_ONLY`; WF-RIS-0030). An automatic task without a predecessor starts on it, at the first working hour of its applicable calendar (WF-PLA-0020). The MS Project import reads it from the file's project start date, and the export writes it there (WF-INTF-0040, WF-INTF-0050)."
         ),
     ]
     risk_id: Annotated[
@@ -4135,7 +4140,13 @@ class CostStructure(ContractModel):
     is_up_to_date: Annotated[
         bool | None,
         Field(
-            description="For an unmerged differential, whether it is up to date: its base, the copy of the main structure it keeps (`NodeDifference`), is the main structure as it is. True at its opening (`createCostStructure`) and after its update (`rebaseCostStructure`); false as soon as a write advances the counter of the main structure (`lock_version`) — an entry, an import, the occurrence of a risk, the merge of another differential —, whether it touches what the differential designates or not. An out of date differential is not merged (`mergeCostStructure`, `structure_up_to_date`); its `rebase` command is available. A differential taken over by a new revision keeps its state, up to date or out of date (`createRevision`). Null for every other structure: the main structure, the own estimate of a risk, which has neither base nor update, and a merged differential, consumed by its merge (WF-REV-0100, WF-REV-0050; #4034)."
+            description="For an unmerged differential, whether it is up to date: its base, the copy of the main structure it keeps (`NodeDifference`), is the main structure as it is. True at its opening (`createCostStructure`) and after its update (`rebaseCostStructure`); false as soon as a write advances the counter of the main structure (`lock_version`) — an entry, an import, the occurrence of a risk, the merge of another differential —, whether it touches what the differential designates or not. An out of date differential is not merged (`mergeCostStructure`, `structure_up_to_date`); its `rebase` command is available. A differential taken over by a new revision keeps its state, up to date or out of date (`createRevision`). Likewise for the own estimate of a risk that is not consumed (`is_merged` false), whole or pruned (`is_pruned`): up to date at the declaration of the risk (`createRisk`) and after its update (`rebaseCostStructure`), out of date as soon as a write changes the main structure, the write of a provision line apart — a risk that rewrites its provision leaves the own estimates that were up to date so (`updateRiskProvision`, `reviewRisk`, the update of another own estimate). A recomposition leaves it out of date when the main structure of the current revision has changed since the marked revision it names (`recomposeCostStructure`). An out of date own estimate waits for its update before an entry, a review that leaves or makes the risk identified, and an occurrence (`own_estimate_up_to_date`); its gravity and its provision are those of its last update or of its last entry (WF-RIS-0070). Null for every other structure: the main structure, and a merged differential or a consumed own estimate, consumed by their merge or by the occurrence of their risk (WF-REV-0100, WF-REV-0050, WF-RIS-0060; #4034)."
+        ),
+    ] = None
+    is_pruned: Annotated[
+        bool | None,
+        Field(
+            description="For the own estimate of a risk, whether it is pruned. False when it is whole: its structure bears every node of the project, copied under their lineages, with what it designates, and it has its base, like a differential (`NodeDifference`) — born so with its risk (`createRisk`), and so again after its recomposition (`recomposeCostStructure`). True when it is pruned: its structure bears only what it designates — the nodes it adds or modifies, their ancestors and the ends of the links it adds —, and what it abandons; it has no base, and its differences are exact against the main structure of the marked revision whose marking pruned it. A marking prunes an own estimate whole and up to date; out of date, it stays whole. A pruned own estimate is read, but neither entered nor updated before its recomposition (`own_estimate_whole`); the next revision takes it over pruned (`createRevision`). The own estimate of an occurred risk, consumed (`is_merged`), is pruned to what it designated. Null for every other structure: the main structure and a differential (WF-RIS-0030, WF-RIS-0070, WF-REV-0100)."
         ),
     ] = None
     available_commands: Annotated[
@@ -4161,7 +4172,7 @@ class StructureUpdate(ContractModel):
     planning_start_on: Annotated[
         PlanningDate | None,
         Field(
-            description="The planning start date (`CostStructure.planning_start_on`), on a day that has at least one working hour in the default calendar (WF-PLA-0010, WF-PLA-0020)."
+            description="The planning start date (`CostStructure.planning_start_on`), on a day that has at least one working hour in the default calendar (WF-PLA-0010, WF-PLA-0020). Not on the own estimate of a risk, whose date is the main structure's: sent, it is refused with 422, `fields` on `/planning_start_on` with `FIELD_READ_ONLY`, and nothing is written (WF-RIS-0030)."
         ),
     ] = None
     label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
@@ -4479,7 +4490,7 @@ class Node(ContractModel):
     difference: Annotated[
         NodeDifference | None,
         Field(
-            description="The node's difference, which the server returns and the front does not compute: on the read of a differential, with its base (`NodeDifference`); in a comparison of two revisions (`RevisionComparison`), with the base revision (WF-REV-0080, WF-REV-0100, C-361). Always returned on these two reads, whether `fields` names it or not; null — or omitted — on the main structure and on a risk's own estimate, which are read relative to nothing."
+            description="The node's difference, which the server returns and the front does not compute: on the read of a differential, with its base (`NodeDifference`); on the read of the own estimate of a risk, with its base when it is whole, with the main structure of the marked revision it names when it is pruned (WF-RIS-0030); in a comparison of two revisions (`RevisionComparison`), with the base revision (WF-REV-0080, WF-REV-0100, C-361). Always returned on these reads, whether `fields` names it or not; null — or omitted — on the main structure, which is read relative to nothing."
         ),
     ] = None
     changes: Annotated[
@@ -4780,6 +4791,18 @@ class StructureRebaseReport(ContractModel):
             description="The reasons that refuse the whole update, judged on the differential that it would leave, as a merge judges the main structure (WF-PLA-0010, WF-PLA-0030, WF-PLA-0150): a loop of links, a link between a summary task and its subordinate, a date beyond the horizon, a task without any worked hour (`ReportRefusal`) — each born of what the differential designates meeting what the main structure has received. The tasks are named by their node in the differential and their label. Empty when the update applies; otherwise `rebaseCostStructure` is refused with 422, the first reason named."
         ),
     ]
+    severity: Annotated[
+        Money | None,
+        Field(
+            description="For the own estimate of a risk, the severity that the update would record: the gap of the re-estimated totals of the own estimate as the update leaves it and of the main structure as it is, neither bearing a provision line — signed, negative for an opportunity (`Risk.severity`, WF-RIS-0010, WF-RIS-0070). Null for a differential, which has no severity, and when `refusals` is not empty: the update records nothing, and a loop of links leaves the dates of the own estimate uncomputed."
+        ),
+    ] = None
+    provision_amount: Annotated[
+        Money | None,
+        Field(
+            description="For the own estimate of a risk, the provision that the update would record and that its provision line would carry: the severity weighted by the probability of the risk, to the cent, never below zero (`Risk.provision_amount`, WF-RIS-0040). Null when `severity` is."
+        ),
+    ] = None
 
 
 class StructureRebase(ContractModel):
@@ -4849,7 +4872,7 @@ class NodeProjection(ContractModel):
     difference: Annotated[
         NodeDifference | None,
         Field(
-            description="The node's difference, which the server returns and the front does not compute: on the read of a differential, with its base (`NodeDifference`); in a comparison of two revisions (`RevisionComparison`), with the base revision (WF-REV-0080, WF-REV-0100, C-361). Always returned on these two reads, whether `fields` names it or not; null — or omitted — on the main structure and on a risk's own estimate, which are read relative to nothing."
+            description="The node's difference, which the server returns and the front does not compute: on the read of a differential, with its base (`NodeDifference`); on the read of the own estimate of a risk, with its base when it is whole, with the main structure of the marked revision it names when it is pruned (WF-RIS-0030); in a comparison of two revisions (`RevisionComparison`), with the base revision (WF-REV-0080, WF-REV-0100, C-361). Always returned on these reads, whether `fields` names it or not; null — or omitted — on the main structure, which is read relative to nothing."
         ),
     ] = None
     changes: Annotated[

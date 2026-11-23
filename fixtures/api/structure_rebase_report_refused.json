@@ -14,6 +14,8 @@
     ],
     "refusals": [
       {"code":"LINK_CYCLE","params":{"cycle":[{"node_id":"01926f3a-7c00-7000-8000-000000001262","label":"Montage des armoires sur site"},{"node_id":"01926f3a-7c00-7000-8000-000000001292","label":"Reprise des essais de câblage"},{"node_id":"01926f3a-7c00-7000-8000-000000001265","label":"Mise en service"}]}}
-    ]
+    ],
+    "severity": null,
+    "provision_amount": null
   }
 }

@@ -570,6 +570,13 @@ ErrorCode:
     # (`createNode`, `updateEstimateLine`), and the reason for the failure of a marking
     # (`BackgroundTaskRef.problem`, `markRevision`; WF-DEV-0010; J-06, US-0702/L1).
     - HOURLY_RATE_MISSING
+    # The reason for the failure of a marking or of the merge of a differential, which first
+    # update the own estimate of each identified risk: the update of some of them keeps a value
+    # against the project or is refused, and is not applied without being presented;
+    # `params.risks` names them, in the order of the list of risks. Nothing is written, neither
+    # the updates of the others nor the marking or the merge (`BackgroundTaskRef.problem`,
+    # `markRevision`, `mergeCostStructure`; WF-RIS-0070).
+    - OWN_ESTIMATES_OUT_OF_DATE
     - PASTE_TOO_WIDE
     # The reason for a pasted block whose target cell is on a node that a differential removes,
     # which accepts no field: the block is refused whole, stated once on its first row and
@@ -610,7 +617,10 @@ ErrorCode:
     # the account's for an identity field of an account that does not come from Waterfall
     # (`origin` other than `local`), which the provider holds, or a node other than that of a
     # resource role at its modification (`/org_node_id`, `updateResourceRole`, WF-REF-0090); sending
-    # the field unchanged is not refused (WF-ADM-0050, WF-ADM-0090, WF-ADM-0030).
+    # the field unchanged is not refused (WF-ADM-0050, WF-ADM-0090, WF-ADM-0030). One exception,
+    # where the field is not the caller's to give at all: the planning start date of the own
+    # estimate of a risk (`updateCostStructure`, `/planning_start_on`), which is the main
+    # structure's, is refused sent unchanged as well (WF-RIS-0030).
     - UNKNOWN_ACCESS_ROLE
     - UNKNOWN_ORG_NODE
     - FIELD_READ_ONLY
@@ -934,7 +944,10 @@ ProblemParams:
         MS Project that would leave it so (`PROVISION_WITHOUT_TASK`, `ReportRefusal.params`;
         #4011). Or the risk whose provision line a deletion designates, the line being written
         by its risk alone (`STATE_FORBIDS_OPERATION`, `line_not_provision`, `deleteNode`,
-        WF-RIS-0010; #4007).
+        WF-RIS-0010; #4007). Or the identified risks whose own estimate a marking or the merge of
+        a differential could not update without presenting its update, which keeps a value
+        against the project or is refused, in the order of the list of risks
+        (`OWN_ESTIMATES_OUT_OF_DATE`, `BackgroundTaskRef.problem`, WF-RIS-0070).
       items: { $ref: '#/ProblemRisk' }
     subproject:
       allOf: [{ $ref: '#/ProblemSubproject' }]
@@ -1103,7 +1116,10 @@ BackgroundTaskRef:
         categories without a rate for the reference year (`markRevision`, WF-DEV-0010);
         `import_analysis` analyses an imported file before anything is applied (`openImport`);
         `import_apply` applies an analysed import (`applyImport`); `structure_merge` merges a
-        differential into the main structure (`mergeCostStructure`); `risk_occurrence` merges
+        differential into the main structure (`mergeCostStructure`); `revision_mark` and
+        `structure_merge` first update the own estimate of each identified risk, and fail
+        without writing anything with `OWN_ESTIMATES_OUT_OF_DATE`, `params.risks` naming the
+        risks whose update keeps a value or is refused (WF-RIS-0070); `risk_occurrence` merges
         the own estimate of a risk declared occurred into the main structure
         (`declareRiskOccurrence`); `export` produces an export file, read through
         `getBackgroundTaskResult` (`requestExport`); the image of the task tree is not drawn

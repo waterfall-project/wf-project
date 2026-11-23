@@ -73,6 +73,15 @@ def test_each_structure_says_its_commands_by_the_phase_and_the_state_of_its_revi
         for command in EDIT if main else EDIT[:2]:
             missing = (_phase(command, project["state"]) if main else []) + of_revision[command]
             expected.append((command, not missing, missing))
+        own = structure["kind"] == "risk" and not structure["is_merged"]
+        if own:
+            # EP-30: the own estimate of a risk lacks, after the conditions of the revision, its
+            # recomposition, then its update (own_estimate_whole, own_estimate_up_to_date).
+            state = _own_state(structure)
+            expected = [
+                (command, not [*missing, *state], [*missing, *state])
+                for command, _, missing in expected
+            ]
         if structure["kind"] == "amendment" and not structure["is_merged"]:
             # Abandoned under the conditions of the opening of a differential (US-2550/L2).
             missing = of_revision["create_structure"]
@@ -81,7 +90,26 @@ def test_each_structure_says_its_commands_by_the_phase_and_the_state_of_its_revi
             if structure["is_up_to_date"]:
                 missing = [*missing, "structure_out_of_date"]
             expected.append(("rebase", not missing, missing))
+        if own:
+            # Updated and recomposed under the entry of the risks (US-3070/L2, #4621), with the
+            # state conditions of the revision; a marked revision, which no longer lists the entry
+            # of the risks, says them by the opening of a differential.
+            missing = of_revision.get("edit_risks", of_revision["create_structure"])
+            pruned = ["own_estimate_whole"] if structure["is_pruned"] else []
+            current = ["structure_out_of_date"] if structure["is_up_to_date"] else []
+            rebase = [*missing, *pruned, *current]
+            expected.append(("rebase", not rebase, rebase))
+            if structure["is_pruned"]:
+                expected.append(("recompose", not missing, missing))
         assert _commands(structure) == expected, (name, structure["structure_id"])
+
+
+def _own_state(structure: Entry) -> list[str]:
+    """Return what the entry of an own estimate lacks of its own state: whole, then up to date."""
+    return [
+        *(["own_estimate_whole"] if structure["is_pruned"] else []),
+        *([] if structure["is_up_to_date"] else ["own_estimate_up_to_date"]),
+    ]
 
 
 def test_the_witness_enters_its_main_structure_in_the_remaining_to_commit_alone() -> None:
@@ -100,7 +128,7 @@ def test_the_witness_enters_its_main_structure_in_the_remaining_to_commit_alone(
 def test_the_conditions_of_the_commands_of_a_structure_are_those_of_the_contract() -> None:
     schemas = REPOSITORY / "docs" / "api" / "components" / "schemas"
     commands = _enumeration(schemas / "revisions.yaml", "StructureCommand")
-    assert commands == [*EDIT, "delete", "rebase"]
+    assert commands == [*EDIT, "delete", "rebase", "recompose"]
     conditions = _enumeration(schemas / "projects.yaml", "CommandCondition")
     assert set(PHASE.values()) <= set(conditions)
 

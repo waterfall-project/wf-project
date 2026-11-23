@@ -8,7 +8,7 @@ of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune e
 
 import json
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -228,13 +228,10 @@ def test_the_coverage_sets_the_reserve_against_what_the_risks_cost_today(
 def test_the_counters_of_the_register_are_those_the_witness_leaves_on_its_risks() -> None:
     # #4287: the counter of a risk, its reviews and the writes the loader adds, is read from the
     # example of the register, not written by hand in two places; and the one of the nodes of the
-    # own estimate of 751, from its example.
+    # own estimate of 751 as EP-08 describes it, which the loader still loads: its example reads it
+    # as a differential of the main structure since EP-30 (US-3070/L2), the loader from US-3150.
     risks = json.loads((mockwitness.FIXTURES / "risks.json").read_text(encoding="utf-8"))
     counters = {item["label"]: item["lock_version"] for item in risks["value"]["items"]}
     assert counters == {risk.label: risk.lock_version for risk in REGISTER}
-    estimate = json.loads(
-        (mockwitness.FIXTURES / "nodes_risk_estimate.json").read_text(encoding="utf-8")
-    )
-    assert {item["lock_version"] for item in estimate["value"]["items"]} == {
-        mockriskwrites.OWN_ESTIMATE_COUNTER
-    }
+    estimate = cast("list[dict[str, Any]]", mockriskwrites.nodes_risk_estimate()["items"])
+    assert {item["lock_version"] for item in estimate} == {mockriskwrites.OWN_ESTIMATE_COUNTER}

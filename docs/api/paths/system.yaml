@@ -237,6 +237,7 @@
               succeeded: { $ref: ../../../fixtures/api/task_succeeded.json }
               running: { $ref: ../../../fixtures/api/task_running.json }
               failed: { $ref: ../../../fixtures/api/task_failed.json }
+              own_estimates_out_of_date: { $ref: ../../../fixtures/api/task_mark_own_estimates_failed.json }
               restore_backup_newer_version: { $ref: ../../../fixtures/api/task_restore_backup_newer_version.json }
               interrupted_by_restore: { $ref: ../../../fixtures/api/task_interrupted_by_restore.json }
               import_succeeded: { $ref: ../../../fixtures/api/task_import_succeeded.json }

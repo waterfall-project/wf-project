@@ -430,7 +430,9 @@ class N:
     101 froze it, which its occurrence merged as the nodes 541 to 545 (``mockreview``, #1788).
     From 591, the nodes the amendment 2 adds, which the
     main structure does not bear (``mockamendment``, #791); the differential renders the node of
-    number 5nn as 12nn, its identifier of its own (``mockamendment.own_id``, #421).
+    number 5nn as 12nn, its identifier of its own (``mockamendment.own_id``, #421). The nodes 578
+    and 579, those the own estimate of the risk 751 adds once read as a differential of the main
+    structure, which renders the node of number 5nn as 20nn (``mockownestimate``, US-3070/L2).
     """
 
     STUDIES = 521
@@ -465,6 +467,8 @@ class N:
     REFERENCE_PROVISION_753 = 567
     SITE_TRIALS = 568
     SITE_TRIALS_LINE = 569
+    CABINETS_REWORK = 578
+    CABINETS_REWORK_LINE = 579
     SITE_TESTS = 591
     TESTS_RESUMED = 592
     TESTS_RESUMED_LINE = 593

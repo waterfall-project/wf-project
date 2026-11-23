@@ -394,7 +394,31 @@ CommandCondition:
     name in their 409 after the conditions of the merge — no command states it in advance, the
     structure saying it —; `structure_out_of_date` for the update of a differential already up
     to date (`StructureCommand.rebase`), which `getStructureRebaseReport` and
-    `rebaseCostStructure` name in their 409 after `unmerged_amendment_exists`.
+    `rebaseCostStructure` name in their 409 after `unmerged_amendment_exists`; it is missing
+    likewise for the update of the own estimate of a risk already up to date. Two depend on the
+    state of the own estimate of a risk (`CostStructure.is_pruned`, `CostStructure.is_up_to_date`;
+    WF-RIS-0030, WF-RIS-0070), in this order, the recomposition coming before the update:
+    `own_estimate_whole` is missing on a pruned own estimate not consumed, which a marking has
+    reduced to what it designates and which has no base — for its entry
+    (`StructureCommand.edit_planning`, `edit_estimate`; the writes of the tree, the paste and the application of an import on it) and
+    for its update (`StructureCommand.rebase`, `getStructureRebaseReport`,
+    `rebaseCostStructure`), the own estimate being first recomposed (`recomposeCostStructure`); and
+    for the review that leaves or makes its risk identified (`reviewRisk`), the preliminary report
+    of its occurrence and its declaration (`getRiskOccurrenceReport`, `declareRiskOccurrence`),
+    which require it whole. `own_estimate_up_to_date` is missing on an out of date own estimate —
+    the main structure having changed since its base, the write of a provision line apart — for
+    its entry, for the review that leaves or makes its risk identified, and for the report and
+    the declaration of its occurrence, which wait for its update (`rebaseCostStructure`): an entry
+    on an out of date own estimate would be priced on a project that no longer exists, and an
+    occurrence would merge a designation that has not been confronted with it.
+    `own_estimate_pruned` is missing on a structure that is not a pruned own estimate — the main
+    structure, a differential, a whole own estimate —, for its recomposition
+    (`StructureCommand.recompose`, `recomposeCostStructure`), which is listed on a pruned own
+    estimate not consumed only. The own estimate consumed by the occurrence of its risk, pruned
+    too, is outside `own_estimate_whole` and `own_estimate_up_to_date`: its update and its
+    recomposition are refused by `risk_not_occurred`. The review that dismisses the risk requires
+    neither. The structure names them in its commands (`StructureCommand`) and each of these
+    operations in its 409, after its state conditions; nothing is written.
     `rate_update_available` is missing for the rate update (`apply_rate_update`) of a current
     revision whose proposal presents no category — its reference year is that of the revision of
     which it is the copy, or each category presented has already been accepted (WF-REV-0060) —;
@@ -467,6 +491,9 @@ CommandCondition:
     - main_structure
     - structure_up_to_date
     - structure_out_of_date
+    - own_estimate_whole
+    - own_estimate_up_to_date
+    - own_estimate_pruned
     - import_awaiting_decision
     - import_file_accepted
     - import_not_applied

@@ -539,9 +539,14 @@
           provision-for-risks type (WF-RIS-0010): `params.missing_condition` set to
           `active_provision_category`. Then `may_create_revision` when the project has no
           current revision and the caller lacks `revisions.write`: the review would create it
-          (WF-RIS-0020, `ProjectCommand.edit_risks`). The conditions are judged in this order, as
-          at the declaration, the refusal naming the first one missing, and this 409 comes before
-          the 422. Nothing is written.
+          (WF-RIS-0020, `ProjectCommand.edit_risks`). Last, for a review that leaves or makes the
+          risk identified, the state of its own estimate: `own_estimate_whole` on a pruned own
+          estimate not consumed, then `own_estimate_up_to_date` on an out of date one — the screen recomposes
+          and updates it first (`recomposeCostStructure`, `rebaseCostStructure`), the review not
+          updating it itself, so that its undo gives back the provision of before; the review that
+          dismisses the risk requires neither (WF-RIS-0070). The conditions are judged in this
+          order, as at the declaration, the refusal naming the first one missing, and this 409
+          comes before the 422. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -620,9 +625,12 @@
           (WF-CYC-0100, WF-RIS-0060), then those of the risk, `risk_identified` for an occurred
           or dismissed risk, only an identified risk occurring (WF-RIS-0020), then
           `may_create_revision`, without a current revision, for whoever lacks
-          `revisions.write` (WF-RIS-0060). Each is the condition that the project's
-          `declare_risk_occurrence` command or the risk's `declare_occurrence` command says is
-          missing.
+          `revisions.write` (WF-RIS-0060), then, last, those of its own estimate,
+          `own_estimate_whole` on a pruned own estimate not consumed and `own_estimate_up_to_date` on an out of
+          date one: the occurrence merges what the own estimate designates, and requires it whole
+          and up to date, as the merge of a differential does (WF-RIS-0070). Each is the
+          condition that the project's `declare_risk_occurrence` command or the risk's
+          `declare_occurrence` command says is missing.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -701,8 +709,9 @@
           the risk, in the order in which its `declare_occurrence` command names them —
           `risk_identified` for an occurred or dismissed risk, only an identified risk occurring
           (WF-RIS-0020), as at the report, then `may_create_revision`, without a current
-          revision, for whoever lacks `revisions.write` (WF-RIS-0060). Nothing is written (H-08,
-          US-0702/L2).
+          revision, for whoever lacks `revisions.write` (WF-RIS-0060), then, last,
+          `own_estimate_whole` on a pruned own estimate not consumed and `own_estimate_up_to_date` on an out of
+          date one, as at the report (WF-RIS-0070). Nothing is written (H-08, US-0702/L2).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

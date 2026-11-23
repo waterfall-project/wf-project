@@ -262,8 +262,9 @@ def test_the_estimate_imported_on_the_main_structure_in_progress_names_its_condi
     main = mockexchanges.main_structure()
     [command] = [each for each in main["available_commands"] if each["command"] == "edit_estimate"]
     assert command["missing_conditions"] == ["project_before_in_progress"]
+    # No other structure lacks the phase: an own estimate out of date lacks its update alone.
     assert all(
-        each["is_available"]
+        "project_before_in_progress" not in each["missing_conditions"]
         for structure in mockwitness.fixture("structures")
         if structure["kind"] != "main"
         for each in structure["available_commands"]
