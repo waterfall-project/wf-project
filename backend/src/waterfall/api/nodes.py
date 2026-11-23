@@ -370,7 +370,7 @@ def _conflicts(conflicts: tuple[ConflictView, ...]) -> list[dict[str, Any]]:
         {
             "predecessor_node_id": str(each.predecessor_id),
             "successor_node_id": str(each.successor_id),
-            "manual_node_id": str(each.successor_id),
+            "manual_node_id": str(each.manual_node_id),
             "link_type": each.link_type,
         }
         for each in conflicts

@@ -431,6 +431,10 @@ CASCADES = {
     "fk_task_link_predecessor_id_node",
     "fk_task_link_successor_id_node",
     "fk_tracking_entry_timeline_id_timeline",
+    # A task in conflict with its structure, its link or its task (EP-32, "Tables et migrations").
+    "fk_task_link_conflict_project_id_cost_structure",
+    "fk_task_link_conflict_project_id_task_link",
+    "fk_task_link_conflict_node_id_node",
     # The facet estimate line with its node (EP-07, "Tables et migrations").
     "fk_estimate_line_project_id_node",
     # The reading kept of a structure with its structure (EP-26, "Tables et migrations").

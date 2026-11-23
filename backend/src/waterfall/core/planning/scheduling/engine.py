@@ -18,7 +18,9 @@ found once, in the measure of its successors, then read on the calendar of each 
 (#4414). A task in manual mode is a date imposed: its
 predecessors are bound by its dates, not by a latest date of its own (WF-PLA-0100). The total float
 is the work, in days, from a task's finish to its latest finish; the critical path, the tasks in
-automatic mode whose float is nil or negative.
+automatic mode whose float is nil or negative. A link is in conflict for each task in manual mode
+under its successor — the successor itself when it has no subordinate — whose date its predecessor
+in automatic mode cannot satisfy, and names that task (WF-PLA-0020, #3984).
 """
 
 from dataclasses import dataclass
@@ -402,27 +404,47 @@ class _Engine:
     def conflicts(self) -> list[LinkConflict]:
         """Return the links a predecessor in automatic mode does not satisfy with a manual task.
 
-        In the order of the plan of their predecessor, then of their successor (WF-PLA-0020).
+        Each task in manual mode without subordinates under the successor is judged, the successor
+        itself when it has none, as the forward and the backward passes bind each of them: a link
+        toward a summary names the subordinate in manual mode it cannot satisfy (#3984). A link
+        from a task in manual mode is never in conflict: both its ends keep their dates. In the
+        order of the plan of their predecessor, then of their successor, then of the manual task
+        (WF-PLA-0020).
         """
         found: list[LinkConflict] = []
         for link in self.structure.links:
-            successor = self.tasks[link.successor_id]
-            manual = link.successor_id not in self.plan.children and successor.mode == "manual"
             predecessor_manual = (
                 link.predecessor_id not in self.plan.children
                 and self.tasks[link.predecessor_id].mode == "manual"
             )
-            if not manual or predecessor_manual:
+            if predecessor_manual:
                 continue
-            calendar = successor.calendar
-            needed = self.shifted(calendar, self.anchor(link), self.span_of_lag(link))
-            span = self.early[link.successor_id]
-            imposed = span.start if link.link_type in TO_START else span.finish
-            # At the scale of the rendering: a manual date is one the engine rendered (#2460).
-            if rounded(needed) > calendar.count(imposed):
-                found.append(LinkConflict(link.predecessor_id, link.successor_id, link.link_type))
+            found.extend(
+                LinkConflict(link.predecessor_id, link.successor_id, manual_id, link.link_type)
+                for manual_id in self.plan.leaves(link.successor_id)
+                if self.tasks[manual_id].mode == "manual" and self.unsatisfied(link, manual_id)
+            )
         rank = self.plan.rank
-        return sorted(found, key=lambda each: (rank[each.predecessor_id], rank[each.successor_id]))
+        return sorted(
+            found,
+            key=lambda each: (
+                rank[each.predecessor_id],
+                rank[each.successor_id],
+                rank[each.manual_node_id],
+            ),
+        )
+
+    def unsatisfied(self, link: Link, manual_id: UUID) -> bool:
+        """Tell whether a link binds a task in manual mode past the date it imposes.
+
+        Its start for a link to a start, its finish otherwise, on its own calendar.
+        """
+        calendar = self.tasks[manual_id].calendar
+        needed = self.shifted(calendar, self.anchor(link), self.span_of_lag(link))
+        span = self.early[manual_id]
+        imposed = span.start if link.link_type in TO_START else span.finish
+        # At the scale of the rendering: a manual date is one the engine rendered (#2460).
+        return rounded(needed) > calendar.count(imposed)
 
     def total_float(self, task_id: UUID) -> Fraction | None:
         """Return the total float of a task in days, a summary's from its subordinates.
@@ -463,7 +485,7 @@ class _Engine:
                 link_conflicts=tuple(
                     each
                     for each in conflicts
-                    if task_id in {each.predecessor_id, each.successor_id}
+                    if task_id in {each.predecessor_id, each.manual_node_id}
                 ),
             )
         return Schedule(tasks, tuple(conflicts))

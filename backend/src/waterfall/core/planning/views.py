@@ -34,7 +34,7 @@ from waterfall.core.planning.interface.physical_progress import (
     physical_progress_of,
 )
 from waterfall.core.planning.scheduling import WorkInstant
-from waterfall.core.planning.tree import TASK, NodeRow, TaskRow, tracking_of
+from waterfall.core.planning.tree import TASK, NodeRow, TaskRow, read_conflicts, tracking_of
 from waterfall.core.projects.interface import current_day, work_breakdown_items
 
 if TYPE_CHECKING:
@@ -66,10 +66,15 @@ ATTACHMENT_AND_TRACKING = ("task.order_item_id", "task.work_package_id", "task.t
 
 @dataclass(frozen=True, slots=True)
 class ConflictView:
-    """A link in conflict, named by its two tasks and its type (``LinkConflict``)."""
+    """A link in conflict, named by its two tasks, its manual task and its type (``LinkConflict``).
+
+    ``manual_node_id`` the task in manual mode its predecessor cannot satisfy: the successor, or a
+    subordinate in manual mode of a summary successor (#3984).
+    """
 
     predecessor_id: UUID
     successor_id: UUID
+    manual_node_id: UUID
     link_type: str
 
 
@@ -464,13 +469,11 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
         self.calendars = calendars
         self.scheduled_on = current_day(scheduled_at)
         self.links = links
-        # The links by their successor, and by each end, built once: a node asks for its own.
+        # The links by their successor, built once: a node asks for its own.
         self._incoming: dict[UUID, list[LinkColumns]] = {}
-        self._ends: dict[UUID, list[LinkColumns]] = {}
         for link in links:
             self._incoming.setdefault(link.successor_id, []).append(link)
-            for end in {link.predecessor_id, link.successor_id}:
-                self._ends.setdefault(end, []).append(link)
+        self._named = self._conflicts_named(session, links)
         lineages = {tree.nodes[node_id].lineage_id for node_id in tree.tasks}
         self.tracking = tracking_of(session, project_id, lineages)
         # The label of a work package or an order item borne, one marked deleted included, which
@@ -597,19 +600,48 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
         return total
 
     def conflicts(self, node_id: UUID) -> tuple[ConflictView, ...]:
-        """Give the links in conflict a task is an end of, in the order of the plan (0020)."""
+        """Give the links in conflict that name a task, none for a summary (0020)."""
         return () if self.tree.is_summary(node_id) else self._conflicts(node_id)
 
     def _conflicts(self, node_id: UUID) -> tuple[ConflictView, ...]:
-        """Give the links in conflict a task that is no summary is an end of (0020)."""
+        """Give the links in conflict that name a task that is no summary (0020).
+
+        As their predecessor, or as the task in manual mode they cannot satisfy, in the order of
+        the plan of their predecessor, then of their successor, then of that task.
+        """
         row = self.tree.row_number
-        held = sorted(
-            (link for link in self._ends.get(node_id, []) if link.in_conflict),
-            key=lambda link: (row[link.predecessor_id], row[link.successor_id]),
-        )
         return tuple(
-            ConflictView(link.predecessor_id, link.successor_id, link.link_type) for link in held
+            sorted(
+                self._named.get(node_id, ()),
+                key=lambda each: (
+                    row[each.predecessor_id],
+                    row[each.successor_id],
+                    row[each.manual_node_id],
+                ),
+            )
         )
+
+    def _conflicts_named(
+        self, session: Session, links: Sequence[LinkColumns]
+    ) -> dict[UUID, list[ConflictView]]:
+        """Read the conflicts of the structure, built once by each task they name (#3984).
+
+        Those of the links read, which name a task of the tree: a reading leaves out a link whose
+        ends a write committed after its tree, and the conflicts of that link with it.
+        """
+        typed = {(link.predecessor_id, link.successor_id): link.link_type for link in links}
+        named: dict[UUID, list[ConflictView]] = {}
+        place = self.place
+        for each in read_conflicts(session, place.project_id, place.structure_id):
+            link_type = typed.get((each.predecessor_id, each.successor_id))
+            if link_type is None or each.manual_node_id not in self.tree.tasks:
+                continue
+            view = ConflictView(
+                each.predecessor_id, each.successor_id, each.manual_node_id, link_type
+            )
+            for end in {each.predecessor_id, each.manual_node_id}:
+                named.setdefault(end, []).append(view)
+        return named
 
     def _overdue(self, node_id: UUID) -> bool:
         task = self.tree.tasks[node_id]
