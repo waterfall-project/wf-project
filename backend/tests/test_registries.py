@@ -106,6 +106,8 @@ DECLARED = {
     "revisions.rebase",
     "revisions.rebase_end",
     "projects.risk_designations",
+    # EP-33 (US-3210): what the planning answers of the structure an import applies to.
+    "exchanges.structure_guards",
 }
 PLANNING = "waterfall.core.planning.interface"
 # What EP-06 registers (US-1380/L1, US-1390/L2), the copy of the nodes after the structures', and
@@ -139,6 +141,12 @@ REGISTERED = {
         f"task_tree_image:{PLANNING}.task_tree.TaskTreeExporter",
     ],
     "witness.revision_fillers": ["waterfall.witness.tasks.fill"],
+    "exchanges.structure_guards": [
+        (
+            f"StructureGuard({PLANNING}.structures.hold_structure, "
+            f"{PLANNING}.structures.unwritten_since_opening)"
+        )
+    ],
 }
 ESTIMATE = "waterfall.core.estimate.interface"
 CORE = "waterfall.core.estimate"

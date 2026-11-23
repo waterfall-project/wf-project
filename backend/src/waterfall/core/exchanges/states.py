@@ -22,6 +22,8 @@ AWAITING_DECISION = "import_awaiting_decision"
 CALENDAR_GAP = "import_calendar_gap"
 FILE_ACCEPTED = "import_file_accepted"
 NOT_APPLIED = "import_not_applied"
+# Stated by the refusal of an application only, never by its command (#4420, US-3210).
+STRUCTURE_UNCHANGED = "import_structure_unchanged"
 IS_CONTRIBUTOR = "is_contributor"
 # The states of an import whose task runs; those in which it has written or writes.
 RUNNING = ("analysing", "applying")

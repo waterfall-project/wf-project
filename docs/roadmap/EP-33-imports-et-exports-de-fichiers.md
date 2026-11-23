@@ -550,7 +550,7 @@ arrête. La lecture des en-têtes de tous les onglets se fait dans l'étape hors
 
 ## US-3210 — Un import ne s'applique que sur la structure que son compte rendu a lue
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ARC-0100-A`, `WF-INTF-0080-A`
 - **opérations** : `applyImport`, `getImport`, `openImport`, `setImportDurationRule`
 - **issue** : #4533

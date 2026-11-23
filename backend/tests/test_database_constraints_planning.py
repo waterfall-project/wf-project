@@ -318,6 +318,12 @@ REFUSALS: list[Refusal] = [
         {"kind": "estimate", "duration_rule": "keep_dates"},
         "ck_import_report_duration_rule_of_a_planning",
     ),
+    # The counter of the structure an analysis read is never negative (US-3210).
+    (
+        ImportReport,
+        {"structure_lock_version": -1},
+        "ck_import_report_structure_lock_version_not_negative",
+    ),
     (ImportReport, {"upload_id": TAKEN}, "uq_import_report_upload_id"),
     (ImportReport, {"project_id": uuid4()}, "fk_import_report_project_id_project"),
     (ImportReport, {"requested_by": uuid4()}, "fk_import_report_requested_by_user_account"),

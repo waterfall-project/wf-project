@@ -224,3 +224,11 @@ from waterfall.core.exchanges.judgments import (
 from waterfall.core.exchanges.judgments import (
     KEEP_DURATIONS as KEEP_DURATIONS,
 )
+
+# ``unchanged`` (US-3210): what the planning answers of the structure an application writes.
+from waterfall.core.exchanges.unchanged import (
+    StructureGuard as StructureGuard,
+)
+from waterfall.core.exchanges.unchanged import (
+    register_structure_guard as register_structure_guard,
+)

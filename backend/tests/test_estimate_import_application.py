@@ -54,6 +54,7 @@ from waterfall.core.cost_settings.tables import HourlyRate
 from waterfall.core.estimate.entries import LineEntry
 from waterfall.core.estimate.interface.excel import EstimateFormat
 from waterfall.core.estimate.tables import RevisionRate
+from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.planning.interface import LinesWrite, Place, Writer, write_lines
 from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.tables import ResourceRole
@@ -472,10 +473,18 @@ def test_a_line_entered_since_the_analysis_is_not_removed_by_the_application(
     api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
 ) -> None:
     # What is applied is the report the user read before confirming: a line entered since, absent
-    # from the file, was not announced removed, and stays.
+    # from the file, was not announced removed, and stays. The structure written since refuses the
+    # import from US-3210 on: the rule is tried on a report without the counter of its structure,
+    # analysed before it was kept, which applies without comparison.
     tree, costs = held["tree"], held["costs"]
     import_id = analysed_import(api, stage, worker, workbook(as_exported(held), held["tasks"]))
     assert read(api, stage, import_id)["report"]["differences"] == []
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(ImportReport)
+            .where(ImportReport.id == UUID(import_id))
+            .values(structure_lock_version=None)
+        )
     entered = Lines(tree).made(
         held["second"], quantity="1", cost_category_id=str(costs.material), unit_disbursement="5"
     )
