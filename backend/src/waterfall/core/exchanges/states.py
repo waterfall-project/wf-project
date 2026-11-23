@@ -4,7 +4,7 @@
 
 The state an import is read in is judged at the reading, from what its row keeps, what its last
 task became and the instant of the reading: an ``analysed`` import whose report expired reads
-``expired`` until the purge writes it (US-1420/L2), and an import whose analysis or application
+``expired`` until the purge deletes it (US-1420/L2), and an import whose analysis or application
 failed without leaving its trace — the attempts of its task spent by a worker stopped each time —
 reads ``failed``. One judgment serves the reading, the commands it lists and the refusals of
 ``applyImport`` and ``abandonImport``, so that a command said unavailable and the call refused
