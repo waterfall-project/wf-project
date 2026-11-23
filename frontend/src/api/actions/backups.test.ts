@@ -132,4 +132,17 @@ describe("the server actions of the backups", () => {
     server.open = unreachable();
     expect(await readLiveness()).toBe("unreachable");
   });
+
+  it("ask the probe, and tell the maintenance an abandoned restoration keeps from the ordinary one, which the operator alone lifts [US-2940] [WF-ARC-0090-A]", async () => {
+    server.open = fakeClient({
+      "GET /health": [
+        { status: 200, example: "liveness_maintenance_abandoned" },
+        { status: 200, example: "liveness_maintenance" },
+        "liveness",
+      ],
+    });
+    expect(await readLiveness()).toBe("maintenance_abandoned");
+    expect(await readLiveness()).toBe("maintenance");
+    expect(await readLiveness()).toBe("ok");
+  });
 });

@@ -26,13 +26,17 @@ export const RESTORATION_POLL = 2000;
 /**
  * Where a restoration stands, as the screen reads it: `asking`, nothing read yet; `serving`, the
  * platform serves and no restoration was followed; `queued`, the task waits, the platform serving;
- * `maintenance`; `done`, the maintenance lifted, the sessions closed; `signed_out`, the task no
+ * `maintenance`; `abandoned`, the maintenance kept by a restoration abandoned once it began to
+ * replace the databases, which only the operator lifts; `done`, the maintenance lifted, the sessions closed; `signed_out`, the task no
  * longer read for want of a session before any maintenance was seen — the session may have expired
  * while the task waited, nothing says the restoration took place; `failed`, refused before the
  * maintenance, with its motive.
  */
 export type RestorationPhase =
-  | { readonly kind: "asking" | "serving" | "queued" | "maintenance" | "done" | "signed_out" }
+  | {
+      readonly kind:
+        "asking" | "serving" | "queued" | "maintenance" | "abandoned" | "done" | "signed_out";
+    }
   | { readonly kind: "failed"; readonly problem: Problem };
 
 /** The motive of a task that failed without one: the unexpected error. */
@@ -40,6 +44,7 @@ const UNEXPECTED: Problem = { code: "INTERNAL_ERROR", status: 500 };
 
 const QUEUED: RestorationPhase = { kind: "queued" };
 const MAINTENANCE: RestorationPhase = { kind: "maintenance" };
+const ABANDONED: RestorationPhase = { kind: "abandoned" };
 const DONE: RestorationPhase = { kind: "done" };
 const SIGNED_OUT: RestorationPhase = { kind: "signed_out" };
 
@@ -51,6 +56,14 @@ const ENDED: ReadonlySet<RestorationPhase["kind"]> = new Set([
   "failed",
 ]);
 
+/** The maintenance the probe says, ordinary or kept by a restoration abandoned; none otherwise. */
+function maintenancePhase(live: Liveness): RestorationPhase | undefined {
+  if (live === "maintenance") {
+    return MAINTENANCE;
+  }
+  return live === "maintenance_abandoned" ? ABANDONED : undefined;
+}
+
 /**
  * Where a restoration stands by its task, the platform serving and no maintenance seen: done once
  * it succeeded, failed with its motive, or still to come. Read for want of a session, it says
@@ -61,7 +74,7 @@ const ENDED: ReadonlySet<RestorationPhase["kind"]> = new Set([
 async function taskPhase(taskId: string): Promise<RestorationPhase> {
   const read = await readBackgroundTask(taskId);
   if (read.kind === "signed_out") {
-    return (await readLiveness()) === "maintenance" ? MAINTENANCE : SIGNED_OUT;
+    return maintenancePhase(await readLiveness()) ?? SIGNED_OUT;
   }
   if (read.kind !== "done") {
     return QUEUED;
@@ -81,8 +94,9 @@ async function phaseOf(
   seen: boolean,
   taskId: string | undefined,
 ): Promise<RestorationPhase | undefined> {
-  if (live === "maintenance") {
-    return MAINTENANCE;
+  const maintenance = maintenancePhase(live);
+  if (maintenance !== undefined) {
+    return maintenance;
   }
   if (seen) {
     return live === "ok" ? DONE : undefined;
@@ -111,7 +125,7 @@ export function useRestorationPhase(taskId: string | undefined): RestorationPhas
       if (stopped) {
         return;
       }
-      seen ||= next?.kind === "maintenance";
+      seen ||= next?.kind === "maintenance" || next?.kind === "abandoned";
       if (next !== undefined) {
         setPhase(next);
       }
@@ -156,7 +170,9 @@ function SignedOutNotice() {
 /**
  * The screen of a restoration, by where it stands: asked but not begun — the task waits, the
  * platform still serves, no session closed yet —, that the platform is about to go under
- * maintenance; under maintenance, that every user is signed out until it ends; done, that it is,
+ * maintenance; under maintenance, that every user is signed out until it ends; under the maintenance
+ * of a restoration abandoned, that the platform stays so until the operator restores again or lifts
+ * it; done, that it is,
  * and the way to sign in again; its task out of reach for want of a session, the way to sign in
  * again alone.
  */
@@ -166,15 +182,20 @@ export function RestorationNotice({ phase }: { readonly phase: RestorationPhase 
     return <SignedOutNotice />;
   }
   const done = phase.kind === "done";
+  const abandoned = phase.kind === "abandoned";
   return (
-    <section role="status" aria-label={t("title")} className="max-w-prose space-y-2 text-sm">
+    <section
+      role="status"
+      aria-label={abandoned ? t("abandonedTitle") : t("title")}
+      className="max-w-prose space-y-2 text-sm"
+    >
       <h1 className="flex items-center gap-2 text-lg font-semibold">
         {done ? (
           <CircleCheck aria-hidden="true" className="size-5 shrink-0" />
         ) : (
           <Wrench aria-hidden="true" className="size-5 shrink-0" />
         )}
-        {done ? t("doneTitle") : t("title")}
+        {done ? t("doneTitle") : abandoned ? t("abandonedTitle") : t("title")}
       </h1>
       {done ? (
         <>
@@ -184,7 +205,11 @@ export function RestorationNotice({ phase }: { readonly phase: RestorationPhase 
       ) : (
         <p className="flex items-start gap-1.5">
           <LoaderCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0 animate-spin" />
-          {phase.kind === "maintenance" ? t("maintenance") : t("pending")}
+          {phase.kind === "maintenance"
+            ? t("maintenance")
+            : abandoned
+              ? t("abandoned")
+              : t("pending")}
         </p>
       )}
     </section>
