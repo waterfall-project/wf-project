@@ -9,9 +9,9 @@ the file of each goes —, the imports ``applied``, ``failed`` and ``refused`` s
 WF-DAT-0080-A). An import reads ``expired`` until the pass that finds its report expired, the state
 being read and never written, and is unknown after it (404). The pass deletes the rows of the
 deposits expired — those of EP-03 included, a deposit left in parts being aborted —, sparing the
-object of a deposit an import still keeps. It marks consumed the results of the exports of more
-than twenty-four hours, their file going. And it gives what the storage must lose, to which it adds
-what no row designates any more: the old objects of ``uploads/`` past the life of a deposit, those of
+object of a deposit an import still keeps. It marks consumed the results of the exports of more than
+twenty-four hours, their file going. And it gives what the storage must lose, to which it adds what
+no row designates any more: the old objects of ``uploads/`` past the life of a deposit, those of
 ``exports/`` past the life of an export, and the deposits in parts of ``uploads/`` left open past
 the life of a deposit (WF-DAT-0120-A). The worker hands all that to ``remove_purged`` once the
 transaction is validated, as EP-03 deletes its deposits: an object is never deleted for a row a
