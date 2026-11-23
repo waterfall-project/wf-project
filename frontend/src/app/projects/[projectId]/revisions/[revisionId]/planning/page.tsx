@@ -59,7 +59,8 @@ import { hoursOfDay } from "@/components/gantt/scale";
 import { PlanningGrid, type PlanningGridProps } from "@/components/grid/planning-grid";
 import { targetTask } from "@/components/grid/planning-target";
 import type { ChoiceOption } from "@/components/grid/row-choices";
-import { AmendmentCommands } from "@/components/revisions/amendment-commands";
+import { OwnEstimateScope } from "@/components/revisions/own-estimate-scope";
+import { StructureCommands } from "@/components/revisions/structure-commands";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -201,7 +202,8 @@ export default async function PlanningPage({
     readTimelines(revision.projectId),
     readOrFail("getDurationUnits", () => serverClient().GET("/reference/duration-units")),
   ]);
-  const editable = screen.commands.has("edit_planning");
+  // An own estimate in arrears is entered all the same: its first entry updates it (US-3140).
+  const editable = screen.commands.has("edit_planning") || screen.gated.has("edit_planning");
   const skeleton =
     screen.kind === "main"
       ? findOffer(screen.reading.revision?.available_commands ?? [], "generate_skeleton")
@@ -219,7 +221,7 @@ export default async function PlanningPage({
       />
       <Screen density={FUNCTION_DENSITY.planning} fill>
         <PlanningHeader label={screen.label} totals={screen.nodes.totals} context={at.context} />
-        <AmendmentCommands
+        <StructureCommands
           structure={screen.structures?.read}
           version={screen.structureVersion}
           commands={screen.commands}
@@ -229,46 +231,53 @@ export default async function PlanningPage({
           )}
           revision={revision}
         />
-        <GridCard fill>
-          <PlanningWithGantt
-            key={screen.structure.structure_id}
-            reading={screen.reading}
-            scheduledAt={screen.scheduledAt}
-            hoursPerDay={units.hours_per_day}
-            grid={{
-              nodes: screen.nodes,
-              structure: screen.structure,
-              structureVersion: screen.structureVersion,
-              planningStart: { on: screen.planningStart, label: screen.label },
-              filters: screen.filters,
-              query: screen.query,
-              preferences: screen.preferences,
-              undoable: editable,
-              editable,
-              differential: screen.kind === "amendment",
-              comparing: screen.base?.chosen !== undefined,
-              origins: originNames(screen.origin),
-              treeFilters: (
-                <TreeFilters
-                  breakdown={screen.breakdown}
-                  difference={screen.difference}
-                  differential={screen.kind === "amendment"}
-                  origin={screen.origin}
-                />
-              ),
-              // The attachment is chosen among the same items, where the planning may be entered.
-              breakdown: editable ? screen.breakdown?.items : undefined,
-              skeleton,
-              timelines,
-              timelineCreation: findOffer(
-                screen.reading.project.available_commands,
-                "manage_timelines",
-              ),
-              // The task a link leads to — from the detail of the workload —, shown and aimed at.
-              target: targetTask(at.address),
-            }}
-          />
-        </GridCard>
+        <OwnEstimateScope
+          structure={screen.read}
+          commands={screen.commands}
+          gated={screen.gated}
+          revision={revision}
+        >
+          <GridCard fill>
+            <PlanningWithGantt
+              key={screen.structure.structure_id}
+              reading={screen.reading}
+              scheduledAt={screen.scheduledAt}
+              hoursPerDay={units.hours_per_day}
+              grid={{
+                nodes: screen.nodes,
+                structure: screen.structure,
+                structureVersion: screen.structureVersion,
+                planningStart: { on: screen.planningStart, label: screen.label },
+                filters: screen.filters,
+                query: screen.query,
+                preferences: screen.preferences,
+                undoable: editable,
+                editable,
+                differential: screen.kind !== "main",
+                comparing: screen.base?.chosen !== undefined,
+                origins: originNames(screen.origin),
+                treeFilters: (
+                  <TreeFilters
+                    breakdown={screen.breakdown}
+                    difference={screen.difference}
+                    differential={screen.kind !== "main"}
+                    origin={screen.origin}
+                  />
+                ),
+                // The attachment is chosen among the same items, where the planning may be entered.
+                breakdown: editable ? screen.breakdown?.items : undefined,
+                skeleton,
+                timelines,
+                timelineCreation: findOffer(
+                  screen.reading.project.available_commands,
+                  "manage_timelines",
+                ),
+                // The task a link leads to — from the detail of the workload —, shown and aimed at.
+                target: targetTask(at.address),
+              }}
+            />
+          </GridCard>
+        </OwnEstimateScope>
       </Screen>
     </PendingAddress>
   );

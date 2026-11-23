@@ -50,6 +50,7 @@ import {
   updateTaskFacet,
 } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
+import { useEntryGuard } from "@/components/revisions/entry-guard";
 import { Command } from "@/components/commands/command";
 import { rejectedRead } from "@/components/commands/rejection";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
@@ -346,6 +347,8 @@ export function PlanningGrid({
   target,
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
+  // The own estimate of a risk in arrears is updated before the first entry (US-3140).
+  const guard = useEntryGuard();
   const kinds = useTranslations("enums.WorkBreakdownKind");
   const columns = useTranslations("enums.NodeColumn");
   const modes = useTranslations("enums.SchedulingMode");
@@ -416,11 +419,13 @@ export function PlanningGrid({
             rows: block.map((cells) => [...cells]),
           }),
         apply: async (plan) => {
-          const outcome = await applyPaste(structure, {
-            paste_id: plan.paste_id,
-            confirmed: true,
-            lock_version: version,
-          });
+          const outcome = await guard(() =>
+            applyPaste(structure, {
+              paste_id: plan.paste_id,
+              confirmed: true,
+              lock_version: version,
+            }),
+          );
           if (outcome.kind !== "done") {
             return outcome;
           }
@@ -445,10 +450,12 @@ export function PlanningGrid({
       // The field entered and the version of the node read, nothing else (#178).
       task: async (node, change) =>
         answered(
-          await updateTaskFacet(structure, node.node_id, {
-            ...change,
-            lock_version: node.lock_version,
-          }),
+          await guard(() =>
+            updateTaskFacet(structure, node.node_id, {
+              ...change,
+              lock_version: node.lock_version,
+            }),
+          ),
         ),
       // The links of the task in place of its own, with the version of the node read: the rows the
       // server answers, the tasks the links redate with them, take the place of the rows read.
@@ -459,10 +466,12 @@ export function PlanningGrid({
         ask: names.ask,
         write: async (node, predecessors) =>
           answered(
-            await setPredecessors(structure, node.node_id, {
-              predecessors: [...predecessors],
-              lock_version: node.lock_version,
-            }),
+            await guard(() =>
+              setPredecessors(structure, node.node_id, {
+                predecessors: [...predecessors],
+                lock_version: node.lock_version,
+              }),
+            ),
           ),
       },
       modes: (mode) => modes(mode),
@@ -489,6 +498,7 @@ export function PlanningGrid({
     router,
     timelines,
     names,
+    guard,
   ]);
   const config = useMemo(
     () => withDifference(read, differential, comparing),

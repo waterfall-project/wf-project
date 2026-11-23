@@ -6,7 +6,8 @@
  * (`designateReferenceRevision`), their rates proposed (`readRateUpdateProposal`) and updated
  * (`applyRateUpdate`), an amendment prepared
  * (`prepareAmendment`), its merge read (`readMergeReport`) and confirmed (`mergeAmendment`), its
- * update from the main structure read (`readRebaseReport`) and confirmed (`rebaseAmendment`), and
+ * update from the main structure read (`readRebaseReport`) and confirmed (`rebaseStructure`) —
+ * the own estimate of a risk is updated and recomposed (`recomposeStructure`) likewise —, and
  * abandoned (`abandonAmendment`): the browser asks the
  * server of Next, which calls the API (§4.3.1), and gets back the outcome the one decoder makes
  * of its answer (`src/api/problem.ts`). A write answered reads the page anew: the state of the
@@ -266,9 +267,11 @@ export async function abandonAmendment(
 }
 
 /**
- * Read what updating an amendment from the main structure would do (#4034): the report that is shown
- * before anything is written — what the main structure received since its base, what the amendment
- * keeps, what refuses —, with the two counters the confirmation carries. A read, which writes nothing.
+ * Read what updating an amendment, or the own estimate of a risk, from the main structure would do
+ * (#4034, US-3140): the report that is shown
+ * before anything is written — what the main structure received since its base, what the structure
+ * keeps, what refuses —, with the two counters the confirmation carries, and, for an own estimate, the
+ * severity and the provision the update would record. A read, which writes nothing.
  */
 export async function readRebaseReport(
   projectId: string,
@@ -287,24 +290,24 @@ export async function readRebaseReport(
   );
 }
 
-/** What confirming the update of an amendment takes: the counters the report read. */
-export interface AmendmentRebase {
+/** What confirming the update of a structure takes: the counters the report read. */
+export interface StructureRebase {
   readonly mainStructureLockVersion: number;
   readonly structureLockVersion: number;
 }
 
 /**
- * Update an amendment from the main structure (#4034): the API writes into it what the report
- * presented and makes the main structure its new base, answering the structure, up to date. A report
- * gone stale — a counter moved since it was read — is refused (412) and nothing is written, as a
- * reason of the report (422) or an amendment already up to date (409). The page is read anew: the grid
- * of the amendment is the server's again.
+ * Update an amendment, or the own estimate of a risk, from the main structure (#4034): the API writes
+ * into it what the report presented and makes the main structure its new base, answering the
+ * structure, up to date. A report gone stale — a counter moved since it was read — is refused (412)
+ * and nothing is written, as a reason of the report (422) or a structure already up to date (409). The
+ * page is read anew: the grid of the structure is the server's again.
  */
-export async function rebaseAmendment(
+export async function rebaseStructure(
   projectId: string,
   revisionId: string,
   structureId: string,
-  rebase: AmendmentRebase,
+  rebase: StructureRebase,
 ): Promise<Outcome<Schemas["CostStructure"]>> {
   return readAnew(
     await decode(() =>
@@ -318,6 +321,32 @@ export async function rebaseAmendment(
             confirmed: true,
             main_structure_lock_version: rebase.mainStructureLockVersion,
             structure_lock_version: rebase.structureLockVersion,
+          },
+        },
+      ),
+    ),
+  );
+}
+
+/**
+ * Recompose the own estimate of a risk that a marking pruned (US-3140, `recomposeCostStructure`): the
+ * API makes it whole again, from the main structure of the marked revision it names, what it
+ * designates unchanged, and answers the structure — up to date, or out of date when the main structure
+ * has changed since. It takes no body and asks no confirmation. The page is read anew: the grid of the
+ * own estimate is the server's again.
+ */
+export async function recomposeStructure(
+  projectId: string,
+  revisionId: string,
+  structureId: string,
+): Promise<Outcome<Schemas["CostStructure"]>> {
+  return readAnew(
+    await decode(() =>
+      serverClient().POST(
+        "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/recompose",
+        {
+          params: {
+            path: { project_id: projectId, revision_id: revisionId, structure_id: structureId },
           },
         },
       ),

@@ -54,7 +54,8 @@ import { EstimateGrid } from "@/components/grid/estimate-grid";
 import type { NodeTotals } from "@/components/grid/nodes";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
-import { AmendmentLateNote } from "@/components/revisions/amendment-late-note";
+import { OwnEstimateScope } from "@/components/revisions/own-estimate-scope";
+import { StructureLateNote } from "@/components/revisions/structure-late-note";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import type { PageSearchParams } from "@/navigation/context";
@@ -335,7 +336,8 @@ export default async function EstimatePage({
   ]);
   // The sub-project of a line is entered from the list of the project, in a revision open to
   // entry: elsewhere, its identifier does not cross to the browser, its label alone shown.
-  const editable = screen.commands.has("edit_estimate");
+  // An own estimate in arrears is entered all the same: its first entry updates it (US-3140).
+  const editable = screen.commands.has("edit_estimate") || screen.gated.has("edit_estimate");
   const subprojectsEntered = editable && reference.subprojects !== undefined;
   // One address asked for the whole screen: the structure chosen in the banner and a sort or a filter
   // of the grid compose, whichever comes first (défaut n° 20 de `typescript.md`).
@@ -365,7 +367,7 @@ export default async function EstimatePage({
             <ExchangesLink project={screen.reading.project} kind="estimate" context={at.context} />
           }
         />
-        <AmendmentLateNote structure={screen.read} />
+        <StructureLateNote structure={screen.read} />
         {/* The indicators take the sub-project the address filters: another one is a new boundary,
             which says them loading rather than keeping the figures of the other. */}
         <Suspense
@@ -374,32 +376,41 @@ export default async function EstimatePage({
         >
           <Streamed content={summary} />
         </Suspense>
-        <GridCard fill>
-          <EstimateGrid
-            key={screen.structure.structure_id}
-            nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
-            structure={screen.structure}
-            structureVersion={screen.structureVersion}
-            filters={screen.filters}
-            reference={reference}
-            editable={editable}
-            tasksEditable={screen.commands.has("edit_planning")}
-            query={screen.query}
-            preferences={screen.preferences}
-            differential={screen.kind === "amendment"}
-            comparing={screen.base?.chosen !== undefined}
-            origins={originNames(screen.origin)}
-            treeFilters={
-              <TreeFilters
-                breakdown={screen.breakdown}
-                difference={screen.difference}
-                differential={screen.kind === "amendment"}
-                origin={screen.origin}
-              />
-            }
-            inflation={inflationOf(screen.reading)}
-          />
-        </GridCard>
+        <OwnEstimateScope
+          structure={screen.read}
+          commands={screen.commands}
+          gated={screen.gated}
+          revision={revision}
+        >
+          <GridCard fill>
+            <EstimateGrid
+              key={screen.structure.structure_id}
+              nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
+              structure={screen.structure}
+              structureVersion={screen.structureVersion}
+              filters={screen.filters}
+              reference={reference}
+              editable={editable}
+              tasksEditable={
+                screen.commands.has("edit_planning") || screen.gated.has("edit_planning")
+              }
+              query={screen.query}
+              preferences={screen.preferences}
+              differential={screen.kind !== "main"}
+              comparing={screen.base?.chosen !== undefined}
+              origins={originNames(screen.origin)}
+              treeFilters={
+                <TreeFilters
+                  breakdown={screen.breakdown}
+                  difference={screen.difference}
+                  differential={screen.kind !== "main"}
+                  origin={screen.origin}
+                />
+              }
+              inflation={inflationOf(screen.reading)}
+            />
+          </GridCard>
+        </OwnEstimateScope>
       </Screen>
     </PendingAddress>
   );

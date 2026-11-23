@@ -164,8 +164,8 @@ export interface GridReading<N extends NodeField, T extends TaskField, L extends
   readonly byBreakdown?: boolean;
   /**
    * Whether the grid offers « Écarts seulement » (`difference`, US-0700) — the planning and the
-   * estimate —, which the address names and the server applies, on a differential alone: the main
-   * structure and the own estimate of a risk bear no difference, and read as if the address said
+   * estimate —, which the address names and the server applies, on a differential and on the own estimate of
+   * a risk (US-3140) alone: the main structure bears no difference, and read as if the address said
    * nothing of it. Not offered, when none is given.
    */
   readonly byDifference?: boolean;
@@ -232,6 +232,12 @@ export interface GridScreen<Row> {
    * read only.
    */
   readonly commands: ReadonlySet<StructureCommand>;
+  /**
+   * The entry commands the structure lists unavailable for the sole reason that it is out of date
+   * (`own_estimate_up_to_date`): the grid is entered all the same, its first entry updating the own
+   * estimate (`OwnEstimateScope`, US-3140).
+   */
+  readonly gated: ReadonlySet<StructureCommand>;
   readonly nodes: NodeRows<Row>;
   /**
    * The level of the deepest summary of the structure, whatever the reading retains
@@ -346,9 +352,9 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
   const { sort, search } = await asked;
   const subproject = context.parameters.get("subproject_id");
   const structure = { ...path, structure_id: read.structure_id };
-  // Read on a differential alone, where each node bears a difference.
+  // Read on a differential or an own estimate alone, where each node bears a difference.
   const difference =
-    byDifference && read.kind === "amendment" ? readDifferenceFilter(at.address) : undefined;
+    byDifference && read.kind !== "main" ? readDifferenceFilter(at.address) : undefined;
   const origin = await requested;
   const filtersOf = (by: OriginFilter | undefined): NodeFilters => ({
     ...(kinds === undefined ? {} : { kinds: [...kinds] }),
@@ -409,6 +415,7 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     commands: new Set(
       read.available_commands.filter((offer) => offer.is_available).map(({ command }) => command),
     ),
+    gated: gatedCommands(read),
     nodes: projectNodes(answer, fields, kinds),
     summaryDepth: answer.meta.summary_depth,
     scheduledAt: answer.meta.scheduled_at,
@@ -416,6 +423,25 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     difference,
     origin: shown,
   };
+}
+
+/**
+ * The entry commands a structure lists unavailable for the sole reason that it is out of date — the
+ * own estimate of a risk in arrears, whose entries wait for its update (`own_estimate_up_to_date`,
+ * WF-RIS-0070): what the screen opens to entry, the update made before the first one (US-3140).
+ */
+function gatedCommands(read: CostStructure): ReadonlySet<StructureCommand> {
+  return new Set(
+    read.available_commands
+      .filter(
+        ({ command, is_available, missing_conditions }) =>
+          !is_available &&
+          (command === "edit_planning" || command === "edit_estimate") &&
+          missing_conditions.length === 1 &&
+          missing_conditions[0] === "own_estimate_up_to_date",
+      )
+      .map(({ command }) => command),
+  );
 }
 
 /**

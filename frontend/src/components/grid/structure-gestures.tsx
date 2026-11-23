@@ -83,6 +83,7 @@ import {
   refusalDescription,
   useReadAnew,
 } from "@/components/commands/outcome-notice";
+import { useEntryGuard } from "@/components/revisions/entry-guard";
 import { taskRemainingHref } from "@/components/remaining/address";
 import { type Said, useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
@@ -403,6 +404,8 @@ export function useStructureGestures<Row extends GridNode>(
 ): RowCommands<Row> | undefined {
   const t = useTranslations("grid.structure");
   const helps = useTranslations("commands");
+  // The own estimate of a risk in arrears is updated before a gesture writes (US-3140).
+  const guard = useEntryGuard();
   const router = useRouter();
   const held = useHeldCommand();
   const [reading, refresh] = useTransition();
@@ -477,7 +480,7 @@ export function useStructureGestures<Row extends GridNode>(
     setWriting(true);
     // A refusal by field is told by the reason of its field — a node to follow that is no sibling —,
     // the envelope saying only that the entry is invalid.
-    const sent = call().then(byField);
+    const sent = guard(call).then(byField);
     account.writing(sent);
     void held(sent).then((outcome) => {
       setWriting(false);

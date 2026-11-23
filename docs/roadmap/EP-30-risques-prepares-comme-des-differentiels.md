@@ -1339,7 +1339,7 @@ d'une opportunité (US-3140).
 
 ## US-3140 — Les écrans des risques : le devis propre sur le projet, sa mise à jour, la survenance, l'opportunité
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — WF-IHM-0020, dont le texte ne change pas, reste close par EP-08
 - **opérations** : celles des US-3070 à US-3130, par le client engendré
 - **issue** : #4582
