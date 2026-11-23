@@ -396,14 +396,14 @@ export default async function EstimatePage({
               }
               query={screen.query}
               preferences={screen.preferences}
-              differential={screen.kind !== "main"}
+              differential={screen.differential}
               comparing={screen.base?.chosen !== undefined}
               origins={originNames(screen.origin)}
               treeFilters={
                 <TreeFilters
                   breakdown={screen.breakdown}
                   difference={screen.difference}
-                  differential={screen.kind !== "main"}
+                  differential={screen.differential}
                   origin={screen.origin}
                 />
               }

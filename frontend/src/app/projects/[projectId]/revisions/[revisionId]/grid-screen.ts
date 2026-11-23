@@ -205,6 +205,11 @@ export interface GridScreen<Row> {
   /** What the structure read is: the main one, a differential, the own estimate of a risk. */
   readonly kind: StructureKind;
   /**
+   * Whether the nodes bear a difference: a differential, or the own estimate of a risk not yet
+   * occurred; not the main structure, nor the own estimate of an occurred risk, which is consumed.
+   */
+  readonly differential: boolean;
+  /**
    * The structure read, which a computed cell names to ask what its value depends on, and which the
    * grid is mounted for: the grid of another structure starts anew (#819.3).
    */
@@ -353,8 +358,10 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
   const subproject = context.parameters.get("subproject_id");
   const structure = { ...path, structure_id: read.structure_id };
   // Read on a differential or an own estimate alone, where each node bears a difference.
-  const difference =
-    byDifference && read.kind !== "main" ? readDifferenceFilter(at.address) : undefined;
+  // The own estimate of a risk occurred is consumed: it bears no difference, and is read as the main
+  // structure is (`NodeDifference`, WF-RIS-0060).
+  const differential = read.kind !== "main" && !(read.kind === "risk" && read.is_merged);
+  const difference = byDifference && differential ? readDifferenceFilter(at.address) : undefined;
   const origin = await requested;
   const filtersOf = (by: OriginFilter | undefined): NodeFilters => ({
     ...(kinds === undefined ? {} : { kinds: [...kinds] }),
@@ -405,6 +412,7 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
   return {
     label: read.label,
     kind: read.kind,
+    differential,
     structure,
     structureVersion: read.lock_version,
     planningStart: read.planning_start_on,

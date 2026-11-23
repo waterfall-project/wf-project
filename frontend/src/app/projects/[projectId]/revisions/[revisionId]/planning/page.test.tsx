@@ -548,6 +548,16 @@ describe("« Écarts seulement » on the grid of the planning [WF-REV-0100-A] [W
     expect(BUTTON.exec(page)?.[1]).toBe("true");
     expect(grid.given.at(-1)?.differential).toBe(true);
   });
+
+  it("reads the own estimate of a risk occurred as the main structure, which bears no difference: none asked, none offered [US-3140] [WF-RIS-0060]", async () => {
+    const consumed = "01926f3a-7c00-7000-8000-000000000205";
+    server.answers = { ...server.answers, [NODES]: "nodes_risk_estimate_occurred" };
+    const page = await planning({ structure: consumed, difference: ALL });
+    expect(callsOf(NODES)[0]?.path).toContain(`/structures/${consumed}/nodes`);
+    expect(callsOf(NODES)[0]?.query.has("difference")).toBe(false);
+    expect(BUTTON.exec(page)).toBeNull();
+    expect(grid.given.at(-1)?.differential).toBe(false);
+  });
 });
 
 /** The query the page asked a route with, by the end of its route. */

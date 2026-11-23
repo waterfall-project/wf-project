@@ -253,14 +253,14 @@ export default async function PlanningPage({
                 preferences: screen.preferences,
                 undoable: editable,
                 editable,
-                differential: screen.kind !== "main",
+                differential: screen.differential,
                 comparing: screen.base?.chosen !== undefined,
                 origins: originNames(screen.origin),
                 treeFilters: (
                   <TreeFilters
                     breakdown={screen.breakdown}
                     difference={screen.difference}
-                    differential={screen.kind !== "main"}
+                    differential={screen.differential}
                     origin={screen.origin}
                   />
                 ),
