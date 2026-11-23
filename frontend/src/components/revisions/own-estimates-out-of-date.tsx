@@ -40,7 +40,7 @@ export function OwnEstimatesOutOfDate(props: {
   readonly revisionId: string;
 }) {
   const { taskId, ...where } = props;
-  return taskId === undefined ? null : <Named taskId={taskId} {...where} />;
+  return taskId === undefined ? null : <Named key={taskId} taskId={taskId} {...where} />;
 }
 
 /** The risks the task named failed. */

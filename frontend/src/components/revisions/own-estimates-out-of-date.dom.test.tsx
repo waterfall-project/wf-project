@@ -45,6 +45,15 @@ function Marking() {
       >
         Marquer
       </button>
+      <button
+        type="button"
+        onClick={() => {
+          // Another marking, which has not failed: the tracker has no line of it.
+          setStarted("01926f3a-7c00-7000-8000-000000000932");
+        }}
+      >
+        Marquer à nouveau
+      </button>
       <OwnEstimatesOutOfDate taskId={started} projectId={PROJECT} revisionId={REVISION} />
     </>
   );
@@ -92,6 +101,23 @@ describe("le marquage dont la tâche échoue pour des devis propres [US-3140] [W
       "href",
       `/projects/${PROJECT}/revisions/${REVISION}/risks?risk=01926f3a-7c00-7000-8000-000000000751`,
     );
+  });
+
+  it("n'oublie pas le marquage suivant : ce qu'une tâche échouée a nommé ne survit pas à une nouvelle tâche", async () => {
+    server.client = fakeClient({ "GET /tasks/{task_id}": ["task_mark_own_estimates_failed"] });
+    render(marking());
+    await act(async () => {
+      screen.getByRole("button", { name: "Marquer" }).click();
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL);
+    });
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    expect(await screen.findByRole("alert")).toBeVisible();
+    await act(async () => {
+      screen.getByRole("button", { name: "Marquer à nouveau" }).click();
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL);
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("link", { name: /Lire le compte rendu/ })).toBeNull();
   });
 
   it("ne dit rien d'une tâche qui échoue pour un autre motif", async () => {
