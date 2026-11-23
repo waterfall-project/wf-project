@@ -67,6 +67,22 @@ def set_week(database: Database, calendar_id: UUID, hours: tuple[int, ...]) -> N
         session.execute(update(Calendar).where(Calendar.id == calendar_id).values(**days))
 
 
+def change_week(
+    api: ContractClient, stage: Scene, realm: TestRealm, calendar_id: UUID, hours: tuple[int, ...]
+) -> None:
+    """Change the hours of a calendar through the API, as a manager of the reference does."""
+    changing = holding(stage.database, realm, "resource_settings.write")
+    listed = api.get(f"{CALENDARS}?sort_by=is_default", headers=changing).json()["items"]
+    calendar = next(each for each in listed if each["calendar_id"] == str(calendar_id))
+    sent = {
+        "label": calendar["label"],
+        "weekly_hours": dict(zip(DAYS, (str(each) for each in hours), strict=True)),
+        "lock_version": calendar["lock_version"],
+    }
+    changed = api.patch(f"{CALENDARS}/{calendar_id}", headers=changing, json=sent)
+    assert changed.status_code == 200, changed.text
+
+
 def calendar_of_role(database: Database, role_id: UUID) -> UUID:
     """Read the calendar of a role."""
     with database.transaction() as session:
@@ -103,12 +119,12 @@ def open_revision(api: ContractClient, stage: Scene) -> Any:
 @pytest.mark.requirement("WF-PLA-0010-A")
 @pytest.mark.usefixtures("costs")
 def test_the_opening_of_a_revision_refuses_a_task_left_without_an_hour_naming_it_and_its_roles(
-    api: ContractClient, stage: Scene, tree: Tree
+    api: ContractClient, stage: Scene, tree: Tree, realm: TestRealm
 ) -> None:
     # [US-3330] The project at rest — its last revision marked, none current — keeps a task with
-    # the lines of two roles; the calendar of one changes, the two share no day: the opening is
-    # refused naming the task of the copy and the roles, and creates nothing; the calendar
-    # corrected, it succeeds.
+    # the lines of two roles; the calendar of one changes through the API (the guard lets the
+    # project at rest through), the two share no day: the opening is refused naming the task of
+    # the copy and the roles, and creates nothing; the calendar corrected, it succeeds.
     first = add_role(stage.database, "AA", WEEKDAYS)
     second = add_role(stage.database, "BB", WEEKDAYS)
     lines = Lines(tree)
@@ -118,7 +134,7 @@ def test_the_opening_of_a_revision_refuses_a_task_left_without_an_hour_naming_it
     mark(stage, tree.revision)
     before = revisions(stage)
     calendar = calendar_of_role(stage.database, second)
-    set_week(stage.database, calendar, WEEKEND)
+    change_week(api, stage, realm, calendar, WEEKEND)
     refused = open_revision(api, stage)
     status, code, params = refusal(refused)
     assert (status, code) == (422, "TASK_WITHOUT_WORKING_HOURS")
@@ -130,7 +146,7 @@ def test_the_opening_of_a_revision_refuses_a_task_left_without_an_hour_naming_it
     assert (named["project_id"], named["label"]) == (stage.project["project_id"], "Câblage")
     UUID(named["node_id"])
     assert revisions(stage) == before
-    set_week(stage.database, calendar, WEEKDAYS)
+    change_week(api, stage, realm, calendar, WEEKDAYS)
     assert open_revision(api, stage).status_code == 201
     assert revisions(stage) == before + 1
 
@@ -197,7 +213,16 @@ def test_every_write_that_replays_the_engine_translates_the_refusal_where_it_is_
         tree.change(before, duration={"value": "3", "unit": "d"}),
         lines.change(first, quantity="2"),
     ]
-    assert [refusal(each)[:2] for each in answers] == [(422, "TASK_WITHOUT_WORKING_HOURS")] * 3
+    refused = [refusal(each) for each in answers]
+    assert [each[:2] for each in refused] == [(422, "TASK_WITHOUT_WORKING_HOURS")] * 3
+    for _, _, params in refused:
+        assert [(each["project_id"], each["label"]) for each in params["tasks"]] == [
+            (stage.project["project_id"], "Câblage")
+        ]
+        assert [(each["resource_role_id"], each["code"]) for each in params["resource_roles"]] == [
+            (str(role), "AA"),
+            (str(other), "BB"),
+        ]
     after = tree.node(task["node_id"])
     kept = ("duration", "start", "finish", "scheduling_mode")
     assert [after["task"][name] for name in kept] == [before["task"][name] for name in kept]
