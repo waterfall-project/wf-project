@@ -266,6 +266,16 @@ l'auteur le 2026-11-23 :
   US-3210b : l'export écrit les constantes d'unité à 1 au moins ; la saisie n'est pas bornée ;
 - #4830 — tests : la citation du Vérif des constantes d'unité non littérale → US-3210b.
 
+Constats relevés à la livraison d'US-3230 et d'US-3240, tranchés par l'auteur le 2026-11-23 :
+
+- #4849 — back : l'application du reste à engager relit le compteur de chaque ligne qui termine sa
+  tâche, une par une (`remaining/applying.py`), le défaut que BCH-05 a retiré du devis → US-3230b ;
+- #4850 — back : un dépôt dont l'import abandonné est purgé redevient libre et compte de nouveau
+  dans le plafond de vingt → US-3240b : le dépôt marqué échu à l'abandon et à la purge de son
+  import (WF-DAT-0120) ;
+- #4854 — front : le refus du plafond redit « Valeur maximale : 20 » après « moins de vingt » →
+  US-3280, un libellé propre à la condition.
+
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
 qui réalisera #3966, à nommer par le cadreur ») → US-3270.
@@ -799,7 +809,8 @@ attendue. Pour #4428, décision de l'auteur du 2026-11-21 : dire l'écart au com
 étant de la conception. Écartés : ramener la quantité à 1, que la Conception d'EP-09 a déjà écartée ;
 ne corriger que la phrase. La phrase de la décision #2797 dans le fichier d'EP-09 (« Le débours d'une
 tâche à cheval sur deux années rend le montant saisi ») est corrigée par la pull request de ce
-cadrage.
+cadrage. US-3230b (#4849, ajouté le 2026-11-23) : l'application lit en une fois les compteurs des
+lignes qui terminent leur tâche, sur le modèle de BCH-05.
 
 **Hors périmètre.** L'export du reste à engager d'une révision marquée au taux du jour (BCH-08,
 #4441, EP-35).
@@ -841,7 +852,9 @@ remplisse pas le stockage objet, qui porte aussi les sauvegardes (#4423).
 dépôts en attente par compte (200 Mio). Écarté : la permission seule, qui laisse la boucle à un
 compte habilité. La forme du refus du plafond (son code et son statut) est de la conception. Le
 plafond se juge avant l'écriture au stockage, que la route fait aujourd'hui avant d'enregistrer le
-dépôt.
+dépôt. US-3240b (#4850, ajouté le 2026-11-23) : à l'abandon d'un import, et à sa suppression par
+la purge, le dépôt qu'il employait est marqué échu dans la même transaction ; un dépôt employé une
+fois ne redevient jamais libre (WF-DAT-0120), ni pour `openImport` ni pour le plafond.
 
 **Hors périmètre.** Le dépôt par morceaux d'une sauvegarde, déjà sous `platform_restore` ; la
 qualité de contributeur, que `openImport` juge sur son projet.
