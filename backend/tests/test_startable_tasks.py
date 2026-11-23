@@ -61,11 +61,12 @@ FRIDAY = DAY + timedelta(days=4)
 TERMINAL = ["completed", "lost", "abandoned"]
 # The conditions, in the order of the contract, a task not started that is no milestone lacks.
 NOT_STARTED = ["task_is_milestone", "task_without_lines"]
-# The statements the Kanban takes, measured at 35 on 2026-11-19 and again after the corrections of
-# the review (the state of a revision reads its main structure for the declaration of a risk,
-# ``has_main_task``, US-2570; #4002), at 38 on 2026-11-23 with the conflicts of the structure, read
-# in a statement of their own (``task_link_conflict``, US-3300/L3): a bound of 40, a margin of 2, as
-# it has always kept — tight enough to catch one more a task, which the test grows by 12.
+# The statements the Kanban takes, measured at 35 on 2026-11-19, at 37 after the corrections of the
+# review (the state of a revision reads its main structure for the declaration of a risk,
+# ``has_main_task``, US-2570; #4002), and at 38 on 2026-11-23, the head of the EPIC before the lot
+# and with it: the one more is the read of the conflicts of the structure, once a reading
+# (``task_link_conflict``, US-3300/L3). A bound of 40, a margin of 2, as it has always kept — tight
+# enough to catch one more a task, which the test grows by 12.
 BOUND = 40
 
 
