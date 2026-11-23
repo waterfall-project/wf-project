@@ -4,7 +4,7 @@
  * The server actions of the risks of a project — one declared (`createRisk`) or modified from the
  * version read — its identity (`updateRisk`), its provision (`updateRiskProvision`) —, reviewed
  * (`reviewRisk`), deleted (`deleteRisk`) or declared occurred (`readRiskOccurrenceReport`,
- * `declareRiskOccurrence`): the browser asks the server of Next, which calls the API (§4.3.1), and
+ * `declareRiskOccurrence`), and read anew once its own estimate is updated (`readRisk`): the browser asks the server of Next, which calls the API (§4.3.1), and
  * gets back the outcome the one decoder makes of its answer (`src/api/problem.ts`). A write
  * answered reads the page anew, which lists what the server now retains — but for the deletion,
  * which the screen leaves for the address without the risk, and the occurrence, handed to the
@@ -114,6 +114,26 @@ async function modifyRisk(
   }
   const provided = await provide(provision, named.data.lock_version);
   return { outcome: provided, identityWritten: provided.kind !== "done" };
+}
+
+/**
+ * Read a risk as it is in a revision (`getRisk`, US-3140): once the update of its own estimate has
+ * recomputed its severity and moved its counter, the review that follows is written from this
+ * version, and presents the severity it recomputed. A read, which writes nothing.
+ */
+export async function readRisk(
+  projectId: string,
+  riskId: string,
+  revisionId: string,
+): Promise<Outcome<Schemas["Risk"]>> {
+  return decode(() =>
+    serverClient().GET("/projects/{project_id}/risks/{risk_id}", {
+      params: {
+        path: { project_id: projectId, risk_id: riskId },
+        query: { revision_id: revisionId },
+      },
+    }),
+  );
 }
 
 /**

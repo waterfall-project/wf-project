@@ -22,6 +22,7 @@ import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
 import { markRevision } from "@/api/actions/revisions";
 import type { Outcome } from "@/api/problem";
 import type { Revision } from "@/components/context/read-only";
+import { OwnEstimatesOutOfDate } from "@/components/revisions/own-estimates-out-of-date";
 import { useRunningTask, useTaskRunning, useTrackTask } from "@/components/tasks/task-tracker";
 import { taskAim } from "@/components/tasks/tracking";
 import { Button } from "@/components/ui/button";
@@ -204,6 +205,13 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
   // command waits while it runs, and is given back at its end.
   const [marking, setMarking] = useState<string>();
   const found = useRunningTask(markAim(revision));
+  // The task found stays the one the screen names the risks of once it has ended: it is no longer
+  // running then, and the tracker finds none, but the failure is the screen's to tell.
+  const [seen, setSeen] = useState(found);
+  if (found !== undefined && found !== seen) {
+    // Adjusted while rendering, as React admits for a state derived from what changes.
+    setSeen(found);
+  }
   const running = useTaskRunning(marking ?? found);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   // A marking lost once sent: the screen is read anew before it can be asked again (US-2240) — read
@@ -248,7 +256,13 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
           onOutcome={setOutcome}
           reading={reading}
         />
-      ) : reading ? (
+      ) : null}
+      <OwnEstimatesOutOfDate
+        taskId={marking ?? seen}
+        projectId={revision.project_id}
+        revisionId={revision.revision_id}
+      />
+      {open ? null : reading ? (
         // The form closed while the screen is read anew: the command stays unavailable, and the
         // notice of the marking that may have been done stays told as long (#3443).
         <OutcomeNotice

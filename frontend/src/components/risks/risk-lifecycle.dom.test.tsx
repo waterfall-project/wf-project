@@ -11,7 +11,6 @@ import { forgetMessages } from "@/components/notices/message-history";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { formatPlanningDate } from "@/i18n/format";
 import { atCommit } from "@/test/committed";
 import {
   example,
@@ -42,6 +41,7 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
+const REVISION = "01926f3a-7c00-7000-8000-000000000002";
 const DELETE = "DELETE /projects/{project_id}/risks/{risk_id}";
 const OCCURRENCE = "POST /projects/{project_id}/risks/{risk_id}/occurrence";
 const OCCURRENCE_REPORT = "GET /projects/{project_id}/risks/{risk_id}/occurrence";
@@ -67,7 +67,13 @@ function detail(risk: Risk) {
         <TasksButton />
         <TaskPanel />
         <PendingAddress>
-          <RiskDetail risk={risk} reviews={[]} projectId={PROJECT} options={undefined} />
+          <RiskDetail
+            risk={risk}
+            reviews={[]}
+            projectId={PROJECT}
+            revisionId={REVISION}
+            options={undefined}
+          />
         </PendingAddress>
       </TaskTracker>
     </NextIntlClientProvider>
@@ -249,7 +255,7 @@ describe("« Déclarer survenu »", () => {
     return form;
   }
 
-  it("presents the report in the marks, says the provision withdrawn and the own estimate that starts before the day (#4133), and confirms with the counters read [WF-RIS-0060-A] [WF-IHM-0110-A]", async () => {
+  it("presents the report in the marks, says the provision withdrawn and no signal of EP-08 (#4133, #4134), and confirms with the counters read [WF-RIS-0060-A] [WF-IHM-0110-A]", async () => {
     const client = serve({
       [OCCURRENCE_REPORT]: { example: "risk_occurrence_report", status: 200 },
       [OCCURRENCE]: { example: "task_occurrence_queued", status: 202 },
@@ -266,14 +272,10 @@ describe("« Déclarer survenu »", () => {
     expect(markOf("Diagnostic des défauts de câblage")).toHaveAccessibleName("Ajouté");
     expect(markOf("Câblage des armoires")).toHaveAccessibleName("Modifié");
     expect(markOf("Provision — Risque de reprise du câblage")).toHaveAccessibleName("Retiré");
-    // The own estimate of the risk starts before the day of the declaration: the report says so.
-    // The day is the one the example gives, formatted as the screen does.
-    const started = (
-      example("risk_occurrence_report") as { own_estimate_past_planning_start_on: string }
-    ).own_estimate_past_planning_start_on;
-    expect(within(form).getByRole("note")).toHaveTextContent(
-      `Le devis propre du risque commence le ${formatPlanningDate(started, "fr")}, avant le jour de la déclaration`,
-    );
+    // The two signals of EP-08 are gone (#4133, #4134): the own estimate starting before the day of the
+    // declaration, which the example still carries, is told nowhere.
+    expect(within(form).queryByRole("note")).toBeNull();
+    expect(form).not.toHaveTextContent(/commence le/);
     await expectAccessible(form);
     // Abandoned, nothing is written: the report was a read.
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));

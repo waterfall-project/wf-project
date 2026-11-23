@@ -313,9 +313,10 @@ export function useWhenTaskSucceeds(
 
 /**
  * Run `then` once, when the task named has failed or its follow-up was interrupted — never when it
- * succeeded: what waited for its end is freed. `task_id` is none until a task was started.
+ * succeeded: what waited for its end is freed. `task_id` is none until a task was started. The
+ * line of the end carries the motive of the failure (`problem`).
  */
-export function useWhenTaskFails(taskId: string | undefined, then: () => void): void {
+export function useWhenTaskFails(taskId: string | undefined, then: (line: EndLine) => void): void {
   useWhenTaskEnded(taskId, "unsuccessful", then);
 }
 

@@ -21,6 +21,10 @@
  *   the other, each from the counter the one before answered; an entry made before the last of them is
  *   answered joins them, from those counters too, not from the grid's, which may not have taken them yet.
  *
+ * The replay queue holds for the entries passed as an `Entry` alone: the gestures of structure — a
+ * move, an indentation, a sub-project, the chronologies — are written once and not replayed, and are
+ * withheld like any other write while the update is pending (#4818, to settle).
+ *
  * The front decides none of it but by the word of the structure and of the report (`signals`). The
  * component is mounted for one structure — its parent keys it by the structure —, and renders what it
  * says above its children, the grid.
@@ -39,7 +43,7 @@ import {
 } from "react";
 
 import { readNodeCounters } from "@/api/actions/nodes";
-import { readRebaseReport, recomposeStructure, rebaseStructure } from "@/api/actions/revisions";
+import { recomposeStructure, rebaseStructure } from "@/api/actions/revisions";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
@@ -55,7 +59,8 @@ import {
   notFound,
   withheld,
 } from "./entry-guard";
-import { type Report, ReportBody, signals } from "./rebase-report";
+import { type Refused, type Settled, settleOwnEstimate, type Updated } from "./own-estimate-settle";
+import { type Report, ReportBody } from "./rebase-report";
 
 /** The own estimate, and where it is. */
 export interface OwnEstimate {
@@ -67,24 +72,11 @@ export interface OwnEstimate {
 
 type NodesWritten = components["schemas"]["NodesWritten"];
 
-/** What an action that gives nothing back answered, when it did not give it. */
-type Refused = Exclude<Outcome<never>, { readonly kind: "done" }>;
-
 /** The nodes read again after the update, which the entries held back are written from, in turn. */
 interface Rewritten {
   readonly nodes: Map<string, FreshNode>;
   structureLockVersion: number;
 }
-
-/** The update applied without a question, and the counter the structure moved on to. */
-interface Updated {
-  readonly kind: "updated";
-  readonly structureLockVersion: number;
-}
-
-/** What settling the update came to. */
-type Settled =
-  Updated | { readonly kind: "presented" } | { readonly kind: "failed"; readonly outcome: Refused };
 
 /** The entries written again after an update, and how many of them are still to be answered. */
 interface Replay {
@@ -145,25 +137,14 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
   }, []);
 
   const settle = useCallback(async (): Promise<Settled> => {
-    const report = await readRebaseReport(projectId, revisionId, structureId);
-    if (report.kind !== "done") {
-      return { kind: "failed", outcome: report };
+    const settled = await settleOwnEstimate(projectId, revisionId, structureId);
+    if (settled.kind === "presented" && alive.current) {
+      setPrompt({ report: settled.report, outcome: undefined });
     }
-    if (signals(report.data)) {
-      if (alive.current) {
-        setPrompt({ report: report.data, outcome: undefined });
-      }
-      return { kind: "presented" };
+    if (settled.kind === "updated") {
+      live.current.updated = true;
     }
-    const rebased = await rebaseStructure(projectId, revisionId, structureId, {
-      mainStructureLockVersion: report.data.main_structure_lock_version,
-      structureLockVersion: report.data.structure_lock_version,
-    });
-    if (rebased.kind !== "done") {
-      return { kind: "failed", outcome: rebased };
-    }
-    live.current.updated = true;
-    return { kind: "updated", structureLockVersion: rebased.data.lock_version };
+    return settled;
   }, [projectId, revisionId, structureId]);
 
   // The reading and the update under way, which entries made meanwhile wait for instead of starting

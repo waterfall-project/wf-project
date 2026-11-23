@@ -655,6 +655,7 @@
       "notSet": "Not set",
       "neverReviewed": "Never reviewed",
       "referenceProvision": "Reference provision",
+      "costToday": "What it costs today",
       "provisionLine": {
         "title": "Provision line",
         "present": "In the main structure: the provision weighs on the estimate.",
@@ -2151,6 +2152,26 @@
     "done": "The own estimate “{label}” is up to date. Enter again.",
     "updated": "The own estimate “{label}” was updated."
   },
+  "ownEstimatesOutOfDate": {
+    "title": "Own estimates to update",
+    "statement": "{count, plural, one {The own estimate of a risk keeps a value against the project or is refused its update: nothing was written.} other {The own estimates of # risks keep a value against the project or are refused their update: nothing was written.}} Read the report of each, confirm or correct it, then start again.",
+    "read": "Read the report",
+    "readOf": "Read the report of “{label}”"
+  },
+  "ownEstimateFirst": {
+    "recomposing": "Recomposing the own estimate “{label}”…",
+    "updating": "Updating the own estimate “{label}”…",
+    "title": "Update of the own estimate",
+    "keeps": "The update of the own estimate “{label}” keeps a value against the project: confirm it to go on.",
+    "refused": "The update of the own estimate “{label}” is refused: correct the own estimate in the grid, then start again.",
+    "confirm": "Confirm the update of the own estimate",
+    "skip": "Dismiss the risk without updating",
+    "ask": "The own estimate “{label}” is behind the project: update it to review the risk, or dismiss the risk without updating.",
+    "update": "Update the own estimate",
+    "openGrid": "Correct the own estimate in its grid",
+    "reread": "Read the report of the update anew",
+    "close": "Close"
+  },
   "rebaseReport": {
     "labelOwn": "Update the own estimate",
     "statementOwn": "The update carries into the own estimate what the main structure has received since its last update, changing nothing of what it designates, then recomputes the severity and the provision of the risk. Abandoning here changes nothing.",
@@ -2290,6 +2311,7 @@
     "review": "Review",
     "reviewTitle": "Review “{name}”",
     "reviewHint": "The review is dated today: confirming it with no change still produces one, added to the history. The severity and the provision are computed again.",
+    "reviewRecomputed": "The own estimate is up to date: the recomputed severity is {amount}.",
     "retainedState": "State retained",
     "categoryOnReturn": "Asked on the return to the identified state: the category the risk designated is no longer active.",
     "reviewed": "Risk “{name}” reviewed."
@@ -2311,7 +2333,14 @@
     "title": "Report of the occurrence",
     "reading": "Reading the report…",
     "createsRevision": "The project has no revision in progress: the occurrence first creates it by copying the last marked revision, and merges the own estimate of the risk into it, in the same background task. If it fails, no revision is created.",
-    "pastStart": "The own estimate of the risk starts on {date}, before the day of the declaration: the occurrence accepts it, neither refusing it nor redating its tasks, which keep their dates, now in the past.",
+    "completedTitle": "Tasks completed by the occurrence",
+    "completed": "{count, plural, =0 {No task completed by the occurrence} one {# task completed by the occurrence} other {# tasks completed by the occurrence}}",
+    "completedTask": "“{label}”: the own estimate abandons it; it is kept and completed on the day of the occurrence, its remaining to commit brought to zero.",
+    "earnedAdded": "Earned value brought: {amount}",
+    "reopenedTitle": "Tasks reopened by the occurrence",
+    "reopened": "{count, plural, =0 {No completed task reopened} one {# completed task reopened by the occurrence} other {# completed tasks reopened by the occurrence}}",
+    "reopenedTask": "“{label}”: completed, it is reopened; the earned value it had acquired falls back.",
+    "earnedRemoved": "Earned value withdrawn: {amount}",
     "provision": "The line of provision of the risk is withdrawn from the remaining to commit: {amount} of provision less.",
     "refusals": "{count, plural, one {# reason refuses the occurrence} other {# reasons refuse the occurrence}}",
     "reread": "Read the report again"

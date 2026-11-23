@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The report of the occurrence of a risk, shown in the confirmation of « Déclarer survenu »
- * (US-0680, WF-RIS-0060, WF-IHM-0110): what declaring it would do to the main structure — the tasks
- * and the lines of its own estimate added, its line of provision removed, the task that carries it
- * modified —, in the marks `+`, `-`, `M` of the diff of the grids, as the report of the merge of an
- * amendment shows its own (`Differences`); the provision withdrawn from the remaining to commit; the
- * motives that refuse it, with which the declaration is not offered. A declaration asked while no
- * revision is in progress says it first creates one by copy (`creates_current_revision`).
+ * (US-0680, US-3140, WF-RIS-0060, WF-IHM-0110): the report of the merge of what the own estimate
+ * designates, in the order of what the occurrence does to the main structure — what it adds and
+ * modifies, and the tasks it abandons, kept (`Differences`, in the marks `+`, `-`, `M` of the diff of
+ * the grids); the tasks it completes and the earned value they bring at once; the completed tasks it
+ * reopens and the earned value that falls back; the provision withdrawn from the remaining to commit;
+ * the motives that refuse it, with which the declaration is not offered. A declaration asked while no
+ * revision is in progress says it first creates one by copy (`creates_current_revision`). The two
+ * signals of EP-08, an own estimate starting before the day of the declaration and the tasks a graft
+ * redated, are gone with the graft (#4133, #4134).
  *
  * The front computes nothing of the report: the differences are in the order received, and the
- * amount is the one the server rendered.
+ * amounts are the ones the server rendered.
  */
 "use client";
 
@@ -23,7 +26,7 @@ import type { Outcome } from "@/api/problem";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Differences } from "@/components/exchanges/import-report";
 import { useCurrency } from "@/currency/context";
-import { formatMoney, formatPlanningDate } from "@/i18n/format";
+import { formatMoney } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
 /** The report of the occurrence of a risk, as the contract gives it. */
@@ -31,28 +34,53 @@ export type OccurrenceReport = components["schemas"]["RiskOccurrenceReport"];
 
 const HEADING = "text-sm font-semibold";
 
-/**
- * The report as the server read it, and the motives that refuse it. A own estimate that starts
- * before the day of the declaration is signalled, never refused nor redated (#4133): the tasks keep
- * the dates it gave them, which then lie in the past. The tasks of the main structure that the graft
- * redates are differences like the others, `updated` (#4134).
- */
+/** The report as the server read it, and the motives that refuse it. */
 export function ReportBody({ report }: { readonly report: OccurrenceReport }) {
   const t = useTranslations("riskOccurrenceReport");
   const locale = useLocale();
   const currency = useCurrency();
   const messages = useMessages();
+  const { completed_tasks: completed = [], reopened_tasks: reopened = [] } = report;
+  const money = (amount: string) => formatMoney(amount, locale, currency);
   return (
     <div className="space-y-3">
       {report.creates_current_revision ? <p role="note">{t("createsRevision")}</p> : null}
-      {report.own_estimate_past_planning_start_on == null ? null : (
-        <p role="note">
-          {t("pastStart", {
-            date: formatPlanningDate(report.own_estimate_past_planning_start_on, locale),
-          })}
-        </p>
+      <Differences differences={report.differences} marks />
+      {completed.length === 0 && report.earned_value_added === undefined ? null : (
+        <section aria-label={t("completedTitle")} className="space-y-1">
+          <h3 className={HEADING}>{t("completed", { count: completed.length })}</h3>
+          {completed.length === 0 ? null : (
+            <ul className="list-inside list-disc">
+              {completed.map((task) => (
+                <li key={task.lineage_id}>{t("completedTask", { label: task.label })}</li>
+              ))}
+            </ul>
+          )}
+          {report.earned_value_added === undefined ? null : (
+            <p className="tabular-nums">
+              {t("earnedAdded", { amount: money(report.earned_value_added) })}
+            </p>
+          )}
+        </section>
       )}
-      <p>{t("provision", { amount: formatMoney(report.provision_amount, locale, currency) })}</p>
+      {reopened.length === 0 && report.earned_value_removed === undefined ? null : (
+        <section aria-label={t("reopenedTitle")} className="space-y-1">
+          <h3 className={HEADING}>{t("reopened", { count: reopened.length })}</h3>
+          {reopened.length === 0 ? null : (
+            <ul className="list-inside list-disc">
+              {reopened.map((task) => (
+                <li key={task.lineage_id}>{t("reopenedTask", { label: task.label })}</li>
+              ))}
+            </ul>
+          )}
+          {report.earned_value_removed === undefined ? null : (
+            <p className="tabular-nums">
+              {t("earnedRemoved", { amount: money(report.earned_value_removed) })}
+            </p>
+          )}
+        </section>
+      )}
+      <p>{t("provision", { amount: money(report.provision_amount) })}</p>
       {report.refusals.length === 0 ? null : (
         <div role="alert" className="space-y-1 text-destructive">
           <h3 className={HEADING}>{t("refusals", { count: report.refusals.length })}</h3>
@@ -65,7 +93,6 @@ export function ReportBody({ report }: { readonly report: OccurrenceReport }) {
           </ul>
         </div>
       )}
-      <Differences differences={report.differences} marks />
     </div>
   );
 }

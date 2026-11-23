@@ -42,6 +42,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { problemMessage } from "@/i18n/problem";
 
+import { OwnEstimatesOutOfDate } from "./own-estimates-out-of-date";
+
 type Report = components["schemas"]["StructureMergeReport"];
 type Change = Report["differences"][number]["change"];
 type Target = Report["differences"][number]["target"];
@@ -342,6 +344,11 @@ export function MergeAmendmentCommand({
           }}
         />
       )}
+      <OwnEstimatesOutOfDate
+        taskId={followed?.task.task_id}
+        projectId={amendment.projectId}
+        revisionId={amendment.revisionId}
+      />
       <DoneNotice
         title={reference === undefined ? undefined : t("reference", reference)}
         of={reference}
