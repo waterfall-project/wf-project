@@ -141,6 +141,17 @@ class UndoneError(Exception):
         self.trace = trace
 
 
+class RetriedError(UndoneError):
+    """A task that stalled on a failure that may pass: taken again, unless it is its last attempt.
+
+    A handler raises it from a cause the next attempt may not meet — a component that does not
+    answer. The worker undoes the work of the handler, writes nothing, and leaves the entry of the
+    task pending: it is claimed again, as after a worker stopped (WF-ARC-0090), and the task runs
+    from the start. On the last attempt, it is an ``UndoneError``: the trace is written and the
+    task fails with the cause, which a refusal gives its code and parameters.
+    """
+
+
 def submit(
     session: Session,
     queue: TaskQueue,

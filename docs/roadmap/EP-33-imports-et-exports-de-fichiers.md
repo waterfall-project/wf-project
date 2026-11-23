@@ -218,12 +218,24 @@ Constats relevés à la livraison d'US-3190/L1 et d'US-3180, tranchés par l'aut
 - #4734 — back : l'analyse XML d'openpyxl amplifie un classeur dans les bornes (13 Ko, 583 Mio) →
   US-3190/L1b, une pré-lecture en flux ; une limite de mémoire du conteneur est écartée ; à la
   question du livreur (2026-11-23), les chaînes partagées, les styles, les noms définis et le
-  produit lignes × colonnes → US-3190/L2b, qui les mesure avant toute borne ;
+  produit lignes × colonnes → US-3190/L2b, qui les a mesurés ; bornes fixées par l'auteur le
+  2026-11-23 (« Les bornes des classeurs ») ;
 - #4736 — spec : le classeur de 64 Mio du critère d'US-3190 contre la borne de 200 Mio déclarés →
   le critère est précisé dans le sens livré (un membre qui se décompresse au-delà de ce qu'il
   annonce), sans borne par membre ;
 - #4766 — back : une constante d'unité nulle ou négative d'un fichier MS Project finit en
   `INTERNAL_ERROR` → US-3180b, refusée par `FILE_FORMAT_UNREADABLE`, sans borne haute.
+
+Constats relevés à la livraison d'US-3190/L1b et à la mesure d'US-3190/L2b, confiés à US-3190/L2b :
+
+- #4837 — back : la pré-lecture refuse le VML mal formé d'une feuille de graphique, qu'openpyxl ne
+  lit pas ;
+- #4838 — tests : la tolérance d'un VML mal formé n'est pas éprouvée pour `[Content_Types].xml` ni
+  pour un membre en double ;
+- #4848 — back : un élément qu'openpyxl rejette par `TypeError` (un `<fill/>` de `styles.xml`)
+  finit en `INTERNAL_ERROR` → `TypeError` rattrapée à l'ouverture et à l'itération des lignes,
+  dans `opened_workbook` seulement, pour qu'une erreur de programmation d'un lecteur ne devienne
+  pas un refus du fichier (décision de l'auteur du 2026-11-23).
 
 Constat d'EP-32 reporté le 2026-11-23 (décision de l'auteur : le fichier d'EP-32 laisse l'import
 d'un planning MS Project à EP-33, qui écrit `core/planning/importing.py`) :
@@ -231,6 +243,28 @@ d'un planning MS Project à EP-33, qui écrit `core/planning/importing.py`) :
 - #4799 — contrat : l'import MS Project rend 500 sur une tâche créée sans heure travaillée, le
   contrat ne sait pas la nommer → US-3210b, après la livraison d'EP-32 dans `main`, qui apporte
   `TASK_WITHOUT_WORKING_HOURS` (US-3330).
+
+Constats relevés à la livraison d'US-3170, US-3180, US-3180b, US-3200 et US-3210, tranchés par
+l'auteur le 2026-11-23 :
+
+- #4759 — back : un fichier tiers qui range de vrais UUID dans `Text1` est pris pour un export de
+  Waterfall — limite acceptée, rejouée à la recette de l'aller-retour MS Project ;
+- #4779, #4813 — instabilités de la file (Keycloak, `test_partitions`), vues une fois — on attend ;
+  vues deux fois, le pilote ouvre le lot correctif ;
+- #4784 — back : un onglet de lignes qui perd « Tâche » ou « Rôle ou catégorie » n'est ni refusé ni
+  lu, et ses lignes se lisent absentes → US-3200b : la liste de #4421 s'étend aux deux clés ;
+- #4785 — contrat : aucun exemple d'un devis refusé pour une colonne absente → US-3280, un exemple
+  engendré, sans changement de forme ;
+- #4786 — back : le devis et le reste à engager lus deux fois à l'ouverture — écarté, hors verrou,
+  la mémoire tenue par les bornes, de l'ordre de 0,4 s sur 10 000 lignes ;
+- #4787 — front : une accolade ou une apostrophe dans le refus des colonnes absentes → US-3280, un
+  test ;
+- #4791 — back : la copie d'une révision ouverte qui rechiffre ses lignes fait refuser à tort un
+  import analysé dans la révision marquée → faux refus accepté, du côté sûr, figé par un test dans
+  US-3210b ; ni colonne ni migration ;
+- #4826 — back : une constante d'installation infime s'exporte à 0, que le lecteur refuse →
+  US-3210b : l'export écrit les constantes d'unité à 1 au moins ; la saisie n'est pas bornée ;
+- #4830 — tests : la citation du Vérif des constantes d'unité non littérale → US-3210b.
 
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
@@ -268,7 +302,8 @@ lot (EP-08 et EP-13 en portent chacune de leur côté).
 - `core/exchanges` porte la mécanique commune. Un ouvreur de classeurs entre dans son interface, à
   côté de l'analyseur XML durci : il lit `infolist()` de l'archive, refuse au-delà de 200 Mio de
   tailles décompressées déclarées ou de 1 000 membres, puis seulement ouvre le classeur ; les trois
-  lecteurs passent par lui et bornent chaque onglet lu à 200 000 lignes et 500 colonnes (US-3190).
+  lecteurs passent par lui et bornent les onglets lus à 200 000 lignes et 10 000 000 de cellules
+  en cumul, chaque ligne à 500 colonnes (US-3190).
   Le protocole `Format` remplace `read_header(session, head)` par deux étapes : `parse_header(head)`,
   pure, appelée avant `lock_project`, qui garde son refus au lieu de le lever, et
   `judge_header(session, parsed)`, sous le verrou, à la place que le contrat donne à ce refus dans
@@ -361,7 +396,11 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
 - **La comparaison se fait deux fois** : à la demande, pour refuser sans tâche, et à l'exécution
   sous le verrou de la structure. Une structure analysée dans la révision marquée et écrite dans sa
   copie est jugée « non écrite depuis sa copie », par l'interface du planning ; la révision que la
-  tâche crée elle-même n'est pas comparée. Un compte rendu au compteur nul — analysé avant la
+  tâche crée elle-même n'est pas comparée. Une ouverture de la copie qui avance son compteur
+  au-delà de la redatation (des lignes rechiffrées, une provision réécrite) la fait juger écrite :
+  l'import est refusé à tort, en 409, et l'utilisateur redépose — faux refus accepté, du côté sûr
+  (#4791, décision de l'auteur du 2026-11-23), figé par un test (US-3210b). Écarté : garder le
+  compteur de la copie à son ouverture, une colonne et une migration de plus. Un compte rendu au compteur nul — analysé avant la
   colonne, ou par un worker d'avant pendant une mise à jour — s'applique sans comparaison, pendant
   les vingt-quatre heures qu'il vit. Écarté : le refuser, sous une condition qui mentirait.
 - **La purge supprime dans la passe qui constate l'échéance** (US-3250) : elle ne passe plus par
@@ -384,10 +423,21 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
   pré-lecture lit tous les membres XML du classeur, pas seulement les onglets que le format lit :
   un onglet non lu au-delà des bornes fait aussi échouer l'import ; le classeur s'ouvrant en
   `read_only`, l'écart ne coûte pas de mémoire et évite de résoudre d'abord les onglets lus
-  (décision de l'auteur du 2026-11-23). Les chaînes partagées, les styles et les noms définis
-  n'ont pas encore de borne, et 200 000 lignes × 500 colonnes autorisent encore un pic de 789 Mio
-  pour un fichier de 9 885 octets : US-3190/L2b mesure chaque vecteur et propose des bornes
-  chiffrées, que l'auteur fixe avant qu'elles soient écrites. Les
+  (décision de l'auteur du 2026-11-23). Les autres vecteurs, mesurés par US-3190/L2b et bornés
+  par décision de l'auteur du 2026-11-23 : 1 000 000 de chaînes partagées, 65 536 éléments (runs)
+  par chaîne, et 32 Mio de texte décompressé dans `sharedStrings.xml` (le texte coûte quatre fois
+  sa taille en mémoire) ; dans `styles.xml`, `numFmts` 1 000, `fonts`, `fills`, `borders`,
+  `tableStyles` et `colors` 1 024 chacune, `cellStyleXfs`, `cellXfs`, `cellStyles` et `dxfs`
+  65 490 chacune, les limites d'Excel, pour qu'un classeur qu'Excel écrit ne soit jamais refusé ;
+  10 000 noms définis. La pré-lecture les compte et refuse avant l'ouverture. Le produit lignes ×
+  colonnes coûte 8,3 octets par cellule et 140 par ligne explicite (790 Mio pour 200 000 × 500,
+  d'un fichier de 7,9 Ko) : les onglets lus sont bornés en cumul à 200 000 lignes **et**
+  10 000 000 de cellules, comptées dans `bounded_rows` à mesure que les lignes arrivent ; le refus
+  vient donc après l'ouverture, la mémoire tenue dans la borne (≈ 105 Mio). Écarté : compter les
+  `<c>` à la pré-lecture, plus lent (10 à 30 %) et au risque d'un écart avec ce qu'openpyxl
+  matérialise. Toutes les bornes atteintes à la fois tiennent sous 330 Mio. Les tests de borne
+  mesurent la mémoire réelle du processus (`ru_maxrss`, dans un sous-processus) : `tracemalloc` ne
+  voit pas libxml2 et sous-estime les styles et les noms jusqu'à 2,4 fois. Les
   bornes du lecteur MS Project (US-3180) hors celles de l'auteur : un entier de 18 chiffres au plus,
   une durée d'un million d'heures au plus ; une constante d'unité (`MinutesPerDay`,
   `MinutesPerWeek`, `DaysPerMonth`) strictement positive, sans borne haute (US-3180b, #4766).
@@ -526,10 +576,14 @@ mémoire du service ni bloquer les saisies de tous (#4419).
   format lit, et un onglet du classeur, lu ou non, dont les lignes ou les colonnes passent la
   borne de la conception fait échouer l'import sur `FILE_FORMAT_UNREADABLE` ; lignes et
   cellules, vides comprises, se comptent avant l'ouverture, et un classeur de 13 705 octets dont
-  une ligne porte 2 000 000 de cellules vides est refusé sans que la mémoire du processus ne monte (US-3190/L1b, #4734).
-- propre à l'US : les chaînes partagées, les styles et les noms définis d'un classeur ont chacun
-  une borne de la conception, fixée sur mesure, au-delà de laquelle l'import échoue avant
-  l'ouverture sur `FILE_FORMAT_UNREADABLE` (US-3190/L2b).
+  une ligne porte 2 000 000 de cellules vides est refusé sans que la mémoire du processus ne
+  monte (US-3190/L1b, #4734).
+- propre à l'US : les chaînes partagées (leur nombre, leurs runs, leur texte), les listes de
+  `styles.xml` et les noms définis d'un classeur ont chacun la borne de la conception, au-delà de
+  laquelle l'import échoue avant l'ouverture sur `FILE_FORMAT_UNREADABLE` ; le cumul des onglets
+  lus, 200 000 lignes et 10 000 000 de cellules, se compte à la lecture et fait échouer l'import
+  de même, après l'ouverture, sans que la mémoire réelle du processus ne passe la borne que le
+  test fixe (US-3190/L2b).
 
 **Notes de réalisation.** Un seul ouvreur commun aux classeurs, dans l'interface des échanges, à
 côté de l'analyseur XML durci : les trois sites d'ouverture (`estimate/excel/reader.py`,
@@ -537,7 +591,9 @@ côté de l'analyseur XML durci : les trois sites d'ouverture (`estimate/excel/r
 sont de la conception. La borne se juge sur `infolist()`, et chaque membre est vérifié, par pas
 bornés, ne pas se décompresser au-delà de ce qu'il déclare : `ZipFile.read` décompresse un membre
 en entier avant de le couper (L1). La pré-lecture en flux des membres XML est d'US-3190/L1b
-(#4734) ; les bornes des autres vecteurs, et la revue de 200 000 × 500, d'US-3190/L2b, mesurées avant d'être écrites.
+(#4734) ; les bornes des autres vecteurs et le cumul des onglets lus sont d'US-3190/L2b, qui
+versionne ses scripts de mesure et sa fabrique de classeurs démesurés (des classeurs engendrés,
+ceux des tests et du témoin, aucun autre).
 
 **Hors périmètre.** La limite de mémoire du service dans le chart (EP-13, EP-39) ; la colonne
 absente d'un onglet (US-3200).
@@ -585,7 +641,9 @@ mises à jour ordinaires (#4421).
 Écarté : rejeter au compte rendu chaque ligne de l'onglet, qui rend des milliers de rejets pour une
 seule cause. Les deux lecteurs calculent déjà `missing_headers` et `unread_sheets`, que rien ne
 lit ; la liste des colonnes dont l'absence refuse le fichier est celle de #4421, que la conception
-arrête. La lecture des en-têtes de tous les onglets se fait dans l'étape hors verrou d'US-3190.
+arrête, étendue le 2026-11-23 aux deux clés d'un onglet de lignes, « Tâche » et « Rôle ou
+catégorie » : un onglet qui porte au moins un en-tête lu du format sans elles est refusé, un onglet
+sans aucun en-tête lu reste ignoré (US-3200b, #4784). La lecture des en-têtes de tous les onglets se fait dans l'étape hors verrou d'US-3190.
 
 **Hors périmètre.** Les colonnes d'une extraction de coûts réels, déjà refusées (EP-09).
 
@@ -692,7 +750,7 @@ préalable ; ni test de durée ni mesure aux volumes dans ce lot — EP-13 (US-2
 
 ## US-3230 — L'import du reste à engager termine une tâche selon la spécification 1.0.7, et annonce le montant qu'il écrit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0120-A`
 - **opérations** : `openImport`, `getImport`, `applyImport`
 - **issue** : #4535
@@ -841,7 +899,7 @@ restauration désigne (#4471, EP-39) ; le fichier d'un import emporté par une c
 
 ## US-3260 — Une panne passagère du stockage laisse l'import à reprendre, au lieu de le faire échouer pour de bon
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-EXP-0040-A`
 - **opérations** : `openImport`, `applyImport`, `getImport`
 - **issue** : #4537
