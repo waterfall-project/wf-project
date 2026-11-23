@@ -211,6 +211,28 @@ def test_a_reading_of_the_accounts_that_failed_produces_an_alert(tmp_path: Path)
     outcome_played(tmp_path, "identity_sync", "identity_sync_failed")
 
 
+@pytest.mark.story("US-2940")
+def test_a_restoration_abandoned_that_keeps_the_maintenance_produces_an_alert_until_lifted(
+    tmp_path: Path,
+) -> None:
+    # Proper to US-2940 (#1016, decision of the author of 2026-11-22): a restoration given up once
+    # its databases may have changed keeps the maintenance, and is seen: an alert, from the first
+    # replica that reads it, which ends when the operator lifts the maintenance.
+    play(
+        by_compose(tmp_path),
+        {
+            'waterfall_restoration_abandoned{instance="a"}': "0x2 1x5 0x3",
+            'waterfall_restoration_abandoned{instance="b"}': "0x3 1x4 0x3",
+        },
+        [
+            (2, "restoration_abandoned", []),
+            (3, "restoration_abandoned", [ALERT]),
+            (8, "restoration_abandoned", [ALERT]),
+            (9, "restoration_abandoned", []),
+        ],
+    )
+
+
 @pytest.mark.requirement("WF-OBS-0030-A")
 def test_a_failure_unread_for_over_an_hour_ends_its_alert_and_a_live_replica_that_succeeded_holds(
     tmp_path: Path,

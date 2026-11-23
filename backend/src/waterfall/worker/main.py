@@ -25,6 +25,7 @@ from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
+from waterfall.platform.maintenance import guard_writes
 from waterfall.platform.metrics import Announced, MetricsRegistry, WorkerMetrics
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import (
@@ -162,6 +163,8 @@ def _work(settings: WorkerSettings) -> int:
 
 def _run(settings: WorkerSettings, metrics: WorkerMetrics) -> int:
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
+    # Each write takes the lock of the drain, which a restoration waits for (#2229).
+    guard_writes(database.engine)
     try:
         TIME_ZONE.read_from(stored_in(database))
         queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)

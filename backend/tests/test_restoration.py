@@ -12,6 +12,7 @@ is written back after (``write_back_after_restoration``). The service that runs 
 import hashlib
 import io
 import json
+import subprocess
 import tarfile
 from dataclasses import dataclass
 from datetime import timedelta
@@ -65,7 +66,13 @@ from waterfall.platform.database import create_database_engine, engine_url, utc_
 from waterfall.platform.errors import UnavailableError, UnprocessableError
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
-from waterfall.platform.restoration import begin_keeping, keep
+from waterfall.platform.restoration import (
+    UnsureColumnError,
+    begin_keeping,
+    keep,
+    referred,
+    table_of,
+)
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import backup
 from waterfall.worker.backup import DATABASES, MANIFEST, BackupTask, dump
@@ -361,6 +368,34 @@ def test_a_task_restored_pending_fails_and_the_backup_kept_keeps_its_state_and_i
     assert (tasks[backup_task].status, tasks[backup_task].problem) == ("succeeded", None)
     assert (tasks[backup_task].result or {}).get("verification") == "passed"
     assert tasks[restoration].status == "succeeded"
+
+
+@pytest.mark.story("US-2940")
+def test_after_a_restoration_a_task_of_a_backup_that_no_backup_kept_names_leaves_the_list(
+    installation: Installation, take: Take, tmp_path: Path
+) -> None:
+    # #2879: the dump holds a task of a backup succeeded, that no backup the restoration keeps
+    # names: listed, it would name a backup the list does not hold. It is no longer there after the
+    # restoration. A task of a backup the dump holds queued stays, failed (WF-ADM-0160), and the
+    # task of the backup kept keeps its state.
+    unnamed = written_task(installation.database, "backup", "succeeded")
+    queued = written_task(installation.database, "backup", "queued")
+    backup_task = take()
+    restore(installation, backup_task, tmp_path)
+    with installation.database.transaction() as session:
+        tasks = {row.id: row.status for row in session.scalars(select(BackgroundTask))}
+    assert unnamed not in tasks
+    assert (tasks[queued], tasks[backup_task]) == ("failed", "succeeded")
+
+
+@pytest.mark.story("US-2940")
+def test_a_column_written_back_unsure_names_the_column_it_refers_to_or_says_it_has_none() -> None:
+    # #989: the requester of a task refers to the accounts, by the key the tables of the users
+    # declare; a column without its key is an error that names it, not a row written back unsure.
+    tasks = table_of(BackgroundTask)
+    assert referred(tasks, "requested_by") is table_of(UserAccount).c.id
+    with pytest.raises(UnsureColumnError, match=r"background_task\.correlation_id refers to 0"):
+        referred(tasks, "correlation_id")
 
 
 @pytest.mark.requirement("WF-SEC-0030-A")
@@ -700,27 +735,26 @@ def test_a_value_the_server_quotes_is_masked_whole_whatever_it_holds_and_its_lan
     # « Une recherche des secrets et des jetons connus dans les journaux ne les trouve pas. » A
     # value may hold a quotation mark or a line break that cuts it — splitlines() cuts on \x1e as
     # on \n —, a few bytes may follow it, a server may quote with “ ” or „ “ after « ERROR: », or
-    # with « » after « ERREUR: » : nothing of the value is kept, in any case.
+    # with « » after « ERREUR: » : nothing of the value is kept, in any case. Each error is said
+    # alone, as pg_restore says it, stopped at its first.
     marker = "s3cr3t"
     realm = 'pg_restore: error: COPY failed for table "realm": ERROR:  malformed array literal: '
     query = "pg_restore: error: could not execute query: "
     account = 'pg_restore: error: COPY failed for table "account": ERROR:  invalid input syntax: '
     client = 'pg_restore: error: COPY failed for table "client": ERROR:  invalid input value '
     encoding = "pg_restore: error: could not execute query: ERROR:  invalid byte sequence for "
-    said = "\n".join(
-        [
-            f'{realm}"{{"{marker} x"}}"',
-            f"{query}ERREUR:  valeur « {marker} » refusée",
-            f'{account}"ab"{marker}"',
-            f"DETAIL:  Failing row contains ({marker}).",
-            f'{realm}"{{{marker}\nx}}"',
-            f'{realm}"{{{marker}\x1ex}}"',
-            f"{client}\u201c{marker}\u201d refused",
-            f"{client}\u201e{marker}\u201c refused",
-            f'{encoding}encoding "UTF8": 0x{marker}',
-        ]
-    ).encode()
-    kept = errors_of(said)
+    said = [
+        f'{realm}"{{"{marker} x"}}"',
+        f"{query}ERREUR:  valeur « {marker} » refusée",
+        f'{account}"ab"{marker}"',
+        f"DETAIL:  Failing row contains ({marker}).",
+        f'{realm}"{{{marker}\nx}}"',
+        f'{realm}"{{{marker}\x1ex}}"',
+        f"{client}\u201c{marker}\u201d refused",
+        f"{client}\u201e{marker}\u201c refused",
+        f'{encoding}encoding "UTF8": 0x{marker}',
+    ]
+    kept = [line for each in said for line in errors_of(each.encode())]
     assert kept == [
         f'{realm}"..."',
         f"{query}...",
@@ -732,6 +766,42 @@ def test_a_value_the_server_quotes_is_masked_whole_whatever_it_holds_and_its_lan
         f'{encoding}encoding "..."',
     ]
     assert marker not in "".join(kept)
+
+
+@pytest.mark.story("US-2940")
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_a_line_of_error_made_up_in_a_value_restored_is_not_kept() -> None:
+    # #998: a value holds a line break, then a line made to look like an error of pg_restore,
+    # whose message the server would not quote. pg_restore stops at its first error: that one
+    # alone is kept, its value masked, and nothing that follows it, the line made up included.
+    marker = "s3cr3t"
+    realm = 'pg_restore: error: COPY failed for table "realm": ERROR:  malformed array literal: '
+    said = f'{realm}"{{x\npg_restore: error: a: ERROR:  {marker}}}"\nCONTEXT:  COPY realm'
+    assert errors_of(said.encode()) == [f'{realm}"..."']
+
+
+@pytest.mark.story("US-2940")
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_a_pg_restore_that_dies_without_a_line_of_error_leaves_its_code_of_return_in_the_journal(
+    database_url: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #993: pg_restore stopped by a signal says no error: the journal keeps its code of return,
+    # which says it, and an internal error is raised.
+    target = created(database_url, f"waterfall_test_killed_{uuid4().hex}")
+    dumped = tmp_path / "killed.dump"
+    dumped.write_bytes(b"")
+
+    def killed(arguments: list[str], **_options: object) -> subprocess.CompletedProcess[bytes]:
+        return subprocess.CompletedProcess(arguments, -9, b"", b"")
+
+    monkeypatch.setattr(subprocess, "run", killed)
+    try:
+        with captured_logs() as logs, pytest.raises(RestoreError):
+            replace("waterfall", dumped, target, tmp_path)
+    finally:
+        dropped(database_url, target)
+    (failed,) = logs.named("restore.replace_failed")
+    assert (failed["returncode"], failed["said"]) == (-9, [])
 
 
 def test_a_database_the_restoration_cannot_reach_is_unavailable_and_journaled_as_the_restoration(

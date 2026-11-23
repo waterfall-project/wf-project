@@ -4311,6 +4311,8 @@
     "title": "Restoration of the platform under way",
     "pending": "The restoration is waiting: the platform is about to go under maintenance, and every user will then be signed out until it is done.",
     "maintenance": "The platform is under maintenance while it is restored: every user has been signed out, and can sign in again once the restoration is done.",
+    "abandonedTitle": "Restoration abandoned: the platform stays under maintenance",
+    "abandoned": "The restoration was abandoned after it began to replace the databases. The platform stays under maintenance and will not leave it by itself: the operator must restore again, or lift the maintenance after checking the databases. See the operating documentation, section \"Restaurer\".",
     "signedOutTitle": "Session ended",
     "signedOut": "Your session ended before the outcome of the restoration was known. Sign in again: the audit log tells it.",
     "doneTitle": "Restoration done",

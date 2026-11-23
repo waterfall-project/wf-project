@@ -49,7 +49,9 @@ vi.mock("@/navigation/document", () => ({ loadDocument: vi.fn() }));
 
 // The probe that says the maintenance of a restoration: the platform serves, unless a test says not.
 const readLiveness = vi.hoisted(() =>
-  vi.fn<() => Promise<"ok" | "maintenance" | "unreachable">>(() => Promise.resolve("ok")),
+  vi.fn<() => Promise<"ok" | "maintenance" | "maintenance_abandoned" | "unreachable">>(() =>
+    Promise.resolve("ok"),
+  ),
 );
 
 vi.mock("@/api/actions/backups", () => ({ readLiveness }));
@@ -150,6 +152,36 @@ describe("the screen of failure", () => {
         "href",
         expect.stringContaining("/login?"),
       );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("says a restoration abandoned in place of the failure — the platform stays under maintenance until the operator acts — then the maintenance it is once restored again [US-2940] [WF-ARC-0090-A]", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      readLiveness
+        .mockResolvedValueOnce("maintenance_abandoned")
+        .mockResolvedValueOnce("maintenance")
+        .mockResolvedValueOnce("ok");
+      inLanguage(<SystemFailure error={forwarded(SESSION_LOST_DIGEST)} retry={vi.fn()} />);
+      const said = await screen.findByRole("status", {
+        name: "Restauration abandonnée : la plateforme reste en maintenance",
+      });
+      expect(said).toHaveTextContent("La restauration a été abandonnée");
+      expect(said).toHaveTextContent("ne la quittera pas d’elle-même");
+      expect(said).toHaveTextContent("documentation d’exploitation");
+      expect(screen.queryByRole("link", { name: "Se connecter" })).toBeNull();
+      expect(loadDocument).not.toHaveBeenCalled();
+      expect(screen.queryByRole("alert")).toBeNull();
+      await act(() => vi.advanceTimersByTimeAsync(RESTORATION_POLL));
+      expect(
+        screen.getByRole("status", { name: "Restauration de la plateforme en cours" }),
+      ).toHaveTextContent("tous les utilisateurs ont été déconnectés");
+      await act(() => vi.advanceTimersByTimeAsync(RESTORATION_POLL));
+      expect(
+        screen.getByRole("status", { name: "Restauration de la plateforme en cours" }),
+      ).toHaveTextContent("Restauration terminée");
     } finally {
       vi.useRealTimers();
     }

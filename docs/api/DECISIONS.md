@@ -12454,6 +12454,27 @@ descriptions et un exemple ; aucune autre forme ne change.
 Les modèles du service sont régénérés (`make generate-server-models`) ; le client du front et le
 libellé de `front` suivent dans ce même lot.
 
+### La sonde de vie dit une restauration abandonnée qui garde la maintenance (US-2940/L1, #1016, #4102)
+
+Décision de l'auteur du 2026-11-22 sur #1016 (option A, #4102) : une restauration abandonnée — ses
+tentatives épuisées, son délai passé, ou son état perdu — une fois le remplacement des bases
+commencé passe sa tâche en échec et **garde la maintenance**, que rien ne lève avant l'exploitant ;
+lever servirait des bases à demi remplacées (WF-ARC-0090). Sa condition : la plateforme ainsi
+gardée doit se voir, par une alerte et sur l'écran. En maintenance, le front ne lit que
+`getLiveness` (#604) : la sonde reçoit une propriété facultative, `restoration`, d'une seule
+valeur, `abandoned`, présente seulement avec `status` à `maintenance` dans ce cas, et l'exemple
+`maintenance_abandoned` (`liveness_maintenance_abandoned.json`). Une réponse sans elle garde son
+sens : la maintenance finit avec la restauration. Une modification du contrat figé (« La règle
+d'après le gel ») qui n'ajoute qu'une propriété facultative de réponse ; rien d'autre ne change.
+
+L'alerte, `restoration_abandoned`, est une règle de Prometheus sur la jauge
+`waterfall_restoration_abandoned` que l'API expose, lue dans le schéma `platform` ; elle n'entre pas
+dans `Alert.code` : elle ne se déclenche qu'en maintenance, quand `getSystemStatus` répond 503, et
+l'écran d'état, qui écarte un code qu'il ne connaît pas, ne la verrait jamais. Écartés : un statut
+`abandoned` à côté de `ok` et `maintenance`, qu'un client qui ne connaît que les deux premiers
+lirait mal ; un code de l'alerte au contrat, qui demanderait au front un libellé qu'il n'affiche
+jamais.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

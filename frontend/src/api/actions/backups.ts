@@ -41,8 +41,12 @@ export type FileUpload = components["schemas"]["FileUpload"];
 export type RestoreSource =
   { readonly backup_id: string } | { readonly external_backup_upload_id: string };
 
-/** What the probe says of the platform: serving, under maintenance, or not answering at all. */
-export type Liveness = "ok" | "maintenance" | "unreachable";
+/**
+ * What the probe says of the platform: serving, under maintenance, under a maintenance a restoration
+ * abandoned keeps (`restoration: "abandoned"`: it lifts only by the operator, #1016), or not
+ * answering at all.
+ */
+export type Liveness = "ok" | "maintenance" | "maintenance_abandoned" | "unreachable";
 
 /**
  * Start a complete backup of the platform (WF-ADM-0150): the API hands it to the worker and answers
@@ -168,5 +172,9 @@ export async function testExternalBackupLocation(
 /** Ask the probe whether the platform is under maintenance, without any session (#604). */
 export async function readLiveness(): Promise<Liveness> {
   const answer = await reach(() => publicClient().GET("/health"));
-  return answer?.data?.status ?? "unreachable";
+  const status = answer?.data?.status;
+  if (status === "maintenance" && answer?.data?.restoration === "abandoned") {
+    return "maintenance_abandoned";
+  }
+  return status ?? "unreachable";
 }

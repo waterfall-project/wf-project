@@ -13,7 +13,10 @@
       maintenance is lifted, the restore completed. The front polls it to know when the
       restore has completed: the maintenance state does not depend on the database that the
       restore recreates, and the restore's task cannot be read during the maintenance (#604).
-      A platform in maintenance is alive: the probe answers 200.
+      A restore given up once the replacement of the databases had begun keeps the maintenance,
+      which nothing lifts until the operator restores again or lifts it once the databases are
+      checked: `restoration` is then `abandoned`, for the front to say so and send to the
+      operator's recourse (#1016). A platform in maintenance is alive: the probe answers 200.
     responses:
       '200':
         description: The process answers; in maintenance or not.
@@ -29,9 +32,20 @@
                   description: >-
                     `ok`: the platform serves its operations; `maintenance`: a restore holds it
                     in maintenance, and only this probe and the metrics (`getMetrics`) answer.
+                restoration:
+                  type: string
+                  enum: [abandoned]
+                  description: >-
+                    Present only with `status` at `maintenance`, when the restore that holds it
+                    was given up — its attempts spent, its deadline passed, or its state lost —
+                    once the replacement of the databases had begun: its task failed, and the
+                    maintenance stays until the operator restores again or lifts it (#1016).
+                    Absent, the maintenance ends with the restore.
             examples:
               ok: { $ref: ../../../fixtures/api/liveness.json }
               maintenance: { $ref: ../../../fixtures/api/liveness_maintenance.json }
+              maintenance_abandoned:
+                $ref: ../../../fixtures/api/liveness_maintenance_abandoned.json
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

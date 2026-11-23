@@ -13,6 +13,7 @@ import tarfile
 import threading
 import time
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -27,7 +28,8 @@ from installations import (
     restorer_headers,
     written_task,
 )
-from sqlalchemy import Engine, insert, select
+from metrics_reading import Samples, samples, value
+from sqlalchemy import Engine, insert, select, text
 from sqlalchemy.exc import OperationalError
 from support import ContractClient, Logs, emptied, nowhere
 from task_handlers import Runs, deposit, held_run
@@ -35,16 +37,19 @@ from task_handlers import Runs, deposit, held_run
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.access_roles.tables import AccessRole
+from waterfall.core.backups.interface import keep_for_restoration
 from waterfall.core.backups.tables import Backup
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database, create_database_engine, utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
-from waterfall.platform.maintenance import Maintenance, Restoring
+from waterfall.platform.maintenance import DEADLINE, Maintenance, Restoring
+from waterfall.platform.metrics import RESTORATION_ABANDONED
+from waterfall.platform.restoration import kept_for
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.restore import task as restoration
 from waterfall.restore.provider import RealmNotAppliedError, RealmRequests
-from waterfall.restore.runner import Restorer
+from waterfall.restore.runner import RECOURSE, Restorer
 from waterfall.restore.task import GIVE_THE_REALM_BACK, RestoreTask, await_runs
 from waterfall.worker.backup import MANIFEST
 from waterfall.worker.runner import Timing, Worker
@@ -61,6 +66,14 @@ if TYPE_CHECKING:
     from waterfall.platform.settings import ServiceSettings
 
 RESTORES = "/api/v1/restores"
+LIVENESS = "/api/v1/health"
+METRICS = "/api/v1/metrics"
+# What the probe says of a maintenance a restoration given up keeps (#1016).
+ABANDONED = {"status": "maintenance", "restoration": "abandoned"}
+# What the operator runs on the database, as deploy/compose/README.md says (« Restaurer »): restore
+# again the restoration given up, or lift the maintenance once the databases are checked.
+RESTORE_AGAIN = "UPDATE platform.restoration SET abandoned = false, attempts = 1, held_at = now()"
+LIFT = "DELETE FROM platform.restoration; DELETE FROM platform.maintenance"
 
 
 @dataclass
@@ -182,6 +195,22 @@ def asked(backup: dict[str, str], taken_at: str | None = None) -> dict[str, obje
         "confirmed": True,
         "acknowledged_backup_taken_at": taken_at or backup["taken_at"],
     }
+
+
+def operated(installation: Installation, statements: str) -> None:
+    """Run what the operator runs on the database of Waterfall, as its owner."""
+    owner = create_database_engine(installation.owner["waterfall"])
+    with owner.begin() as connection:
+        for statement in statements.split(";"):
+            connection.execute(text(statement))
+    owner.dispose()
+
+
+def collected(service: Service) -> Samples:
+    """Collect the metrics of the API beside the service, as Prometheus does, in maintenance."""
+    response = service.api.get(METRICS)
+    assert response.status_code == 200
+    return samples(response.text)
 
 
 def read_task(installation: Installation, task_id: str) -> BackgroundTask:
@@ -593,61 +622,207 @@ def test_a_restoration_ended_whose_maintenance_was_not_lifted_lifts_it_and_runs_
     assert not service.restorer.queue.waiting()
 
 
-def test_a_restoration_whose_attempts_are_spent_leaves_the_platform_in_maintenance(
+@pytest.mark.story("US-2940")
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_restoration_whose_attempts_are_spent_replacing_keeps_the_maintenance_for_the_operator(
     installation: Installation, take: Take, service: Service, logs: Logs
 ) -> None:
-    # Three attempts interrupted: the databases are in no state to serve, which an operator must
-    # look at; the maintenance stays, and the entry is acknowledged. The realm never applied
-    # again, each attempt taken up says what the operator does, and goes on: refused.
+    # #1016, decision of the author of 2026-11-22: three attempts interrupted — the realm never
+    # applied again, each attempt taken up says what the operator does, and goes on: refused —; the
+    # next one taken over gives it up: its task fails and the entry is acknowledged. The databases
+    # replaced, the maintenance is kept, which the probe says, and the log with what the operator
+    # does: deposited no more, its failure is said once. The operator restores again, as the
+    # README says: the restoration runs from the beginning, and lifts the maintenance at its end.
     service.provider.failing = 9
     take()
     backup = taken(installation)
-    service.api.post(RESTORES, json=asked(backup), headers=service.headers)
+    answer = service.api.post(RESTORES, json=asked(backup), headers=service.headers)
     for _ in range(4):
         assert service.restorer.step()
     assert service.provider.steps.count("clear_caches") == 1
     assert service.provider.steps.count("apply_realm") == 3
     told = [record["action"] for record in logs.named("restore.realm_not_given_back")]
     assert told == [GIVE_THE_REALM_BACK] * 2
-
-
-def test_a_restoration_whose_attempts_are_spent_is_abandoned_and_never_deposited_again(
-    installation: Installation, take: Take, service: Service, logs: Logs
-) -> None:
-    # Its attempts spent, the restoration is abandoned in the maintenance, which stays: the
-    # service deposits it no more, and its failure is said once.
-    service.provider.failing = 9
-    take()
-    backup = taken(installation)
-    service.api.post(RESTORES, json=asked(backup), headers=service.headers)
-    for _ in range(4):
-        assert service.restorer.step()
     held = service.maintenance.current()
     assert held is not None
-    assert held.abandoned
+    assert (held.abandoned, held.caches_cleared, held.attempts) == (True, True, 3)
+    assert service.api.get(LIVENESS).json() == ABANDONED
+    assert service.api.get("/api/v1/me", headers=service.headers).status_code == 503
+    task = read_task(installation, answer.json()["task_id"])
+    assert (task.status, (task.problem or {}).get("code")) == ("failed", "INTERNAL_ERROR")
+    (spent,) = [r for r in logs.named("task.failed") if r.get("reason") == "attempts_spent"]
+    assert (spent["databases_changed"], spent["action"]) == (True, RECOURSE)
     service.restorer.redeposit()
     assert not service.restorer.queue.waiting()
     assert not service.restorer.step()
-    spent = [r for r in logs.named("task.failed") if r.get("reason") == "attempts_spent"]
-    assert len(spent) == 1
-    assert service.maintenance.current() is not None
-    assert not service.restorer.queue.waiting()
+    assert len(logs.named("task.failed")) == 1
+    assert service.maintenance.current() == held
+
+    service.provider.failing = 0
+    operated(installation, RESTORE_AGAIN)
+    service.restorer.redeposit()
+    assert service.restorer.step()
+    assert service.maintenance.current() is None
+    assert service.api.get(LIVENESS).json() == {"status": "ok"}
+    assert read_task(installation, answer.json()["task_id"]).status == "succeeded"
 
 
-def test_a_restoration_already_abandoned_taken_over_is_acknowledged_and_said_no_more(
-    service: Service, logs: Logs
+@pytest.mark.story("US-2940")
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_maintenance_held_without_its_state_is_given_up_and_kept_for_the_operator(
+    installation: Installation, service: Service, logs: Logs
 ) -> None:
-    # An entry of a restoration the maintenance holds abandoned — deposited before it was, taken
-    # over after —: the service acknowledges it and runs nothing; its failure, said once when it
-    # was abandoned, is not said again, and the maintenance stays, for an operator.
-    abandoned = Restoring(uuid4(), {}, None, "request-3f6a", 3, abandoned=True)
-    service.maintenance.hold(abandoned)
-    service.restorer.queue.deposit(abandoned.task_id)
+    # #1016: a maintenance whose state is missing is given up at the start of the service, its task
+    # failed; its databases may have changed, for all it says: the maintenance is kept, marked
+    # abandoned (decision of the author of 2026-11-22), and its entry, taken over, acknowledged.
+    task_id = written_task(installation.database, "restore", "running")
+    service.maintenance.hold(Restoring(task_id, {}, None, "request-3f6a", 1))
+    owner = create_database_engine(installation.owner["waterfall"])
+    with owner.begin() as connection:
+        connection.execute(text("DELETE FROM platform.restoration"))
+    owner.dispose()
+    service.restorer.queue.deposit(task_id)
+    service.restorer.redeposit()
+    held = service.maintenance.current()
+    assert held is not None
+    assert (held.task_id, held.abandoned, held.stateless) == (task_id, True, False)
+    assert read_task(installation, str(task_id)).status == "failed"
     assert service.restorer.step()
     assert not service.restorer.queue.waiting()
-    assert logs.named("task.failed") == []
-    assert service.maintenance.current() == abandoned
+    (failed,) = logs.named("task.failed")
+    assert (failed["reason"], failed["databases_changed"]) == ("no_state", True)
     assert service.provider.steps == []
+
+
+@pytest.mark.story("US-2940")
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_restoration_abandoned_already_is_left_to_the_operator_who_lifts_the_maintenance(
+    installation: Installation, service: Service, logs: Logs
+) -> None:
+    # #1016: a restoration abandoned — by this service, or by a version that left it so — is left
+    # to the operator: nothing takes it up, fails it again nor lifts it; the metrics say it, which
+    # the alert reads. The operator lifts the maintenance, as the README says: the probe and the
+    # gauge fall back.
+    task_id = written_task(installation.database, "restore", "running")
+    abandoned = Restoring(task_id, {}, None, "request-3f6a", 3, caches_cleared=True, abandoned=True)
+    service.maintenance.hold(abandoned)
+    service.restorer.queue.deposit(task_id)
+    service.restorer.redeposit()
+    assert service.restorer.step()
+    assert service.maintenance.current() == abandoned
+    assert read_task(installation, str(task_id)).status == "running"
+    assert not logs.named("task.failed")
+    assert service.provider.steps == []
+    assert service.api.get(LIVENESS).json() == ABANDONED
+    assert value(collected(service), RESTORATION_ABANDONED) == 1
+
+    operated(installation, LIFT)
+    assert service.maintenance.current() is None
+    assert service.api.get(LIVENESS).json() == {"status": "ok"}
+    assert value(collected(service), RESTORATION_ABANDONED) == 0
+
+
+@pytest.mark.story("US-2940")
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_restoration_held_beyond_its_deadline_is_given_up_the_installation_kept_as_it_was(
+    installation: Installation, service: Service, logs: Logs
+) -> None:
+    # #1016: « un délai maximal borne une restauration qui n'avance plus ». Held for longer than its
+    # deadline, its databases not changed yet, a restoration is given up, at the start of the
+    # service or between two attempts: its task fails, what it kept is dropped — a restoration
+    # asked later keeps the installation again —, and the maintenance is lifted.
+    task_id = written_task(installation.database, "restore", "running")
+    owner = create_database_engine(installation.owner["waterfall"])
+    with owner.begin() as connection:
+        keep_for_restoration(connection, task_id)
+    past = utc_now() - DEADLINE - timedelta(minutes=1)
+    service.maintenance.hold(Restoring(task_id, {}, None, "request-3f6a", 1, held_at=past))
+    service.restorer.redeposit()
+    assert service.maintenance.current() is None
+    assert read_task(installation, str(task_id)).status == "failed"
+    with owner.connect() as connection:
+        assert kept_for(connection) is None
+    owner.dispose()
+    (late,) = logs.named("task.failed")
+    assert (late["reason"], late["databases_changed"]) == ("deadline_passed", False)
+    assert service.api.get(LIVENESS).json() == {"status": "ok"}
+    assert value(collected(service), RESTORATION_ABANDONED) == 0
+
+
+@pytest.mark.story("US-2940")
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_restoration_given_up_once_its_databases_may_have_changed_leaves_what_it_kept(
+    installation: Installation, service: Service
+) -> None:
+    # The databases may be those of the backup: what the restoration kept stays, which one taken
+    # up again takes over, and the maintenance is kept, for the operator (decision of the author of
+    # 2026-11-22, #1016).
+    task_id = written_task(installation.database, "restore", "running")
+    owner = create_database_engine(installation.owner["waterfall"])
+    with owner.begin() as connection:
+        keep_for_restoration(connection, task_id)
+    past = utc_now() - DEADLINE - timedelta(minutes=1)
+    held = Restoring(task_id, {}, None, "request-3f6a", 2, caches_cleared=True, held_at=past)
+    service.maintenance.hold(held)
+    service.restorer.queue.deposit(task_id)
+    assert service.restorer.step()
+    kept = service.maintenance.current()
+    assert kept is not None
+    assert kept.abandoned
+    assert read_task(installation, str(task_id)).status == "failed"
+    with owner.connect() as connection:
+        assert kept_for(connection) == task_id
+    owner.dispose()
+
+
+@pytest.mark.story("US-2940")
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_restoration_in_progress_within_its_deadline_is_taken_up_at_the_start_of_the_service(
+    service: Service,
+) -> None:
+    # A restoration that goes on is not given up: at the start of the service, it is deposited
+    # again, and the maintenance stays until it ends.
+    held = service.maintenance.hold(Restoring(uuid4(), {}, None, "request-3f6a", 1))
+    service.restorer.redeposit()
+    assert service.restorer.queue.waiting() == {held.task_id}
+    assert service.maintenance.current() == held
+
+
+@pytest.mark.story("US-2940")
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_restoration_stopped_after_a_replacement_keycloak_restarted_alone_gives_the_realm_back(
+    installation: Installation, take: Take, service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #1017: the restoration stops after the database of Keycloak is replaced, before its caches
+    # are cleared — the migrations fail —, and Keycloak restarts alone: it serves the realm of the
+    # backup. The mark is held before the replacement: taken up, the restoration has the realm of
+    # the installation applied again first, then ends, and lifts the maintenance.
+    restoring = service.restorer.handlers["restore"]
+    assert isinstance(restoring, RestoreTask)
+    migrate = restoring.migrate
+    failed: list[int] = []
+
+    def migrating(engine: Engine) -> None:
+        if not failed:
+            failed.append(1)
+            service.provider.serving_backup = True
+            message = "the migrations stopped"
+            raise RuntimeError(message)
+        migrate(engine)
+
+    monkeypatch.setattr(restoring, "migrate", migrating)
+    take()
+    backup = taken(installation)
+    service.api.post(RESTORES, json=asked(backup), headers=service.headers)
+    assert service.restorer.step()
+    held = service.maintenance.current()
+    assert held is not None
+    assert held.caches_cleared
+    assert "clear_caches" not in service.provider.steps
+    del service.provider.steps[:]
+    assert service.restorer.step()
+    assert service.provider.steps[:3] == ["apply_realm", "close_sessions", "keep_for_restoration"]
+    assert service.maintenance.current() is None
 
 
 def test_the_worker_runs_no_task_in_maintenance_and_runs_it_after(
@@ -711,7 +886,7 @@ def test_a_restoration_waits_for_the_run_of_a_task_the_worker_started_before(
     worker = threading.Thread(target=run_for_a_while)
     worker.start()
     started.wait()
-    await_runs(owner, uuid4())
+    await_runs(owner, uuid4(), timedelta(minutes=1))
     waited = time.monotonic()
     worker.join()
     owner.dispose()

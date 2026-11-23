@@ -104,11 +104,16 @@ def test_the_owner_holds_the_maintenance_which_the_service_reads_and_may_not_wri
     # One row each, rewritten by each attempt: the service reads what the owner held, and is
     # refused the writing.
     held, read = Maintenance.of(owned, queue), Maintenance.of(database, queue)
-    held.hold(HELD)
+    first = held.hold(HELD)
     assert read.current() == HELD
-    taken_up = dataclasses.replace(HELD, attempts=2, caches_cleared=True)
+    taken_up = dataclasses.replace(first, attempts=2, caches_cleared=True)
     held.hold(taken_up)
-    assert read.current() == taken_up
+    current = read.current()
+    assert current == taken_up
+    # Dated at its first attempt, the date kept by the next: its deadline counts from it (#1016).
+    assert current is not None
+    assert first.held_at is not None
+    assert current.held_at == first.held_at
     with owned.engine.connect() as connection:
         rows = [connection.scalar(select(func.count()).select_from(table)) for table in TABLES]
     assert rows == [1, 1]
@@ -458,11 +463,12 @@ def test_the_probe_of_liveness_answers_when_the_pool_of_connections_is_spent(
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")
-def test_a_maintenance_held_without_its_state_stays_held_as_a_restoration_abandoned(
+def test_a_maintenance_held_without_its_state_stays_held_and_is_said_without_it(
     database: Database, owned: Database, queue: TaskQueue
 ) -> None:
     # The state missing while the maintenance is held is an inconsistency to see, not a platform
-    # to serve: the maintenance stays, abandoned, for an operator.
+    # to serve: the maintenance stays, said without its state, its databases possibly changed,
+    # which its service gives up and keeps for an operator (#1016).
     with owned.transaction() as session:
         session.execute(insert(HeldMaintenance).values(**VALID[HeldMaintenance]))
     try:
@@ -471,7 +477,11 @@ def test_a_maintenance_held_without_its_state_stays_held_as_a_restoration_abando
         with owned.transaction() as session:
             session.execute(delete(HeldMaintenance))
     assert current is not None
-    assert (current.task_id, current.abandoned) == (VALID[HeldMaintenance]["task_id"], True)
+    assert (current.task_id, current.stateless, current.caches_cleared) == (
+        VALID[HeldMaintenance]["task_id"],
+        True,
+        True,
+    )
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")

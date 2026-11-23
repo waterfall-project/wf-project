@@ -121,9 +121,14 @@ def replace(name: str, dump: Path, address: str, folder: Path) -> None:
 
     The schema ``public`` alone is dropped and made again, and the large objects of the database,
     which belong to no schema, are removed, in a transaction of its own: the schema ``platform``,
-    where the maintenance is held, stays as it is. The dump is then restored in one transaction of
-    ``pg_restore``, without the owners and the rights of the source: the role of the service of
-    another installation has another name. A dump of ``public`` alone makes the schema itself,
+    where the maintenance is held, stays as it is. The large objects are removed whatever the dump
+    holds, and only the dump gives them back: those of Keycloak come back because every archive a
+    restoration reads holds them — taken with ``--large-objects`` since EP-13, of the whole
+    database before —; an archive of ``public`` alone taken without them, which no version
+    wrote, would leave the database without its large objects (#4188). The dump is then restored
+    in one transaction of ``pg_restore``, without the owners and the rights of the source: the
+    role of the service of another installation has another name. A dump of ``public`` alone makes
+    the schema itself,
     which a dump of the whole database — those of the backups taken before EP-13 — leaves to the
     database: what the dump makes is dropped first, if it is there (``--clean --if-exists``). Such
     a dump holds no schema but ``public``: ``platform`` came after it. Interrupted between the
@@ -157,18 +162,27 @@ def replace(name: str, dump: Path, address: str, folder: Path) -> None:
         )
     if done.returncode != 0:
         reached(address, UNREACHED)
-        logger.error("restore.replace_failed", database=name, said=errors_of(done.stderr))
+        logger.error(
+            "restore.replace_failed",
+            database=name,
+            returncode=done.returncode,
+            said=errors_of(done.stderr),
+        )
         raise RestoreError(name)
 
 
 def errors_of(said: bytes) -> list[str]:
-    """Give the errors pg_restore said, without the rows they quote nor a value quoted in them.
+    """Give the error pg_restore said, without the rows it quotes nor a value quoted in it.
 
-    A line of pg_restore's own error is kept: what it did, and the message of the server, each
-    value the server quotes masked — the name of a constraint, of a column, or a value refused.
+    The first line of pg_restore's own error is kept: what it did, and the message of the server,
+    each value the server quotes masked — the name of a constraint, of a column, or a value
+    refused. Nothing after it: the lines that follow quote the rows of the dump, where a value may
+    hold a line break, then a line made to look like an error of pg_restore (#998); it stops at its
+    first error (``--exit-on-error``). None if it said none — stopped by a signal —: its code of
+    return says it (#993).
     """
     lines = said.decode(errors="replace").splitlines()
-    return [_masked(line) for line in lines if line.startswith(ERROR_LINE)]
+    return [_masked(line) for line in lines if line.startswith(ERROR_LINE)][:1]
 
 
 def _masked(line: str) -> str:

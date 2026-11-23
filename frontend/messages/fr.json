@@ -4311,6 +4311,8 @@
     "title": "Restauration de la plateforme en cours",
     "pending": "La restauration est en attente : la plateforme va passer en maintenance, et tous les utilisateurs seront alors déconnectés jusqu’à ce qu’elle soit terminée.",
     "maintenance": "La plateforme est en maintenance le temps de sa restauration : tous les utilisateurs ont été déconnectés, et pourront se reconnecter une fois la restauration terminée.",
+    "abandonedTitle": "Restauration abandonnée : la plateforme reste en maintenance",
+    "abandoned": "La restauration a été abandonnée après avoir commencé à remplacer les bases. La plateforme reste en maintenance et ne la quittera pas d’elle-même : l’exploitant doit relancer la restauration, ou lever la maintenance après vérification des bases. Voir la documentation d’exploitation, section « Restaurer ».",
     "signedOutTitle": "Session terminée",
     "signedOut": "Votre session a pris fin avant que l’issue de la restauration soit connue. Reconnectez-vous : le journal d’audit la dit.",
     "doneTitle": "Restauration terminée",

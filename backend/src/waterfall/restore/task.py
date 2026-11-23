@@ -8,10 +8,12 @@ refused before anything changes (``waterfall.worker.restore``). Then, in this or
 
 1. the platform is held in maintenance, and every session closed, of the identity provider and of
    the front; the runs of the tasks the worker started before are waited for;
-2. what the restoration keeps — the journal of audit, the backups, a few tasks, the rights of the
-   role of the service — is copied aside, once (``keep_for_restoration``);
-3. the token of the client of the bootstrap is taken, and each database made again from its dump,
-   as its owner (#701); the migrations that follow the backup are applied;
+2. the writes admitted before the maintenance are drained (``drained``, #2229), then what the
+   restoration keeps — the journal of audit, the backups, a few tasks, the rights of the role of
+   the service — is copied aside, once, read at one instant (``keep_for_restoration``);
+3. the maintenance says that the databases may change; the token of the client of the bootstrap
+   is taken, and each database made again from its dump, as its owner (#701); the migrations that
+   follow the backup are applied;
 4. what was kept is written back, the tasks restored pending fail, and the accounts anonymised since
    the backup are anonymised again (``write_back_after_restoration``, #892, #893, #894, #987, #988);
 5. the caches of Keycloak are cleared, which the maintenance keeps first, and its realm, that of
@@ -22,9 +24,10 @@ refused before anything changes (``waterfall.worker.restore``). Then, in this or
 
 Taken up after an interruption, it starts again from the beginning, the maintenance held
 (WF-ARC-0090): what it reads of the task and of who asked for it, the maintenance keeps. So does it
-keep that the caches of Keycloak were asked cleared: Keycloak may then serve the realm of the
-backup, whose secrets refuse the service account and the client of the bootstrap, and the attempt
-taken up first has the realm of the installation applied again, which gives them theirs back. If
+keep that the databases may have changed, said before the first is replaced: Keycloak may then
+serve the realm of the backup — its caches cleared, or restarted alone (#1017) —, whose secrets
+refuse the service account and the client of the bootstrap, and the attempt taken up first has the
+realm of the installation applied again, which gives them theirs back. If
 that fails, the log says what the operator does — restart ``keycloak``, then ``keycloak-realm``,
 which applies the realm of the installation at its start — and the attempt goes on.
 """
@@ -50,7 +53,8 @@ from waterfall.platform.audit import AuditActor
 from waterfall.platform.database import create_database_engine, utc_now
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.logs import get_logger
-from waterfall.platform.maintenance import Maintenance, Restoring
+from waterfall.platform.maintenance import Maintenance, Restoring, bound_waits, drained
+from waterfall.platform.restoration import kept_for
 from waterfall.platform.storage import Bucket, MissingObjectError
 from waterfall.platform.tasks import PENDING, BackgroundTask, Task
 from waterfall.restore.provider import IdentityProvider, RealmNotAppliedError
@@ -60,6 +64,7 @@ from waterfall.worker.runner import await_run
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
+    from datetime import timedelta
 
 # What the operator does when the realm of the installation cannot be applied again.
 GIVE_THE_REALM_BACK = "restart keycloak, then keycloak-realm"
@@ -112,9 +117,11 @@ class RestoreTask:
                 if taken_up is not None and taken_up.caches_cleared:
                     self.give_the_realm_back(task)
                 self.close_sessions()
-                await_runs(owner, task.task_id)
-                with owner.begin() as kept:
-                    keep_for_restoration(kept, task.task_id)
+                await_runs(owner, task.task_id, held.left(utc_now()))
+                held = self.keep(owner, held)
+                # Marked before anything is replaced: Keycloak may serve the realm of the backup as
+                # soon as its database is, its caches cleared or by a restart of its own (#1017).
+                self.maintenance.hold(dataclasses.replace(held, caches_cleared=True))
                 self.provider.prepare()
                 for name in DATABASES:
                     replace(name, dumps[name], self.databases[name], folder)
@@ -123,7 +130,6 @@ class RestoreTask:
                     subjects = write_back_after_restoration(written, task.task_id, utc_now())
             finally:
                 owner.dispose()
-        self.maintenance.hold(dataclasses.replace(held, caches_cleared=True))
         self.provider.clear_caches()
         self.provider.apply_realm(f"{task.task_id}-{task.attempt}")
         self.provider.remove(subjects)
@@ -153,7 +159,8 @@ class RestoreTask:
     def hold(self, task: Task, actor: AuditActor | None, taken_up: Restoring | None) -> Restoring:
         """Hold the platform in maintenance, the requester named; give what it holds.
 
-        Whether an attempt before asked for the caches cleared is kept.
+        Whether an attempt before asked for the caches cleared is kept, and since when the
+        maintenance is held.
         """
         kept = None if actor is None else [str(actor.user_id), actor.display_name]
         held = Restoring(
@@ -163,8 +170,27 @@ class RestoreTask:
             task.correlation_id,
             task.attempt,
             caches_cleared=taken_up is not None and taken_up.caches_cleared,
+            held_at=None if taken_up is None else taken_up.held_at,
         )
-        self.maintenance.hold(held)
+        return self.maintenance.hold(held)
+
+    def keep(self, owner: Engine, held: Restoring) -> Restoring:
+        """Drain the writes, then keep what the restoration writes back, read at one instant.
+
+        The lock of the drain is held exclusively while what is kept is read, in a transaction of
+        its own, frozen at its first read (``REPEATABLE READ``), which begins once every write
+        admitted before the maintenance has committed (#2229). A keeping another restoration left
+        and never wrote back is taken over: the databases may then be those of its backup, which
+        the maintenance says before the taking over commits. Gives what the maintenance holds.
+        """
+        with (
+            drained(owner, held.left(utc_now())),
+            owner.connect().execution_options(isolation_level="REPEATABLE READ") as kept,
+            kept.begin(),
+        ):
+            if kept_for(kept) not in {None, held.task_id} and not held.caches_cleared:
+                held = self.maintenance.hold(dataclasses.replace(held, caches_cleared=True))
+            keep_for_restoration(kept, held.task_id)
         return held
 
     def give_the_realm_back(self, task: Task) -> None:
@@ -187,14 +213,16 @@ class RestoreTask:
         logger.info("restore.sessions_closed", front_keys=closed)
 
 
-def await_runs(owner: Engine, restoration: UUID) -> None:
+def await_runs(owner: Engine, restoration: UUID, patience: timedelta) -> None:
     """Wait for the end of each run of a task the worker started before the maintenance.
 
     The worker runs nothing once it reads the maintenance, but a task it started before goes on,
     and writes the database the restoration keeps: the lock of its run says when it has ended. A
-    database replaced already, its tables not made again, holds no task.
+    database replaced already, its tables not made again, holds no task. Each lock is waited for
+    ``patience`` at most, the time the restoration has left: then the wait fails.
     """
     with Session(owner) as session, session.begin():
+        bound_waits(session.connection(), patience)
         if not inspect(session.connection()).has_table(BackgroundTask.__tablename__):
             return
         pending = BackgroundTask.status.in_(PENDING) & (BackgroundTask.id != restoration)

@@ -33,7 +33,7 @@ export interface Examples {
     200: "external_backup_locations" | "external_backup_locations_none";
   };
   "GET /health": {
-    200: "liveness" | "liveness_maintenance";
+    200: "liveness" | "liveness_maintenance" | "liveness_maintenance_abandoned";
   };
   "GET /health/ready": {
     200: "readiness";

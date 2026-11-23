@@ -14,8 +14,8 @@ requests is the same in every process, or lives in PostgreSQL or Redis (WF-ARC-0
 - the time zone of the installation (``platform.installation``), fixed by the bootstrap;
 - the registries of the modules (``platform.registry``), filled at the import of their interface;
 - what the image holds, read once: the font of the images of a tree, the names of the time zones;
-- the maintenance of a restoration lives in PostgreSQL, read at each request
-  (``platform.maintenance``);
+- the maintenance of a restoration lives in PostgreSQL, read at each request, and again by the
+  first write of each transaction, under the lock of the drain (``platform.maintenance``);
 - the indicators of the day are cached in Redis, not in the process (``platform.cache``);
 - the counters of the metrics, in a folder the processes share when there are several, which the
   exposition of any of them merges (``platform.metrics``, WF-OBS-0010).
@@ -37,7 +37,7 @@ from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import configure_logging, get_logger
-from waterfall.platform.maintenance import Maintenance
+from waterfall.platform.maintenance import Maintenance, guard_writes
 from waterfall.platform.metrics import Capacities, shared_between_processes
 from waterfall.platform.prometheus import Prometheus
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
@@ -158,6 +158,8 @@ def open_services(settings: ServiceSettings) -> tuple[Services, ExitStack]:
     with ExitStack() as opened:
         database = Database(create_database_engine(settings.database_url.get_secret_value()))
         opened.callback(database.dispose)
+        # Each write takes the lock of the drain, which a restoration waits for (#2229).
+        guard_writes(database.engine)
         keycloak = Keycloak(settings)
         opened.callback(keycloak.close)
         queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=DEPOSIT_TIMEOUT)

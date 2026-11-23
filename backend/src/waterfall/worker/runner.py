@@ -37,7 +37,12 @@ from sqlalchemy import ColumnElement, Integer, cast, func, select, update
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import FieldError, ServiceError
 from waterfall.platform.logs import PLATFORM, get_logger, logging_context
-from waterfall.platform.maintenance import Maintenance, Restoring
+from waterfall.platform.maintenance import (
+    Maintenance,
+    MaintenanceHeldError,
+    Restoring,
+    admitted,
+)
 from waterfall.platform.queue import SWEEP_START, Entry, TaskQueue
 from waterfall.platform.tasks import (
     FINISHED,
@@ -118,9 +123,18 @@ def end(
     result: Mapping[str, Any] | None = None,
     problem: Mapping[str, Any] | None = None,
 ) -> None:
-    """End a task: failed if a ``problem`` is given, succeeded with its ``result`` otherwise."""
+    """End a task: failed if a ``problem`` is given, succeeded with its ``result`` otherwise.
+
+    A task that succeeds carries no problem: a restoration given up, failed, then restored again by
+    the operator, had one (#1016).
+    """
     changes: dict[str, Any] = (
-        {"status": "succeeded", "progress": 100, "result": to_jsonable_python(result)}
+        {
+            "status": "succeeded",
+            "progress": 100,
+            "result": to_jsonable_python(result),
+            "problem": None,
+        }
         if problem is None
         else {"status": "failed", "problem": dict(problem)}
     )
@@ -225,14 +239,6 @@ class Worker:
             self.handle(entry)
         return bool(entries)
 
-    def halted(self) -> bool:
-        """Tell whether a maintenance began, read once the lock of a run is taken.
-
-        For the run a maintenance began before: read in the database, which a Redis out of reach or
-        emptied does not change (#956).
-        """
-        return self.restoring() is not None
-
     def restoring(self) -> Restoring | None:
         """Give the restoration that holds the platform in maintenance, if one does."""
         return self.maintenance.current()
@@ -256,14 +262,19 @@ class Worker:
 
         Or if the kind of the task has no handler here, and may still wait for a worker that has.
 
-        Or if a maintenance began meanwhile: the service of the restoration, once it holds it,
-        waits for the lock of each pending task before it keeps anything; a worker that takes the
-        lock after it does leaves the task.
+        Or if a maintenance began meanwhile, read in the database, which a Redis out of reach or
+        emptied does not change (#956): the service of the restoration, once it holds it, waits for
+        the lock of each pending task, then drains the writes, before it keeps anything; a worker
+        that takes the lock of the run after it does leaves the task. The run is admitted by the
+        lock of the drain, held shared until it ends (``admitted``, #2229).
         """
         with self.database.transaction() as session:
-            if not lock_run(session, task_id) or self.halted():
+            if not lock_run(session, task_id) or not admitted(session.connection()):
                 return False
-            task = self.start(task_id)
+            try:
+                task = self.start(task_id)
+            except MaintenanceHeldError:
+                return False
             if task == WAITS:
                 return False
             if task is None:

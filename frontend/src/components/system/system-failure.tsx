@@ -105,7 +105,7 @@ export function SystemFailure({ error, retry }: SystemFailureProps) {
   const reference = failure.kind === "unexpected" ? failure.reference : undefined;
   const component =
     failure.kind === "component_unavailable" ? components(failure.component) : undefined;
-  if (phase.kind === "maintenance" || phase.kind === "done") {
+  if (phase.kind === "maintenance" || phase.kind === "abandoned" || phase.kind === "done") {
     return (
       <Screen density="airy">
         <RestorationNotice phase={phase} />
