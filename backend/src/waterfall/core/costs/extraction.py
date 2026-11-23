@@ -43,7 +43,7 @@ from waterfall.core.cost_settings.interface import (
     read_folded_labels,
 )
 from waterfall.core.costs.tables import DOCUMENT_NUMBER_LENGTH, SUBPROJECT_CODE_LENGTH
-from waterfall.core.exchanges.interface import DAMAGES, bounded_rows, opened_workbook
+from waterfall.core.exchanges.interface import DAMAGES, opened_workbook
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
@@ -96,11 +96,11 @@ def sheet_rows(content: bytes, max_row: int | None = None) -> list[tuple[Any, ..
     columns, or a workbook without a tab, is ``FILE_FORMAT_UNREADABLE``.
     """
     try:
-        with opened_workbook(content) as workbook:
-            sheets = workbook.worksheets
+        with opened_workbook(content) as opened:
+            sheets = opened.worksheets
             if not sheets:
                 raise unreadable()
-            return bounded_rows(sheets[0].iter_rows(max_row=max_row, values_only=True))
+            return opened.bounded_rows(sheets[0].iter_rows(max_row=max_row, values_only=True))
     except DAMAGES as error:
         raise unreadable() from error
 

@@ -8,4 +8,7 @@ the core as the API does, without HTTP and without Keycloak, on the database of 
 platform of the slot, the witness loaded (``make service-up``, ``make service-witness``), and
 rolls back everything it writes, so that a measure never changes the next. It never fails on a
 duration: a figure is a report, and the chain does not run it (WF-QUA-0060).
+
+``workbooks`` measures apart, without a database, what a workbook engendered costs its reader
+(``make measure-workbooks``, US-3190/L2b).
 """

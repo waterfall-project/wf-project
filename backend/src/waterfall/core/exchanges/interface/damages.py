@@ -8,7 +8,10 @@ the parent of ``ElementTree.ParseError`` and of lxml's ``XMLSyntaxError``; ``zli
 ``EOFError`` are a cut deflate stream, ``RuntimeError`` and ``NotImplementedError`` a member that
 zipfile cannot decode (encrypted, unknown compression): none of them is an ``OSError``.
 ``WorkbookOutOfBoundsError`` is a workbook the opener refuses before openpyxl reads it, or a tab
-past the bounds (``workbooks``, US-3190): refused as a damaged one.
+past the bounds (``workbooks``, US-3190): refused as a damaged one. ``WorkbookDamagedError``, a
+``ValueError``, is a ``TypeError`` openpyxl raised at the opening or at the reading of the rows,
+which the opener alone turns so (#4848): ``TypeError`` itself is not listed, so that an error of a
+reader's own code is not taken for a damaged file.
 """
 
 import zipfile

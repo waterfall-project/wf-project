@@ -425,13 +425,19 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
   `read_only`, l'écart ne coûte pas de mémoire et évite de résoudre d'abord les onglets lus
   (décision de l'auteur du 2026-11-23). Les autres vecteurs, mesurés par US-3190/L2b et bornés
   par décision de l'auteur du 2026-11-23 : 1 000 000 de chaînes partagées, 65 536 éléments (runs)
-  par chaîne, et 32 Mio de texte décompressé dans `sharedStrings.xml` (le texte coûte quatre fois
-  sa taille en mémoire) ; dans `styles.xml`, `numFmts` 1 000, `fonts`, `fills`, `borders`,
-  `tableStyles` et `colors` 1 024 chacune, `cellStyleXfs`, `cellXfs`, `cellStyles` et `dxfs`
-  65 490 chacune, les limites d'Excel, pour qu'un classeur qu'Excel écrit ne soit jamais refusé ;
-  10 000 noms définis. La pré-lecture les compte et refuse avant l'ouverture. Le produit lignes ×
-  colonnes coûte 8,3 octets par cellule et 140 par ligne explicite (790 Mio pour 200 000 × 500,
-  d'un fichier de 7,9 Ko) : les onglets lus sont bornés en cumul à 200 000 lignes **et**
+  par chaîne, et 32 Mio de texte décompressé dans `sharedStrings.xml`, comptés en caractères (le
+  texte coûte jusqu'à quatre fois sa taille en mémoire) ; dans `styles.xml`, `numFmts` 1 000,
+  `fonts`, `fills`, `borders`, `tableStyles` et `colors` 1 024 chacune, `cellStyleXfs`, `cellXfs`,
+  `cellStyles` et `dxfs` 65 490 chacune, les limites d'Excel, pour qu'un classeur qu'Excel écrit ne
+  soit jamais refusé (les items d'une liste sont ses enfants ; ceux de `colors`, les couleurs de ses
+  listes, comptées avec elles) ; 10 000 noms définis. La pré-lecture les compte et refuse avant
+  l'ouverture. Les listes de `styles.xml` et les noms définis se comptent par nom local, enfants
+  directs de la racine du membre, comme openpyxl les lit, commentaires et instructions de
+  traitement compris (openpyxl en fait des items) ; une partie qu'openpyxl lit et qui déclare un
+  type de document (DOCTYPE) est refusée, une entité non déclarée sous un DOCTYPE externe
+  échappant à la pré-lecture. Le produit lignes × colonnes coûte 8,3 octets par cellule et 140 par ligne
+  explicite (790 Mio pour 200 000 × 500, d'un fichier de 7,9 Ko) : les onglets lus sont bornés en
+  cumul à 200 000 lignes **et**
   10 000 000 de cellules, comptées dans `bounded_rows` à mesure que les lignes arrivent ; le refus
   vient donc après l'ouverture, la mémoire tenue dans la borne (≈ 105 Mio). Écarté : compter les
   `<c>` à la pré-lecture, plus lent (10 à 30 %) et au risque d'un écart avec ce qu'openpyxl
@@ -543,7 +549,7 @@ quatrième valeur hostile de BEX-08, que `uploadFile` refuse avec sa permission 
 
 ## US-3190 — Un classeur téléversé est borné avant d'être ouvert, et son en-tête se lit hors du verrou du projet
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-INTF-0070-A`
 - **opérations** : `openImport`, `getImport`, `applyImport`
 - **issue** : #4527
