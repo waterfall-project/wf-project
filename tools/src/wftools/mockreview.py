@@ -791,10 +791,9 @@ def _import_examples() -> dict[str, JsonObject]:
             _refused("import_open_may_create_revision", "may_create_revision"),
         ),
         "import_apply_expired.json": mocktext.example(
-            f"Variante contrefactuelle : l'application demandée aujourd'hui de « "
-            f"{expired['filename']} » (import_actual_costs_analysed), expirée ce matin, "
-            f"vingt-quatre heures après son analyse sans avoir été appliquée, avant que la passe "
-            f"de purge la supprime (après elle, l'import est inconnu, 404) : il n'y a plus rien "
+            f"L'application demandée aujourd'hui de « {expired['filename']} », expirée ce matin, "
+            f"vingt-quatre heures après son analyse sans avoir été appliquée, avant la passe de "
+            f"purge qui la supprime (après elle, l'import est inconnu, 404) : il n'y a plus rien "
             f"à appliquer, et le refus nomme la condition qui manque, un import qui attend la "
             f"décision ; l'import ne change pas (WF-ARC-0100, WF-DAT-0080, #1789).",
             _refused("import_apply_expired", "import_awaiting_decision"),
