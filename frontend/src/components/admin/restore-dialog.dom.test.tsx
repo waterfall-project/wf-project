@@ -379,11 +379,31 @@ describe("the restoration of the platform", () => {
     expect(abandoned).toHaveTextContent("ne la quittera pas d’elle-même");
     expect(abandoned).toHaveTextContent("lever la maintenance après vérification des bases");
     expect(within(abandoned).queryByRole("link")).toBeNull();
+    // Nothing lifts it by itself: no wheel that turns.
+    expect(abandoned.querySelector(".animate-spin")).toBeNull();
     await tick();
     // The probe goes on: the maintenance kept is still said, not the end.
     expect(screen.getByRole("status")).toHaveTextContent("La restauration a été abandonnée");
     await tick();
     expect(screen.getByRole("status")).toHaveTextContent("Restauration terminée");
+    expect(phases.shown).toContain("abandoned");
+  });
+
+  it("says the maintenance abandoned, not the session lost, when the task can no longer be read and the probe then says the maintenance kept [US-2940] [WF-ARC-0090-A]", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    serve(
+      { [TASK]: { problem: { code: "SESSION_EXPIRED", status: 401 } } },
+      {
+        [HEALTH]: ["liveness", { status: 200, example: "liveness_maintenance_abandoned" }],
+      },
+    );
+    render(backupList());
+    await confirmRestore(LAST_NIGHT);
+    const abandoned = await screen.findByRole("status", {
+      name: "Restauration abandonnée : la plateforme reste en maintenance",
+    });
+    expect(abandoned).toHaveTextContent("ne la quittera pas d’elle-même");
+    expect(screen.queryByRole("status", { name: "Session terminée" })).toBeNull();
     expect(phases.shown).toContain("abandoned");
   });
 

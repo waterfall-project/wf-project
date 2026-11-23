@@ -11,7 +11,7 @@
  */
 "use client";
 
-import { CircleCheck, LoaderCircle, LogIn, Wrench } from "lucide-react";
+import { CircleCheck, LoaderCircle, LogIn, TriangleAlert, Wrench } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
@@ -27,10 +27,10 @@ export const RESTORATION_POLL = 2000;
  * Where a restoration stands, as the screen reads it: `asking`, nothing read yet; `serving`, the
  * platform serves and no restoration was followed; `queued`, the task waits, the platform serving;
  * `maintenance`; `abandoned`, the maintenance kept by a restoration abandoned once it began to
- * replace the databases, which only the operator lifts; `done`, the maintenance lifted, the sessions closed; `signed_out`, the task no
- * longer read for want of a session before any maintenance was seen — the session may have expired
- * while the task waited, nothing says the restoration took place; `failed`, refused before the
- * maintenance, with its motive.
+ * replace the databases, which only the operator lifts; `done`, the maintenance lifted, the
+ * sessions closed; `signed_out`, the task no longer read for want of a session before any
+ * maintenance was seen — the session may have expired while the task waited, nothing says the
+ * restoration took place; `failed`, refused before the maintenance, with its motive.
  */
 export type RestorationPhase =
   | {
@@ -142,6 +142,12 @@ export function useRestorationPhase(taskId: string | undefined): RestorationPhas
   return phase;
 }
 
+/** The message of a restoration not done, by phase; the restoration waiting says `pending`. */
+const WAITING_KEY: Partial<Record<RestorationPhase["kind"], "maintenance" | "abandoned">> = {
+  maintenance: "maintenance",
+  abandoned: "abandoned",
+};
+
 /** Where the outcome of a restoration is read, and where the sign-in that follows it comes back. */
 const AUDIT_LOG_SCREEN = "/admin/audit-log";
 
@@ -170,11 +176,10 @@ function SignedOutNotice() {
 /**
  * The screen of a restoration, by where it stands: asked but not begun — the task waits, the
  * platform still serves, no session closed yet —, that the platform is about to go under
- * maintenance; under maintenance, that every user is signed out until it ends; under the maintenance
- * of a restoration abandoned, that the platform stays so until the operator restores again or lifts
- * it; done, that it is,
- * and the way to sign in again; its task out of reach for want of a session, the way to sign in
- * again alone.
+ * maintenance; under maintenance, that every user is signed out until it ends; under the
+ * maintenance of a restoration abandoned, that the platform stays so until the operator restores
+ * again or lifts it; done, that it is, and the way to sign in again; its task out of reach for want
+ * of a session, the way to sign in again alone.
  */
 export function RestorationNotice({ phase }: { readonly phase: RestorationPhase }) {
   const t = useTranslations("maintenance");
@@ -204,12 +209,13 @@ export function RestorationNotice({ phase }: { readonly phase: RestorationPhase 
         </>
       ) : (
         <p className="flex items-start gap-1.5">
-          <LoaderCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0 animate-spin" />
-          {phase.kind === "maintenance"
-            ? t("maintenance")
-            : abandoned
-              ? t("abandoned")
-              : t("pending")}
+          {abandoned ? (
+            // Nothing lifts the maintenance kept by itself: a fixed icon, not a wheel that turns.
+            <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          ) : (
+            <LoaderCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0 animate-spin" />
+          )}
+          {t(WAITING_KEY[phase.kind] ?? "pending")}
         </p>
       )}
     </section>
