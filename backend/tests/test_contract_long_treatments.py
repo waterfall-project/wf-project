@@ -100,16 +100,15 @@ def started_by() -> list[tuple[str, str]]:
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")
-@pytest.mark.parametrize(("kind", "name"), started_by())
+@pytest.mark.parametrize("name", sorted({name for _, name in started_by()}))
 def test_an_operation_that_starts_a_long_treatment_answers_202_and_the_reference_of_its_task(
-    contract: OpenAPI, kind: str, name: str
+    contract: OpenAPI, name: str
 ) -> None:
     # « Aucun de ces traitements n'est joignable par un endpoint qui répondrait après l'avoir
     # exécuté. » : analysis and application of an import, marking, export, backup, reading of the
     # accounts, restoration. The answer that starts the treatment is the 202 of the reference of
     # the task, whose ``kind`` the contract lists; any other success starts nothing.
     successes = successes_of(operations_of(contract)[name].node)
-    assert kind in CONTRACT_KINDS  # the kind of the list; its link to ``name`` is tried below
     assert "202" in successes
     assert carries_a_task(successes["202"])
     assert set(successes) <= SUCCESSES
