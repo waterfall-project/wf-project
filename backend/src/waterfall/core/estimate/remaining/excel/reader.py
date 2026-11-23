@@ -39,6 +39,7 @@ from waterfall.core.estimate.excel.reader import (
     header_columns,
     load_sheets,
     read_number,
+    refuse_missing_columns,
     task_entries,
     text,
     unreadable,
@@ -66,6 +67,7 @@ __all__ = [
     "Rejection",
     "RemainingRead",
     "check_header",
+    "check_workbook",
     "read_remaining_workbook",
 ]
 
@@ -79,6 +81,9 @@ DISBURSEMENT_HEADER = "Débours restant"
 _TEXT_HEADERS = (TASK_HEADER, ROLE_OR_CATEGORY_HEADER, LABEL_HEADER, LINEAGE_HEADER)
 _NUMBER_HEADERS = (DAYS_HEADER, DISBURSEMENT_HEADER)
 _ALL_HEADERS = _TEXT_HEADERS + _NUMBER_HEADERS
+# The columns a tab of lines cannot lack, in the order of the writer (#4421): without one, a
+# remaining would be set to zero, a task finished, or a line created, on a column it cannot read.
+_REQUIRED_HEADERS = (DAYS_HEADER, DISBURSEMENT_HEADER, LINEAGE_HEADER)
 _READ_HEADERS = frozenset(_ALL_HEADERS)
 # A tab of lines is the one that carries both of these, on whichever row.
 _KEY_HEADERS = frozenset({TASK_HEADER, ROLE_OR_CATEGORY_HEADER})
@@ -139,6 +144,21 @@ def check_header(content: bytes) -> None:
     ``FILE_FORMAT_UNREADABLE`` with ``expected_format`` at ``remaining`` and ``expected_version``.
     """
     check_any_header(content, FORMAT_NAME, FORMAT_VERSION, FORMAT_KIND)
+
+
+def check_workbook(content: bytes) -> None:
+    """Refuse a file that is no workbook of a remaining, or whose tab of lines lacks a column.
+
+    What the opening of an import reads before any lock (US-3200): the header, then the headers of
+    every tab of lines; ``FILE_FORMAT_UNREADABLE`` names each column missing with its tab.
+    """
+    check_header(content)
+    refuse_missing_columns(
+        read_remaining_workbook(content).missing_headers,
+        _REQUIRED_HEADERS,
+        FORMAT_KIND,
+        FORMAT_VERSION,
+    )
 
 
 def _review_date(rows: Sequence[Sequence[object]]) -> tuple[date | None, str | None]:

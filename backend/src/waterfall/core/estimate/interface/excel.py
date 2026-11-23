@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from waterfall.core.estimate import applying, exporting, importing
 from waterfall.core.estimate.excel.names import sheet_name as named_sheet
-from waterfall.core.estimate.excel.reader import check_header, read_workbook
+from waterfall.core.estimate.excel.reader import check_workbook, read_workbook
 from waterfall.core.estimate.excel.writer import write_workbook
 from waterfall.core.exchanges.interface import LARGEST_FILE, ExportedFile, kept_refusal
 from waterfall.core.projects.interface import (
@@ -75,9 +75,12 @@ class EstimateFormat:
         """Keep, before any lock, the refusal of a file that is not the workbook of an estimate.
 
         A workbook of an unknown version is refused too (422 ``FILE_FORMAT_UNREADABLE``,
-        ``expected_format`` and ``expected_version``; WF-INTF-0070); ``None`` for one it reads.
+        ``expected_format`` and ``expected_version``; WF-INTF-0070), and so is one whose tab of
+        lines lacks « ID ligne », « Quantité », « Heures » or « Débours unitaire »
+        (``missing_columns``, each by its ``header`` and its ``sheet``; US-3200); ``None`` for one
+        it reads.
         """
-        return kept_refusal(check_header, head)
+        return kept_refusal(check_workbook, head)
 
     def judge_header(self, session: Session, parsed: UnprocessableError | None) -> None:
         """Refuse a file that is not the workbook of an estimate of a known version (422)."""

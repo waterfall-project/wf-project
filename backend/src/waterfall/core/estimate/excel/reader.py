@@ -73,6 +73,9 @@ _TEXT_HEADERS = (
 )
 _NUMBER_HEADERS = (QUANTITY_HEADER, HOURS_HEADER, DISBURSEMENT_HEADER, PAYMENT_DELAY_HEADER)
 _ALL_HEADERS = _TEXT_HEADERS + _NUMBER_HEADERS
+# The columns a tab of lines cannot lack, in the order of the writer: without them an import would
+# create or remove lines, or set amounts, on a column it cannot read (#4421).
+REQUIRED_HEADERS = (QUANTITY_HEADER, HOURS_HEADER, DISBURSEMENT_HEADER, LINEAGE_HEADER)
 _READ_HEADERS = frozenset(_ALL_HEADERS)
 # A tab of lines is the one that carries both of these, on whichever row.
 _KEY_HEADERS = frozenset({TASK_HEADER, ROLE_OR_CATEGORY_HEADER})
@@ -132,13 +135,45 @@ class WorkbookRead:
 
 
 def unreadable(
-    expected_format: str = FORMAT_KIND, expected_version: int = FORMAT_VERSION
+    expected_format: str = FORMAT_KIND,
+    expected_version: int = FORMAT_VERSION,
+    missing_columns: Sequence[Mapping[str, str]] = (),
 ) -> UnprocessableError:
-    """Build the refusal of a file that is no workbook of the format: the format is the slot's."""
-    return UnprocessableError(
-        FILE_FORMAT_UNREADABLE,
-        {"expected_format": expected_format, "expected_version": str(expected_version)},
-    )
+    """Build the refusal of a file that is no workbook of the format: the format is the slot's.
+
+    ``missing_columns`` names, when it is not empty, each column read a tab of lines lacks, by its
+    ``header`` and its ``sheet`` (``ProblemMissingColumn``; WF-INTF-0070, #4421).
+    """
+    params: dict[str, Any] = {
+        "expected_format": expected_format,
+        "expected_version": str(expected_version),
+    }
+    if missing_columns:
+        params["missing_columns"] = [dict(column) for column in missing_columns]
+    return UnprocessableError(FILE_FORMAT_UNREADABLE, params)
+
+
+def refuse_missing_columns(
+    missing: Mapping[str, tuple[str, ...]],
+    required: Sequence[str],
+    expected_format: str,
+    expected_version: int,
+) -> None:
+    """Refuse a workbook one of whose tabs of lines lacks a column the format cannot do without.
+
+    ``missing`` is what the reading found absent, by tab, in the order of the file; the refusal
+    names each column of ``required`` a tab lacks, tab by tab, then in the order of ``required``,
+    the format's. A header renamed is a column absent. The columns the format reads and can do
+    without (the label, the payment delay…) are left to the analysis (WF-INTF-0070, #4421).
+    """
+    columns = [
+        {"header": header, "sheet": sheet}
+        for sheet, absent in missing.items()
+        for header in required
+        if header in absent
+    ]
+    if columns:
+        raise unreadable(expected_format, expected_version, columns)
 
 
 def text(value: object) -> str | None:
@@ -212,6 +247,18 @@ def check_header(
     if rows is None:
         raise unreadable(expected_format, version)
     check_header_rows(rows, format_name, version, expected_format)
+
+
+def check_workbook(content: bytes) -> None:
+    """Refuse a file that is no workbook of an estimate, or whose tab of lines lacks a column.
+
+    What the opening of an import reads before any lock (US-3200): the header, then the headers of
+    every tab of lines (``read_workbook``); the refusal names each column missing with its tab.
+    """
+    check_header(content)
+    refuse_missing_columns(
+        read_workbook(content).missing_headers, REQUIRED_HEADERS, FORMAT_KIND, FORMAT_VERSION
+    )
 
 
 def task_entries(rows: Sequence[Sequence[object]]) -> dict[str, str]:

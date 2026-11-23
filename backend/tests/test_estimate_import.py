@@ -390,18 +390,16 @@ def test_lines_absent_from_the_file_are_removed_but_kept_under_a_started_task(
 def test_a_missing_header_reads_its_cells_empty_and_an_unknown_tab_is_ignored(
     api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
 ) -> None:
-    # Without « ID ligne », each line is new and those of the structure are absent; nothing refuses
-    # the file: the user reads it before confirming (WF-INTF-0080).
-    rows = [each[:-1] for each in as_exported(held)]
+    # A column the format can do without (the payment delay, the subproject) may be missing: its
+    # cells read as empty and nothing refuses the file (WF-INTF-0080); « ID ligne » may not
+    # (US-3200, test_estimate_missing_columns).
+    dropped = {HEADERS.index("Délai de paiement (j)"), HEADERS.index("Sous-projet")}
+    kept = [at for at in range(len(HEADERS)) if at not in dropped]
+    rows = [[each[at] for at in kept] for each in as_exported(held)]
     notes = [["Remarque", "Quantité"], ["à revoir", "beaucoup"]]
-    content = workbook(rows, held["tasks"], sheet=HEADERS[:-1], notes=notes)
+    content = workbook(rows, held["tasks"], sheet=[HEADERS[at] for at in kept], notes=notes)
     report = analysed(api, stage, worker, content)
-    assert [each["change"] for each in report["differences"]] == [
-        "added",
-        "added",
-        "removed",
-        "removed",
-    ]
+    assert report["differences"] == []
     assert report["rejected"] == []
 
 

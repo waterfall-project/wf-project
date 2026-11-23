@@ -39,6 +39,7 @@ from waterfall.core.estimate.remaining.excel.model import (
 from waterfall.core.estimate.remaining.excel.reader import (
     DAYS_HEADER,
     DISBURSEMENT_HEADER,
+    check_workbook,
     read_remaining_workbook,
 )
 from waterfall.core.estimate.remaining.excel.writer import write_workbook
@@ -484,3 +485,47 @@ def test_a_second_row_with_the_task_column_alone_after_the_note_is_read() -> Non
     read = read_remaining_workbook(workbook({"SP-1": rows}))
 
     assert [(line.row, line.task) for line in read.lines] == [(2, "1 A"), (5, "3 C")]
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_each_column_a_tab_lacks_is_named_with_its_tab_in_the_order_of_the_format() -> None:
+    # « un reste à engager dont un onglet n'a plus « ID ligne », « Jours restants » ou « Débours
+    # restant » est refusé […] params.missing_columns nommant chaque colonne manquante avec son
+    # onglet » ; un en-tête renommé (« Débours restant (€) ») est une colonne absente.
+    content = workbook(
+        {
+            "SP-1": [["Tâche", "Rôle ou catégorie", "Désignation", DAYS_HEADER]],
+            "SP-2": [SMALL],
+            "Hors sous-projet": [
+                ["Tâche", "Rôle ou catégorie", DAYS_HEADER, "Débours restant (€)", "ID ligne"]
+            ],
+        }
+    )
+
+    with pytest.raises(UnprocessableError) as raised:
+        check_workbook(content)
+
+    assert raised.value.code == "FILE_FORMAT_UNREADABLE"
+    assert raised.value.params == {
+        "expected_format": "remaining",
+        "expected_version": "1",
+        "missing_columns": [
+            {"header": DISBURSEMENT_HEADER, "sheet": "SP-1"},
+            {"header": "ID ligne", "sheet": "SP-1"},
+            {"header": DISBURSEMENT_HEADER, "sheet": "Hors sous-projet"},
+        ],
+    }
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_the_workbook_exported_opens_and_the_label_alone_may_be_missing() -> None:
+    # « un classeur exporté, toutes ses colonnes lues présentes, s'ouvre comme avant ; une colonne
+    # que le format ne lit pas peut manquer » : « Désignation » seule ne fonde aucune application.
+    check_workbook(
+        workbook(
+            {"SP-1": [["Tâche", "Rôle ou catégorie", DAYS_HEADER, DISBURSEMENT_HEADER, "ID ligne"]]}
+        )
+    )
+    check_workbook(write_workbook(_book()))
