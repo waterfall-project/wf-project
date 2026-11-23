@@ -5,10 +5,11 @@
 Registered at the import of the interface in the registries of the resource settings
 (``register_idle_task_guard``, ``register_recalculation``): a change of the hours of a calendar or
 of the default is refused when it would leave a task of a current revision without an hour in its
-week (``tasks_left_idle``, WF-PLA-0010), and a change of the units of duration or of a calendar
-redates the structures of the current revisions in its transaction
-(``reschedule_current_structures``, WF-PLA-0160), each locked ``FOR UPDATE`` in the order of
-(``project_id``, ``id``) after the reference (EP-06, "Ce que le cadrage décide").
+week (``tasks_left_idle``, WF-PLA-0010), and a change of the units of duration, of a calendar or
+of the calendar of a role redates and prices again the structures of the current revisions in its
+transaction (``reschedule_current_structures``, WF-PLA-0160, WF-PLA-0010), each locked ``FOR
+UPDATE`` in the order of (``project_id``, ``id``) after the reference (EP-06, "Ce que le cadrage
+décide").
 
 The guard judges the default calendar, which every task without a labour line is on — every task
 of EP-06 —: a default left without an hour in the week names each project one of whose current
@@ -30,7 +31,7 @@ the change takes: the change sees the revision opened, or the opening the refere
 recalculation never locks a project: the opening, which may hold the lock of its project when it
 waits for the reference, is never awaited by it.
 
-Filled by US-1390/L2.
+Filled by US-1390/L2; US-3320 prices again every task of the structures it replays (BCH-07).
 """
 
 from typing import TYPE_CHECKING
@@ -40,11 +41,12 @@ from sqlalchemy import select
 from waterfall.core.planning.dating import PROJECT_HORIZON_EXCEEDED
 from waterfall.core.planning.interface.facets import named_calendars, refused_at
 from waterfall.core.planning.interface.structures import reschedule
+from waterfall.core.planning.rescheduling import Holding
 from waterfall.core.planning.tables import Node
-from waterfall.core.planning.tree import TASK
+from waterfall.core.planning.tree import TASK, read_tree
 from waterfall.core.projects.interface import projects_named
 from waterfall.core.resource_settings.interface import IdleProject
-from waterfall.core.revisions.interface import current_structures
+from waterfall.core.revisions.interface import current_structures, structure_facts
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
@@ -94,7 +96,9 @@ def reschedule_current_structures(
     """Redate the structures of the current revisions, after a change of the reference.
 
     Their revisions read ``FOR SHARE``, then each structure locked and replayed in the order of
-    (``project_id``, ``id``), its dates' instant moved on to ``at``. Beyond fifteen years, the
+    (``project_id``, ``id``), its dates' instant moved on to ``at``, the lines of every task of it
+    priced again, moved or not (``_repriced_whole``): the calendar of a role, the default one and
+    the constants of the units of duration all pass here (US-3320). Beyond fifteen years, the
     change is refused naming each project carried so, by its label and its code, nothing else
     (422 ``PROJECT_HORIZON_EXCEEDED``, ``params.projects``, WF-ADM-0110): the author of the change
     may consult none of them. A line priced again past its column refuses the change at
@@ -106,7 +110,7 @@ def reschedule_current_structures(
     for each in current_structures(session, lock=True):
         try:
             with refused_at(entered):
-                reschedule(session, each.project_id, each.structure_id, at)
+                _repriced_whole(session, each.project_id, each.structure_id, at)
         except UnprocessableError as refused:
             if refused.code != PROJECT_HORIZON_EXCEEDED:
                 raise
@@ -115,6 +119,20 @@ def reschedule_current_structures(
         named = sorted(projects_named(session, beyond).values(), key=_by_label)
         projects = [{"project_label": label, "project_code": code} for code, label in named]
         raise UnprocessableError(PROJECT_HORIZON_EXCEEDED, {"projects": projects})
+
+
+def _repriced_whole(session: Session, project_id: UUID, structure_id: UUID, at: datetime) -> None:
+    """Replay a structure with every task of it priced again, whether it moves or not (BCH-07).
+
+    The structure locked, then its tree read under the lock and handed to the replay
+    (``Holding``): the share of a line among the years follows the calendar of its role, which
+    the change may have changed without moving its task — a task set by hand, or a role that does
+    not bound its task's calendar (WF-PLA-0010, US-3320).
+    """
+    facts = structure_facts(session, project_id, structure_id, lock=True, base=True)
+    tree = read_tree(session, project_id, structure_id)
+    held = Holding(facts=facts, repriced=tuple(tree.tasks), tree=tree)
+    reschedule(session, project_id, structure_id, at, held)
 
 
 def _by_label(named: tuple[str | None, str]) -> tuple[str, str]:

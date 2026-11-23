@@ -44,6 +44,7 @@ from sqlalchemy.exc import IntegrityError
 from waterfall.core.resource_settings.interface.extensions import (
     CalendarChange,
     projects_left_idle,
+    recalculate,
 )
 from waterfall.core.resource_settings.interface.org_nodes import lock_tree, within_node
 from waterfall.core.resource_settings.interface.readiness import lock_reference
@@ -553,12 +554,20 @@ def create_role(
     return read_role(session, role_id, may_change=True)
 
 
-def _lock_role(session: Session, role_id: UUID, lock_version: int) -> ResourceRole:
-    """Lock a role, then read it under the lock, at the version read; or refuse (404, 412)."""
+def _lock_role(
+    session: Session, role_id: UUID, lock_version: int, *, key_share: bool = False
+) -> ResourceRole:
+    """Lock a role, then read it under the lock, at the version read; or refuse (404, 412).
+
+    ``key_share`` locks it ``FOR NO KEY UPDATE``, which a line that names the role leaves free
+    (its foreign key takes ``FOR KEY SHARE``): what a change that then waits for the structures
+    takes, so that a write of a structure that adds a line of the role, which holds the structure,
+    is not waited for both ways.
+    """
     role = session.scalars(
         select(ResourceRole)
         .where(ResourceRole.id == role_id)
-        .with_for_update()
+        .with_for_update(key_share=key_share)
         .execution_options(populate_existing=True)
     ).first()
     if role is None:
@@ -644,8 +653,20 @@ def update_role(
     (422, one reason a field); at a calendar that would leave a task of a current revision without
     an hour (422 ``TASK_WITHOUT_WORKING_HOURS``, the roles and the projects named; US-1500); then
     if another role holds its code (409).
+
+    A role given another calendar redates and prices again the structures of the current
+    revisions in the transaction, once it is written (``recalculate``), as a change of the hours of
+    a calendar does (WF-PLA-0010, US-3320): beyond fifteen years, refused naming the projects (422
+    ``PROJECT_HORIZON_EXCEEDED``), and a line priced past its column at ``/calendar_id`` (#3401),
+    nothing written. A role that keeps its calendar redates nothing. The reference is locked first,
+    whatever changes — the effect of the write is only known under the lock —, then the role, then
+    the structures, by the recalculation: the order of EP-06. The role is locked ``FOR NO KEY
+    UPDATE`` (``key_share``): a write of the planning that holds a structure and adds a line of the
+    role is not waited for while the change waits for that structure. A code changed with the
+    calendar takes the stronger lock at its write, as any write of a unique column does.
     """
-    role = _lock_role(session, role_id, lock_version)
+    lock_reference(session)
+    role = _lock_role(session, role_id, lock_version, key_share=True)
     moved = change.org_node_id is not None and change.org_node_id != role.org_node_id
     recalendared = change.calendar_id != role.calendar_id
     _refuse(
@@ -675,6 +696,8 @@ def update_role(
             calendar_id=change.calendar_id,
             headcount=change.headcount,
         )
+    if recalendared:
+        recalculate(session, act.at, ("/calendar_id",))
     return read_role(session, role_id, may_change=True)
 
 
