@@ -10,8 +10,8 @@ The author decided each major point by point (`docs/api/DECISIONS.md`, the secti
   retained, as every state the list names, by a parameter of its own (``ProjectStates``; D-01,
   #1747);
 - ``subproject_code_too_long.json``, a subproject created under a code one character longer than
-  the tab of the file of the remaining to commit admits, refused by ``VALUE_TOO_LONG``, its
-  ``params.max_length`` the bound of the field, which every ``VALUE_TOO_LONG`` bears (J-02, #1796);
+  the code of a subproject admits, refused by ``VALUE_TOO_LONG``, its ``params.max_length`` the
+  bound of the field, which every ``VALUE_TOO_LONG`` bears (J-02, #1796; #3966);
 - ``rate_update_category_not_proposed.json``, the rate update of the revision 101 sent with a
   category its proposal does not present, refused by the rank of that category in the list sent
   (``RateUpdateApply``; E-03, #1755);
@@ -86,11 +86,14 @@ from wftools.mockwrites import amended, on_task
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
 
-SUBPROJECT_CODE_BOUND = 31
+SUBPROJECT_CODE_BOUND = 100
 """The most characters the code of a subproject admits (`DeclaredSubprojectCode`, WF-PRJ-0050):
-that of the name of a tab of the file of the remaining to commit."""
+enough for the code of a project, a slash and a former code (#3966)."""
 
-TOO_LONG_CODE = "ESSAIS-MISE-EN-SERVICE-LIGNE-002"
+TOO_LONG_CODE = (
+    "PRJ-001/ESSAIS-ET-MISE-EN-SERVICE-DE-LA-LIGNE-DE-CONDITIONNEMENT-002-POSTE-DE-COMMANDE-"
+    "ARMOIRES-A1-A2"
+)
 """The code of ``subproject_code_too_long``, one character beyond the bound."""
 
 TOO_LONG_CORRELATION = universe(1669)
@@ -150,10 +153,10 @@ def _code_too_long() -> JsonObject:
         message = f"{TOO_LONG_CODE}: {len(TOO_LONG_CODE)} characters, not the bound and one"
         raise ValueError(message)
     return mocktext.example(
-        f"Un sous-projet créé sous le code {TOO_LONG_CODE}, de trente-deux caractères quand le "
-        f"nom d'un onglet du fichier de reste à engager en admet trente et un : refusé, le code "
-        f"désigné par son motif, la borne de son champ nommée (max_length), que le formulaire "
-        f"dit au champ ; rien n'est écrit (WF-PRJ-0050, WF-ARC-0110).",
+        f"Un sous-projet créé sous le code {TOO_LONG_CODE}, de cent un caractères quand le code "
+        f"d'un sous-projet en admet cent : refusé, le code désigné par son motif, la borne de son "
+        f"champ nommée (max_length), que le formulaire dit au champ ; rien n'est écrit "
+        f"(WF-PRJ-0050, WF-ARC-0110, #3966).",
         {
             "code": "VALIDATION_FAILED",
             "status": 422,
@@ -732,6 +735,7 @@ def import_remaining_completed_task() -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": [],
+        "unknown_wbs_elements": [],
         "unit_constants": None,
         "calendar_gap": None,
     }

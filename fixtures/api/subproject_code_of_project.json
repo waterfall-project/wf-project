@@ -1,0 +1,12 @@
+{
+  "summary": "Un sous-projet du projet témoin créé ou recodé sous le code du projet, PRJ-001 : refusé sur le code, sans paramètre — un sous-projet ne porte jamais le code de son projet, auquel l'élément d'OTP d'une ligne de coût se compare en entier ; rien n'est écrit (WF-PRJ-0050, WF-CRE-0020, #3966).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/code","code":"SUBPROJECT_CODE_INVALID"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-200391c8d5ff"
+  }
+}

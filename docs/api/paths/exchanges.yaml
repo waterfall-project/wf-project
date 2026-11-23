@@ -306,7 +306,14 @@
       import is refused as long as one of the four required columns has no label in it, which
       the project's `import_actual_costs` command states in advance; a file missing a required
       column is refused, naming it; a column neither read nor declared kept is ignored, and the
-      report names it (`ImportIgnoredKind`, `columns`). The analysed report is what applies,
+      report names it (`ImportIgnoredKind`, `columns`). The WBS element of each line is compared
+      whole with the code of the project and those of its subprojects: equal to the code of the
+      project, the line is charged to the project alone; to that of a subproject, to that
+      subproject; otherwise it is rejected, and the report names each unknown element and the
+      number of its lines (`ImportReport.unknown_wbs_elements`, WF-CRE-0020; #3966). Two lines of
+      the same document and item are compared among the lines of the project alone (BRC-04). A
+      remaining to commit designates the subproject of a sheet by the code at its head, never by
+      the name of the sheet (WF-INTF-0120). The analysed report is what applies,
       even if the mapping changes in the meantime (`applyImport`). An MS Project schedule
       updates an existing task without touching its attachment to the work breakdown; on the
       main structure, the only one to carry attachments, a file that would place the task of an
@@ -447,9 +454,12 @@
       an actual cost extraction, the columns of the file neither read nor declared kept, ignored
       and named by their label (`ImportIgnoredKind`, `columns`, WF-REF-0190), each cost line
       designated by its document and its item, the lines of the file with the same document and
-      the same item rejected (`DUPLICATE_COST_LINE`, WF-INTF-0140; EP-16/US-0630), and those
-      whose WBS element is malformed or of another project (`WBS_ELEMENT_INVALID`,
-      `WBS_ELEMENT_OUTSIDE_PROJECT`, WF-CRE-0020). The report is stored as codes and rendered in
+      the same item rejected, compared among the lines of the project alone
+      (`DUPLICATE_COST_LINE`, WF-INTF-0140; EP-16/US-0630, BRC-04), and those whose WBS element is
+      neither the code of the project nor that of one of its subprojects, compared whole
+      (`WBS_ELEMENT_OUTSIDE_PROJECT`, WF-CRE-0020), each such element named once with the number
+      of its lines (`ImportReport.unknown_wbs_elements`, `import_actual_costs_unknown_elements`;
+      #3966). The report is stored as codes and rendered in
       the language of the reader (WF-ARC-0110). The import always returns its report, its task
       and its commands, apply and abandon, available or not with their conditions
       (`ImportDetail`, WF-IHM-0090; I-01, I-06, #1789, #1780) — its task null once it has been
@@ -491,6 +501,7 @@
               estimate_task_without_hours: { $ref: ../../../fixtures/api/import_estimate_task_without_hours.json }
               actual_costs_wbs_invalid: { $ref: ../../../fixtures/api/import_actual_costs_wbs_invalid.json }
               actual_costs_dotted_code: { $ref: ../../../fixtures/api/import_actual_costs_dotted_code.json }
+              actual_costs_unknown_elements: { $ref: ../../../fixtures/api/import_actual_costs_unknown_elements.json }
               remaining_ambiguous_label: { $ref: ../../../fixtures/api/import_remaining_ambiguous_label.json }
               remaining_duplicate_lineage: { $ref: ../../../fixtures/api/import_remaining_duplicate_lineage.json }
               remaining_completed_task: { $ref: ../../../fixtures/api/import_remaining_completed_task.json }
@@ -732,8 +743,11 @@
       twenty-four hours if it has not been downloaded, an interrupted download leaving it in
       place (WF-DAT-0120, WF-ARC-0040); its headers do not depend on the language
       (WF-INTF-0180). An MS Project schedule writes the planning start date of the structure
-      into the project start date (WF-INTF-0050, WF-PLA-0020); a remaining to commit, the review
-      date in "Synthèse", the one the request names or the day of the request
+      into the project start date (WF-INTF-0050, WF-PLA-0020); a remaining to commit, a sheet per
+      subproject, which bears the code of the subproject at its head and a name that Waterfall
+      derives from it — the characters Excel refuses replaced, cut to 31 characters, numbered on
+      a collision — (annex B, WF-INTF-0130, WF-PRJ-0050; #3966), and the review date in
+      "Synthèse", the one the request names or the day of the request
       (`ExportRequest.review_date`, WF-INTF-0130), which its import will use to complete a task
       (WF-INTF-0120). The named revision (`revision_id`, required) is the one whose `export_*`
       command judges the export; an unknown revision or one of another project is refused with

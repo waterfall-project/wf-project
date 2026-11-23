@@ -43,6 +43,7 @@
       "date_mismatches": [],
       "signals": [],
       "requires_confirmation_reasons": ["lines_outside_project"],
+      "unknown_wbs_elements": [{"wbs_element": "A.ABC.26002/10001", "line_count": 1}],
       "unit_constants": null,
       "calendar_gap": null
     },

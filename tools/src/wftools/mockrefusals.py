@@ -414,6 +414,7 @@ class _ImportReport(TypedDict):
     read_count: int
     unchanged_count: int
     requires_confirmation_reasons: list[JsonValue]
+    unknown_wbs_elements: list[JsonValue]
 
 
 def _report(imported: JsonObject) -> _ImportReport:
@@ -457,6 +458,7 @@ def import_wbs_invalid() -> JsonObject:
     report["requires_confirmation_reasons"] = [
         each for each in report["requires_confirmation_reasons"] if each != "lines_outside_project"
     ]
+    report["unknown_wbs_elements"] = []
     return imported
 
 

@@ -483,7 +483,8 @@ def test_a_report_written_without_its_unit_constants_and_calendar_gap_is_read_wi
 ) -> None:
     # A report analysed before ``unit_constants`` (#2580) or ``calendar_gap`` (#2977), or by the
     # code that precedes them during an update, lacks the keys: it is read as the constants and the
-    # calendars of the file not differing, not refused by the contract.
+    # calendars of the file not differing, not refused by the contract. No analysis writes
+    # ``unknown_wbs_elements`` yet (#3966): it is read empty.
     import_id = analysed(api, stage, worker)["import_id"]
     report = dict(stored(database, import_id).report or {})
     del report["unit_constants"]
@@ -493,7 +494,13 @@ def test_a_report_written_without_its_unit_constants_and_calendar_gap_is_read_wi
             update(ImportReport).where(ImportReport.id == UUID(import_id)).values(report=report)
         )
     found = read(api, stage, import_id)
-    assert found["report"] == {**report, "unit_constants": None, "calendar_gap": None}
+    assert "unknown_wbs_elements" not in report
+    assert found["report"] == {
+        **report,
+        "unit_constants": None,
+        "calendar_gap": None,
+        "unknown_wbs_elements": [],
+    }
 
 
 @pytest.mark.requirement("WF-INTF-0080-A")

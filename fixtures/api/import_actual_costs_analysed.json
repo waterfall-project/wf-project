@@ -49,6 +49,7 @@
       "requires_confirmation_reasons": [
         "unknown_subproject"
       ],
+      "unknown_wbs_elements": [],
       "unit_constants": null,
       "calendar_gap": null
     },

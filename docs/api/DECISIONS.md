@@ -8195,7 +8195,9 @@ sert qu'aux fichiers exportés.
 ### Le client d'un projet et le code borné d'un sous-projet (US-0610, #1316)
 
 > Révisée par la décision de l'auteur du 2026-11-18 (« Le tri des constats de spécification », #3370) :
-> le code d'un sous-projet est libre, et ne nomme plus son onglet.
+> le code d'un sous-projet est libre, et ne nomme plus son onglet. Le contrat suit par US-3270/L1
+> (« L'élément d'OTP comparé en entier et le code de sous-projet libre ») : 100 caractères, ni
+> caractère interdit ni nom réservé, jamais le code du projet.
 
 WF-PRJ-0080 fait porter au projet le nom de son client, facultatif, que présente un devis exporté ;
 WF-PRJ-0050 veut que le code d'un sous-projet nomme son onglet dans le fichier de reste à engager
@@ -9968,7 +9970,8 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
   exemple : il tient à `setTaskProgress`, hors des fichiers du lot.
 - **Le code projet borné** (D-07 ; WF-PRJ-0010, WF-CRE-0020). Révisé par la décision de l'auteur du
   2026-11-18 (« Le tri des constats de spécification », #3370) : la barre oblique n'est plus
-  interdite, `PROJECT_CODE_INVALID` tombe. `ProjectCode`, partagé par
+  interdite, `PROJECT_CODE_INVALID` tombe ; le contrat suit par US-3270/L1 (« L'élément d'OTP
+  comparé en entier et le code de sous-projet libre »). `ProjectCode`, partagé par
   `Project`, `ProjectSummary`, `ProjectCreate` et `ProjectUpdate` : de 1 à 50 caractères, jamais
   blanc, sans barre oblique. Vide, `VALUE_REQUIRED` ; blanc, `VALIDATION_FAILED`, comme tout libellé
   (#837) ; une barre oblique, `PROJECT_CODE_INVALID`, nouveau au catalogue comme
@@ -11864,6 +11867,12 @@ La version reste `1.0.0` : un motif et un paramètre de plus, que `ProblemParams
 
 ### Les descriptions d'un import de coûts réels : le double d'un autre projet, l'arrondi, l'OTP sans suffixe, `params.column` (US-1610/L2, #2721, #2722, #2724)
 
+> Révisée par la décision de l'auteur du 2026-11-18 (« Le tri des constats de spécification », #3370)
+> et par le cadrage d'EP-33 (BRC-04) : l'élément d'OTP se compare en entier, `WBS_ELEMENT_INVALID`
+> tombe avec l'élément sans rien après la barre oblique, et une ligne d'un autre élément n'est plus
+> comparée aux doubles. Le contrat suit par US-3270/L1 (« L'élément d'OTP comparé en entier et le
+> code de sous-projet libre »).
+
 Décisions de l'auteur du 2026-11-10, qui ne changent aucune forme, seulement ce que les descriptions
 disent. `requires_confirmation_reasons` : une ligne d'un autre projet compte pour
 `lines_outside_project` même quand elle est rejetée `DUPLICATE_COST_LINE` (#2724) : la confirmation
@@ -12923,14 +12932,14 @@ engendrés par `wftools.mockimportfindings`, tenus par `tools/tests/test_mockimp
   demande et à l'exécution sous le verrou de la structure : une écriture arrivée entre les deux fait
   échouer la tâche d'application sur le même motif, l'import `refused`. Une structure analysée dans
   la révision marquée, le projet sans révision en cours, reste inchangée quand une révision ouverte
-  depuis la copie sans que l'on y ait écrit ; la révision que la tâche crée elle-même n'est pas comparée. Aucune
-  commande ne l'annonce (`ImportDetail.available_commands`, `ImportCommand`) : la conception ne
-  compare qu'à la demande et à l'exécution, et une lecture qui jugerait le compteur ajouterait une
-  troisième comparaison qu'elle ne prévoit pas. Un compte rendu au compteur nul — analysé avant la
-  colonne du service — s'applique sans comparaison, pendant les vingt-quatre heures qu'il vit ;
-  c'est une règle du service, que le contrat ne dit pas. Exemple : `import_apply_structure_changed`,
-  le devis de l'avenant 2 (`import_analysed`) appliqué après la saisie de
-  `estimate_line_updated_amendment`, qui avance le compteur de sa structure. Écartés :
+  depuis la copie sans que l'on y ait écrit ; la révision que la tâche crée elle-même n'est pas
+  comparée. Aucune commande ne l'annonce (`ImportDetail.available_commands`, `ImportCommand`) : la
+  conception ne compare qu'à la demande et à l'exécution, et une lecture qui jugerait le compteur
+  ajouterait une troisième comparaison qu'elle ne prévoit pas. Un compte rendu au compteur nul —
+  analysé avant la colonne du service — s'applique sans comparaison, pendant les vingt-quatre
+  heures qu'il vit ; c'est une règle du service, que le contrat ne dit pas. Exemple :
+  `import_apply_structure_changed`, le devis de l'avenant 2 (`import_analysed`) appliqué après la
+  saisie de `estimate_line_updated_amendment`, qui avance le compteur de sa structure. Écartés :
   `ImportApply.lock_version`, que le client ne ferait que recopier d'une réponse ; un 412 sur ce
   compteur ; recalculer le compte rendu sous verrou et le comparer à celui confirmé.
 - **« Pas de compteur : aucune opération d'import n'en porte » est révisée** (setImportDurationRule,
@@ -13011,6 +13020,78 @@ engendrés par `wftools.mockimportfindings`, tenus par `tools/tests/test_mockimp
   `enums.CommandCondition.import_structure_unchanged` et
   `enums.CommandCondition.pending_uploads_below_limit`, et l'écran des imports lit un import sans
   tâche sans la suivre : la part TypeScript du même lot.
+
+### L'élément d'OTP comparé en entier et le code de sous-projet libre (US-3270/L1, #4539, #3966)
+
+Le contrat de #3966 : décisions de l'auteur du 2026-11-18 (« Le tri des constats de
+spécification », #3370 ; spécification 1.0.7, WF-CRE-0020, WF-PRJ-0010, WF-PRJ-0050, WF-INTF-0120,
+annexe B) et du 2026-11-21 (cadrage d'EP-33 : les doubles d'une extraction comparés dans le projet
+seul, BRC-04 ; les lignes en attente d'un sous-projet inconnu supprimées par la reprise). Elles
+révisent « Le code projet borné » (D-07), « Le client d'un projet et le code borné d'un
+sous-projet » (US-0610, #1316) et « Les descriptions d'un import de coûts réels » (#2721) ; la phrase
+du recodage d'`updateSubproject` (« Un recodage ne change l'imputation d'aucune ligne de coût »,
+#2421) perd les lignes qui attendaient un code. Le contrat précède le service : US-3270/L2 (le
+service et la reprise), L3 (le front), L4 (le témoin et le harnais des exemples). `info.version`
+reste `1.0.0` (« La règle d'après le gel ») : le lot ajoute et assouplit. Exemples engendrés par
+`wftools.mockfreecodes`, tenus par `tools/tests/test_mockfreecodes.py`.
+
+- **Le code d'un sous-projet est libre, et n'est jamais celui de son projet** (WF-PRJ-0050).
+  `DeclaredSubprojectCode` : de 1 à 100 caractères, jamais blanc — le motif `\S`, celui d'un
+  libellé —, sans caractère interdit ni nom réservé ; 100, parce que la reprise écrit le code du
+  projet (50 au plus), une barre oblique et l'ancien code (31 au plus), soit 82 (conception
+  d'EP-33). Vide ou blanc, `VALUE_REQUIRED`, comme le service le rend déjà ; trop long,
+  `VALUE_TOO_LONG`, `max_length` à `100`. Égal au code du projet, comparé en entier :
+  `SUBPROJECT_CODE_INVALID` sur `/code`, sans paramètre, à la création et au recodage d'un
+  sous-projet ; et `updateProject` refuse de même, sur `/code`, le projet recodé vers le code de
+  l'un de ses sous-projets. Écarté : un code nouveau, une clé de catalogue de plus pour un refus que
+  le code existant et son champ disent. Exemples : `subproject_code_of_project`, cité par
+  `createSubproject` et `updateSubproject`, `project_code_of_subproject`, cité par
+  `updateProject` ; `subproject_code_too_long` passe à 101 caractères, `max_length` à `100`.
+- **Le code d'un projet peut porter une barre oblique** (WF-PRJ-0010). `ProjectCode` garde sa
+  borne de 1 à 50 caractères, jamais blanc (le motif `\S`) ; la barre oblique n'est plus interdite.
+- **L'élément d'OTP se compare en entier** (WF-CRE-0020). `WBS_ELEMENT_OUTSIDE_PROJECT` rejette
+  toute ligne dont l'élément n'est ni le code du projet ni celui de l'un de ses sous-projets — vide,
+  d'un autre projet, un code de sous-projet sans celui du projet, un sous-projet non déclaré —,
+  `params.wbs_element` l'élément tel que le fichier le porte, seul. Le compte rendu gagne
+  `unknown_wbs_elements` (`ImportUnknownWbsElement` : `wbs_element`, `line_count` d'au moins 1),
+  exigé, toujours rendu : chaque élément inconnu une fois, avec le nombre de ses lignes, dans l'ordre
+  où le fichier le porte d'abord ; vide quand tous sont connus, et pour les autres natures d'import.
+  `ActualCostLine.subproject_code` devient le code du sous-projet d'imputation, nul pour une ligne
+  imputée au seul projet, borné à 100 comme lui. `lines_outside_project` reste le motif de
+  confirmation de #2724, pour les lignes rejetées pour leur élément. La création d'un sous-projet
+  n'impute plus rien (`createSubproject`, `Subproject.has_actual_costs`) : seul le réimport impute.
+  Deux suites que la conception ne nomme pas, l'élément n'étant plus découpé : `params.project_code`
+  (la part avant la barre oblique) ne se donne plus, et un élément plus long que tout code n'a plus
+  de refus `VALUE_TOO_LONG` sur `wbs_element` à 50 : il n'est le code de rien, et
+  `WBS_ELEMENT_OUTSIDE_PROJECT` le rejette. Exemple : `import_actual_costs_unknown_elements`, la
+  Vérif de WF-CRE-0020-A en compte rendu, variante contrefactuelle
+  d'`import_actual_costs_dotted_code`.
+- **Les doubles se comparent dans le projet seul** (BRC-04). `DUPLICATE_COST_LINE` ne compare que
+  les lignes dont l'élément est le code du projet ou celui de l'un de ses sous-projets ; une ligne
+  d'un autre élément est rejetée pour son élément et ne fait rejeter aucune ligne du projet. La
+  phrase de #2724 (« compte pour `lines_outside_project` même rejetée `DUPLICATE_COST_LINE` »)
+  tombe avec elle : une telle ligne n'est plus jugée double.
+- **L'onglet d'un sous-projet du reste à engager** porte un nom tiré du code — les caractères
+  qu'Excel refuse remplacés, coupé à 31 caractères, numéroté en cas de collision — et le code en
+  tête ; l'import désigne le sous-projet par ce code, jamais par le nom de l'onglet
+  (`requestExport`, `openImport`, `ImportRejection.sheet` ; WF-INTF-0120, WF-INTF-0130).
+- **Ce qui attend le service** (US-3270/L2). `PROJECT_CODE_INVALID`, `WBS_ELEMENT_INVALID`,
+  `unknown_subproject` et les paramètres `forbidden_characters`, `reserved_name` et `project_code`
+  restent au contrat, dits « no longer given » : le service les émet encore, et les tests du
+  service valident chaque réponse contre le contrat ; ils sortent avec le lot qui cesse de les
+  émettre (conception d'EP-33, « un code ne sort du catalogue qu'avec le lot du service »). Leurs
+  exemples restent cités jusque-là — `project_code_invalid`, `subproject_code_invalid`,
+  `subproject_code_reserved`, `import_actual_costs_wbs_invalid`, et
+  `import_actual_costs_dotted_code`, écrit sous l'ancienne règle —, comme le témoin, dont les codes
+  de sous-projets et l'extraction d'avril, qui demande `unknown_subproject`, changent avec la
+  reprise. D'ici là, le service refuse encore un code de sous-projet de plus de 31 caractères, et
+  rend `unknown_wbs_elements` vide : un compte rendu écrit sans la clé se lit vide
+  (`waterfall.api.imports`). Les exemples de compte rendu existants portent la clé : vide, ou
+  l'élément de la ligne d'un autre projet qu'ils rejettent (l'extraction d'avril, son témoin et
+  `import_actual_costs_dotted_code`).
+- **Le catalogue du front** ne reçoit aucune clé : aucun code ni paramètre nouveau. Les phrases de
+  `errors.SUBPROJECT_CODE_INVALID` et `errors.WBS_ELEMENT_OUTSIDE_PROJECT`, qui disent l'ancienne
+  règle comme le service la tient encore, se réécrivent avec le front (US-3270/L3).
 
 ## Collage et annulation
 

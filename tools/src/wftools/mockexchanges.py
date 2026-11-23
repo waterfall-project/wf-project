@@ -237,6 +237,7 @@ def import_report(nodes: dict[int, Node]) -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": [],
+        "unknown_wbs_elements": [],
         "unit_constants": None,
         "calendar_gap": None,
     }
@@ -418,6 +419,7 @@ def completing_report(nodes: dict[int, Node]) -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": [],
+        "unknown_wbs_elements": [],
         "unit_constants": None,
         "calendar_gap": None,
     }
@@ -580,7 +582,8 @@ def cost_report(entry: CostImport) -> JsonObject:
     and brought back updated, both named by their document and their item (WF-INTF-0140, D-4);
     the lines it brings back as they were are counted unchanged; each line of another project the
     journal counts is rejected, its element named as the file carries it, with the code of project
-    read (WF-CRE-0020), last in the file. The witness does not say which columns an update
+    read (WF-CRE-0020), last in the file, and named once with the number of its lines
+    (``unknown_wbs_elements``, #3966). The witness does not say which columns an update
     changes: an updated line names none. A code of subproject no subproject of the project
     carries is kept, and asks for an explicit confirmation, as the lines of another project do.
     """
@@ -601,6 +604,11 @@ def cost_report(entry: CostImport) -> JsonObject:
         *(_difference(line, "added") for line in added),
         *(_difference(line, "updated") for line in updated),
     ]
+    unknown: list[JsonValue] = (
+        [{"wbs_element": f"{code}/{OUTSIDE_SUBPROJECT}", "line_count": len(rejected)}]
+        if rejected
+        else []
+    )
     reasons: list[JsonValue] = ["lines_outside_project"] if rejected else []
     if unknown_codes([*added, *updated]):
         reasons.append("unknown_subproject")
@@ -616,6 +624,7 @@ def cost_report(entry: CostImport) -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": reasons,
+        "unknown_wbs_elements": unknown,
         "unit_constants": None,
         "calendar_gap": None,
     }
