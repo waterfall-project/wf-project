@@ -200,7 +200,13 @@ def test_what_a_task_binds_to_its_records_does_not_outlive_it(
 # What the contract lets a request name a project by, outside the path /projects/{id}: a filter of
 # the query of the journal of audit, which the middleware (PROJECT_PATH) does not read. Reported
 # by the test, not decided: a new one must be looked at before it is added here.
-PROJECT_OUTSIDE_THE_PATH = {("/audit-events", "get", "project_id", "query")}
+PROJECT_OUTSIDE_THE_PATH = {
+    ("/audit-events", "get", "project_id", "query"),
+    # The bounds of the column of the projection of the project manager in the list of the portfolio
+    # (US-2690): amounts, which designate no project.
+    ("/portfolio/projects", "get", "project_manager_projection_min", "query"),
+    ("/portfolio/projects", "get", "project_manager_projection_max", "query"),
+}
 
 
 @pytest.mark.story("US-2900")
