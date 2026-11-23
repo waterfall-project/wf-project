@@ -26,7 +26,7 @@ describe("the cells of a structure the server computes", () => {
       estimate.items.filter((node) => cells.in(node)).map(labelOf);
     // The provision alone: its quantity, its unit disbursement and its sub-project come from its
     // risk (EP-14/L42p).
-    const PROVISION = "Provision — risque de reprise du câblage";
+    const PROVISION = "Provision — Risque de reprise du câblage";
     expect(computed(quantity)).toEqual([PROVISION]);
     expect(computed(disbursement)).toEqual([PROVISION]);
     expect(computed(subproject)).toEqual([PROVISION]);

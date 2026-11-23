@@ -16,8 +16,10 @@ it replaces, and a new line then is rejected (``UNKNOWN_RESOURCE_ROLE``), as an 
 known code is; its subproject by its code (``UNKNOWN_SUBPROJECT``). Each line
 is then judged as its entry is (``entries.judged_line``): its refusals on a field reject it, by the
 code of the field and the header of its column (``params.header``), a provision category among them
-(``PROVISION_CATEGORY_RESERVED``), and the rule of a subproject that received actual costs, which
-rejects nothing before EP-09 (``SUBPROJECT_HAS_ACTUAL_COSTS``). On the main structure, a new line
+(``PROVISION_CATEGORY_RESERVED``), and a product or a reestimated amount that overflows its
+column, priced on the task as it stands (``VALIDATION_FAILED`` at the quantity, #3095); and the
+rule of a subproject that received actual costs, which rejects nothing before EP-09
+(``SUBPROJECT_HAS_ACTUAL_COSTS``). On the main structure, a new line
 under a completed task, or a line changed or moved under or from one, is rejected as its entry is
 refused (``STATE_FORBIDS_OPERATION``, ``task_not_completed``, #1767). A labour line whose role would
 leave its task without an hour in its week, the roles of the lines its task keeps intersected day
@@ -25,8 +27,11 @@ by day in the order of the file, is rejected (``TASK_WITHOUT_WORKING_HOURS``, WF
 on the structure the import leaves, every write of the file made, so that its application, which
 writes them in one write of the tree, finds what the report says. The lines of the structure the
 file no longer carries are removed, but kept under a started or completed task (``kept``,
-WF-INTF-0100). A cell empty reads as nought for a figure — the default of
-a creation —, as no subproject, and as the label left as it is, composed at a creation.
+WF-INTF-0100). A provision line of a risk, on the main structure, is its risk's alone (WF-RIS-0010):
+a line of the file that carries its lineage is ignored and named (``provision_lines``), and the line
+the file no longer carries is kept and signalled (``kept``), never removed (US-2580/L2). A cell
+empty reads as nought for a figure — the default of a creation —, as no subproject, and as the label
+left as it is, composed at a creation.
 
 What the workbook does not give is no refusal: a tab without the headers of lines is ignored, as an
 unknown column; a header of a column read that a tab lacks reads its cells empty, and what follows
@@ -49,12 +54,19 @@ from waterfall.core.cost_settings.interface import (
     category_label_of,
     list_cost_categories,
 )
-from waterfall.core.estimate.costing import TASK_WITHOUT_WORKING_HOURS, calendar_hours
+from waterfall.core.estimate.costing import (
+    HOURLY_RATE_MISSING,
+    TASK_WITHOUT_WORKING_HOURS,
+    calendar_hours,
+)
 from waterfall.core.estimate.entries import LineEntry, judged_line
 from waterfall.core.estimate.excel import reader
 from waterfall.core.estimate.excel.writer import FORMAT_VERSION
 from waterfall.core.estimate.reading import COMPLETED, NOT_STARTED, TASK_NOT_COMPLETED, rows_of
+from waterfall.core.estimate.recalling import remembering
+from waterfall.core.estimate.remaining.reviewing import provisions_of
 from waterfall.core.estimate.tables import LABEL_LENGTH
+from waterfall.core.estimate.writing import judged_amounts
 from waterfall.core.planning.interface import (
     BearingTask,
     NodeFilters,
@@ -64,9 +76,9 @@ from waterfall.core.planning.interface import (
     list_nodes,
 )
 from waterfall.core.projects.interface import (
+    NOBODY,
     SubprojectFilters,
     SubprojectSort,
-    Viewer,
     list_subprojects,
 )
 from waterfall.core.resource_settings.interface import (
@@ -102,9 +114,9 @@ UNKNOWN_RESOURCE_ROLE = "UNKNOWN_RESOURCE_ROLE"
 UNKNOWN_SUBPROJECT = "UNKNOWN_SUBPROJECT"
 AMBIGUOUS_TASK_LABEL = "AMBIGUOUS_TASK_LABEL"
 DUPLICATE_LINEAGE = "DUPLICATE_LINEAGE"
+PROVISION_LINES = "provision_lines"
 NOUGHT = Decimal(0)
 EVERY = 10**9
-NOBODY = UUID(int=0)
 # The header of the column that carries each field of a line, as a refusal of its entry names it.
 HEADERS = {
     "label": reader.LABEL_HEADER,
@@ -125,6 +137,9 @@ class Aimed:
     """The structure an import aims at, as read: its tasks, its lines by lineage, their tasks.
 
     ``revision_id`` is none, and the structure empty, for a project without a revision yet.
+    ``provisions`` the provision lines of the main structure, by their node, which no import
+    writes: those of a risk, of a category of the provision kind (EP-08, "Ce qui reconnaît une
+    ligne de provision").
     """
 
     project_id: UUID
@@ -134,6 +149,7 @@ class Aimed:
     task_lineages: dict[UUID, UUID]
     lines: dict[UUID, EstimateLine]
     bearers: dict[UUID, UUID]
+    provisions: frozenset[UUID] = frozenset()
 
     def bearer(self, task_id: UUID) -> BearingTask:
         """Give a task of the structure as the entry of a line judges it."""
@@ -236,13 +252,15 @@ class Analysis:
     """What the analysis finds: the lines accepted, the rejections, the lines left behind.
 
     ``removed`` the lines left behind the import removes, those of ``left`` under a task unstarted
-    — and, at the application, that the report confirmed announced removed.
+    — and, at the application, that the report confirmed announced removed; ``provisions`` the
+    designations of the provision lines the file carries, ignored, in its order.
     """
 
     planned: list[Planned] = field(default_factory=list[Planned])
     rejected: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])
     left: list[UUID] = field(default_factory=list[UUID])
     removed: list[UUID] = field(default_factory=list[UUID])
+    provisions: list[str] = field(default_factory=list[str])
 
 
 @dataclass(frozen=True, slots=True)
@@ -292,7 +310,8 @@ def aimed(session: Session, target: ImportTarget) -> Aimed:
     rows = {row.node_id: row for row in rows_of(session, project_id, nodes)}
     lineages = lineages_of(session, project_id, nodes)
     task_lineages = {item.node_id: item.lineage_id for item in read.items}
-    held = Aimed(project_id, revision_id, is_main, tasks, task_lineages, {}, {})
+    provisions = provisions_of(session, list(rows.values())) if is_main else frozenset[UUID]()
+    held = Aimed(project_id, revision_id, is_main, tasks, task_lineages, {}, {}, provisions)
     for task_id, lines in bearing.items():
         for node in lines:
             if node in rows:
@@ -321,7 +340,7 @@ def reference_of(session: Session, project_id: UUID) -> Reference:
     named_roles = {role.code: role for role in roles}
     named_categories = {category.accounting_code: category for category in categories}
     # The commands of the subprojects are not read: an account that holds no permission lists them.
-    viewer = Viewer(NOBODY, frozenset())
+    viewer = NOBODY
     subprojects = list_subprojects(
         session, project_id, viewer, SubprojectFilters(), SubprojectSort()
     )
@@ -464,20 +483,28 @@ def judged(
     task_id, entry, current = sent
     headers = judging.headers
     try:
-        return judged_line(
-            session,
-            (held.project_id, held.bearer(task_id)),
-            entry,
-            current,
-            locking=judging.locking,
+        bearer = held.bearer(task_id)
+        draft = judged_line(
+            session, (held.project_id, bearer), entry, current, locking=judging.locking
         )
+        # Its amounts priced as its application prices them: a line that overflows is rejected here.
+        # A line left as it is, or only moved under another task, is not written, so not priced:
+        # the application moves it without writing its amounts, no rejection can reach it.
+        if current is None or changed_columns(draft, current, moved=False):
+            held_line = None if current is None else current.node_id
+            judged_amounts(session, (held.project_id, bearer, held_line), draft)
     except UnprocessableError as refusal:
         found: list[dict[str, Any]] = []
+        if refusal.code == HOURLY_RATE_MISSING:
+            # The category of the line has no rate: the column that designates it is the reason.
+            header = reader.ROLE_OR_CATEGORY_HEADER
+            return [rejection(line, HOURLY_RATE_MISSING, {**refusal.params, "header": header})]
         for fault in refusal.fields:
             header = headers.get(fault.pointer.rsplit("/", 1)[-1])
             named = {} if header is None else {"header": header}
             found.append(rejection(line, fault.code, {**fault.params, **named}))
         return found
+    return draft
 
 
 def _completed(held: Aimed, tasks: Iterable[UUID]) -> UUID | None:
@@ -507,19 +534,27 @@ def analyse(
     alone, doubled, twice = alone_on_lineage(read.lines)
     found.rejected += doubled
     taken |= twice & held.lines.keys()
-    for line in alone:
-        lineage = lineage_of(line.lineage)
-        current = held.lines.get(lineage) if lineage is not None and lineage not in taken else None
-        if current is not None and lineage is not None:
-            taken.add(lineage)
-        judging = Judging(locking=confirmed is not None)
-        plan(session, (line, current), held, (reference, named), (found, judging))
+    # Nothing is written here, so what the pricing of each line reads is read once for all of them.
+    with remembering(session):
+        for line in alone:
+            lineage = lineage_of(line.lineage)
+            current = (
+                held.lines.get(lineage) if lineage is not None and lineage not in taken else None
+            )
+            if current is not None and lineage is not None:
+                taken.add(lineage)
+                if ignored_provision(held, current, found):
+                    continue
+            judging = Judging(locking=confirmed is not None)
+            plan(session, (line, current), held, (reference, named), (found, judging))
     found.left = [line.node_id for lineage, line in held.lines.items() if lineage not in taken]
     lineages = {line.node_id: str(lineage) for lineage, line in held.lines.items()}
     found.removed = [
         node
         for node in found.left
-        if not started(held, node) and (confirmed is None or lineages[node] in confirmed.removed)
+        if not started(held, node)
+        and node not in held.provisions
+        and (confirmed is None or lineages[node] in confirmed.removed)
     ]
     if confirmed is not None:
         found.planned = [
@@ -642,6 +677,26 @@ def _kept_roles(
         if rank not in refused and not arriving[rank] and each.role_id is not None:
             kept.setdefault(each.task_id, set()).add(each.role_id)
     return kept
+
+
+def ignored_provision(held: Aimed, current: EstimateLine, found: Analysis) -> bool:
+    """Tell a line of the file that carries the lineage of a provision line, which it ignores.
+
+    The line of the structure is left as it is, its designation named in the report
+    (``provision_lines``, WF-INTF-0100, WF-INTF-0120, WF-RIS-0010).
+    """
+    if current.node_id not in held.provisions:
+        return False
+    found.provisions.append(current.label)
+    return True
+
+
+def ignored_of(found: Analysis) -> list[dict[str, Any]]:
+    """Give what the report says the file carried and the import ignored (``ImportIgnored``)."""
+    if not found.provisions:
+        return []
+    labels = list(found.provisions)
+    return [{"kind": PROVISION_LINES, "count": len(labels), "labels": labels}]
 
 
 def started(held: Aimed, node: UUID) -> bool:
@@ -767,14 +822,15 @@ def report_of(held: Aimed, read: WorkbookRead, found: Analysis) -> Report:
     rejected_rows = {(each["sheet"], each["row"]) for each in rejected}
     written = sum(1 for each in found.planned if each.current is None or each.fields)
     read_count = len(set(rows))
+    unchanged = read_count - len(rejected_rows) - written - len(found.provisions)
     return {
         "format_version": str(FORMAT_VERSION),
         "read_count": read_count,
-        "unchanged_count": read_count - len(rejected_rows) - written,
+        "unchanged_count": unchanged,
         "rejected": rejected,
         "refusals": [],
         "differences": differences,
-        "ignored": [],
+        "ignored": ignored_of(found),
         "completed_tasks": [],
         "date_mismatches": [],
         "signals": [],

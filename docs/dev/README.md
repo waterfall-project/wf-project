@@ -71,12 +71,15 @@ bootstrap. The service Compose offers it (service `witness`, `make service-witne
 production one does not: a real installation holds no witness. `make service-witness` takes no
 variable of its own: the service Compose gives the `witness` service the role of the service
 (`WATERFALL_DATABASE_URL`, by `WATERFALL_POSTGRES_PASSWORD`, which must be exported as for
-`make service-up`) and mounts `fixtures/api/` read-only on `WATERFALL_WITNESS_PATH` (`/witness`);
+`make service-up`) and mounts `fixtures/api/` and `fixtures/witness/` read-only,
+`WATERFALL_WITNESS_PATH` being `/fixtures/api`: the slice of the portfolio (`fixtures/witness/portfolio/`) is read beside the
+examples;
 the platform must be started and bootstrapped (`make service-install`), for the command does not
 write what the bootstrap writes — the row of the installation, the common settings, the units, the
-mapping, the default calendar and the provision —, it sets what the bootstrap laid. The `witness`
-fixture of `backend/tests/conftest.py` does likewise on the database of the tests: it first
-installs what the bootstrap writes, then runs the command. `backend/tests/test_witness.py` tries
+mapping, the default calendar and the provision —, it sets what the bootstrap laid. The tests do
+likewise, once a run, on a template database (`backend/tests/witness_template.py`): they first
+install what the bootstrap writes, then run the command; the `witness` fixture gives each test a
+copy of that database. `backend/tests/test_witness.py` tries
 the witness whole: its volumes, two new platforms loaded identical, a second run that writes
 nothing, the dates and authors of the platform, the stop, saying so, on a witness the rules refuse,
 and the lists of the service compared with the examples of the contract, the audit columns apart.
@@ -167,6 +170,32 @@ exercises them on a trial package (`backend/tests/test_boundaries.py`). An SQL q
 as text, which would name the table of another module, escapes the analysis of the imports:
 it falls under the SQL rules of EP-03 and under review.
 
+**One implementation of each calculation** (WF-ARC-0010, US-2780/L3). The state machine, the
+planning, the estimate and the indicators are written once only, in their module of the core, which
+the API, the worker and the portfolio import. The versioned table `tools/implementations.toml`
+names, for each file of the core that carries one of these calculations, the names it is called
+by — its functions that compute, the constants that fix its result —, and for each file of the
+portfolio, the formulas of EP-10 it applies to sums. A file outside `core/` and `migrations/` — the
+API, the worker, the other entry points, the platform — or of the portfolio defines none of these
+names (neither a function, at any depth, nor an assignment at the level of the module), and imports
+them only from the module of the core that owns them; a file of the portfolio imports and calls the
+formulas the table gives it. A new calculation of one of these four adds its names to the table.
+Two declarations keep a gap there, said without failing: a homonym (`[[homonym]]`), another
+calculation of a module of the core under a name of the table, which may be imported from that
+module, and a known duplicate (`[[duplicate]]`), said at each run with its reason until it is gone;
+each fails once it no longer holds; a duplicate may copy a name of the table under another (`of`, and
+`of_file` for a private name the table does not hold). To « apply » a formula is to call it or to
+pass it on to be called (`map(cost_index, …)`); the check does not verify that the argument is a sum,
+which falls under review. The check judges by name: a calculation written again under another name
+escapes it, and falls under review — the rounding of an amount rewritten by `quantize`, without a
+name of the table, is one (the case of the API's `_money` is open apart, #4373); the generators of
+the fake back, which are not delivered, are out of it. A held file that names `schedule`, `advance`,
+`margin`, `balances`, `distribution` or `cumulative` something that is not a calculation of the
+table has no escape hatch: it renames its method.
+
+_Check_: `make implementations` (`wftools.implementations`, family `repo`, which runs on every
+change).
+
 **Background tasks** (WF-ARC-0090). A task lives in the `background_task` table
 (`waterfall.platform.tasks`), which is authoritative; the Redis stream (`waterfall.platform.queue`)
 carries only its identifier. A route submits it by `submit(session, queue, genre, demandeur)`, in
@@ -184,7 +213,7 @@ reads (503 except on `/health` and `/metrics`), and the worker runs nothing whil
 « Sauvegarde et restauration »). The maintenance and the state of the restore that holds it live in
 the `platform` schema of the Waterfall database, at most one row in each of its two tables, which
 the service role reads and the owner alone writes (`waterfall.platform.maintenance`, migration
-`0035`): a backup dumps only `public`, and a restore replaces only it, so emptying Redis during a
+`0044`): a backup dumps only `public`, and a restore replaces only it, so emptying Redis during a
 restore does not lift the maintenance (EP-13, US-2830, #956). Every request of the API thus reads
 the maintenance in the database, one more read per request (the liveness probe reads it to say it),
 bounded by `CONNECT_TIMEOUT` for the
@@ -1359,8 +1388,8 @@ cell, the duration and the predecessors, the start date — each have their twin
 `planning-service.spec.ts`, on a project of the run; the lines, the amounts and the estimate play
 against the service on a project of the run (EP-07, US-1560), those that read the witness waiting
 for its lines (US-1570); the remaining to commit is EP-09's, the risks and the differential
-structures EP-08's, so the path of `context.spec.ts` that opens the amendment and that of the risks
-screen stay on the fake back; the indicators, EP-10's, play against the service (US-1730,
+structures EP-08's (US-2640: the path of `context.spec.ts` that opens the amendment and those of
+the risks screen play against the service, the marks of the amendment being those it renders); the indicators, EP-10's, play against the service (US-1730,
 `indicators.spec.ts`). The measure
 of a cell validation (#196) and that of the move of the active cell over a thousand tasks (#620) are
 in the delivery report of US-1470.
@@ -1457,8 +1486,8 @@ date is named by a counter, not by `crypto.randomUUID()`, which a page served ov
 localhost does not provide (#2818). The screen no longer carries `MockupNotice`: the grid, the
 indicators and the Kanban are the service's. The whole of `e2e/remaining.spec.ts` carries `@shared`
 (the grid and the Kanban); the path that writes plays on a project the run creates (`seedPlanning`,
-`bringInProgress`, #2193), and those that read the volume witness or the risk coverage (a provision, a
-risk) stay guarded by `inService` until **EP-08** (volumes: **EP-13**). The Kanban of task starts, FBS-4.5.3, is a leaf of the
+`bringInProgress`, #2193), and those that read the volume witness stay guarded by `inService`
+until **EP-13**. The Kanban of task starts, FBS-4.5.3, is a leaf of the
 function, `…/revisions/[r]/kanban`, where the header of the grid leads: all the non-started tasks,
 the started and the completed ones with their date, as `listStartableTasks` renders them, each a
 card, a non-started milestone whose predecessors are completed flagged to be completed
@@ -3070,6 +3099,14 @@ What the same command generates is never re-read from the disk: the indicators, 
 curves of the witness, which the portfolio sums, are passed to it in memory, so that one single run
 of `make mock-data` reaches its fixed point.
 
+**The slice of the portfolio**, out of the contract, is written under `fixtures/witness/portfolio/`:
+the description of the ten projects the loader of the witness adds to PRJ-001 and PRJ-002, each
+write in the form of its schema of the contract (`projects/`, `wftools.mockslice`), and the expected
+readings of the eight views of the portfolio on 3 June 2026, read by `as_of` (`readings/`,
+`wftools.mockslicereadings` and `wftools.mocksliceviews`), computed without importing anything of
+the back (EP-11, US-2770; held by `tools/tests/test_mockslice.py` and
+`backend/tests/test_witness_portfolio_slice.py`).
+
 **What stays written by hand** — sessions, accounts and roles, reference data (resource roles and
 their headcounts, calendars, organisation nodes), the project, its revisions and its transitions,
 imports and their reports, background tasks, state of the system and backups, counterfactual
@@ -3156,8 +3193,9 @@ the connected home (US-0920/L2), the revisions (US-0960, US-0970) and the settin
 (US-1440) and the planning (US-1470), from EP-07, the workload (US-1520), the comparison of
 revisions (US-1530), the proposed contributors (US-1540), the import and export of the estimate
 (US-1550) and the estimate (US-1560), and, from EP-09, the actual costs (US-1620), the
-remaining-to-commit grid and the Kanban (US-1640, which removes `MockupNotice` from them); a success
-there is what the service kept, read anew. Against the fake back, the timelines screen draws the
+remaining-to-commit grid and the Kanban (US-1640, which removes `MockupNotice` from them), and, from
+EP-08, the risks (US-2640, which removes `MockupNotice`); a success there is what the service kept,
+read anew. Against the fake back, the timelines screen draws the
 whole volume Prism renders for `listNodes`, whatever the timeline: the paths of the frieze and of
 the focus judge only the layout there, and their selection is proven against the service.
 
@@ -3181,7 +3219,7 @@ its side; a failure of the chain is therefore reproduced by the same command.
 | `make service-install`                                                  | bootstraps the started service platform, its realm applied (`waterfall-api install`, US-0420): applies the migrations under the owner of the tables, creates the installation, its three predefined roles and its local administrator, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` by default), in the language `WATERFALL_DEFAULT_LANGUAGE` (`fr` by default), and its minimal reference (EP-05): the shared settings, with the currency `WATERFALL_CURRENCY` (`EUR` by default) and the name of the company `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` by default, those of the witness), and the time zone `WATERFALL_TIME_ZONE` (`UTC` if the variable is empty, at the first writing only, a name of the IANA database, refused if unknown, in which the current day is taken, US-2200), the units of duration, the mapping of the actual costs, empty, the default calendar, the nature and the category of provision for risks; writes on its output only the link that sets its password, valid until it is used; run again, it creates nothing, says another currency, another name or another time zone ignored — run again without a time zone, nothing is said —, and writes a new link, which replaces the previous one, as long as the administrator has no password, none afterwards                                                                                                                                                                                                   |
 | `make service-witness`                                                  | loads the witness on the service platform, started and bootstrapped (`waterfall-api load-witness`, service `witness`, EP-05): the examples of the contract, `fixtures/api/`, mounted read-only, written by the role of the service; run again, it writes nothing; one slice per object, in the order of the dependencies, in one transaction ("The back and the boundaries of the core")                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `make service-purge`                                                    | deposits by hand the purge of what expired on the service platform, started (`waterfall-worker schedule`, in the container of the `scheduler` service, with a purge interval of one second, which sets the purge alone: a reading of the accounts whose last is older than a day is deposited too): the worker runs it — reports of imports past their term, deposits past their term, exports of more than twenty-four hours, the history of the sessions older than `WATERFALL_UNDO_RETENTION_HOURS` hours (12 by default), tasks ended for more than `WATERFALL_BACKGROUND_TASK_RETENTION_DAYS` days (30 by default), and the objects that no row designates any more under `uploads/` and `exports/`; no purge is deposited while another is queued or running |
-| `make measure-core`                                                     | measures the core in process (`backend/measure/`, US-2210, EP-26), without HTTP or Keycloak, on the database of the service platform of the slot, which it first resets — stopped, its data dropped (`service-down WATERFALL_RESET_DATA=yes`), then started, bootstrapped and the witness loaded (`service-up`, `service-install`, `service-witness`), the secrets of `service-up` expected in the environment —: a whole read of PRJ-001 alone, then with `kinds=task`; the same under a profile, by stage (read, body, serialisation), with PostgreSQL's share; by several threads and by several processes; the ratio of an entry — a label, a duration that redates — to a read; the opening of a revision; the last marked revision read whole from its rows, then kept and read from what is kept, whole and projected, the size kept and the volume a platform of the volumes of §4.6.2 would keep, and the marking of the current revision followed by the keeping of its main structure (US-2270); the comparison of the current revision with the marked one it copies — which it checks —, whole from the rows of both structures (before option 1 of #3168, the quantity its threshold is read on), whole from the reading kept of the base (after option 1, as the grid of the estimate asks it) and on its tasks from the rows (`kinds=task`, as the grid of the planning asks it), split into the part of its two readings, of the union — by subtraction, the two timed in an alternating order, their spreads given and a union under nought said — and of the body, and the count of the nodes that differ, by kind and by mark, out of those of the union (US-2390, option 3 of #3168); what the entries of the cache of the indicators of the day cost, one by scope, in the Redis of the slot (`WATERFALL_REDIS_PASSWORD`, `WATERFALL_REDIS_PORT`) — their size, the reading of the scope of the project against that of every scope, cold and hot, that of every scope extrapolated linearly to 10, 50 and 100 subprojects (US-2420, #3628). The identifiers of the structures are read from the database; every write is rolled back, so the next measure starts from the same witness. The report is written readable, and as JSON with `JSON=<file>`; `RUNS=<n>` sets the identical runs of the whole read, of the cell entered and of the revision opened (five: their spread says what a difference must exceed to be a gain), each after one run that warms and is not counted; the profile and the waves of reads by threads and processes make one pass, which the report says, and the waves warm each worker and give each one read; `ONLY="read profile parallel write revision kept current indicators"` plays one part only. The entries rolled back leave dead tuples in the witness's tables, which a long series can show: the next measure starts again from a reloaded witness. It takes the workstation for itself alone (`$(exclusive)`, "The workstation for a measure alone"): every heavy run of the other deliverers waits for it to end. It never fails on a duration and the chain does not run it. The package is typed and linted like `src/waterfall` (Ruff, Pyright), and absent from the back's image and from its coverage |
+| `make measure-core`                                                     | measures the core in process (`backend/measure/`, US-2210, EP-26), without HTTP or Keycloak, on the database of the service platform of the slot, which it first resets — stopped, its data dropped (`service-down WATERFALL_RESET_DATA=yes`), then started, bootstrapped and the witness loaded (`service-up`, `service-install`, `service-witness`), the secrets of `service-up` expected in the environment —: a whole read of PRJ-001 alone, then with `kinds=task`; the same under a profile, by stage (read, body, serialisation), with PostgreSQL's share; by several threads and by several processes; the ratio of an entry — a label, a duration that redates — to a read; the opening of a revision; the last marked revision read whole from its rows, then kept and read from what is kept, whole and projected, the size kept and the volume a platform of the volumes of §4.6.2 would keep, and the marking of the current revision followed by the keeping of its main structure (US-2270); the comparison of the current revision with the marked one it copies — which it checks —, whole from the rows of both structures (before option 1 of #3168, the quantity its threshold is read on), whole from the reading kept of the base (after option 1, as the grid of the estimate asks it) and on its tasks from the rows (`kinds=task`, as the grid of the planning asks it), split into the part of its two readings, of the union — by subtraction, the two timed in an alternating order, their spreads given and a union under nought said — and of the body, and the count of the nodes that differ, by kind and by mark, out of those of the union (US-2390, option 3 of #3168); what the entries of the cache of the indicators of the day cost, one by scope, in the Redis of the slot (`WATERFALL_REDIS_PASSWORD`, `WATERFALL_REDIS_PORT`) — their size, the reading of the scope of the project against that of every scope, cold and hot, that of every scope extrapolated linearly to 10, 50 and 100 subprojects (US-2420, #3628); the merge of a differential the measure opens itself, a duration entered in it, into the current revision, then the occurrence of an identified risk of the project, read without an objective (US-2650/L2, EP-08). The identifiers of the structures are read from the database; every write is rolled back, so the next measure starts from the same witness. The report is written readable, and as JSON with `JSON=<file>`; `RUNS=<n>` sets the identical runs of the whole read, of the cell entered and of the revision opened (five: their spread says what a difference must exceed to be a gain), each after one run that warms and is not counted; the profile and the waves of reads by threads and processes make one pass, which the report says, and the waves warm each worker and give each one read; `ONLY="read profile parallel write revision kept current indicators merge occurrence"` plays one part only. The entries rolled back leave dead tuples in the witness's tables, which a long series can show: the next measure starts again from a reloaded witness. It takes the workstation for itself alone (`$(exclusive)`, "The workstation for a measure alone"): every heavy run of the other deliverers waits for it to end. It never fails on a duration and the chain does not run it. The package is typed and linted like `src/waterfall` (Ruff, Pyright), and absent from the back's image and from its coverage |
 | `make measure-reference`                                                | assembles `docs/measures/reference.json` from the JSON of `make measure-core` (`CORE=<file>`) and that of `make measure` (`JOURNEY=<file>`), no duration touched, with the target of the API for opening a grid, the commit measured and the date taken ("The reference, and the gain of a lot"); refuses a missing `CORE` or `JOURNEY` |
 | `make service-up`, `make service-down`                                  | starts, stops the service platform (`deploy/compose/compose.service.yaml`: PostgreSQL, Redis, the Garage object storage and its buckets, the migrations, the API, the worker and the scheduler of its tasks, the restoration service, Keycloak behind its HTTPS front end and its realm, applied again at each start by `keycloak-realm`, which stays started to reapply it after a restoration, OpenLDAP, Mailpit); it requires its secrets in the environment (below), and `service-down WATERFALL_RESET_DATA=yes` also deletes its databases, its storage, its directory and the authority of its front end; `service-up` refuses a PostgreSQL volume of another major than 18, printing the refusal of `postgres-volume`, which says this remedy (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make keycloak-authority`                                               | copies out of the platform the root of the authority of Keycloak's front end, into `deploy/compose/.authority/root.crt`, which git ignores; `service-up` and `test-keycloak` do it at each start                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -3685,14 +3723,15 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   `front-cache.yml` writes that cache and the pnpm store after each merge, on the branch whose
   caches the pull requests and the merge queue read: without it, they would find nothing.
   `back.yml` spreads the back likewise: one runner holds the lint, the types and the boundaries of
-  the core (`make check-back-static`), four each play a quarter of the tests, with their services
-  (`make check-back-tests`, `SHARD=1/4` to `SHARD=4/4`), and in the full tier a last one gathers
-  their coverage and holds it to its thresholds (`make coverage-back-merge`). A quarter is one test
-  in four in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than
-  whole files: the files that load the witness, the longest, are spread over all four. The witness
-  is loaded by the command once per pytest process; the tests after it find its rows copied back
-  (`backend/tests/witness_rows.py`, #2157). On a runner, each test that asked for it paid its
-  loading, over six minutes in all.
+  the core (`make check-back-static`), six each play a sixth of the tests, with their services
+  (`make check-back-tests`, `SHARD=1/6` to `SHARD=6/6`), and in the full tier a last one gathers
+  their coverage and holds it to its thresholds (`make coverage-back-merge`). A sixth is one test
+  in six in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than
+  whole files: the files that load the witness, the longest, are spread over all six. The witness
+  is loaded by the command once per part, into a template database that each test asking for it
+  copies (`backend/tests/witness_template.py`, #4653, « A test against PostgreSQL »): the eight parts
+  of 10 to 17 minutes, several of them frozen, went down to 6 to 10 minutes (runs 44945620214, then
+  44957647502), then the six parts 7 to 14 minutes (run 44958967745), each under 20 minutes.
   `keycloak.yml` builds the image of Keycloak and puts it to the proof on the service platform, its
   realm applied (`make check-keycloak`), at both tiers: the `keycloak` family wakes on
   `deploy/keycloak/`, on the files of the platform that start it, on its tests, on all the code of
@@ -4339,17 +4378,48 @@ report says so.
 An integration test of the back joins the real database, PostgreSQL, never another in its place
 (`python.md`, « Les tests »). The variable `WATERFALL_TEST_DATABASE_URL` names a server and a role
 that can create databases and roles, a superuser (`postgresql://rôle@hôte:5432/postgres`): at each
-test session, the `database_url` fixture (`backend/tests/conftest.py`) creates there a database with
-a unique name, applies the migrations to it, and drops it at the end, with the service role the
-migrations created for it. The `database` fixture returns this database as the service sees it —
-through a login role that is a member of the service role of this database, created for the session
-(sql.md, « Le rôle du service ») —, and deletes after each test the rows of every table the `Base`
-declares, as owner, audit log included, which its trigger does not protect from a superuser who
-disables the triggers — except those a migration writes, the catalogue of permissions, which its
-table marks (`WRITTEN_BY_MIGRATION` in its `info`) —, then writes back at its shipped values the
-single row a migration writes and the service changes, a schedule, which its table gives
-(`SHIPPED_ROW` in its `info`, `empty_database` of `tests/project_rows.py`); `session` returns a
-session the test rolls back.
+test session, that is for each process, the `process_database_url` fixture
+(`backend/tests/conftest.py`) creates there a database with a unique name, applies the migrations to
+it, and drops it at the end, with the service role the migrations created for it. `database_url` and
+`service_database_url` name the database of the test: the process's, but for a test on the witness.
+The `database` fixture returns this database as the service sees it — through a login role that is a
+member of the service role of this database, created for the session (sql.md, « Le rôle du
+service ») —, and deletes after each test the rows of every table the `Base` declares, as owner,
+audit log included, which its trigger does not protect from a superuser who disables the triggers —
+except those a migration writes, the catalogue of permissions, which its table marks
+(`WRITTEN_BY_MIGRATION` in its `info`) —, then writes back at its shipped values the single row a
+migration writes and the service changes, a schedule, which its table gives (`SHIPPED_ROW` in its
+`info`, `empty_database` of `tests/project_rows.py`); `session` returns a session the test rolls
+back.
+
+The witness is loaded once a run, by a process of its own, into a template database
+(`backend/tests/witness_template.py`, #4653): the first process whose tests ask for it starts that
+loading as soon as they are collected, and those tests run after the others, while it is done. A
+test on the witness (`witness`, `witness_logged`) is given a database of its own, a copy of the
+template (`CREATE DATABASE … TEMPLATE`, 0.2 to 0.4 second to create, 0.1 to drop, measured on a workstation), dropped after it: rows,
+identifiers, the partitions of the projects and the sequences are those the command wrote, and no
+row is laid again nor any partition dropped. The service reaches it through a login role member of
+the service role of the template, whose rights the copy keeps. The witness loaded by each process,
+then laid again and its partitions dropped around each test (#2157), took a third of the time of the
+tests. A test that changes how the command loads it loads it itself, on the process's database
+(`witness_loaded`).
+
+A test that hangs fails after eight minutes, named, its traceback where it stopped (`pytest-timeout`,
+`timeout` of `backend/pyproject.toml`, by `SIGALRM`): its process goes on with the next, instead of
+freezing its part of the chain until the job is cancelled (#4653). The longest test that does not
+hang loads the witness itself: 216 seconds at most on a runner (run 44957647502), and a runner is up
+to twice as slow as another. The loading of the template has its deadline, seven minutes
+(`LOADING_TIMEOUT`, for 134 to 290 seconds measured), under that of a test: past it, the test that
+waits for it fails with what the loading said, the loading stops, and the end of pytest no longer
+waits for it. The delay of a test covers the whole item, its teardown included: a teardown that
+follows a freeze may freeze in turn, and the delay of the job (20 minutes) remains the net.
+
+A pytest killed (`SIGTERM`, `SIGKILL`) without reaching its end leaves the database
+`waterfall_witness_*` (and its copies), the roles `waterfall_witness_*_signing` and
+`waterfall_witness_*_service` and the directory `waterfall-witness-*` of the temporary directory
+of the system; the loading stops by itself at its deadline. Nothing sweeps them: drop the
+databases (`DROP DATABASE … WITH (FORCE)`), then the roles (`DROP ROLE`), then remove the
+directory, by hand. The service of a slot, in memory, loses them with `make test-services-down`.
 
 - **In the chain**, `back.yml` starts PostgreSQL as a service of the job and sets the variable.
 - **On a workstation**, the Makefile does it: `make test-back` and `make coverage-back` start
@@ -4809,15 +4879,15 @@ from `fixtures/api/witness_costs.json`, which `make mock-data` writes beside the
 `wftools`. The remaining to commit has no slice: the lines of the revision 102 carry `previous_*` from
 the copy of the reference 101, and their states come from EP-06. The generator of the examples shares
 a quote line astride two years as the service does (WF-DEV-0040, #2838): the computed is the
-expected, and the figures of the examples are the service's. What the slice does not have: no
-provision, no amendment, no risk (**EP-08**, whose merge of the amendment 1 makes the 101 the
-reference: until then the reference is the offer 100), and not the whole volumes (**EP-13**, which
-closes: the three hundred projects and the eighteen thousand cost lines of §4.6.2). The indicators
+expected, and the figures of the examples are the service's. The slice of EP-08 has put in it the
+provisions, the merged amendment 1 — which makes the 101 the reference —, the risks and the
+amendment 2 (US-2650). What it does not have: the whole volumes (**EP-13**, which closes: the three
+hundred projects and the eighteen thousand cost lines of §4.6.2). The indicators
 have no slice: the marking replayed by the loader (`load_marking`, EP-10, US-1670) keeps those of
 the revision 101 of PRJ-001 — the project, its two sub-projects and « outside any sub-project » —
 at its instant, 1 February 2026 at 9 a.m., the offer 100 keeping no project indicator, and the
-service computes those of the day on the 102 (US-1740); **EP-08** adds to them the provisions and
-the risks, which change the reference, **EP-11** the portfolio, **EP-13** the marked revisions that
+service computes those of the day on the 102 (US-1740); the provisions and
+the risks of EP-08 change the reference; **EP-11** adds the portfolio, **EP-13** the marked revisions that
 follow and the whole volumes. Against the service, the structure of PRJ-001 counts 5,966 nodes, not the 5,999 of the
 volume that the fake back serves. What reads PRJ-001 In progress,
 its reference and its lines thus plays against the service, to the expectations of the examples near
@@ -4862,15 +4932,14 @@ the epic that lifts it; that epic removes the guard and its entry:
   `SERVICE_ONLY`), the fake back keeping nothing of the work breakdown it is given
   (`FAKE_BACK_FORGETS`) (#2543).
 - `context.spec.ts` — the banner of the context on the risks and on a differential structure
-  (`BEFORE_THE_RISKS`, `BEFORE_THE_DIFFERENTIALS`): lifted by **EP-08** (the risks and the
-  differential structures); the entry of the indicators (`BEFORE_THE_INDICATORS`) has been lifted
-  since US-1730. The path that goes through the remaining to commit then the risks stays guarded by
-  the risks. The banner of the planning (EP-06), of the estimate (US-1560, EP-07), of the screens of
+  plays against the service since US-2640 (the guards `BEFORE_THE_RISKS` and
+  `BEFORE_THE_DIFFERENTIALS` are lifted, the amendment 2 marking its tasks as the service renders
+  them), as that of the indicators since US-1730. The banner of the planning (EP-06), of the estimate (US-1560, EP-07), of the screens of
   a project created, of its settings and of its revisions plays against the service.
 - `review.spec.ts` — the figures of the indicators (the remaining to commit, the reference budget,
   the planned value, the variance and the schedule and cost indices, the date of the calculation)
-  are those of revision 101 of the examples; the reference of the loaded witness stays offer 100;
-  guarded by `inService`; **EP-08** (merge of amendment 1) removes the guard.
+  are those of revision 101 of the examples; which the merge of amendment 1 makes the reference of the
+  loaded witness: the path reads them against the service since US-2640.
 - `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts` — the paths that
   write to the witness of PRJ-001, whose account of the run is no contributor (#2193): each has its
   twin against the service on a project of the run (`planning-service.spec.ts`, `structure.spec.ts`,
@@ -4892,11 +4961,9 @@ the epic that lifts it; that epic removes the guard and its entry:
   `computed.spec.ts`; the grid, its indicators by lot, its filter, its sort, its columns and its
   keyboard; the four paths of the workload plan). Do not play, for lack of what the service serves:
   the volume of 5,999 nodes and its marks, which the fake back alone holds until the volumes of
-  **EP-13** (#2696) — the opening and the scroll of the grid, its low and narrow windows, its
+  **EP-13** (#2696) : the opening and the scroll of the grid, its low and narrow windows, its
   folding by level, and the scroll of the keyboard to the six thousandth row (`grid.spec.ts`,
-  `keyboard.spec.ts`) —, the provision of the twelfth row (**EP-08**), the paths of the own estimate
-  of a risk and of the differential (`paste.spec.ts`, `entry.spec.ts`, guarded by `inService` or
-  untagged until **EP-08**). The untagged paths of the remaining to commit of
+  `keyboard.spec.ts`). The untagged paths of the remaining to commit of
   PRJ-001 do not replay, the account of the run being no contributor of PRJ-001 (#2193), and their
   twin is not always the one believed: the sort after a write in `grid.spec.ts` has no twin against the service;
   the addition of a task or of a line in `structure.spec.ts` has its own in `remaining.spec.ts`
@@ -4922,8 +4989,8 @@ the epic that lifts it; that epic removes the guard and its entry:
   `@shared`. The path that writes — a task started and a milestone completed on the Kanban, the lines
   of the started task in the grid, the tasks not started on demand — plays against the service on a
   project the run creates (`seedPlanning`, `bringInProgress`, #2193). Those that read the volume
-  witness (a thousand tasks, `NO_VOLUME_IN_SERVICE`, lifted by **EP-13**) or the risk coverage, a
-  provision or a risk (lifted by **EP-08**), stay guarded by `inService`; the gestures on the Kanban of
+  witness (a thousand tasks, `NO_VOLUME_IN_SERVICE`, lifted by **EP-13**), the risk coverage it
+  reads included, stay guarded by `inService`; the gestures on the Kanban of
   the fake back, which keeps nothing, and the « Sub-project » submenu (`FAKE_BACK_KEEPS_NOTHING`) play
   against the fake back alone, their equivalent against the service being the path that writes.
 - `timelines.spec.ts` — the frieze and the focus (WF-IHM-0100-A) play against the service from
@@ -4967,6 +5034,22 @@ the reading of the indicators of the revision marked
 (`service/project-manager-indicators.spec.ts`, WF-INTF-0010-A, FBS-4.8); an estimate exported to
 Excel, imported back without a difference and confirmed (`exchanges.spec.ts`, FLX-03 and FLX-04);
 fifty entries of a line undone one by one then redone in order (`undo.spec.ts`, WF-IHM-0110-A).
+
+The definition of done of EP-08, which closes WF-INTF-0010-A, is observed by the path of the same
+account (`service/project-manager-risks.spec.ts`, WF-INTF-0010-A, FBS-4.6, US-2650): on a project
+she creates and takes In progress, she declares a risk, prices its own estimate (a task and a line),
+reviews it, declares it occurred — the task of the worker followed to its success —, prepares an
+amendment and contractualises it, the merge making its revision the reference. The gestures of the
+amendment (`prepare`, `contractualise`) are those of `amendment-flow.ts`, which
+`amendment-service.spec.ts` plays too. The paths of FBS-4.1 to 4.9 and of FLX-01 to FLX-06 all play against the service, in the same run
+(`make e2e-service`), each in its file: FBS-4.1 `revision-cycle.spec.ts` and `pricing.spec.ts`; 4.2
+`projects.spec.ts`; 4.3, FLX-01 and FLX-02 `planning-service.spec.ts` and `exchanges.spec.ts`; 4.4
+`pricing.spec.ts`; 4.5 `remaining.spec.ts`; 4.6 `service/project-manager-risks.spec.ts`; 4.7
+`actual-costs.spec.ts`; 4.8 `service/project-manager-indicators.spec.ts`; 4.9 `revision-cycle.spec.ts`
+and `projects.spec.ts`; FLX-03 to FLX-06 `exchanges.spec.ts`. FLX-07 has no screen played: the
+extraction of the actual costs is imported through the API (`importActualCosts`, `in-progress.ts`), the
+screen being the object of issue #4699. EP-08 left no `inService` guard to lift in these lists: those
+that remain, and the EPICs that lift them, are those of the list below.
 
 The two readers of a project (`service/project-readers.spec.ts`, WF-ADM-0040-A) play against the
 service alone: two local accounts holding « Manager » and « Chef de projet », one reading in French
@@ -5991,17 +6074,9 @@ commits » on `main` (*Settings → Rules*), before creating the branch of the n
 targets neither `epic/*` nor `lot/*`. No check of the chain duplicates it: it is GitHub that
 refuses, hence this section.
 
-**The list of the entries not replayed**, as EP-10 leaves it (US-1740/L2), by the epic that removes
+**The list of the entries not replayed**, confirmed as it stands at the close of EP-08 (US-2650), by the epic that removes
 the guard and the entry above:
 
-- **EP-08** — the provisions and the risks, guarded by `inService` until it: the risk coverage, a
-  provision or a risk read in the remaining to commit (`remaining.spec.ts`), the own estimate of a
-  risk (`entry.spec.ts`, `paste.spec.ts`, `BEFORE_EP08`), the provision of the twelfth row of the
-  estimate (`grid.spec.ts`), the banner on the risks and on a differential structure
-  (`context.spec.ts`), the risks of `risks.spec.ts`, the way back to the previous project of
-  `navigation.spec.ts`, and the figures of the indicators of `review.spec.ts` — those of the reference
-  101, when that of the loaded witness stays the offer 100 until the merge of the amendment 1; the
-  service loads no provision and no risk, and serves at zero what depends on them.
 - **EP-11** — the opening, from `/`, of the portfolio of `navigation.spec.ts`.
 - **EP-13** — the volumes: the project of 5,999 nodes and its marks (`NO_VOLUME_IN_SERVICE` of
   `revisions.spec.ts` and of `remaining.spec.ts`, the opening and the scroll of the grid, its windows
@@ -6009,14 +6084,20 @@ the guard and the entry above:
   eighteen thousand cost lines of §4.6.2, and the status screen of the system.
 - **No epic reverses them** — the paths that write PRJ-001, whose account of the run is no
   contributor (#2193): their twins play the service on a project of the run (`FAKE_BACK_ONLY`,
-  `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), the untagged paths of the
+  `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), those that enter or paste in
+  the own estimate of a risk or in the twelfth row of the estimate, the provision of a risk
+  (`entry.spec.ts` and `paste.spec.ts`, untagged; their `@shared` twins, at the end of each file, play
+  the provision of an identified risk and the paste in its own estimate on a project of the run), the
+  path of `risks.spec.ts` that identifies, reviews and declares occurred a risk of PRJ-001 (its twins
+  are in `risks-service.spec.ts`, on a project of the run: identification, review, own estimate
+  entered, occurrence), the untagged paths of the
   remaining to commit (`undo.spec.ts`: memory background without history, the service being covered by
   its `@shared` undo paths; `grid.spec.ts`) and the imports screen of PRJ-001 (`exchanges.spec.ts`), which only reads that
   screen: the `@shared` path exporting and re-importing the remaining to commit covers another
   gesture, on a project of the run.
 
-The slice of the costs makes the actual costs, their journal and the exclusion playable; EP-08 adds
-the provisions, the amendments and the risks to it, EP-13 the whole volumes.
+The slice of the costs makes the actual costs, their journal and the exclusion playable; since EP-08 it
+counts the provisions, the amendments and the risks; EP-13 adds the whole volumes.
 
 The paths that depend on what the service does not do yet, or does not serve, are not replayed
 against it, being untagged; each is still played against the fake back, by `chromium`. What depends
@@ -6033,9 +6114,9 @@ paths of `frontend/e2e/service/` (`backups.spec.ts`, `accounts.spec.ts`, `roles.
 the administrator of the installation. The home is served since US-0920/L2 and plays on both sides
 (`projects.spec.ts`, and the icon of the tab in `navigation.spec.ts`), as do the screens of a
 project since US-1000 (among them, in `navigation.spec.ts`, the move from the settings to the
-lifecycle). Untagged in `navigation.spec.ts` stay the way back to the previous project from a
-function outside any project, which reopens the remaining to commit then the risks of PRJ-001
-(lifted by **EP-08**: the path goes through the risks); the address of the project that leads to its planning, with its
+lifecycle). Since EP-08, plays on both sides in `navigation.spec.ts` the way back to the previous project from a
+function outside any project, which reopens the remaining to commit then the risks of PRJ-001, and
+which it leaves by the settings of costs, the portfolio being EP-11's; the address of the project that leads to its planning, with its
 reading context, plays on both sides since EP-06. On what their US does not tag yet: the reading of
 the settings outside any project (`reference-costs.spec.ts`, US-0250). The change of the units of
 duration (`reference-resources.spec.ts`), which writes the single object of the installation, plays

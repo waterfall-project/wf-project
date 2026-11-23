@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # The back: lint and format, strict types, the boundaries of the core, then the tests, spread over
-# four runners and, in the full tier, measured and their measures gathered (make check-back-static,
+# six runners and, in the full tier, measured and their measures gathered (make check-back-static,
 # check-back-tests, coverage-back-merge). The tests of the data run against a real PostgreSQL, those
 # of the queue of tasks against a real Redis, services of the job, and those of the backups against
 # a real object storage, Garage, which a service of the job cannot start with the arguments it
@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           enable-cache: true
           save-cache: false
@@ -48,12 +48,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: ["1/4", "2/4", "3/4", "4/4"]
+        part: ["1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
     # Each half took 10 to 16 minutes before the witness was loaded once by each process (#2157),
-    # then 10 to 18 on 2026-11-12 and 13, a minute or two from this delay: four parts of a quarter
-    # of the tests each (US-1910) should play in less than that, the fixed cost of a runner
-    # (services, `uv sync`, collection) apart. The delay stays, a margin to the slowest runner
-    # rather than a wait, until the queue has measured the quarters.
+    # then 10 to 18 on 2026-11-12 and 13; four parts (US-1910) then played in 11 to 12. The witness
+    # of EP-08 (US-2650/L1) doubled the cost of a load, and the slice of the portfolio (US-2770/L2)
+    # again: eight parts took 10 to 17 minutes, several frozen (runs 44945586307, 44945620214). The
+    # witness is now loaded once by a part, into a template each test on it copies (US-2770/L2b,
+    # #4653): the eight parts took 6 to 10 minutes (run 44957647502), then the six 7 to 14 minutes
+    # (run 44958967745), each under the delay of 20 minutes, a margin to the slowest runner rather
+    # than a wait.
     timeout-minutes: 20
     services:
       postgres:
@@ -65,6 +68,9 @@ jobs:
         env:
           # A server that lives for the job and is reachable from the runner alone.
           POSTGRES_HOST_AUTH_METHOD: trust
+          # The locks a transaction may hold, as compose.test.yaml sets them (#4051): a service
+          # takes no command, so initdb writes them in the configuration.
+          POSTGRES_INITDB_ARGS: "--set=max_locks_per_transaction=256"
         ports:
           - 5432:5432
         # Its data in memory, as on a workstation (compose.test.yaml): on the disk of the runner,
@@ -77,7 +83,7 @@ jobs:
           --health-retries 30
       redis:
         # The image of the service platform, by its digest, which lives for the job.
-        image: ghcr.io/waterfall-project/mirror/redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+        image: ghcr.io/waterfall-project/mirror/redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
         credentials:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
@@ -126,7 +132,7 @@ jobs:
           --env GARAGE_DEFAULT_SECRET_KEY=chain-only-storage-secret
           ghcr.io/waterfall-project/mirror/dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
           /garage server --single-node --default-access-key
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           enable-cache: true
           save-cache: false
@@ -161,7 +167,7 @@ jobs:
           persist-credentials: false
       # The measure is combined by the coverage of the back, the thresholds held by the repository
       # tools.
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           enable-cache: true
           save-cache: false

@@ -39,6 +39,8 @@ Aucun.
 
 ### BSO-01 — Le dépôt qu'une restauration acceptée désigne n'est pas gardé de la purge
 
+- **Issue** : #4471 (EP-39), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec BEX-06.
 - **Où** : `src/waterfall/core/exchanges/interface/purge.py:177-203` (`_deposits_expired`) et
   `:249-269` (`_named_uploads`), lancés par `src/waterfall/worker/main.py:203-232` (`_purge`) ;
   `src/waterfall/api/restores.py:90-102` (la charge de la tâche ne fait que nommer `object_key`) ;
@@ -69,6 +71,7 @@ Aucun.
 
 ### BSO-02 — Une archive déposée qui ne passe pas la vérification échoue par un autre code que celui du contrat
 
+- **Issue** : #4470 (EP-39), ouverte le 2026-11-21.
 - **Où** : `src/waterfall/worker/restore.py:91`, `:98`, `:105`, `:108` (`extracted`) ;
   `tests/test_uploads.py:507` l'affirme.
 - **Quoi** : la tâche `restore` échoue avec `FILE_FORMAT_UNREADABLE` (422, sans paramètre) quand
@@ -95,6 +98,7 @@ Aucun.
 
 ### BSO-03 — Après une restauration, `create_project_partitions` redevient exécutable par `PUBLIC`
 
+- **Issue** : #4475 (EP-39), ouverte le 2026-11-21, avec BSO-05, DON-06.
 - **Où** : `src/waterfall/worker/restore.py:141-142` (`--no-owner --no-privileges`) ;
   `src/waterfall/platform/restoration.py:49-64` (`SERVICE_GRANTS` ne lit que `pg_class.relacl` et
   `pg_attribute.attacl`) et `:181-185` ; `src/waterfall/migrations/versions/0020_projects_and_revisions.py:51-53`
@@ -117,6 +121,7 @@ Aucun.
 
 ### BSO-04 — Le dépôt d'une tâche part à la libération d'un point de sauvegarde, pas à la validation
 
+- **Issue** : #4476 (EP-39), ouverte le 2026-11-21, avec BEX-04.
 - **Où** : `src/waterfall/platform/tasks.py:175-181` (`event.listen(session, "after_commit", deposit, once=True)`).
 - **Quoi** : SQLAlchemy émet `after_commit` aussi quand une transaction imbriquée se valide
   (`.venv/…/sqlalchemy/orm/session.py:1414-1422`). `worker/identity_sync.py:273-300` le sait et
@@ -133,6 +138,8 @@ Aucun.
 
 ### BSO-05 — Une panne brève de Keycloak à la pose de la maintenance abandonne la restauration, bases intactes
 
+- **Issue** : #4475 (EP-39), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec BSO-03, DON-06.
 - **Où** : `src/waterfall/restore/task.py:111-114` (`hold` puis `close_sessions`),
   `src/waterfall/restore/runner.py:150-173` et `:182-187`, `src/waterfall/worker/runner.py:135`
   (`claim_after = 30.0`, repris tel quel par `restore/main.py`).
@@ -149,6 +156,8 @@ Aucun.
 
 ### BSO-06 — Aucune borne de durée ni de verrou sur les sessions du service, pool laissé à ses défauts
 
+- **Issue** : #4477 (EP-39), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue.
 - **Où** : `src/waterfall/platform/database.py:151-155`.
 - **Quoi** : ni `statement_timeout`, ni `lock_timeout`, ni `idle_in_transaction_session_timeout`,
   et un pool de 5 + 10 connexions (défauts de SQLAlchemy) pour 40 fils d'exécution et trois
@@ -164,6 +173,11 @@ Aucun.
 
 ### BSO-07 — La purge planifiée ignore la maintenance, et sa lecture préalable sort par une trace nue
 
+- **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — sur EP-13 (commit `0258a2d94`,
+  US-2830/L2, #3963), la commande `waterfall-worker purge` n'existe plus : la purge est la tâche
+  `purge` du worker. `Worker.handle` ne lance aucune tâche tant que la maintenance est tenue, et une
+  exception de la tâche — lecture préalable comprise, faite dans `PurgeTask.__call__` — est attrapée
+  par `Worker.execute` et journalisée par structlog (`task.failed`).
 - **Où** : `src/waterfall/worker/main.py:213-227` (`_stored` appelé hors du `try`, ligne 215 ;
   seul `UnavailableError` y est attrapé, ligne 198).
 - **Quoi** : pendant une restauration, `waterfall-worker purge` s'exécute contre la base en cours
@@ -177,6 +191,9 @@ Aucun.
 
 ### BSO-08 — Le jeton du compte de service se demande verrou tenu, sans mémoire de l'échec
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — dit « plausible » par la revue :
+  il faut un Keycloak qui accepte les connexions sans répondre et plusieurs appels d'administration
+  simultanés ; le gain n'est pas mesurable.
 - **Où** : `src/waterfall/platform/keycloak_admin.py:525-543` (`_service_token`).
 - **Quoi** : l'appel HTTP (dix secondes de délai) se fait sous `_token_lock` ; quand Keycloak
   accepte les connexions sans répondre, les requêtes qui ont besoin du jeton (première requête

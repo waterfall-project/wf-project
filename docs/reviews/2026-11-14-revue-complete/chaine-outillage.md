@@ -28,6 +28,7 @@ Aucun.
 
 ### PLC-01 — Le jeu de règles de la file n'exige aucun contrôle, et `merge-queue-check` ne le vérifie pas
 
+- **Issue** : #3683 (fermée), #3709 (fermée).
 - **Où** : `.github/rulesets/merge-queue.json:12-45` (trois règles : `merge_queue`,
   `non_fast_forward`, `pull_request` à zéro approbation — aucune `required_status_checks`) ;
   `tools/src/wftools/mergequeue.py:136-153` (`problems`) et `:171-181` (`check`) ; le guide l'affirme
@@ -57,6 +58,7 @@ Aucun.
 
 ### PLC-02 — WF-QUA-0010-A est close « entière » ; ni le refus de publier ni la règle des tests non exécutés ne sont tenus
 
+- **Issue** : #3681 (fermée), #3710 (fermée), #3725 (ouverte).
 - **Où** : `docs/spec/waterfall-spec.md:4529-4534` (corps : « La publication d'une version est
   refusée s'il reste une exigence F0 sans test […]. Un test qui se déclare non exécuté ne couvre pas
   l'exigence qu'il cite ; le rapport de couverture le présente comme tel, et la publication est
@@ -97,6 +99,7 @@ Aucun.
 
 ### PLC-03 — Le garde des agents est inerte, sans un mot, quand `python3` n'est pas un 3.14
 
+- **Issue** : #3682 (fermée), #3711 (fermée).
 - **Où** : `tools/src/wftools/guard.py:47-48` (`Callable` importé sous `TYPE_CHECKING`) et `:877`
   (annotation de module `_CHECKS: dict[str, Callable[...]]`, évaluée à l'import avant Python 3.14) ;
   `.claude/settings.json:36` (`python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/guard.py"`) ;
@@ -126,6 +129,7 @@ Aucun.
 
 ### PLC-04 — À N = 1, le créneau d'un livreur arrêté sur limite d'usage ou planté bloque la série
 
+- **Issue** : #3690 (fermée), #3712 (fermée).
 - **Où** : `.claude/agents/epic-deliverer.md:35-41` (« Seule exception, la limite d'usage : aucune
   commande ne passe alors, le créneau reste pris. L'instance qui reprend le lot prend son propre
   créneau, dans son propre worktree ») ; `tools/src/wftools/slots.py:498-501` (`abandoned` : libre
@@ -154,6 +158,7 @@ Aucun.
 
 ### PLC-05 — `make sources` laisse passer des commentaires d'exemption que Ruff et coverage.py honorent
 
+- **Issue** : #3683 (fermée), #3713 (fermée).
 - **Où** : `tools/src/wftools/sources.py:32-39` ; `backend/pyproject.toml:89-92` (`exclude_also`
   garde les exclusions par défaut de coverage.py).
 - **Quoi** : la regex ne refuse que `# noqa`, `# ruff: noqa`, `# type: ignore`, `# pyright: …`,
@@ -172,6 +177,7 @@ Aucun.
 
 ### PLC-06 — Trois changements qui ne réveillent pas les contrôles qu'ils peuvent casser
 
+- **Issue** : #3684 (fermée), #3698 (fermée), #3714 (fermée).
 - **Où** : `tools/paths.toml:53` (`ruff.toml` dans `tools` seul), `:101-119` (`back`), `:173-202`
   (`service`), `:215-216` ; `tools/tests/test_families.py:80` ; `Makefile:120-121,134-136` ;
   `deploy/compose/compose.service.yaml:346,367` ; `.github/workflows/back.yml:122`.
@@ -193,6 +199,7 @@ Aucun.
 
 ### PLC-07 — Formes réalistes que le garde laisse passer
 
+- **Issue** : #3682 (fermée), #3697 (fermée), #3715 (fermée).
 - **Où** : `tools/src/wftools/guard.py:20-21` (« the body of a here-document run nothing »),
   `:877-894` (`_CHECKS`), `:779-786` (`_make`) ; `.claude/settings.json:5,18`.
 - **Quoi** (chaque forme rejouée par `guard.refusal`, sous 3.14) : passent
@@ -213,6 +220,7 @@ Aucun.
 
 ### PLC-08 — `front-cache.yml` écrit aussi le cache d'uv, mais ne se déclenche que sur `frontend/**`
 
+- **Issue** : #3685 (fermée), #3700 (fermée), #3716 (fermée).
 - **Où** : `.github/workflows/front-cache.yml:18-20` et `:111-140`.
 - **Quoi** : une fusion qui ne change que `backend/uv.lock` ou `tools/uv.lock` (la pull request
   mensuelle `uv` de Dependabot) ne lance pas le travail `uv` : la clé du cache change, et tous les
@@ -226,6 +234,7 @@ Aucun.
 
 ### PLC-09 — La veille ne suit ni les actions locales ni `deploy/e2e`, et le guide ne les nomme pas
 
+- **Issue** : #3685 (fermée), #3700 (fermée), #3717 (fermée).
 - **Où** : `.github/dependabot.yml:8-9` (`github-actions`, `directory: /`) et `:58-63` ;
   `.github/actions/pnpm-store/action.yml:20` ; `deploy/e2e/Dockerfile:19-57` ;
   `docs/dev/README-fr.md:3695-3700`.
@@ -244,6 +253,7 @@ Aucun.
 
 ### PLC-10 — `packages: write` dans deux travaux de `pull_request`, et une immuabilité que seul l'outil tient
 
+- **Issue** : #3685 (fermée), #3701 (fermée), #3718 (fermée), #3726 (ouverte), #3917 (fermée).
 - **Où** : `.github/workflows/ci.yml:114-116` (`mirror`) et `:226-231` (`e2e-image`, au palier
   rapide « qui ne pousse rien ») ; `tools/src/wftools/images.py:153-162`.
 - **Quoi** : ces deux travaux exécutent le code de la pull request (les outils et leurs dépendances
@@ -259,6 +269,7 @@ Aucun.
 
 ### PLC-11 — Sous un `python3` autre que 3.14, le Makefile accuse `WATERFALL_SLOTS`
 
+- **Issue** : #3682 (fermée), #3695 (fermée), #3719 (fermée), #3784 (fermée).
 - **Où** : `Makefile:146` (`$(SLOTS) processors 2>/dev/null`, puis `$(error WATERFALL_SLOTS must be
   an integer from 1 to 9, not '…')`) ; `tools/src/wftools/slots.py:344`.
 - **Scénario** (rejoué, `python3` 3.13) : `make -n test-back` →
@@ -271,6 +282,7 @@ Aucun.
 
 ### PLC-12 — `SECURITY.md` décrit un dépôt sans code ni version
 
+- **Issue** : #3689 (fermée), #3720 (fermée).
 - **Où** : `SECURITY.md:5-12` (« the implementation has not started », « none released yet »).
 - **Quoi** : le dépôt publie des images versionnées (0.3.0) ; la politique dit à qui trouve une
   faille dans le code qu'il n'y a rien à signaler, et ne nomme aucune version suivie.
@@ -280,6 +292,7 @@ Aucun.
 
 ### PLC-13 — Les verrous du poste se scindent selon `XDG_RUNTIME_DIR`
 
+- **Issue** : #3690 (fermée), #3721 (fermée).
 - **Où** : `tools/src/wftools/slots.py:155-157` ; `tools/src/wftools/tracking.py:80-82`.
 - **Quoi** : le registre des créneaux, les verrous des exécutions lourdes et celui du tableau de
   suivi vivent sous `$XDG_RUNTIME_DIR`, `/tmp` à défaut ; deux sessions dont l'une n'a pas la
@@ -293,6 +306,7 @@ Aucun.
 
 ### PLC-14 — `make roadmap` ne lit pas le skill du pilote
 
+- **Issue** : #3683 (fermée), #3722 (fermée).
 - **Où** : `tools/src/wftools/roadmap.py:43` (`AGENT_FILES`) ; `.claude/skills/pilote/SKILL.md` ;
   `tools/paths.toml:121-134`.
 - **Quoi** : la règle « une commande `make` que cite un agent existe » ne couvre pas
@@ -303,6 +317,7 @@ Aucun.
 
 ### PLC-15 — DejaVu Sans : la notice d'Arev manque
 
+- **Issue** : #3689 (fermée), #3723 (fermée).
 - **Où** : `REUSE.toml` (annotation de `backend/src/waterfall/core/exchanges/fonts/DejaVuSans.ttf`,
   « 2003 Bitstream, Inc. », `Bitstream-Vera`) ; `LICENSES/Bitstream-Vera.txt` (aucune mention
   d'Arev ni de Tavmjong Bah).

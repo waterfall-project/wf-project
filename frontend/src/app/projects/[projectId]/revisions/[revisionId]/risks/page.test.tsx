@@ -139,6 +139,27 @@ function text(markup: string): string {
     .trim();
 }
 
+/**
+ * The comments React writes into the markup it streams, and only those: the separator of two texts
+ * (`<!-- -->`), the bounds of a Suspense boundary (`<!--$-->`, `<!--$?-->`, `<!--$!-->`, `<!--/$-->`)
+ * and of an Activity (`<!--&-->`, `<!--/&-->`). Named one by one and cut out as plain strings, with
+ * no pattern: they remove no other text.
+ */
+const REACT_MARKERS = [
+  "<!-- -->",
+  "<!--$-->",
+  "<!--$?-->",
+  "<!--$!-->",
+  "<!--/$-->",
+  "<!--&-->",
+  "<!--/&-->",
+];
+
+/** The markup given, the markers of React cut out of it. */
+function withoutReactMarkers(markup: string): string {
+  return REACT_MARKERS.reduce((text, marker) => text.split(marker).join(""), markup);
+}
+
 /** Render the screen of the risks in English, at the query given. */
 async function risksAt(search: PageSearchParams = {}) {
   const page = await RisksPage({
@@ -154,7 +175,7 @@ async function risksAt(search: PageSearchParams = {}) {
     { progressiveChunkSize: Infinity },
   );
   await stream.allReady;
-  return (await new Response(stream).text()).replace(/<!--.*?-->/g, "").replace(/&#x27;/g, "'");
+  return withoutReactMarkers(await new Response(stream).text()).replace(/&#x27;/g, "'");
 }
 
 /** The calls the page made to an operation. */
@@ -767,10 +788,10 @@ describe("the commands of the risks", () => {
   });
 });
 
-describe("the note of the fake back on the risks", () => {
-  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+describe("the note of the mock-up on the risks", () => {
+  it("is gone: the service of EP-08 keeps what is written and applies the filters [US-2640] [WF-IHM-0020-A]", async () => {
     const page = await risksAt();
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain('<p role="note"');
   });
 });

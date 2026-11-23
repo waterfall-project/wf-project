@@ -5,7 +5,7 @@
 An ephemeral platform restores the latest scheduled backup whose verification passed, starts, and
 compares what it finds to what the manifest of the backup says; the platform of production gives it
 that backup, then inscribes its outcome, one row per test, as the role of the service, which may
-read the backups and add a test, nothing more (migration 0037). The status screen reads the latest
+read the backups and add a test, nothing more (migration 0046). The status screen reads the latest
 test here, which a test that did not take place lets age (#4643).
 """
 

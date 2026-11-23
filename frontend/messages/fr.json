@@ -788,7 +788,13 @@
       "reason": " — {reason}",
       "zoneChip": "Zone des indices",
       "zones": "Filtre par zone des indices",
-      "everyZone": "Toutes les zones"
+      "everyZone": "Toutes les zones",
+      "codeFilter": "Filtre par code",
+      "amountBounds": "Bornes des montants",
+      "probabilityBounds": "Bornes de la probabilité de gain, de 0 à 1",
+      "indexBounds": "Bornes de la valeur des indices",
+      "markedPeriod": "Période de la dernière révision marquée",
+      "refused": "Les projets ne sont pas lus : le serveur refuse les filtres demandés."
     },
     "pages": {
       "title": "Projets",
@@ -1442,6 +1448,14 @@
       },
       "abandon": {
         "help": "Abandonne la révision en cours d’élaboration, après confirmation."
+      }
+    },
+    "structure": {
+      "delete": {
+        "help": "Abandonne l’avenant, un différentiel non fusionné de la révision en cours : il est supprimé, après confirmation, et l’écran revient à la structure principale."
+      },
+      "rebase": {
+        "help": "Met l’avenant à jour : reporte dans le différentiel ce que la structure principale a reçu depuis son ouverture, après le compte rendu et confirmation. Il se fusionne ensuite."
       }
     },
     "deleteRisk": {
@@ -2111,6 +2125,30 @@
     "submit": "Marquer",
     "cancel": "Annuler"
   },
+  "abandonAmendment": {
+    "label": "Abandonner l’avenant",
+    "statement": "L’avenant et ce qu’il contient sont supprimés ; la structure principale n’est pas touchée, et l’écran y revient. L’abandon est irréversible : il ne s’inscrit pas à l’historique que « Annuler » défait.",
+    "submit": "Confirmer l’abandon de l’avenant",
+    "done": "L’avenant « {label} » est abandonné."
+  },
+  "amendmentLate": {
+    "note": "L’avenant « {label} » est en retard : la structure principale a reçu des écritures depuis son ouverture. Mettez-le à jour avant de le contractualiser."
+  },
+  "rebaseReport": {
+    "label": "Mettre à jour l’avenant",
+    "statement": "La mise à jour reporte dans l’avenant ce que la structure principale a reçu depuis son ouverture, sans rien changer de ce que l’avenant désigne, puis fait de la structure principale sa nouvelle base. Abandonner ici ne change rien.",
+    "submit": "Confirmer la mise à jour",
+    "title": "Compte rendu de la mise à jour",
+    "reading": "Lecture du compte rendu…",
+    "counts": "Écarts par changement",
+    "added": "{count, plural, one {# reportée comme ajout} other {# reportées comme ajouts}}",
+    "updated": "{count, plural, one {# reportée comme modification} other {# reportées comme modifications}}",
+    "removed": "{count, plural, one {# reportée comme retrait} other {# reportées comme retraits}}",
+    "kept": "{count, plural, one {# gardée par l’avenant} other {# gardées par l’avenant}}",
+    "refusals": "{count, plural, one {# motif refuse la mise à jour} other {# motifs refusent la mise à jour}}",
+    "reread": "Relire le compte rendu",
+    "done": "L’avenant « {label} » est à jour."
+  },
   "mergeReport": {
     "label": "Contractualiser l’avenant",
     "statement": "La fusion applique le compte rendu ci-dessous à la structure principale et marque la révision en cours sous le nom de version que vous donnez ; la révision produite devient la référence, et le budget de référence se déplace. Abandonner ici ne change rien.",
@@ -2248,6 +2286,7 @@
     "title": "Compte rendu de la survenance",
     "reading": "Lecture du compte rendu…",
     "createsRevision": "Le projet n’a pas de révision en cours : la survenance la crée d’abord par copie de la dernière révision marquée, y fusionne le devis propre du risque, dans la même tâche de fond. Si elle échoue, aucune révision n’est créée.",
+    "pastStart": "Le devis propre du risque commence le {date}, avant le jour de la déclaration : la survenance l’accepte sans le refuser ni redater ses tâches, qui gardent leurs dates, désormais passées.",
     "provision": "La ligne de provision du risque est retirée du reste à engager : {amount} de provision en moins.",
     "refusals": "{count, plural, one {# motif refuse la survenance} other {# motifs refusent la survenance}}",
     "reread": "Relire le compte rendu"
@@ -3165,6 +3204,7 @@
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un lot ou un poste, jamais les deux.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce lot ou ce poste est déjà porté par une autre tâche.",
     "ORDER_ITEM_OUTSIDE_WORK_PACKAGE": "La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot.",
+    "PROVISION_WITHOUT_TASK": "Le fichier ne laisserait aucune tâche sous la ligne de provision d’un risque : une ligne de provision se range sous une tâche.",
     "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Seule une tâche de la structure principale porte un lot ou un poste.",
     "DUPLICATE_WORK_BREAKDOWN_ITEM": "Cet élément figure déjà plus haut dans le lotissement saisi : chacun ne s’écrit qu’une fois.",
     "PROJECT_HORIZON_EXCEEDED": "La durée du projet dépasserait quinze ans.",
@@ -3501,6 +3541,7 @@
       "revision_abandon": "Abandon d’une révision en cours",
       "reference_designate": "Désignation de la référence",
       "structure_merge": "Fusion d’un différentiel",
+      "structure_abandon": "Abandon d’un avenant",
       "risk_occurrence": "Survenance d’un risque",
       "project_exit": "Sortie du cycle de vie",
       "cost_line_exclude": "Exclusion d’une ligne de coût",
@@ -3637,6 +3678,9 @@
       "subproject_not_cited": "sous-projet cité par aucune révision marquée",
       "subproject_without_actual_costs": "aucun coût réel imputé au sous-projet",
       "subproject_without_estimate_lines": "aucune ligne de devis de la révision en cours portant le sous-projet",
+      "main_structure": "opération permise sur la structure principale seulement",
+      "structure_up_to_date": "avenant à jour de la structure principale",
+      "structure_out_of_date": "avenant en retard sur la structure principale",
       "main_structure_without_tasks": "structure principale sans aucune tâche",
       "import_awaiting_decision": "import en attente de décision",
       "import_file_accepted": "fichier accepté par le compte rendu",
@@ -3751,7 +3795,9 @@
     "StructureCommand": {
       "edit_planning": "Modifier le planning",
       "edit_estimate": "Modifier le devis",
-      "edit_remaining": "Réestimer le reste à engager"
+      "edit_remaining": "Réestimer le reste à engager",
+      "delete": "Abandonner l’avenant",
+      "rebase": "Mettre à jour l’avenant"
     },
     "StructureCreate": {
       "kind": {

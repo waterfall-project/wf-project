@@ -40,7 +40,7 @@ from waterfall.core.revisions.interface import reference_year_of
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Mapping
+    from collections.abc import Collection, Iterator, Mapping
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -194,6 +194,41 @@ def calendar_hours(
     return {each: week_of(read_calendar(session, each).weekly_hours) for each in set(calendar_ids)}
 
 
+def hourless_tasks[K](
+    session: Session, roles: Mapping[K, Collection[UUID]], calendars: Mapping[UUID, UUID]
+) -> Iterator[tuple[K, list[dict[str, str]]]]:
+    """Give each task whose roles' calendars share no hour in the week, with its roles named.
+
+    What the update and the merge of a differential judge of the structure they leave (EP-08):
+    ``roles`` the roles of the lines each task bears, in the order the refusals name the tasks, a
+    task without one not judged; ``calendars`` the calendar of each role. The calendars intersected
+    day by day, as an entry judges them (WF-PLA-0010); the roles named by their identifier, their
+    code and their label (``resource_roles``).
+
+    A task none of whose roles has a calendar in ``calendars`` is not judged either, as a task
+    without a role is not: there is no week to intersect, and the default calendar applies to it
+    (WF-PLA-0010, WF-REF-0120); the empty intersection would otherwise refuse it (#4250).
+    """
+    weeks = calendar_hours(session, set(calendars.values()))
+    for task, held in roles.items():
+        if not held:
+            continue
+        days = [weeks[calendars[role]] for role in held if role in calendars]
+        if not days or any(min(day) > 0 for day in zip(*days, strict=True)):
+            continue
+        yield (
+            task,
+            [
+                {
+                    "resource_role_id": str(role.resource_role_id),
+                    "code": role.code,
+                    "label": role.label,
+                }
+                for role in read_roles(session, set(held), may_change=False)
+            ],
+        )
+
+
 def judge_working_hours(
     session: Session,
     held: tuple[UUID, BearingTask, UUID | None],
@@ -206,7 +241,8 @@ def judge_working_hours(
     creation: the roles of the other labour lines of the task and this one are intersected day by
     day; none left, the roles are named by their label, and the task. ``earlier`` gives the role a
     paste has left, or gives, to lines of the task (a line created included) before this one is
-    judged: it takes the place of the role they have in the base.
+    judged: it takes the place of the role they have in the base. The other lines are read as the
+    database holds them: a load of lines flushes what it holds before (``writing``, #4403).
     """
     project_id, bearer, line_id = held
     others = [

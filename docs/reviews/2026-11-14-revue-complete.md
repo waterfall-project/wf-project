@@ -583,6 +583,29 @@ Chaque rapport détaillé liste, à sa section « Couverture », ce qui a été 
 10. **Remonter à la spécification** ce que `DECISIONS.md` et les Conceptions ont tranché (SPA-01,
     SPT-03, SPT-07, SPT-08, DON-10) et ajouter le fuseau aux Vérif (SPT-04).
 
+## 14. Suites au 2026-11-21
+
+Chaque constat des 23 rapports porte désormais, sous son titre, une ligne **Issue** ou **Suite**.
+Les 292 constats ont été recoupés avec les issues du dépôt, puis ceux qui n'en avaient pas — 2
+bloquants, 50 majeurs, 170 mineurs — ont été relus un à un le 2026-11-21, par lecture du code et
+sans exécution, contre `main` (`ac6464d13`) et les branches `epic/EP-08`, `epic/EP-11` et
+`epic/EP-13`, pour ne garder que ce qui restera d'actualité après leur fusion.
+
+| Suite | Constats |
+|---|---|
+| Issue ouverte le 2026-11-21, par la ventilation de ce jour (81 issues, #4411 à #4492) | 168 |
+| Joint à une issue déjà ouverte | 7 |
+| Issue antérieure à cette relecture, ouverte ou fermée (les six bloquants, la spécification, la chaîne) | 72 |
+| Abandonné, par décision de l'auteur | 24 |
+| Corrigé depuis la revue | 16 |
+| Sans objet depuis la revue | 1 |
+| Sans issue propre : tombera avec un lot prévu d'EP-13 | 4 |
+
+Un mineur encore d'actualité n'a pas son issue à lui : il rejoint celle d'un majeur voisin, ou une
+grappe de mineurs du même thème. Les issues ouvertes sont réparties par zone de code dans les EPIC
+de correction EP-29 et EP-32 à EP-40 (`docs/roadmap/README-fr.md`, « Ordre des EPIC »). Les lieux
+que les rapports citent valent pour le commit relu, `29785cc` ; chaque issue donne le lieu du jour.
+
 ## Annexe — les 23 rapports détaillés
 
 Chaque constat y porte son lieu, son scénario, sa proposition de correction et de test, et sa

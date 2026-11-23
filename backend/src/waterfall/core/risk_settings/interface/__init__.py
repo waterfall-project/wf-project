@@ -11,6 +11,9 @@ from waterfall.core.risk_settings.matrix import (
     BOUNDS_NOT_ORDERED as BOUNDS_NOT_ORDERED,
 )
 from waterfall.core.risk_settings.matrix import (
+    LEVELS as LEVELS,
+)
+from waterfall.core.risk_settings.matrix import (
     level_of as level_of,
 )
 from waterfall.core.risk_settings.matrix import (

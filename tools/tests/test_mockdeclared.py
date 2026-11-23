@@ -148,7 +148,20 @@ def test_the_deletion_that_would_leave_a_provision_without_a_task_names_the_risk
         "node_delete_started_refused",
         "node_delete_last_provision_task_refused",
         "node_delete_line_completed_refused",
+        "node_delete_provision_line_refused",
     ]
+
+
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_the_deletion_of_a_provision_line_is_refused_naming_its_risk() -> None:
+    # #4007: the provision line is written by its risk alone; its deletion from the grid is refused
+    # by ``line_not_provision``, the risk named, as ``at_least_one_task`` names them.
+    refused = fixture("node_delete_provision_line_refused")
+    assert (refused["status"], refused["code"]) == STATE
+    assert refused["params"] == {
+        "missing_condition": "line_not_provision",
+        "risks": [{"risk_id": universe(751), "label": "Risque de reprise du câblage"}],
+    }
 
 
 # --- A field refused by its motive (E-05, E-12, F-03, F-11) -----------------------------------

@@ -260,12 +260,13 @@ def _judged(
 ) -> ImportTarget:
     """Judge an import again as its task runs, then give what it writes; or raise the refusal.
 
-    The requester's permission and quality first, as they stand now (WF-ARC-0100); then, under the
-    lock of the current revision, then of the project — the order of the locks of EP-04 —, the
-    state of the project, and the revision created if there is none, under its own rules; then the
-    conditions of the kind on what it writes.
+    The requester's reading of the kind, then its permission, and its quality of contributor first,
+    as they stand now (WF-ARC-0100); then, under the lock of the current revision, then of the
+    project — the order of the locks of EP-04 —, the state of the project, and the revision created
+    if there is none, under its own rules; then the conditions of the kind on what it writes.
     """
     project_id = row.project_id
+    requester.judge(session, project_id, form.reading)
     requester.judge(session, project_id, form.permission)
     if form.scope != "structure":
         standing = Standing(project_id, lock_project(session, project_id), form.scope)

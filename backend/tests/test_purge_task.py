@@ -227,7 +227,7 @@ def test_the_task_of_a_backup_still_listed_is_spared_by_the_purge_of_the_tasks(
                 is_retained=False,
                 object_key=f"backups/{uuid4()}.tar",
                 application_version="test",
-                schema_revision="0035",
+                schema_revision="0044",
                 task_id=listed,
             )
         )

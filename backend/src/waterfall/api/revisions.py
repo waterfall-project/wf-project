@@ -52,6 +52,7 @@ from waterfall.core.revisions.interface import (
     RevisionPage,
     RevisionToAbandon,
     RevisionView,
+    StructureView,
     abandon_revision,
     create_revision,
     list_cost_structures,
@@ -95,6 +96,26 @@ def _commands(commands: tuple[CommandAvailability, ...]) -> list[dict[str, Any]]
         }
         for command in commands
     ]
+
+
+def structure_body(view: StructureView) -> dict[str, Any]:
+    """Write a cost structure as the contract does (``CostStructure``), with its commands."""
+    return CostStructure.model_validate(
+        {
+            "structure_id": view.structure_id,
+            "revision_id": view.revision_id,
+            "kind": view.kind,
+            "label": view.label,
+            "planning_start_on": view.planning_start_on,
+            "is_merged": view.is_merged,
+            # Whether a differential not merged is up to date, null for any other (US-3050).
+            "is_up_to_date": view.is_up_to_date,
+            "available_commands": _commands(view.commands),
+            "lock_version": view.lock_version,
+            # The risk of an own estimate, absent from the other kinds, as the examples have it.
+            **({} if view.risk_id is None else {"risk_id": view.risk_id}),
+        }
+    ).model_dump(mode="json", exclude_unset=True)
 
 
 def _audit(stamp: Stamp, authors: Mapping[UUID, Author]) -> dict[str, Any]:
@@ -400,18 +421,4 @@ def get_structures(
 ) -> list[dict[str, Any]]:
     """Give the structures of a revision, the main one first, with their commands (WF-REV-0100)."""
     views = list_cost_structures(session, project_id, revision_id, viewer_of(actor))
-    return [
-        CostStructure.model_validate(
-            {
-                "structure_id": view.structure_id,
-                "revision_id": view.revision_id,
-                "kind": view.kind,
-                "label": view.label,
-                "planning_start_on": view.planning_start_on,
-                "is_merged": view.is_merged,
-                "available_commands": _commands(view.commands),
-                "lock_version": view.lock_version,
-            }
-        ).model_dump(mode="json", exclude_unset=True)
-        for view in views
-    ]
+    return [structure_body(view) for view in views]

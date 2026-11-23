@@ -907,6 +907,7 @@ def test_every_inverted_period_is_refused_by_one_rule() -> None:
         "nodes": ("/query/start_to", "minimum", date),
         "portfolio": ("/query/to", "minimum", date),
         "portfolio_open": ("/query/from", "maximum", date),
+        "portfolio_projects_marking": ("/query/last_marked_at_to", "minimum", datetime),
         "projects": ("/query/to", "minimum", datetime),
         "risks": ("/query/last_review_on_to", "minimum", date),
         "users": ("/query/created_at_to", "minimum", datetime),

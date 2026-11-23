@@ -292,7 +292,15 @@ PortfolioCostStructure:
     labour by organisation node. No breakdown of the actual cost by cost type
     (WF-PTF-0080). The projects in progress and completed of the scope contribute in full,
     a project in pricing included through its current estimate weighted by its win
-    probability (WF-PTF-0020, WF-PTF-0080).
+    probability (WF-PTF-0020, WF-PTF-0080). On the current day, the labour of a project whose
+    revision employs a labour category without an hourly rate for its reference year is not
+    computed, never summed as it stands (WF-DEV-0010): its part enters no amount, and the cost
+    type and the organisation node it falls under are not computed — their `share` not
+    computable, reason `hourly_rate_missing`, `params.missing_rates` naming the categories and
+    the years, their `amount` the sum of the parts the other projects compute —; every other
+    share of that breakdown, whose total is not computed, is not computable either, reason
+    `hourly_rate_missing` without `params`. A marked revision lacks no rate: a past date never
+    gives one (#4283).
   properties:
     scope: { $ref: '#/PortfolioScope' }
     budget_by_cost_type:
@@ -444,6 +452,15 @@ PilotHealth:
               `watch` for the three other signals (WF-PTF-0110, WF-IHM-0070).
           code:
             type: string
+            description: >-
+              `risks_not_reviewed` flags a project one of whose identified risks has no review
+              between its last marked revision and the one before, and
+              `no_actual_cost_since_last_review` a project that imported no actual cost in that
+              same interval. The interval runs from the marking before the last, or from the
+              passage to In progress if that marking is the first since it, to the last marking.
+              A project with no revision marked since its passage — the one it holds is the
+              reference the passage designated — carries neither signal: its delay is said by
+              `review_overdue` (WF-PTF-0110, specification 1.0.7).
             enum:
               - review_overdue
               - risks_not_reviewed
@@ -453,8 +470,8 @@ PilotHealth:
             type: object
             description: >-
               What the signal names, according to its code: `review_overdue`,
-              `weeks_since_last_mark`, the weeks elapsed since the last marked revision, beyond
-              the maximum interval set in the reference data (WF-REF-0180);
+              `weeks_since_last_mark`, the whole weeks elapsed since the last marked revision
+              (the days elapsed, floored, divided by seven), beyond the maximum interval set in the reference data (WF-REF-0180);
               `contractual_milestone_overdue`, the overdue milestone — `lineage_id`,
               `milestone_label` — and its reference date, `reference_date`. The other two
               name only their project, and carry none.

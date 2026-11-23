@@ -1,0 +1,12 @@
+{
+  "summary": "Avec une inflation de 3 %, une ligne de débours 8 000 consommée en 2028 vaut 8 487,20 dans la révision de 2026 comme dans celle créée en 2027, où son débours est de 8 240 (WF-REV-0060).",
+  "examples": ["WF-REV-0060-A#413d589bd41d"],
+  "inflation_rate": "0.03",
+  "quantity": "1",
+  "unit_disbursement": "8000",
+  "consumption_year": 2028,
+  "first_year": 2026,
+  "second_year": 2027,
+  "second_unit_disbursement": "8240",
+  "projected_amount": "8487.20"
+}

@@ -28,15 +28,14 @@ import {
   portfolioProjectsQuery,
   PROJECTS_LIST,
   readPerimeter,
-  readZones,
+  readProjectFilters,
 } from "@/components/portfolio/address";
 import { PerimeterBar } from "@/components/portfolio/perimeter";
 import { PortfolioHeader, portfolioLabel } from "@/components/portfolio/portfolio-header";
 import { PROJECT_GRID, PROJECT_SORT_COLUMNS } from "@/components/portfolio/portfolio-grid";
 import { PortfolioValueView } from "@/components/portfolio/portfolio-value";
-import { FilterFields } from "@/components/grid/filter-fields";
+import { ProjectFilterPanel } from "@/components/portfolio/project-filters";
 import { ProjectsGrid } from "@/components/portfolio/projects-grid";
-import { ZoneFilter } from "@/components/portfolio/zone-filter";
 import { FUNCTION_DENSITY } from "@/components/shell/function-display";
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { Screen } from "@/components/shell/page-header";
@@ -70,6 +69,12 @@ function ProjectsCard({ children }: { readonly children: ReactNode }) {
   );
 }
 
+/** What stands for the list when the server refused a filter of a column (422), the projects unread. */
+function FiltersRefused() {
+  const t = useTranslations("portfolio.projects");
+  return <p className="text-sm text-destructive">{t("refused")}</p>;
+}
+
 /** Render the value of the portfolio and the list of its projects. */
 export default async function PortfolioProjectsPage({
   searchParams,
@@ -79,7 +84,7 @@ export default async function PortfolioProjectsPage({
   const search = pageSearch(await searchParams);
   const perimeter = readPerimeter(search);
   const offset = readPage(search, OFFSET);
-  const zones = readZones(search);
+  const filters = readProjectFilters(search);
   const settings = requestSession().then(
     (session) => session?.display_preferences?.grids?.[PROJECT_GRID.key] ?? undefined,
   );
@@ -90,7 +95,7 @@ export default async function PortfolioProjectsPage({
     readView("getPortfolioProjects", () =>
       serverClient().GET("/portfolio/projects", {
         params: {
-          query: portfolioProjectsQuery({ perimeter, zones, offset, query }),
+          query: portfolioProjectsQuery({ perimeter, filters, offset, query }),
         },
       }),
     ),
@@ -98,17 +103,41 @@ export default async function PortfolioProjectsPage({
     readNodes(),
     settings,
   ]);
-  // Both read on the same period: refused by either, the view is not read.
-  if (projects.kind === "refused" || value.kind === "refused") {
-    const refused = projects.kind === "refused" ? projects.refused : undefined;
+  // Both read on the same period: a period refused by either, the view is not read.
+  const projectsPeriod = projects.kind === "refused" ? projects.refused : undefined;
+  const valuePeriod = value.kind === "refused" ? value.refused : undefined;
+  if (value.kind === "refused" || projectsPeriod !== undefined) {
     return (
       <PendingAddress>
         <RefusedView
           fn="portfolio_projects"
           perimeter={perimeter}
-          refused={refused ?? (value.kind === "refused" ? value.refused : undefined)}
+          refused={projectsPeriod ?? valuePeriod}
           nodes={nodes}
         />
+      </PendingAddress>
+    );
+  }
+  const panel = (
+    <ProjectFilterPanel
+      filters={filters}
+      fields={projects.kind === "refused" ? projects.fields : []}
+    />
+  );
+  if (projects.kind === "refused") {
+    // A filter of a column the server refuses: the list unread, the side said at its field.
+    return (
+      <PendingAddress>
+        <Screen density={FUNCTION_DENSITY.portfolio_projects}>
+          <PortfolioHeader fn="portfolio_projects" scope={undefined} />
+          <MockupNotice lists />
+          <PerimeterBar perimeter={perimeter} nodes={nodes} />
+          <PortfolioValueView value={value.data} />
+          <ProjectsCard>
+            {panel}
+            <FiltersRefused />
+          </ProjectsCard>
+        </Screen>
       </PendingAddress>
     );
   }
@@ -126,12 +155,8 @@ export default async function PortfolioProjectsPage({
             page={projects.data.meta}
             query={query}
             preferences={preferences}
-            zones={zones}
-            panel={
-              <FilterFields hint={false}>
-                <ZoneFilter zones={zones} />
-              </FilterFields>
-            }
+            filters={filters}
+            panel={panel}
           />
           <ListPages
             list={PROJECTS_LIST}

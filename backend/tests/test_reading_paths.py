@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+from risks_support import provision_category
 from sqlalchemy import delete, update
 from test_witness_projects import PRJ_001, REVISION_100, REVISION_101, REVISION_102
 from test_witness_tasks import structure_of
@@ -293,12 +294,13 @@ def test_a_kind_of_node_without_hooks_is_read_whole(
     assert after == before
 
 
-def test_a_summary_of_risk_lines_and_a_line_without_a_facet_count_as_the_whole_reading_counts(
+def test_a_summary_of_provisions_and_a_line_without_a_facet_count_as_the_whole_reading_counts(
     witness: Database,
 ) -> None:
-    # A summary whose lines are all a risk's is held open by no own line (``own`` false), and a
-    # line whose facet is missing — written around the service — counts in the number and adds
-    # nought: the tasks read alone are those the whole reading gives, its oracle.
+    # A summary whose lines are all provisions — by their category, as the estimate tells, EP-08
+    # — is held open by no own line (``own`` false), and a line whose facet is missing — written
+    # around the service — counts in the number and adds nought: the tasks read alone are those
+    # the whole reading gives, its oracle.
     with witness.transaction() as session:
         place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
         tree = read_rows(session, place.project_id, place.structure_id)
@@ -308,10 +310,13 @@ def test_a_summary_of_risk_lines_and_a_line_without_a_facet_count_as_the_whole_r
         assert summary not in (donor, other)
         bare = tree.lines(other)[0]
         moved = tree.lines(donor)
-        # The witness has no summary bearing a line: the lines of a task pass under one, as a
-        # risk's provisions.
+        # The witness has no summary bearing a line: the lines of a task pass under one, as
+        # provisions of risks.
+        session.execute(update(Node).where(Node.id.in_(moved)).values(parent_id=summary))
         session.execute(
-            update(Node).where(Node.id.in_(moved)).values(parent_id=summary, origin_risk_id=uuid4())
+            update(EstimateLine)
+            .where(EstimateLine.node_id.in_(moved))
+            .values(cost_category_id=provision_category(session.connection()))
         )
         session.execute(delete(EstimateLine).where(EstimateLine.node_id == bare))
         session.flush()
@@ -367,11 +372,12 @@ def test_the_tallies_of_several_kinds_under_a_task_are_added(
     }
 
 
-def test_the_nodes_the_planning_names_to_the_hook_of_a_tally_hold_three_columns(
+def test_the_nodes_the_planning_names_to_the_hook_of_a_tally_hold_two_columns(
     witness: Database,
 ) -> None:
     # The subquery the planning names to the hooks of a kind is a contract with the estimate
-    # (``line_tallies``): the node, the task bearing it, whether a risk provides for it.
+    # (``line_tallies``): the node and the task bearing it; whether a line is a provision, the
+    # estimate tells by its category, never the planning by the risk it came from (EP-08).
     seen: list[tuple[str, ...]] = []
 
     def watch(_s: Session, _p: UUID, nodes: Subquery) -> dict[UUID, Tally]:
@@ -387,7 +393,7 @@ def test_the_nodes_the_planning_names_to_the_hook_of_a_tally_hold_three_columns(
             tallies_of(session, place)
         finally:
             withdraw()
-    assert seen == [("node_id", "task_id", "from_risk")]
+    assert seen == [("node_id", "task_id")]
 
 
 def shares_of(items: Sequence[NodeView | NodeRecord]) -> dict[UUID, PhysicalShare | None]:

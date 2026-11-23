@@ -5,7 +5,6 @@
       "access_role_id": "01926f3a-7c00-7000-8000-000000000703",
       "label": "Chef de projet",
       "permissions": [
-        "portfolio_projects.read",
         "cost_settings.read",
         "resource_settings.read",
         "risk_settings.read",

@@ -15,8 +15,9 @@ several, is refused as an object unknown (``UNKNOWN_COST_CATEGORY``, ``UNKNOWN_R
 and ``createNode`` (``entries``, ``writing.judged_priced``): the category of a labour line computed,
 the fields a kind does not accept, the category of provision reserved to the risks, the hours of the
 task left by the role (``TASK_WITHOUT_WORKING_HOURS``), the rate found (``HOURLY_RATE_MISSING``),
-every fault named at once on its column. The write is that of ``updateEstimateLine``, or the
-creation of ``createNode`` for a line created.
+every fault named at once on its column; a provision line takes its label alone, its other cells
+refused as ``updateEstimateLine`` refuses them (``COMPUTED_VALUE``, ``FIELD_NOT_ACCEPTED``; #4378).
+The write is that of ``updateEstimateLine``, or the creation of ``createNode`` for a line created.
 """
 
 from decimal import Decimal, InvalidOperation

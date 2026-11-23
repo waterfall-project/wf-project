@@ -33,6 +33,7 @@ Aucun.
 
 ### PLD-01 — « Mot de passe oublié » offert sur une plateforme sans messagerie
 
+- **Issue** : #4474 (EP-39), ouverte le 2026-11-21.
 - **Où** : `deploy/keycloak/realm/waterfall.yaml:27` (`resetPasswordAllowed: true`) ;
   `deploy/compose/compose.prod.yaml:392-394` (« No mail server ») ; aucun `smtpServer` dans le
   royaume de l'image, aucune variable SMTP dans `deploy/compose/production.env.example` ;
@@ -64,6 +65,7 @@ Aucun.
 
 ### PLD-02 — Le mot de passe de Redis est dans la ligne de commande du processus
 
+- **Issue** : #4479 (EP-39), ouverte le 2026-11-21.
 - **Où** : `deploy/compose/compose.prod.yaml:162`, `deploy/compose/compose.service.yaml:123`
   (`exec redis-server --requirepass "$$REDISCLI_AUTH"`) ; l'affirmation contraire :
   `compose.prod.yaml:17-19`, `compose.service.yaml:14-15` et `:119-120` ; le test qui l'annonce :
@@ -84,6 +86,7 @@ Aucun.
 
 ### PLD-03 — `realm-service` suppose à jamais le compte `admin` de `master`, et remet son mot de passe à chaque démarrage
 
+- **Issue** : #4481 (EP-39), ouverte le 2026-11-21, avec PLD-05.
 - **Où** : `deploy/keycloak/realm-service.sh:113-116` ; ce que disent les fichiers :
   `deploy/compose/compose.prod.yaml:399`, `deploy/compose/production.env.example:62`,
   `deploy/compose/compose.service.yaml:396`, `docs/dev/README-fr.md:3041` ; la notice,
@@ -109,6 +112,11 @@ Aucun.
 
 ### PLD-04 — La lecture planifiée des comptes repart de zéro à chaque redémarrage du planificateur
 
+- **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — sur EP-13 (US-2830/L2, commit
+  0258a2d94), le planificateur appelle `waterfall-worker schedule` toutes les cinq minutes, et
+  l'échéance de `identity_sync` se lit dans la table des tâches (`last is None or now - last >=
+  interval`) : elle ne vit plus dans le processus, un redémarrage ne la repousse plus, et une
+  installation neuve dépose la première lecture au premier passage.
 - **Où** : `deploy/compose/compose.prod.yaml:296-298`, `deploy/compose/compose.service.yaml:250-252`.
 - **Quoi** : `while sleep "$INTERVAL"; do waterfall-worker enqueue identity_sync; done` dort d'abord.
   L'échéance ne vit que dans le processus : chaque redémarrage du conteneur (mise à jour,
@@ -127,6 +135,7 @@ Aucun.
 
 ### PLD-05 — La console de Keycloak est cachée par une liste de refus, éprouvée sur deux chemins seulement
 
+- **Issue** : #4481 (EP-39), ouverte le 2026-11-21, avec PLD-03.
 - **Où** : `deploy/compose/Caddyfile.prod:56-64` ; l'essai, `tools/src/wftools/production.py:97`
   (`HIDDEN = ("/auth/admin/", "/auth/realms/master/")`).
 - **Quoi** : Caddy répond 404 à `/auth/admin*` et `/auth/realms/master*`, puis envoie tout le reste
@@ -148,6 +157,8 @@ Aucun.
 
 ### PLD-06 — `SECURITY.md` décrit un dépôt sans code ni version
 
+- **Issue** : #4482 (EP-39), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec PLD-09, PLD-11.
 - **Où** : `SECURITY.md:5-12`, `SECURITY.md:33-34`.
 - **Quoi** : la politique dit « no released version … the implementation has not started » et
   « Version : none released yet », alors que `main` porte le service en 0.3.0
@@ -163,6 +174,10 @@ Aucun.
 
 ### PLD-07 — Deux empreintes pour la même image `caddy:2.11.7-alpine`
 
+- **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — les quatre Compose et le manifeste
+  portent la même `caddy:2.11.9-alpine@sha256:003a9780…`. US-2490/L3 (EP-28, commit b4a847bbb) a
+  posé `deploy/images/Dockerfile`, une ligne par image que Dependabot suit, et un test des outils
+  qui échoue dès qu'une référence d'un fichier n'est pas celle du manifeste, étiquette et empreinte.
 - **Où** : `deploy/compose/compose.prod.local.yaml:21` (`sha256:d8542f48…`) ; partout ailleurs
   `sha256:e70b164d…` (`compose.prod.yaml:75`, `compose.service.yaml:429`, `compose.demo.yaml:22`).
 - **Quoi** : le service `authority` de l'essai local tire une autre construction de Caddy que le
@@ -177,6 +192,7 @@ Aucun.
 
 ### PLD-08 — L'image de Keycloak : un frontal de construction non épinglé, et un JDK qui n'est pas celui que disent le commentaire et EP-20
 
+- **Issue** : #4483 (EP-39), ouverte le 2026-11-21, avec PLD-10, PLD-12.
 - **Où** : `deploy/keycloak/Dockerfile:1` (`# syntax=docker/dockerfile:1`) ;
   `deploy/keycloak/Dockerfile:15-19` (`maven:3-eclipse-temurin-26@sha256:…`, sous un commentaire
   « The JDK is 25 ») ; `docs/roadmap/EP-20-migration-des-dependances.md:366` et `:785-786`
@@ -197,6 +213,7 @@ Aucun.
 
 ### PLD-09 — La notice fait écrire le mot de passe de l'administrateur PostgreSQL sur une ligne de commande
 
+- **Issue** : #4482 (EP-39), ouverte le 2026-11-21, avec PLD-06, PLD-11.
 - **Où** : `deploy/compose/README.md:78-80` ; repris par `deploy/compose/compose.prod.yaml:133-134`
   et `deploy/compose/production.env.example:47-48`. Accessoirement, les quatre scripts de rôles :
   `deploy/compose/waterfall-database.sql:15-16`, `keycloak-database.sql:10`,
@@ -217,6 +234,7 @@ Aucun.
 
 ### PLD-10 — La plateforme de développement publie le front et le faux back sur toutes les interfaces
 
+- **Issue** : #4483 (EP-39), ouverte le 2026-11-21, avec PLD-08, PLD-12.
 - **Où** : `deploy/compose/compose.dev.yaml:30-31` (`"4010:4010"`), `:48-49` (`"3000:3000"`).
 - **Quoi** : tous les autres Compose publient sur `127.0.0.1` ; celui-ci ouvre Prism et `next dev`
   au réseau du poste. Le front s'y veut joignable (#481, `WATERFALL_DEV_ORIGINS`) ; rien ne le
@@ -229,6 +247,7 @@ Aucun.
 
 ### PLD-11 — Commentaires et notice en retard sur le code
 
+- **Issue** : #4482 (EP-39), ouverte le 2026-11-21, avec PLD-06, PLD-09.
 - **Où et quoi** :
   - `deploy/compose/README.md:101-103` : l'amorçage « tient seul » le secret du client de
     l'amorçage ; `deploy/keycloak/realm/waterfall.yaml:167-169` : « given to the bootstrap only ».
@@ -250,6 +269,7 @@ Aucun.
 
 ### PLD-12 — Trois sources de construction ou d'exécution ne sont pas verrouillées
 
+- **Issue** : #4483 (EP-39), ouverte le 2026-11-21, avec PLD-08, PLD-10.
 - **Où** : `deploy/compose/mock.Dockerfile:13-15` (`npm install --global @stoplight/prism-cli@…`) ;
   `deploy/compose/compose.dev.yaml:14-17` et `deploy/compose/compose.service.yaml:546-548`
   (`npx --yes @stoplight/prism-cli@…` au démarrage du conteneur) ; `backend/Dockerfile:29`

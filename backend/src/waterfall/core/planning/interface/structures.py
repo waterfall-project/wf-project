@@ -23,6 +23,11 @@ snapshot the history keeps is the structure's own â€” its start and its label â€
 written (``RecordedChange.node_ids`` empty); the structure after is built from what the write
 holds, read once under the lock (#2492), at the counter of its redating, not read again.
 
+``open_differential`` opens a differential, the copy of the main structure of a revision
+(``createCostStructure``, US-2550/L3), and its base, a second copy (US-3050/L2);
+``load_differential`` the same for the loader of the witness, under the identifiers it imposes on
+the differential and on the copies of its nodes, its base drawn (US-2650/L1).
+
 Declared by US-1380/L1; ``reschedule`` filled by US-1380/L2, handed what a write already holds by
 US-1380/L3, ``update_cost_structure`` filled by US-1390/L2, its structure after built by US-1380/L5.
 """
@@ -32,18 +37,29 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.history.interface import ObjectState
 from waterfall.core.planning.calendars import default_calendar
+from waterfall.core.planning.interface.copying import copy_structure_nodes
 from waterfall.core.planning.rescheduling import Holding, replayed
-from waterfall.core.planning.writing import writing
-from waterfall.core.revisions.interface import write_structure
+from waterfall.core.planning.writing import Place, facts_of, judge_revision, writing
+from waterfall.core.revisions.interface import (
+    CopyImposed,
+    DifferentialName,
+    RevisionCopy,
+    aimed_structure,
+    create_differential,
+    write_structure,
+)
 from waterfall.platform.errors import (
+    NOT_FOUND,
     STALE_LOCK_VERSION,
     VALIDATION_FAILED,
     FieldError,
+    NotFoundError,
     PreconditionFailedError,
     UnprocessableError,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from datetime import date, datetime
     from uuid import UUID
 
@@ -51,8 +67,9 @@ if TYPE_CHECKING:
 
     from waterfall.core.history.interface import JsonValue
     from waterfall.core.planning.rescheduling import Rescheduled
-    from waterfall.core.planning.writing import NodesWritten, Place, Writer
+    from waterfall.core.planning.writing import NodesWritten, Writer
     from waterfall.core.revisions.interface import StructureFacts
+    from waterfall.platform.audit import Act
 
 NON_WORKING_DAY = "NON_WORKING_DAY"
 
@@ -142,3 +159,82 @@ def update_cost_structure(
         after = replace(written, scheduled_at=writer.act.at, lock_version=redated.counter)
         write.frame.keep_after((structure_state(after),))
         return redated.written(())
+
+
+def open_differential(
+    session: Session, revision: tuple[UUID, UUID], label: str, writer: Writer
+) -> UUID:
+    """Open a differential in a revision: a structure that is the copy of the main one; give it.
+
+    Refused on a marked revision (409 ``revision_draft``), a terminal project
+    (``project_not_terminal``) and while a background task writes in the project
+    (``no_background_task_running``), in that order, under the lock of the revision read
+    ``FOR SHARE`` (``judge_revision``); nothing is written then. The main structure is locked, as a
+    write of its nodes does, and copied whole under the lock: its start date, its dates as
+    computed, its tasks and links, its lines at the figures they hold, each node under an
+    identifier of its own and the lineage it has in the main structure, so that the differential
+    is read against the main structure by that lineage, every node ``unchanged`` (WF-REV-0100,
+    WF-REV-0050, C-361). Its tasks bear no attachment to the work breakdown, the main structure's
+    alone (WF-PLA-0170). Not an entry of the history: nothing of a differential opened is undone,
+    it is abandoned (``deleteCostStructure``). Its base is copied likewise under the same lock, the
+    main structure as the differential copied it, which the differential is read against and which
+    no operation serves (US-3050).
+    """
+    return _opened(session, revision, label, writer.act, None)
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialLoad:
+    """A differential of the witness: its identifier and label, those of the copies of its nodes.
+
+    ``nodes`` the identifier of the copy of a node of the main structure, by its lineage; a node
+    not named is drawn, as the base and its nodes are (US-2650/L1).
+    """
+
+    structure_id: UUID
+    label: str
+    nodes: Mapping[UUID, UUID]
+
+
+def load_differential(
+    session: Session, revision: tuple[UUID, UUID], load: DifferentialLoad, act: Act
+) -> None:
+    """Open a differential of the witness as ``open_differential`` does, under its identifiers."""
+    _opened(session, revision, load.label, act, load)
+
+
+def _opened(
+    session: Session,
+    revision: tuple[UUID, UUID],
+    label: str,
+    act: Act,
+    load: DifferentialLoad | None,
+) -> UUID:
+    """Open a differential and its base under the lock of the main structure; give it.
+
+    ``load`` the identifiers the witness imposes, none for the service.
+    """
+    project_id, revision_id = revision
+    # A revision of another project is unknown before it is judged: it has no main structure here.
+    main_id = aimed_structure(session, project_id, revision_id, None)
+    if main_id is None:
+        raise NotFoundError(NOT_FOUND)
+    judge_revision(session, project_id, revision_id)
+    main = facts_of(session, Place(project_id, revision_id, main_id), lock=True)
+    imposed = None if load is None else load.structure_id
+    opened = create_differential(session, revision, main, DifferentialName(label, imposed), act)
+    for target in (opened.structure_id, opened.base_id):
+        nodes = {} if load is None or target != imposed else {target: load.nodes}
+        copy = RevisionCopy(
+            session,
+            project_id,
+            revision_id,
+            revision_id,
+            act.at,
+            act.author,
+            {main_id: target},
+            within_revision=True,
+            imposed=CopyImposed(nodes=nodes),
+        )
+        copy_structure_nodes(copy)
+    return opened.structure_id

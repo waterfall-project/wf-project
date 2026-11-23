@@ -12,6 +12,7 @@ and its analysis are ``test_estimate_import``'s.
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
+from unittest.mock import ANY
 from uuid import UUID, uuid4
 
 import pytest
@@ -41,7 +42,7 @@ from imports_trial import (
 from nodes_support import Tree, entries, mark, opened, set_progress
 from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from support import ContractClient
 from test_inert_writes import listened, trees_read, unkept
 from test_msproject_import import imported as planning_imported
@@ -49,6 +50,7 @@ from test_msproject_import import planning, task
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.cost_settings.tables import HourlyRate
 from waterfall.core.estimate.entries import LineEntry
 from waterfall.core.estimate.interface.excel import EstimateFormat
 from waterfall.core.estimate.tables import RevisionRate
@@ -726,17 +728,172 @@ def test_the_write_of_the_lines_refuses_an_unknown_task_and_an_unknown_line_writ
 
 @pytest.mark.requirement("WF-DEV-0020-A")
 @pytest.mark.requirement("WF-DAT-0100-A")
-def test_a_labour_product_beyond_the_base_amount_fails_the_application_writing_nothing(
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_labour_product_beyond_the_base_amount_is_rejected_at_the_report_naming_its_line(
     api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
 ) -> None:
-    # #3035: 10^6 x 10^6 hours x 65.00, each cell within its column: the analysis does not price,
-    # the application does and refuses the product beyond base_amount; the import fails, nothing
-    # of the file is written.
+    # #3095 (#3035): 10^6 x 10^6 hours x 65.00, each cell within its column, is priced by the
+    # analysis as its entry is, and rejected at its row with the reason of its entry (a refusal at
+    # the quantity, VALIDATION_FAILED, the header of its column); the application does not fail, and
+    # the line is left as it is.
     rows = as_exported(held, {"Quantité": 1000000, "Heures": 1000000})
     import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
-    assert read(api, stage, import_id)["report"]["rejected"] == []
+    rejected = read(api, stage, import_id)["report"]["rejected"]
+    assert [(each["code"], each["params"]) for each in rejected] == [
+        ("VALIDATION_FAILED", {"header": "Quantité"})
+    ]
+    assert rejected[0]["row"] >= 2
     before = tree.items()
-    assert apply(api, stage, import_id).status_code == 202
-    run(worker)
-    assert stored(stage.database, import_id).status == "failed"
+    applied_now(api, stage, worker, import_id)
     assert tree.items() == before
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_new_line_beyond_the_base_amount_is_rejected_and_the_others_are_written(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # #3095: a line created whose product overflows is rejected alone, the file applied otherwise.
+    rows = [
+        *as_exported(held),
+        row("2 Essais", held["role"], {"Heures": 1000000, "Quantité": 1000000}),
+        row("2 Essais", held["role"], {"Heures": 2}),
+    ]
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    rejected = read(api, stage, import_id)["report"]["rejected"]
+    assert [(each["code"], each["params"]["header"]) for each in rejected] == [
+        ("VALIDATION_FAILED", "Quantité")
+    ]
+    before = estimate_lines(tree.items())
+    applied_now(api, stage, worker, import_id)
+    assert len(estimate_lines(tree.items())) == len(before) + 1
+
+
+def overflowing_stuff(held: dict[str, Any]) -> list[list[Any]]:
+    """Give the rows of ``held`` whose line of material costs 10^6 x 10^7, beyond its column."""
+    stuff = held["material"]
+    return [
+        as_exported(held)[0],
+        row(
+            "1 Câblage",
+            held["stuff"],
+            {
+                "Désignation": stuff["estimate_line"]["label"],
+                "Quantité": 1000000,
+                "Débours unitaire": 10000000,
+                "Délai de paiement (j)": 0,
+                "ID ligne": stuff["lineage_id"],
+            },
+        ),
+    ]
+
+
+def projected_far(stage: Scene, held: dict[str, Any]) -> None:
+    """Spread the first task over years, inflate by 90 %: the projected amounts outgrow the base."""
+    held["tree"].changed(held["first"], duration={"value": "1000", "unit": "d"})
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(Project)
+            .where(Project.id == UUID(stage.project["project_id"]))
+            .values(inflation_rate=Decimal("0.9"))
+        )
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+@pytest.mark.requirement("WF-INTF-0080-A")
+@pytest.mark.parametrize("amount", ["disbursement", "reestimated"])
+def test_a_product_or_a_reestimated_amount_beyond_its_column_is_rejected_at_the_report(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    held: dict[str, Any],
+    amount: str,
+) -> None:
+    # #3095 (#3827): the product of a line of material, or the reestimated amount of a line whose
+    # base fits its column, is priced by the analysis as the application prices it: the row is
+    # rejected at the quantity, VALIDATION_FAILED, the application does not fail.
+    if amount == "reestimated":
+        projected_far(stage, held)
+        # 10^6 x 15 000 hours x 65.00 = 975 000 000 000: its base fits, 1.9 times it does not.
+        rows = as_exported(held, {"Quantité": 1000000, "Heures": 15000})
+    else:
+        rows = overflowing_stuff(held)
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    rejected = read(api, stage, import_id)["report"]["rejected"]
+    assert [(each["code"], each["params"]) for each in rejected] == [
+        ("VALIDATION_FAILED", {"header": "Quantité"})
+    ]
+    tree = held["tree"]
+    before = tree.items()
+    applied_now(api, stage, worker, import_id)
+    assert tree.items() == before
+
+
+@pytest.mark.requirement("WF-DEV-0010-A")
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_labour_line_whose_category_has_no_rate_is_rejected_at_the_report_not_at_the_application(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # #3827: the write of a labour line without a rate for the year is refused (HOURLY_RATE_MISSING)
+    # and would fail the whole application; the analysis rejects the row by that code instead, at
+    # the column that designates the role, and the other lines are applied.
+    bare = add_role(stage.database, "NOR", (8, 8, 8, 8, 8, 0, 0), held["costs"].material)
+    entry = entry_of(stage.database, ResourceRole, bare)
+    rows = [*as_exported(held), row("2 Essais", entry, {"Heures": 2})]
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    rejected = read(api, stage, import_id)["report"]["rejected"]
+    assert [(each["code"], each["params"]) for each in rejected] == [
+        ("HOURLY_RATE_MISSING", {"header": "Rôle ou catégorie", "missing_rates": ANY})
+    ]
+    named = rejected[0]["params"]["missing_rates"]
+    assert [each["cost_category_id"] for each in named] == [str(held["costs"].material)]
+    before = tree.items()
+    applied_now(api, stage, worker, import_id)
+    assert tree.items() == before
+
+
+def without_rates(stage: Scene) -> None:
+    """Take the hourly rates of every revision away: no category has a rate for the year."""
+    with stage.owner.begin() as connection:
+        connection.execute(delete(RevisionRate))
+        connection.execute(delete(HourlyRate))
+
+
+@pytest.mark.requirement("WF-DEV-0010-A")
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_labour_line_left_as_it_is_without_a_rate_is_not_rejected_with_a_line_changed_elsewhere(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # #3827: only a line the application writes is priced; the labour line re-imported as it is
+    # exported, its category having no rate, is left as it is and not rejected, while the line of
+    # material changed beside it is applied.
+    without_rates(stage)
+    rows = as_exported(held)
+    rows[1][rows[1].index(1)] = 3
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    found = read(api, stage, import_id)["report"]
+    assert found["rejected"] == []
+    assert [each["lineage_id"] for each in found["differences"]] == [held["material"]["lineage_id"]]
+    applied_now(api, stage, worker, import_id)
+    after = estimate_lines(tree.items())
+    assert after[held["material"]["lineage_id"]][1]["quantity"] == "3"
+
+
+@pytest.mark.requirement("WF-DEV-0010-A")
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_labour_line_only_moved_without_a_rate_is_not_rejected_and_the_application_moves_it(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # #3827: the application moves a line only moved under its task without writing its amounts,
+    # so it is not priced at the analysis: its category having no rate, it is not rejected.
+    without_rates(stage)
+    rows = as_exported(held)
+    rows[0][0] = "2 Essais"
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    found = read(api, stage, import_id)["report"]
+    assert found["rejected"] == []
+    assert [each["fields"] for each in found["differences"]] == [["parent"]]
+    applied_now(api, stage, worker, import_id)
+    task = estimate_lines(tree.items())[held["labour"]["lineage_id"]][0]
+    assert task == held["second"]["lineage_id"]

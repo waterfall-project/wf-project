@@ -1,0 +1,12 @@
+{
+  "summary": "Variante contrefactuelle : la couverture des risques du témoin au 3 juin 2026, les lignes que la survenance de « Retard de livraison des armoires » a fusionnées réestimées à 180,00 et 120,00 au lieu de 120,00 et 80,00 : leur réestimé courant, 300,00, se présente en regard de leur coût à la survenance, 200,00, que la réestimation ne change pas, et l'écart de couverture reste 349 860,00 : la dérive d'un risque survenu n'y entre pas (WF-RIS-0050, #1761, #2002). Le témoin réestime ces lignes à leur coût à la survenance.",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
+    "reserve": "850060.00",
+    "remaining_provisions": "500000.00",
+    "occurred_cost": "200.00",
+    "occurred_reestimated": "300.00",
+    "coverage_variance": "349860.00"
+  }
+}

@@ -5,16 +5,16 @@
 ``load-witness`` writes, after the reference, the local accounts of the contributors of the
 witness, PRJ-002 and PRJ-001 with their client, the contributors, the subprojects, the work
 breakdown, then the events of the chronology (``project_state_transitions.json``) each at its
-instant: the offer 100 opened (Created to Pricing) and marked, the 101 opened, the designation of
-100 (made since EP-07 loads the tasks and the lines), the code entered with the order received,
-which moves the project In progress, the 101 marked, the 102 opened.
+instant: the offer 100 opened (Created to Pricing) and marked, the 101 opened by the declaration of
+the risks, the designation of 100 (made since EP-07 loads the tasks and the lines), the code entered
+with the order received, which moves the project In progress, the 101 marked by the merge of the
+amendment 1, which makes it the reference (EP-08), the 102 opened.
 
 What the service reads of the loaded witness is compared with the examples of the contract, but for
 what the slice does not reach, listed here (``UNREACHED``): each entry names the EPIC that lifts it.
 """
 
 import json
-import shutil
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
@@ -26,7 +26,7 @@ from pydantic import SecretStr
 from sqlalchemy import func, select, text
 from support import WITNESS, captured_logs
 from test_witness import load, wipe
-from witness_support import PRJ_001, example, read
+from witness_support import PRJ_001, copied_description, example, read
 
 from waterfall.core.cost_settings.tables import CostCategory
 from waterfall.core.projects.tables import (
@@ -59,6 +59,7 @@ if TYPE_CHECKING:
     from waterfall.platform.database import Database
 
 PRJ_002 = UUID("01926f3a-7c00-7000-8000-000000000002")
+EXAMPLES = (PRJ_001, PRJ_002)
 REVISION_100 = UUID("01926f3a-7c00-7000-8000-000000000100")
 REVISION_101 = UUID("01926f3a-7c00-7000-8000-000000000101")
 REVISION_102 = UUID("01926f3a-7c00-7000-8000-000000000102")
@@ -77,7 +78,6 @@ CONTRIBUTORS = {
 # names; the counter of writes and the commands follow the writes and the state of the object.
 UNREACHED = {
     "project": {
-        "reference_revision_id": "the offer 100 is the reference until the amendment 1 (EP-08)",
         "state": "PRJ-002 has no event in the chronology: it stays created",
         "win_probability": "project.json gives PRJ-001's alone; PRJ-002 keeps the default",
         "inflation_rate": "project.json gives PRJ-001's alone; PRJ-002 keeps the default",
@@ -86,7 +86,6 @@ UNREACHED = {
         "available_commands": "the commands follow the state of the project",
     },
     "revision": {
-        "is_reference": "the offer 100 is the reference until the amendment 1 (EP-08)",
         "inflation_rate": "copied from the project, which the slice does not set",
         "win_probability": "copied from the project, which the slice does not set",
         "lock_version": "the counter follows the writes of the slice",
@@ -149,7 +148,8 @@ def identifying(database: Database) -> dict[str, list[tuple[object, ...]]]:
     """Give the identifiers, codes, labels and dates of the projects of the witness.
 
     What the platform engenders — the identifiers of the transitions and of the default lines, the
-    counters — is left out: it differs from a loading to the other.
+    counters — is left out: it differs from a loading to the other. The projects of the examples
+    alone: the slice of the portfolio is held by ``test_witness_portfolio``.
     """
     with database.transaction() as session:
         return {
@@ -161,19 +161,25 @@ def identifying(database: Database) -> dict[str, list[tuple[object, ...]]]:
             ),
             "project": sorted(
                 (p.id, p.code, p.label, p.client, p.state, p.created_at, p.updated_at)
-                for p in session.scalars(select(Project))
+                for p in session.scalars(select(Project).where(Project.id.in_(EXAMPLES)))
             ),
             "revision": sorted(
                 (r.id, r.project_id, r.version_name, r.status, r.marked_at, r.created_at)
-                for r in session.scalars(select(Revision))
+                for r in session.scalars(select(Revision).where(Revision.project_id.in_(EXAMPLES)))
             ),
             "transition": sorted(
                 (t.project_id, t.from_state or "", t.to_state, t.occurred_at)
-                for t in session.scalars(select(ProjectStateTransition))
+                for t in session.scalars(
+                    select(ProjectStateTransition).where(
+                        ProjectStateTransition.project_id.in_(EXAMPLES)
+                    )
+                )
             ),
             "contributor": sorted(
                 (c.project_id, c.user_account_id, c.kind)
-                for c in session.scalars(select(Contributor))
+                for c in session.scalars(
+                    select(Contributor).where(Contributor.project_id.in_(EXAMPLES))
+                )
             ),
             "subproject": sorted(
                 (s.id, s.code, s.label, s.created_at) for s in session.scalars(select(Subproject))
@@ -226,8 +232,12 @@ def test_the_projects_read_are_the_examples_but_for_what_the_slice_does_not_reac
 ) -> None:
     unreached = set(UNREACHED["project"])
     body = read(api, witness, realm, f"{PROJECTS}?states=created,pricing,in_progress")
-    read_projects = keyed(body["items"], "project_id")
     expected = keyed(example("projects")["items"], "project_id")
+    # The projects of the examples: the slice of the portfolio, listed beside them, is another
+    # description (``test_witness_portfolio``).
+    read_projects = {
+        key: item for key, item in keyed(body["items"], "project_id").items() if key in expected
+    }
     assert read_projects.keys() == expected.keys() == {str(PRJ_001), str(PRJ_002)}
     for identifier, item in read_projects.items():
         assert without(item, unreached) == without(expected[identifier], unreached)
@@ -236,7 +246,9 @@ def test_the_projects_read_are_the_examples_but_for_what_the_slice_does_not_reac
     assert read_projects[str(PRJ_001)]["state"] == "in_progress"
     assert read_projects[str(PRJ_002)]["state"] == "created"
     assert read_projects[str(PRJ_001)]["current_revision_id"] == str(REVISION_102)
-    assert body["meta"]["total"] == 2
+    # Beside them, the seven projects of the slice of the portfolio in these states (four in
+    # progress, three in pricing).
+    assert body["meta"]["total"] == len(body["items"]) == 2 + 7
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
@@ -254,13 +266,13 @@ def test_the_revisions_read_are_the_examples_but_for_what_the_slice_does_not_rea
         (identifier[-3:], item["status"], item["version_name"])
         for identifier, item in sorted(read_revisions.items())
     ] == [("100", "marked", "Offre v1.0"), ("101", "marked", "Référence"), ("102", "draft", None)]
-    # The designation of the offer 100 succeeds at the order received (EP-07): it is the reference
-    # until the amendment 1 is merged (EP-08), where the example reads the 101.
+    # The designation of the offer 100 succeeds at the order received (EP-07); the merge of the
+    # amendment 1 makes the 101 the reference (EP-08), as the example reads it.
     assert {
         identifier[-3:]: item["is_reference"] for identifier, item in read_revisions.items()
     } == {
-        "100": True,
-        "101": False,
+        "100": False,
+        "101": True,
         "102": False,
     }
 
@@ -312,13 +324,22 @@ def test_the_dates_of_the_projects_revisions_and_transitions_are_those_of_the_ch
     witness: Database,
 ) -> None:
     created, opened_offer, marked_offer, opened_reference = (instant(n) for n in (2, 3, 4, 5))
-    marked_reference, opened_current = (instant(n) for n in (8, 9))
+    marked_reference, opened_current = (instant(n) for n in (12, 13))
     with witness.transaction() as session:
-        projects_ = {p.id: p for p in session.scalars(select(Project))}
-        revisions_ = {r.id: r for r in session.scalars(select(Revision))}
+        projects_ = {
+            p.id: p for p in session.scalars(select(Project).where(Project.id.in_(EXAMPLES)))
+        }
+        revisions_ = {
+            r.id: r
+            for r in session.scalars(select(Revision).where(Revision.project_id.in_(EXAMPLES)))
+        }
         transitions = [
             (t.project_id, t.from_state, t.to_state, t.occurred_at)
-            for t in session.scalars(select(ProjectStateTransition))
+            for t in session.scalars(
+                select(ProjectStateTransition).where(
+                    ProjectStateTransition.project_id.in_(EXAMPLES)
+                )
+            )
         ]
     # PRJ-002, which the chronology does not date, is created with PRJ-001.
     assert {p.created_at for p in projects_.values()} == {created}
@@ -334,7 +355,7 @@ def test_the_dates_of_the_projects_revisions_and_transitions_are_those_of_the_ch
         (PRJ_001, None, "created", created),
         (PRJ_002, None, "created", created),
         (PRJ_001, "created", "pricing", opened_offer),
-        (PRJ_001, "pricing", "in_progress", instant(7)),
+        (PRJ_001, "pricing", "in_progress", instant(11)),
     ]
 
 
@@ -364,15 +385,20 @@ def test_the_revisions_100_101_and_102_each_hold_their_main_cost_structure(
 
 @pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_designation_of_the_offer_succeeds_and_is_noted_in_the_output(
-    logs: Logs, witness_loaded: Database
+    logs: Logs, witness_logged: Database
 ) -> None:
     # Refused for the lack of tasks and lines until EP-07 loaded them; now made, the only reference.
     assert not logs.named("witness.designation_refused")
     noted = logs.named("witness.reference_designated")
     assert [(each["project"], each["revision"]) for each in noted] == [("PRJ-001", 100)]
     assert len(logs.named("witness.loaded")) == 1
-    with witness_loaded.transaction() as session:
-        assert session.scalar(select(func.count()).where(Revision.is_reference)) == 1
+    with witness_logged.transaction() as session:
+        assert (
+            session.scalar(
+                select(func.count()).where(Revision.is_reference, Revision.project_id == PRJ_001)
+            )
+            == 1
+        )
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
@@ -402,7 +428,8 @@ def test_a_second_loading_finds_the_projects_there_and_writes_nothing(
         "witness.already_loaded"
     ]
     assert counts(witness) == before
-    assert before["project"] == 2
+    # PRJ-001 and PRJ-002, and the ten projects of the slice of the portfolio.
+    assert before["project"] == 12
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
@@ -424,8 +451,7 @@ def test_an_identifier_held_by_half_the_platform_stops_the_command_and_writes_no
 
 def copied(tmp_path: Path, mutate: Any) -> Path:
     """Copy the description of the witness, its chronology changed by ``mutate``."""
-    directory = tmp_path / "witness"
-    shutil.copytree(WITNESS, directory)
+    directory = copied_description(tmp_path)
     path = directory / "project_state_transitions.json"
     document = json.loads(path.read_text(encoding="utf-8"))
     mutate(document["value"]["events"])

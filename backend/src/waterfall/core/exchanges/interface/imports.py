@@ -124,16 +124,18 @@ class Format[Prepared](Protocol):
     """What reads, analyses, prepares and applies a file of a kind of import.
 
     ``header_length`` is the number of bytes of the head of the file ``read_header`` receives;
-    ``scope`` what an import of the kind writes; ``permission`` the permission it asks of who opens,
-    applies or abandons it — and of its requester again when its task runs —, the quality of
-    contributor with it (``planning.write`` for a planning). ``read_header`` refuses a head it
-    does not recognise, by a typed exception (422 ``FILE_FORMAT_UNREADABLE``, ``expected_format``,
-    ``expected_version``). ``judge`` refuses an import of the kind on the state of the project or
-    of the structure aimed at, by the condition the contract names after those of the exchanges
-    (409 ``project_before_in_progress`` for an estimate of the main structure,
-    ``actual_cost_mapping_complete`` for the actual costs), or before them when ``judged_first``
-    is set — ``project_in_progress`` of a remaining to commit, which
-    ``ProjectCommand.import_remaining`` names first (US-1630; #2796) —, at the opening, at the
+    ``scope`` what an import of the kind writes; ``reading`` the permission to consult the function
+    the kind is of (``planning.read`` for a planning, ``estimate.read`` for an estimate…), without
+    which the imports of the kind do not exist for the caller (404; #2473); ``permission`` the
+    permission it asks of who opens, applies or abandons it — and of its requester again when its
+    task runs —, the quality of contributor with it (``planning.write`` for a planning).
+    ``read_header`` refuses a head it does not recognise, by a typed exception (422
+    ``FILE_FORMAT_UNREADABLE``, ``expected_format``, ``expected_version``). ``judge`` refuses an
+    import of the kind on the state of the project or of the structure aimed at, by the condition
+    the contract names after those of the exchanges (409 ``project_before_in_progress`` for an
+    estimate of the main structure, ``actual_cost_mapping_complete`` for the actual costs), or
+    before them when ``judged_first`` is set — ``project_in_progress`` of a remaining to commit,
+    which ``ProjectCommand.import_remaining`` names first (US-1630; #2796) —, at the opening, at the
     application and again when its task runs: refused after the analysis, the import is
     ``refused``. A format that is ``judged_first`` is judged, when its task runs, on a target whose
     structure may be missing — the revision is not opened yet, nor the structure aimed at known —:
@@ -157,6 +159,7 @@ class Format[Prepared](Protocol):
 
     header_length: int
     scope: ImportScope
+    reading: str
     permission: str
     judged_first: bool
 
@@ -259,6 +262,14 @@ class ImportView:
 
 
 @dataclass(frozen=True, slots=True)
+class ImportPage:
+    """The page of the imports of a project a list asks for: how many, from which."""
+
+    limit: int
+    offset: int
+
+
+@dataclass(frozen=True, slots=True)
 class ImportList:
     """A page of the imports of a project, and how many it has."""
 
@@ -313,6 +324,29 @@ def _format_of(kind: str) -> Format[Any]:
     if form is None:
         raise UnprocessableError(FILE_FORMAT_UNREADABLE, {"expected_format": kind})
     return form
+
+
+def _readable(kind: str, viewer: Viewer) -> bool:
+    """Tell whether the imports of a kind exist for ``viewer``: it consults the kind's function.
+
+    The route judges the project's visibility alone; the kind is judged here, a kind no module
+    serves being read by no one (#2473).
+    """
+    form = _format_named(kind)
+    return form is not None and form.reading in viewer.permissions
+
+
+def _judge_acting(
+    session: Session, project_id: UUID, form: Format[Any], confirmer: Confirmer
+) -> None:
+    """Judge who acts on an import of a kind: the reading of the kind, then its permission.
+
+    Without the reading, the import is refused as unknown (404), as ``getImport`` refuses it; then
+    the permission of the kind and the quality of contributor (403). Judged with the import, under
+    its lock, so that an application whose requester lost either refuses it for good (#1789).
+    """
+    confirmer.judge(session, project_id, form.reading)
+    confirmer.judge(session, project_id, form.permission)
 
 
 def judge_deposit(purpose: str, filename: str | None, size_bytes: int) -> None:
@@ -418,21 +452,22 @@ def open_import(
 ) -> ImportView:
     """Open an import of a file deposited, and deposit the task of its analysis (``openImport``).
 
-    Under the lock of the project, in the order of the contract: a kind no format serves (422),
-    the permission of the kind and the quality of contributor (403), an inverted period (422), a
-    terminal project (409 ``project_not_terminal``), a deposit unknown, expired, used already or
-    another's (404), made for a restoration (422 ``/upload_id``), a structure the revision does not
-    hold (404), the condition of a remaining to commit's phase (409 ``project_in_progress``,
-    ``Format.judged_first``; #2796), a task writing in the project, the permission to create the
-    revision the import would create (409), the conditions of the kind (409), then the head of the
-    file the format does not recognise (422 ``FILE_FORMAT_UNREADABLE``). The import is written
-    ``analysing``, the task of its analysis deposited in the transaction; it writes in the current
-    revision, or in none yet (``revision_id`` null), the application creating it (WF-INTF-0090).
+    Under the lock of the project, in the order of the contract: a kind no format serves (422), the
+    reading of the kind (404, #2473), its permission and the quality of contributor (403), an
+    inverted period (422), a terminal project (409 ``project_not_terminal``), a deposit unknown,
+    expired, used already or another's (404), made for a restoration (422 ``/upload_id``), a
+    structure the revision does not hold (404), the condition of a remaining to commit's phase
+    (409 ``project_in_progress``, ``Format.judged_first``; #2796), a task writing in the project,
+    the permission to create the revision the import would create (409), the conditions of the
+    kind (409), then the head of the file the format does not recognise (422
+    ``FILE_FORMAT_UNREADABLE``). The import is written ``analysing``, the task of its analysis
+    deposited in the transaction; it writes in the current revision, or in none yet
+    (``revision_id`` null), the application creating it (WF-INTF-0090).
     """
     act = confirmer.act
     form = _format_of(opening.kind)
     project_id = opening.project_id
-    confirmer.judge(session, project_id, form.permission)
+    _judge_acting(session, project_id, form, confirmer)
     _judge_period(opening)
     standing = Standing(project_id, lock_project(session, project_id), form.scope)
     if standing.facts.state in TERMINAL:
@@ -554,19 +589,27 @@ def _view(session: Session, row: ImportReport, viewer: Viewer | None, read: str)
 def read_import(
     session: Session, project_id: UUID, import_id: UUID, viewer: Viewer, now: datetime
 ) -> ImportView:
-    """Read an import of a project, its expiry judged at the reading (``getImport``); or 404."""
+    """Read an import of a project, its expiry judged at the reading (``getImport``); or 404.
+
+    An import of a kind ``viewer`` does not consult is refused as an unknown one (404, #2473).
+    """
     row = found_import(session, project_id, import_id, lock=False)
+    if not _readable(row.kind, viewer):
+        raise NotFoundError(NOT_FOUND)
     return _view(session, row, viewer, _read(session, row, now))
 
 
 def list_imports(
-    session: Session, project_id: UUID, limit: int, offset: int, now: datetime
+    session: Session, project_id: UUID, viewer: Viewer, page: ImportPage, now: datetime
 ) -> ImportList:
     """List a page of the imports of a project, the latest opened first (``listImports``).
 
-    Each is read as ``getImport`` reads it, its expiry and the end of its task judged at ``now``.
+    Only the imports of the kinds ``viewer`` consults are listed, and counted (#2473). Each is read
+    as ``getImport`` reads it, its expiry and the end of its task judged at ``now``.
     """
-    kept = ImportReport.project_id == project_id
+    limit, offset = page.limit, page.offset
+    kinds = [kind for kind in formats() if _readable(kind, viewer)]
+    kept = (ImportReport.project_id == project_id) & ImportReport.kind.in_(kinds)
     total = session.scalar(select(func.count()).select_from(ImportReport).where(kept)) or 0
     rows = session.execute(
         select(ImportReport, BackgroundTask.status)
@@ -593,15 +636,16 @@ def abandon_import(
 ) -> None:
     """Abandon an import awaiting its decision, its file deleted (``abandonImport``).
 
-    Under the lock of the import, read under it: unknown (404), the permission of its kind and the
-    quality of contributor (403), applied or being applied (409 ``import_not_applied``): what it
+    Under the lock of the import, read under it: unknown, or of a kind the caller does not consult
+    (404), the permission of its kind and the quality of contributor (403), applied or being
+    applied (409 ``import_not_applied``): what it
     wrote is not undone by abandoning it. An import that ended without writing is left as it is,
     its file gone already or left to the purge: abandoning it again changes nothing (204). One
     being analysed is abandoned as well, its analysis then writing nothing (WF-INTF-0080).
     """
     act = confirmer.act
     row = found_import(session, project_id, import_id, lock=True)
-    confirmer.judge(session, project_id, _format_of(row.kind).permission)
+    _judge_acting(session, project_id, _format_of(row.kind), confirmer)
     read = _read(session, row, act.at)
     if abandon_lacks(read):
         raise refused(NOT_APPLIED)
@@ -635,13 +679,13 @@ def apply_import(
     """Judge an import again and deposit the task of its application (``applyImport``).
 
     Under the lock of the import, read under it, then the lock of the project: unknown (404); the
-    permission of its kind and the quality of contributor (403); an import no longer ``analysed``
-    — applied or being applied, abandoned, expired, failed, refused — (409
-    ``import_awaiting_decision``), the import unchanged; then a report that rejects the whole file
-    (409 ``import_file_accepted``), and the conditions of the opening judged again, those of the
-    exchanges then those of the kind (409), and the structure aimed at, which the current revision
-    may no longer hold (404). A condition that passes — a background task of the project, the
-    permission to create the revision the import would create (``PASSING``) — refuses it and
+    reading of its kind (404, #2473), its permission and the quality of contributor (403); an
+    import no longer ``analysed`` — applied or being applied, abandoned, expired, failed, refused —
+    (409 ``import_awaiting_decision``), the import unchanged; then a report that rejects the whole
+    file (409 ``import_file_accepted``), and the conditions of the opening judged again, those of
+    the exchanges then those of the kind (409), and the structure aimed at, which the current
+    revision may no longer hold (404). A condition that passes — a background task of the project,
+    the permission to create the revision the import would create (``PASSING``) — refuses it and
     leaves it ``analysed``, its file kept: it is applied again once the condition holds, without a
     new deposit (WF-ARC-0100, #2475). Any other refuses it for good, as the permission or the
     quality its requester lost since the analysis does (403): another account's refusal leaves it
@@ -656,7 +700,7 @@ def apply_import(
     form = _format_of(row.kind)
     read = _read(session, row, act.at)
     try:
-        confirmer.judge(session, project_id, form.permission)
+        _judge_acting(session, project_id, form, confirmer)
     except ServiceError as refusal:
         if read == "analysed" and row.requested_by == act.author:
             return _refuse(session, row, refusal, files)
@@ -694,10 +738,10 @@ def set_duration_rule(
 ) -> ImportView:
     """Set the rule of the durations of an import in calendar gap (``setImportDurationRule``).
 
-    Under the lock of the import, read under it:
-    unknown (404); the permission of its kind and the quality of contributor, as for applying it
-    (403); an import no longer ``analysed`` (409 ``import_awaiting_decision``), then a report
-    without a calendar gap (409 ``import_calendar_gap``), the import unchanged. The rule the report
+    Under the lock of the import, read under it: unknown, or of a kind the caller does not consult
+    (404); the permission of its kind and the quality of contributor, as for applying it (403); an
+    import no longer ``analysed`` (409 ``import_awaiting_decision``), then a report without a
+    calendar gap (409 ``import_calendar_gap``), the import unchanged. The rule the report
     was computed under gives the import back as it stands; another sets the report aside and
     deposits a new analysis, under the rule, on what the last one read — the import ``analysing``
     again, without a report nor an expiry, its task the new one (WF-INTF-0080, US-2000). The
@@ -707,7 +751,7 @@ def set_duration_rule(
     project_id, rule = change.project_id, change.rule
     act = confirmer.act
     row = found_import(session, project_id, change.import_id, lock=True)
-    confirmer.judge(session, project_id, _format_of(row.kind).permission)
+    _judge_acting(session, project_id, _format_of(row.kind), confirmer)
     read = _read(session, row, act.at)
     lacking = rule_lacks(read, row.report)
     if lacking:

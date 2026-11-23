@@ -256,6 +256,14 @@ describe("the tracker of background tasks", () => {
     expect(ends()).toHaveLength(1);
   });
 
+  it("says, for an import applied that fails, the risks whose line of provision would have no task [WF-RIS-0010-A]", async () => {
+    // The failed task of the contract: `PROVISION_WITHOUT_TASK` (#4011), the risk named.
+    serve({ [TASK]: "task_import_provision_without_task" });
+    await started(task("task_import_queued"));
+    await tick();
+    expect(ends()[0]?.[1]).toMatch(/Risque de reprise du câblage/);
+  });
+
   it("shows how far a task has gone, asks again while it runs, and stops once it has ended", async () => {
     const client = serve({ [TASK]: ["task_running", "task_succeeded"] });
     const { container } = await started(task("task_mark_queued"));

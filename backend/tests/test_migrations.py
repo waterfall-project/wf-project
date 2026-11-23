@@ -14,6 +14,7 @@ from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from migrations_support import partition_parts, scratch_database
 from project_rows import (
+    base_row,
     insert_project,
     insert_revision,
     insert_structure,
@@ -70,6 +71,7 @@ from waterfall.core.projects.tables import (
 )
 from waterfall.core.resource_settings.tables import Calendar, DurationUnit, OrgNode, ResourceRole
 from waterfall.core.revisions.tables import CostStructure, Revision
+from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReferenceShare, RiskReview
 from waterfall.core.users.tables import IdentitySyncReport, IdentitySyncSchedule, UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
@@ -223,7 +225,7 @@ def test_each_migration_is_undone_by_its_mirror_and_applied_again(empty_engine: 
 def describe_schema(engine: Engine) -> dict[str, list[tuple[object, ...]]]:
     """Read what the catalogue says of the tables: constraints, indexes and columns.
 
-    Those of ``public``, and of ``platform`` (migration 0035).
+    Those of ``public``, and of ``platform`` (migration 0044).
 
     The constraint trigger of ``revision_indicator`` (``contype`` ``t``) is a trigger, which the
     migrations alone write, as every other trigger: the tables of the code declare none. It is left
@@ -317,6 +319,10 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         CostLine.__tablename__,
         CostImport.__tablename__,
         RevisionIndicator.__tablename__,
+        Risk.__tablename__,
+        RiskEvaluation.__tablename__,
+        RiskReview.__tablename__,
+        RiskReferenceShare.__tablename__,
         HeldMaintenance.__tablename__,
         RestorationState.__tablename__,
         BackupSchedule.__tablename__,
@@ -400,12 +406,12 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "access_role_permission": {"SELECT", "INSERT", "DELETE"},
     "user_access_role": {"SELECT", "INSERT", "DELETE"},
     # Submitted, followed, run and ended; deleted by the purge once the retention of its result is
-    # past (§4.4.1, EP-13, migration 0036).
+    # past (§4.4.1, EP-13, migration 0045).
     "background_task": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     # Recorded by the worker and read; marked, and given the outcome of its copy, and deleted by the
-    # rotation (WF-ADM-0170, EP-13, migration 0037).
+    # rotation (WF-ADM-0170, EP-13, migration 0046).
     "backup": {"SELECT", "INSERT", "UPDATE", "DELETE"},
-    # The schedules (EP-13, migrations 0037 and 0038): one row each, written by the migrations and
+    # The schedules (EP-13, migrations 0046 and 0047): one row each, written by the migrations and
     # changed by the service, which neither inserts nor deletes one.
     "backup_schedule": {"SELECT", "UPDATE"},
     "identity_sync_schedule": {"SELECT", "UPDATE"},
@@ -478,7 +484,16 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     # The indicators (EP-10): a document written once, by the marking of its revision, and never
     # changed nor deleted, its revision marked for good (migration 0032).
     "revision_indicator": {"SELECT", "INSERT"},
-    # The maintenance of a restoration and its state (EP-13, migration 0035), in the schema
+    # The risks (EP-08, migration 0035): a risk declared, changed and deleted, with no evaluation
+    # left after an abandonment; its evaluation in a revision written, changed, copied and deleted
+    # with its revision; a review written, never changed, taken away by an abandonment or an
+    # undoing; a share written when a revision becomes the reference, deleted when a designation
+    # is corrected.
+    "risk": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "risk_evaluation": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "risk_review": {"SELECT", "INSERT", "DELETE"},
+    "risk_reference_share": {"SELECT", "INSERT", "DELETE"},
+    # The maintenance of a restoration and its state (EP-13, migration 0044), in the schema
     # ``platform``: read by the API and the worker, written by the owner alone, which the service
     # of the restoration is.
     "maintenance": {"SELECT"},
@@ -564,15 +579,18 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
         ("revision_rate_refuse_marked_change", False, own),
         ("revision_refuse_marked_change", False, own),
         ("revision_role_refuse_marked_change", False, own),
+        ("risk_evaluation_refuse_marked_change", False, own),
+        ("risk_review_refuse_marked_change", False, own),
         ("task_link_refuse_marked_change", False, own),
         ("task_refuse_marked_change", False, own),
     ]
 
 
-# The revised tables of the revisions and the planning (EP-04, EP-06), of the estimate (EP-07),
-# and of the indicators (EP-10).
+# The revised tables of the revisions and the planning (EP-04, EP-06), of the estimate (EP-07), of
+# the indicators (EP-10) and of the risks (EP-08).
 PLANNING_REVISED = ("cost_structure", "node", "structure_reading", "task", "task_link")
 INDICATORS_REVISED = ("revision_indicator",)
+RISKS_REVISED = ("risk_evaluation", "risk_review", "risk_reference_share")
 ESTIMATE_REVISED = (
     "estimate_line",
     "revision_rate",
@@ -608,7 +626,9 @@ def test_the_function_called_by_the_owner_creates_the_partition_of_the_project_a
             (parent, name, values, truncate) for parent, name, _, values, _, truncate in partitions
         ] == [
             (table, f"{table}_p_{project_id.hex}", bound, [f"{table}_refuse_truncate"])
-            for table in sorted((*PLANNING_REVISED, *ESTIMATE_REVISED, *INDICATORS_REVISED))
+            for table in sorted(
+                (*PLANNING_REVISED, *ESTIMATE_REVISED, *INDICATORS_REVISED, *RISKS_REVISED)
+            )
         ]
         assert partition_of(project_id) == f"cost_structure_p_{project_id.hex}"
         assert all(row[2] == row[4] for row in partitions)
@@ -879,3 +899,80 @@ def test_an_installation_bootstrapped_before_its_time_zone_is_given_universal_ti
             )
         )
         assert "time_zone" not in set(columns)
+
+
+def test_the_descent_of_the_abandonment_of_a_differential_fails_while_the_journal_holds_one(
+    empty_engine: Engine,
+) -> None:
+    # US-2550/L4: 0037 admits ``structure_abandon``; its descent refuses the action again, which a
+    # journal that holds one — never deleted — forbids: the descent fails and the schema stays.
+    upgrade(empty_engine, "0037")
+    with empty_engine.begin() as connection:
+        connection.execute(
+            insert(AuditEntry).values(
+                id=uuid4(),
+                occurred_at=datetime(2026, 11, 19, tzinfo=UTC),
+                action="structure_abandon",
+                object_kind="cost_structure",
+                object_id=uuid4(),
+                object_label="Avenant",
+                params={},
+                correlation_id="abandon",
+            )
+        )
+    with pytest.raises(DBAPIError, match="action_known"):
+        downgrade(empty_engine, "0036")
+    with empty_engine.connect() as connection:
+        assert applied(connection) == ["0037"]
+        assert connection.scalar(select(func.count()).select_from(AuditEntry)) == 1
+
+
+def test_the_descent_of_the_base_of_a_differential_fails_while_a_base_exists(
+    empty_engine: Engine,
+) -> None:
+    # US-3050/L2: 0038 admits the kind ``base``; its descent refuses the kind again, which a base
+    # held forbids: the descent fails and the schema stays, the base with it.
+    upgrade(empty_engine, "0038")
+    project, revision, differential = uuid4(), uuid4(), uuid4()
+    with empty_engine.begin() as connection:
+        connection.execute(insert_project(id=project))
+        connection.execute(select(func.create_project_partitions(project)))
+        connection.execute(insert_revision(project, id=revision))
+        connection.execute(insert_structure(project, revision))
+        connection.execute(
+            insert_structure(project, revision, id=differential, kind="amendment", label="Avenant")
+        )
+        connection.execute(insert(CostStructure).values(base_row(project, revision, differential)))
+    with pytest.raises(DBAPIError, match="kind_known"):
+        downgrade(empty_engine, "0037")
+    with empty_engine.connect() as connection:
+        assert applied(connection) == ["0038"]
+        kinds = connection.scalars(select(CostStructure.kind).order_by(CostStructure.kind))
+        assert list(kinds) == ["amendment", "base", "main"]
+
+
+def test_the_descent_of_the_name_of_the_merge_fails_while_the_journal_holds_a_merge(
+    empty_engine: Engine,
+) -> None:
+    # US-2560/L2: 0039 names the merge of a differential ``structure_merge``, as the contract does;
+    # its descent gives it its former name again, which a journal that holds a merge — never
+    # updated — forbids: the descent fails and the schema stays.
+    upgrade(empty_engine, "0039")
+    with empty_engine.begin() as connection:
+        connection.execute(
+            insert(AuditEntry).values(
+                id=uuid4(),
+                occurred_at=datetime(2026, 11, 19, tzinfo=UTC),
+                action="structure_merge",
+                object_kind="cost_structure",
+                object_id=uuid4(),
+                object_label="Avenant",
+                params={},
+                correlation_id="merge",
+            )
+        )
+    with pytest.raises(DBAPIError, match="action_known"):
+        downgrade(empty_engine, "0038")
+    with empty_engine.connect() as connection:
+        assert applied(connection) == ["0039"]
+        assert connection.scalar(select(func.count()).select_from(AuditEntry)) == 1

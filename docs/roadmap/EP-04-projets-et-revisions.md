@@ -1110,9 +1110,10 @@ version du projet soit une révision, et une seule à la fois.
   révision marquée postérieure tant qu'il n'est pas survenu. » : EP-08 ;
 - `WF-DAT-0010-A` — « Après marquage d'une révision puis création de la suivante, le nombre de
   lignes de chaque table portant l'identifiant de la nouvelle révision égale celui de la révision
-  marquée, hors les lignes des structures différentielles fusionnées et des structures propres des
-  risques survenus. » : pour `cost_structure` ici, par la copie ; chaque EPIC suivant ajoute ses
-  tables à la même copie, et EP-07 clôt ;
+  marquée, hors les lignes des structures différentielles fusionnées, de leur base (WF-REV-0110) et
+  des structures propres des risques survenus. » : pour `cost_structure` ici, par la copie ; chaque
+  EPIC suivant ajoute ses tables à la même copie, et EP-07 clôt ; la base d'un différentiel
+  (spécification 1.0.8, #4132) est d'EP-08 (US-3050) ;
 - `WF-DAT-0010-A` — « Une modification dans la révision en cours ne change aucune ligne portant
   l'identifiant d'une révision marquée. »
 - `WF-DAT-0010-A` — « L'abandon d'une révision en cours ne laisse aucune ligne portant son
@@ -1230,9 +1231,11 @@ quel que soit le chemin, **afin que** l'histoire du projet soit sûre.
 - `WF-ADM-0160-A` — « Après restauration d'une sauvegarde, la plateforme présente exactement les
   projets, révisions et comptes qu'elle contenait à la date de la sauvegarde, et rien de postérieur,
   hors le journal d'audit, la liste des sauvegardes et leur planification, qui gardent leurs
-  inscriptions, leurs sauvegardes et leurs réglages ; le journal nomme la restauration. » : le
-  parcours de restauration d'EP-03 crée un projet et marque une révision après la sauvegarde, et ne
-  les retrouve plus ;
+  inscriptions, leurs sauvegardes et leurs réglages, et la périodicité de la lecture des comptes,
+  qui reste celle réglée avant la restauration ; le journal nomme la restauration. » : le parcours
+  de restauration d'EP-03 crée un projet et marque une révision après la sauvegarde, et ne les
+  retrouve plus ; la périodicité de la lecture des comptes, conservée de même, est de la
+  spécification 1.0.8 (#4126) et d'EP-13 (US-3040) ;
 - écart : `WF-ADM-0160-A` — « Une tâche de fond en file ou en cours dans la sauvegarde est en échec
   après la restauration. » : constaté par EP-03 ;
 - écart : `WF-ADM-0160-A` — « La confirmation nomme la date de la sauvegarde. » : constaté par

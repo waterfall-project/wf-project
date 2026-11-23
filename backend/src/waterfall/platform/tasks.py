@@ -54,7 +54,7 @@ type TaskKind = Literal[
     "identity_sync",
 ]
 # The kinds the platform schedules (EP-13): requested by nobody, so listed to nobody, they are not
-# the contract's (migration 0035).
+# the contract's (migration 0044).
 type ScheduledKind = Literal["purge", "backup_copy", "restore_test"]
 CONTRACT_KINDS: tuple[str, ...] = get_args(TaskKind.__value__)
 SCHEDULED_KINDS: tuple[str, ...] = get_args(ScheduledKind.__value__)

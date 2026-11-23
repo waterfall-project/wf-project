@@ -173,6 +173,13 @@ def test_the_first_revision_is_born_current_with_its_main_structure_alone(
         "generate_skeleton": [],
         "edit_estimate": [],
         "edit_remaining": [],
+        "edit_risks": [],
+        # Without a task in its main structure, no risk is declared (WF-RIS-0010).
+        "declare_risk": ["at_least_one_task"],
+        # The opening of a differential lacks nothing on a revision in progress (US-2550/L3).
+        "create_structure": [],
+        # No differential to merge yet (WF-REV-0050, US-2560/L2).
+        "merge_structure": ["unmerged_amendment_exists"],
         # A first revision keeps no rate: no update to propose (WF-REV-0060, US-1500).
         "apply_rate_update": ["rate_update_available"],
         "mark": [],
@@ -829,16 +836,26 @@ def test_the_witness_opens_and_marks_its_revisions_as_the_service_and_the_worker
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
     # The chronology opens the offer 100 of PRJ-001, marks it, opens the 101, marks it
-    # « Référence », opens the 102: the names and the description of ``revisions.json``, each copy
-    # of the last marked one. PRJ-002 has none.
+    # « Référence » by the merge of the amendment 1, opens the 102: the names and the description of
+    # ``revisions.json``, each copy of the last marked one. PRJ-002 has none.
     with witness.transaction() as session:
         revisions = {
             row.id: (row.status, row.version_name, row.description, row.source_revision_id)
             for row in session.scalars(select(Revision).where(Revision.project_id == PRJ_001))
         }
-        projects = {row.id: row.current_revision_id for row in session.scalars(select(Project))}
+        # The two projects of the examples: the slice of the portfolio, loaded after them, is
+        # another description (EP-11, US-2770).
+        projects = {
+            row.id: row.current_revision_id
+            for row in session.scalars(select(Project).where(Project.id.in_((PRJ_001, PRJ_002))))
+        }
         structures_of = {
-            row.revision_id: row.lineage_id for row in session.scalars(select(CostStructure))
+            row.revision_id: row.lineage_id
+            for row in session.scalars(
+                select(CostStructure).where(
+                    CostStructure.kind == "main", CostStructure.project_id == PRJ_001
+                )
+            )
         }
     assert revisions == {
         OFFER: ("marked", "Offre v1.0", "Offre remise au client avant la commande.", None),
@@ -846,7 +863,7 @@ def test_the_witness_opens_and_marks_its_revisions_as_the_service_and_the_worker
         CURRENT: ("draft", None, None, REFERENCE),
     }
     assert projects == {PRJ_001: CURRENT, PRJ_002: None}
-    # One lineage, born with the main structure of the offer, kept by each copy (WF-DAT-0030).
+    # One lineage of the main structure, born with the offer's, kept by each copy (WF-DAT-0030).
     assert set(structures_of) == {OFFER, REFERENCE, CURRENT}
     assert len(set(structures_of.values())) == 1
     reader = person(witness, realm, *READING)

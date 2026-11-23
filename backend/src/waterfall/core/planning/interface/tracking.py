@@ -33,12 +33,16 @@ from typing import TYPE_CHECKING, cast
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 
+from waterfall.core.planning.lineage_lock import lock_lineage
 from waterfall.core.planning.tables import Timeline, TrackingEntry
 from waterfall.core.planning.writing import NodesWritten, Place, Writer, writing
+from waterfall.core.revisions.interface import MAIN_STRUCTURE
 from waterfall.platform.errors import (
     NOT_FOUND,
     STALE_LOCK_VERSION,
+    STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
+    ConflictError,
     FieldError,
     NotFoundError,
     PreconditionFailedError,
@@ -129,6 +133,7 @@ def _replace(
     An inscription kept is left as it is, with its author and its instant; an entry repeated is
     written once.
     """
+    lock_lineage(session, project_id, lineage_id)
     wanted = list(dict.fromkeys((each.kind, each.timeline_id) for each in entries))
     held = {
         (row.kind, row.timeline_id): row
@@ -180,12 +185,16 @@ def set_node_tracking(
 ) -> NodesWritten:
     """Replace the inscriptions of a task, at the counter read (``setNodeTracking``).
 
-    Under the lock of the structure: refused if the node is no task of it (404), at another
-    version (412), or for an entry the rules refuse (422, every fault at once); nothing is then
-    written. The task and its ancestors are given back as they now are, the version of the task
-    one more.
+    Under the lock of the structure: refused on a structure that is not the main one (409
+    ``main_structure``, after the conditions of the revision: an inscription is kept by the lineage
+    of a task of the main structure, which a differential shares, #2497), if the node is no task of
+    it (404), at another version (412), or for an entry the rules refuse (422, every fault at
+    once); nothing is then written. The task and its ancestors are given back as they now are, the
+    version of the task one more.
     """
     with writing(session, place, writer, ("tracking", (node_id,)), (node_id,)) as write:
+        if not write.facts.is_main:
+            raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": MAIN_STRUCTURE})
         # Its structure read as rows, the task written alone as objects (US-2250/L2).
         held = cast("InertTree", write.inert)  # a write that names its node reads it so
         tree = held.tree

@@ -8,7 +8,10 @@ told to the facet of a node it bears (``bearing``); a line neither written, dele
 a completed task of the main structure, or from it, which is first reopened from the Kanban (409
 ``task_not_completed``, WF-RAE-0040, WF-DEV-0050; #1767), what a differential permits (EP-08); the
 lines a move gives another task judged by the hooks of their kind once placed (``FacetHooks.moved``,
-WF-PLA-0010).
+WF-PLA-0010); the provision lines a deletion does not take with their task, which pass to the
+parent of the task deleted (``judge_provisions``, ``carry_provisions``; US-2580/L1); a provision
+line itself, which its risk alone writes, never deleted (``refuse_provision``, 409
+``line_not_provision``; US-2580/L2, #4007).
 
 Written by US-1490/L4, ``bearing`` moved from ``interface.lines`` (US-1490/L3).
 """
@@ -16,7 +19,14 @@ Written by US-1490/L4, ``bearing`` moved from ``interface.lines`` (US-1490/L3).
 from typing import TYPE_CHECKING
 
 from waterfall.core.planning.interface.facets import BearingTask, calendar_of, facets
+from waterfall.core.planning.provisioning import (
+    first_left,
+    lines_reported,
+    owners_named,
+    provision_moves,
+)
 from waterfall.core.planning.scheduling import WorkInstant
+from waterfall.core.planning.shaping import Placing, place, placed
 from waterfall.core.planning.views import COMPLETED, state_of
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
@@ -31,6 +41,8 @@ if TYPE_CHECKING:
     from waterfall.core.planning.writing import Write
 
 TASK_NOT_COMPLETED = "task_not_completed"
+AT_LEAST_ONE_TASK = "at_least_one_task"
+LINE_NOT_PROVISION = "line_not_provision"
 
 
 def bearing[N: NodeColumns, T: TaskColumns](
@@ -111,3 +123,63 @@ def judge_facets_moved(write: Write, node_ids: Collection[UUID]) -> None:
                 held[each] = bearing(session, project_id, tree, parent, is_main=write.facts.is_main)
         if held:
             hooks.moved(session, project_id, held)
+
+
+def judge_provisions(write: Write, removed: Iterable[UUID]) -> dict[UUID, UUID]:
+    """Give the task each provision line under the nodes removed passes to, by line (WF-PLA-0070).
+
+    The parent of the node deleted, the first task of the first level left for a task of the first
+    level — the removal of the last task of a main structure that bears a provision is refused
+    instead (409 ``at_least_one_task``, ``params.risks`` naming each risk whose provision it would
+    carry, WF-RIS-0010). Only the main structure bears provisions: the others give none. Nothing is
+    written.
+    """
+    tree = write.tree
+    if not write.facts.is_main:
+        return {}
+    gone = list(removed)
+    moves = provision_moves(tree, gone, first_left(tree, gone))
+    stranded = [line for line, task in moves.items() if task is None]
+    if stranded:
+        params = {"missing_condition": AT_LEAST_ONE_TASK, "risks": risks_named(write, stranded)}
+        raise ConflictError(STATE_FORBIDS_OPERATION, params)
+    return {line: task for line, task in moves.items() if task is not None}
+
+
+def risks_named(write: Write, lines: Collection[UUID]) -> list[dict[str, str]]:
+    """Name the risks the provision lines belong to, as a refusal does (``params.risks``)."""
+    where = write.place
+    owners = owners_named(write.session, where.project_id, where.revision_id, lines)
+    return [{"risk_id": str(each.risk_id), "label": each.label} for each in owners]
+
+
+def refuse_provision(write: Write, node_id: UUID) -> None:
+    """Refuse the deletion of a provision line of the main structure, its risk's alone (409).
+
+    ``line_not_provision`` the condition missing, ``params.risks`` naming the risk whose provision
+    the line is (WF-RIS-0010; #4007): the line goes with its risk — dismissed, occurred, deleted —,
+    never by a write of the grid. Only the main structure bears provisions.
+    """
+    if not write.facts.is_main or node_id not in write.tree.provisions:
+        return
+    params: dict[str, object] = {"missing_condition": LINE_NOT_PROVISION}
+    named = risks_named(write, (node_id,))
+    if named:
+        params["risks"] = named
+    raise ConflictError(STATE_FORBIDS_OPERATION, params)
+
+
+def carry_provisions(write: Write, moves: dict[UUID, UUID]) -> None:
+    """Place the provision lines of ``moves`` under their new task, after its lines; tell the risks.
+
+    Each line is stamped, its place written before the nodes removed are deleted — the risk holds
+    its line by a key that refuses a deletion — and the risks told once all are placed.
+    """
+    tree, where = write.tree, write.place
+    changes: dict[UUID, tuple[UUID | None, int]] = {}
+    for task in dict.fromkeys(moves.values()):
+        lines = tuple(line for line, target in moves.items() if target == task)
+        changes.update(placed(tree, Placing(lines, task, None, after_given=False)))
+    if changes:
+        place(write, changes, tuple(moves))
+        lines_reported(write.session, where.project_id, where.revision_id, tuple(moves))

@@ -479,9 +479,13 @@ l'option écartée :
   `params.tasks` (`task_not_completed`) ; un test fixe l'ordre. Par US-1630/L4 #2411, en cours et
   déjà prévenu, à défaut par US-1630/L5 #2738. Écarté : l'ordre actuel du service, que l'US et le
   contrat auraient dû dire.
-- **Le débours d'une tâche à cheval sur deux années rend le montant saisi** (#2797, cas 4 : 103
-  saisis donnaient 101,80 réestimés) : c'est un écart de calcul, que corrige US-1630/L5 #2738. Les
-  trois autres cas de l'analyse gardent le comportement du service, que les tests d'US-1630/L3
+- **Le débours d'une tâche à cheval sur deux années rend le montant saisi, à l'arrondi du débours
+  unitaire près** (#2797, cas 4 : 103 saisis donnaient 101,80 réestimés) : c'est un écart de calcul,
+  que corrige US-1630/L5 #2738. Le débours unitaire reste arrondi au centime, la quantité et le
+  coefficient conservés : le montant écrit s'écarte encore du montant saisi d'au plus la quantité
+  fois le coefficient fois un demi-centime (1 234,56 saisis sur une quantité de 1 000 donnent
+  1 230,00), ce que le compte rendu annonce à partir d'EP-33 (US-3230, #4428 ; précision du
+  2026-11-21). Les trois autres cas de l'analyse gardent le comportement du service, que les tests d'US-1630/L3
   fixent : une date de revue absente ou illisible ne rejette que les lignes qui termineraient leur
   tâche (`COMPLETION_DATE_REQUIRED`) ; une tâche ne se termine que si le fichier met à zéro l'une de
   ses lignes et qu'aucune ne garde de reste ; une cellule vide de « Jours restants » ou de « Débours

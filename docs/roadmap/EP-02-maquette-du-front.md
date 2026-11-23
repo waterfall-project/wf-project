@@ -81,7 +81,7 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-IHM-0020-A` | Contexte de lecture affiché | début — close en EP-08 | US-0100 |
 | `WF-IHM-0030-A` | Valeur calculée et valeur saisie | entière | US-0150 |
 | `WF-IHM-0040-A` | Saisie au clavier dans les grilles | entière | US-0120 |
-| `WF-IHM-0050-A` | Collage depuis un tableur | entière | US-0130 |
+| `WF-IHM-0050-A` | Collage dans une grille | entière | US-0130 |
 | `WF-IHM-0060-A` | Lecture d'une grille | début — close en EP-07 | US-0110 |
 | `WF-IHM-0070-A` | Une échelle de signalement commune, lisible sans couleur | entière | US-0160 |
 | `WF-IHM-0080-A` | Traitements longs | début — close en EP-09 | US-0180 |
@@ -907,6 +907,14 @@ reprendre un chiffrage préparé ailleurs sans le ressaisir et sans risquer d'ab
   confirmation. »
 - `WF-IHM-0050-A` — « Un bloc dont une cellule porte une catégorie inconnue signale cette ligne ; confirmé, il écrit les autres lignes et non celle-ci ; abandonné, il ne modifie aucune ligne. »
 - `WF-IHM-0050-A` — « Un collage plus large que la grille est refusé en le disant. »
+- écart : `WF-IHM-0050-A` — « Un bloc de tableur dont les colonnes sont dans un autre ordre que la
+  grille, avec ses en-têtes, est collé en insérant et crée les lignes attendues. » : ajouté par la
+  spécification 1.0.8 (#4329) ; #4398 l'éprouve
+- écart : `WF-IHM-0050-A` — « Un bloc sans en-têtes suit les colonnes affichées. » : ajouté par la
+  spécification 1.0.8 (#4329) ; #4398 l'éprouve
+- écart : `WF-IHM-0050-A` — « Un bloc collé en remplaçant écrit les valeurs des lignes à partir de
+  la ligne active, et n'en crée aucune. » : ajouté par la spécification 1.0.8 (#4329) : c'est le
+  collage livré, que #4398 éprouve à côté de l'insertion
 
 **Notes de réalisation.** Le contrat sépare déjà les deux temps, `previewPaste` puis
 `applyPaste` : le front ne juge rien du contenu collé, il présente le compte rendu que le

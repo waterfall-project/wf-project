@@ -1,0 +1,31 @@
+{
+  "summary": "PRJ-306, « Extension du système de supervision — Valence », de la tranche du portefeuille du témoin : en chiffrage depuis le 2026-03-02, 3 tâche(s), 1 révision(s), 0 risque(s), 0 import(s) de coûts réels (WF-QUA-0040, EP-11/US-2770).",
+  "description": "Description de la tranche du portefeuille engendrée par `make mock-data` (`wftools.mockslice`) : elle ne se retouche pas.",
+  "value": {
+    "project_id": "01926f3a-7c00-7000-8000-001100000006",
+    "created_at": "2026-03-02T09:00:00Z",
+    "project": {"label":"Extension du système de supervision — Valence","description":null,"client":null,"code":"PRJ-306"},
+    "inflation_rate": "0",
+    "win_probability": "0.6",
+    "reference_revision_id": null,
+    "transitions": [
+      {"from_state":null,"to_state":"created","occurred_at":"2026-03-02T09:00:00Z","actor":{"kind":"platform"},"reason":null},
+      {"from_state":"created","to_state":"pricing","occurred_at":"2026-03-02T09:30:00Z","actor":{"kind":"platform"},"reason":null}
+    ],
+    "revisions": [
+      {"revision_id":"01926f3a-7c00-7000-8000-001200000601","opened_at":"2026-03-02T09:30:00Z","create":{"description":null},"marked_at":"2026-04-20T09:00:00Z","mark":{"action":"mark","version_name":"Offre"},"abandoned_at":null}
+    ],
+    "tasks": [
+      {"node_id":"01926f3a-7c00-7000-8000-001300006001","node":{"kind":"task","parent_id":null,"task":{"label":"Études","scheduling_mode":"manual","start":{"date":"2026-09-07"},"finish":{"date":"2026-09-25"}}},"started_on":null,"completed_on":null},
+      {"node_id":"01926f3a-7c00-7000-8000-001300006002","node":{"kind":"task","parent_id":null,"task":{"label":"Fourniture","scheduling_mode":"manual","start":{"date":"2026-11-02"},"finish":{"date":"2026-11-27"}}},"started_on":null,"completed_on":null},
+      {"node_id":"01926f3a-7c00-7000-8000-001300006003","node":{"kind":"task","parent_id":null,"task":{"label":"Mise en service","scheduling_mode":"manual","start":{"date":"2027-01-11"},"finish":{"date":"2027-01-29"}}},"started_on":null,"completed_on":null}
+    ],
+    "lines": [
+      {"node_id":"01926f3a-7c00-7000-8000-001300006011","node":{"kind":"estimate_line","parent_id":"01926f3a-7c00-7000-8000-001300006001","estimate_line":{"label":"Études","cost_category_id":"01926f3a-7c00-7000-8000-000000000402","quantity":"1","resource_role_id":"01926f3a-7c00-7000-8000-000000000451","hours":"120","unit_disbursement":null,"payment_delay_days":0}}},
+      {"node_id":"01926f3a-7c00-7000-8000-001300006021","node":{"kind":"estimate_line","parent_id":"01926f3a-7c00-7000-8000-001300006002","estimate_line":{"label":"Serveurs de supervision","cost_category_id":"01926f3a-7c00-7000-8000-000000000403","quantity":"1","resource_role_id":null,"hours":null,"unit_disbursement":"15000.00","payment_delay_days":0}}},
+      {"node_id":"01926f3a-7c00-7000-8000-001300006031","node":{"kind":"estimate_line","parent_id":"01926f3a-7c00-7000-8000-001300006003","estimate_line":{"label":"Mise en service","cost_category_id":"01926f3a-7c00-7000-8000-000000000405","quantity":"1","resource_role_id":"01926f3a-7c00-7000-8000-000000000452","hours":"60","unit_disbursement":null,"payment_delay_days":0}}}
+    ],
+    "risks": [],
+    "imports": []
+  }
+}

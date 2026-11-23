@@ -124,6 +124,36 @@ l'accorde. Un test des outils (`tools/tests/test_permissions.py`) l'éprouve.
 
 [`CONTRIBUTING.md`](../../CONTRIBUTING.md) y renvoie.
 
+## Une instabilité de la file
+
+Un passage de la file rejeté sans défaut du lot coûte un passage entier, environ deux heures
+de runner, et une remise en file. Le 22 novembre 2026, #4717 a été remise en file trois fois pour
+un même test. Une instabilité ne se rejoue donc pas en silence.
+
+- **Le livreur qui remet une pull request en file** après un échec que son lot n'a pas causé,
+  c'est-à-dire un test ou une étape que son diff ne touche pas, et un délai, un téléchargement
+  ou un service absent plutôt qu'une assertion fausse, laisse deux traces avant de la remettre
+  en file :
+  - un **commentaire sur l'issue du constat** de ce test : le passage, le job, la ligne, la
+    durée, le message. Si aucune issue ouverte ne suit ce test, il en ouvre une : label
+    `finding` et `EP-nn` de l'EPIC où vit le test, titre `[EP-nn] …`, au gabarit d'un constat ;
+  - une **entrée dans `tools/queue-known.toml`**, ou, si elle existe, le passage ajouté à ses
+    `runs` et sa `frequency` mise à jour. L'entrée suit l'en-tête du fichier : classe
+    `known flakiness` (ou `infrastructure` pour un registre, un miroir, un téléchargement),
+    `family`, `issue`, motifs `job`, `test` et `message`, `cause` ouverte par « hypothèse : »
+    tant qu'elle n'est pas établie. Elle part dans un commit de la branche du lot, avant la
+    remise en file : `make queue-report` classe alors le passage suivant au lieu de le laisser
+    « à classer ».
+- **Vue deux fois**, dans deux passages, quelle que soit la branche, l'instabilité n'est plus
+  remise en file sans correction prévue. Le livreur la met en avant dans son relevé
+  (« instabilité vue deux fois : #n »). Le pilote ouvre alors un **petit lot qui la corrige**,
+  dans la branche de l'EPIC où vit le test : celle de l'EPIC qui l'a écrit ou modifié et qui
+  n'est pas encore fusionné dans `main`, et à défaut celle où elle a été vue. Ce lot passe
+  **avant les autres lots prêts** : il prend le premier créneau libre. La correction traite la
+  cause, une lecture lente, un rendu ou une attente mal bornée, et ne se contente pas d'élargir un
+  délai sans la mesure qui le justifie (`frontend/e2e/bounds.ts`). Le lot qui la corrige retire
+  l'entrée connue, ou la met à jour.
+
 ## Ce qui fait foi
 
 - **Le fichier de l'EPIC** (`docs/roadmap/EP-nn-….md`) fait foi pour l'intention : périmètre,

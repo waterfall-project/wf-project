@@ -8,7 +8,6 @@ writes, when it has nothing to write and when a slice fails.
 """
 
 import json
-import shutil
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
@@ -27,6 +26,7 @@ from project_rows import (
 from pydantic import SecretStr, ValidationError
 from sqlalchemy import func, insert, select, text
 from support import WITNESS
+from witness_support import copied_description
 
 from waterfall import __version__
 from waterfall.api.contract.models import DurationUnits
@@ -52,7 +52,7 @@ from waterfall.platform.database import Base, utc_now
 from waterfall.platform.errors import ConflictError
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import WitnessSettings
-from waterfall.witness import chronology, loader, projects
+from waterfall.witness import chronology, loader, portfolio, projects
 from waterfall.witness.description import Witness, is_loaded
 from waterfall.witness.main import WITNESS_LOCK, load_witness, main
 
@@ -137,7 +137,15 @@ def test_the_slices_of_the_projects_are_loaded_in_their_order_after_the_referenc
 
         return load
 
-    order = ["projects", "contributors", "subprojects", "work_breakdown", "timelines", "revisions"]
+    order = [
+        "projects",
+        "contributors",
+        "subprojects",
+        "work_breakdown",
+        "timelines",
+        "revisions",
+        "portfolio",
+    ]
     assert [name for name, _ in chronology.SLICES] == order
     witness = Witness(WITNESS, Act(None, utc_now()))
     # The slices of the projects are filled: on a platform that holds none they write, and the
@@ -146,6 +154,7 @@ def test_the_slices_of_the_projects_are_loaded_in_their_order_after_the_referenc
         # The projects ask the reference of the witness, which the slices before them load (#2155);
         # their partitions are created first, as the loader does (#2937).
         projects.partition(session, witness)
+        portfolio.partition(session, witness)
         for _, load in loader.SLICES[:-1]:
             load(session, witness)
         assert chronology.load(session, witness) is True
@@ -704,8 +713,7 @@ def test_the_command_stops_saying_so_on_a_witness_the_rules_refuse_and_writes_no
     # A role of the description bears the code of another: the rule of the roles refuses it, after
     # the slices before it have written; one transaction, none of them stays.
     install(owner)
-    refused = tmp_path / "witness"
-    shutil.copytree(WITNESS, refused)
+    refused = copied_description(tmp_path)
     path = refused / "resource_roles.json"
     document = json.loads(path.read_text(encoding="utf-8"))
     items = document["value"]["items"]

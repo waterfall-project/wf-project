@@ -30,6 +30,8 @@ from waterfall.core.exchanges import interface as exchanges_interface
 from waterfall.core.history import interface as history_interface
 from waterfall.core.indicators import interface as indicators_interface
 from waterfall.core.planning import interface as planning_interface
+from waterfall.core.portfolio import interface as portfolio_interface
+from waterfall.core.risks import interface as risks_interface
 from waterfall.witness import (
     actual_cost_mapping,
     calendars,
@@ -40,6 +42,7 @@ from waterfall.witness import (
     hourly_rates,
     installation,
     org_nodes,
+    portfolio,
     projects,
     reference_settings,
     resource_roles,
@@ -56,12 +59,16 @@ type Slice = Callable[[Session, Witness], bool]
 
 # The modules that fill the registries of the others at the import of their interface (#2180):
 # imported here, so that no revision the witness opens or marks lacks their part: the indicators
-# keep their documents at each marking (EP-10, "Le chargeur du témoin"; #3552).
+# keep their documents at each marking (EP-10, "Le chargeur du témoin"; #3552), the risks theirs at
+# the copy, the closing and the designation of a revision (EP-08, US-2550/L1), the portfolio its
+# documents at each marking (EP-11, US-2670/L1).
 EXTENDING = (
     exchanges_interface,
     history_interface,
     indicators_interface,
     planning_interface,
+    portfolio_interface,
+    risks_interface,
 )
 
 # The bound of the avatars, the settings and the units name nothing; a category names its nature,
@@ -86,7 +93,9 @@ SLICES: tuple[tuple[str, Slice], ...] = (
 def load_slices(session: Session, witness: Witness) -> list[str]:
     """Load each slice in its order, in the transaction of ``session``; name those that wrote.
 
-    The partitions of the projects first, before any slice writes (``projects.partition``).
+    The partitions of the projects first, before any slice writes (``projects.partition``, and the
+    slice of the portfolio's own).
     """
     projects.partition(session, witness)
+    portfolio.partition(session, witness)
     return [name for name, load in SLICES if load(session, witness)]

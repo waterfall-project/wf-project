@@ -21,6 +21,7 @@ import { test as base } from "@playwright/test";
 import { expectNothingRefused, startReading } from "./service/contract";
 import {
   accountAdministrator,
+  ADMINISTRATOR,
   ADMINISTRATION_READER,
   ADMINISTRATION_READS,
   localAccount,
@@ -56,6 +57,12 @@ const MAKING_THE_MANAGER = 60_000;
 
 /** The tag of a path that acts as the reader of the administration, not the manager (US-1330). */
 const ADMINISTRATION_TAG = "@administration";
+
+/**
+ * The tag of a path that acts as the administrator of the installation itself, which alone reads
+ * the installation (`installation.read`): the account the bootstrap made, no local account of the run.
+ */
+const ADMINISTRATOR_TAG = "@administrator";
 
 interface WorkerFixtures {
   /** The manager of the worker, against the service; none against the fake back. */
@@ -125,9 +132,14 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   served: [
     async ({ page, browser, request, manager, administration }, use) => {
       // The account the title asks for, like the projects read `@shared` from it.
-      const person = base.info().title.includes(ADMINISTRATION_TAG)
-        ? await administration?.()
-        : manager;
+      const title = base.info().title;
+      const person = title.includes(ADMINISTRATOR_TAG)
+        ? inService
+          ? ADMINISTRATOR
+          : undefined
+        : title.includes(ADMINISTRATION_TAG)
+          ? await administration?.()
+          : manager;
       if (person === undefined) {
         await use(undefined);
         return;

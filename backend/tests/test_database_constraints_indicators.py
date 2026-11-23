@@ -90,6 +90,8 @@ REFUSALS: list[tuple[dict[str, object], str]] = [
     ({"project_id": OTHER}, "fk_revision_indicator_project_id_revision"),
     ({"created_by": uuid4()}, "fk_revision_indicator_created_by_user_account"),
     ({"kind": "risks"}, "ck_revision_indicator_kind_known"),
+    # The kinds of the portfolio are named whole (migration 0042): no prefix stands for them.
+    ({"kind": "portfolio"}, "ck_revision_indicator_kind_known"),
     ({"scope": ""}, "ck_revision_indicator_scope_length"),
     ({"scope": "x" * 37}, "ck_revision_indicator_scope_length"),
     ({"scope": "  "}, "ck_revision_indicator_scope_not_blank"),
@@ -185,6 +187,36 @@ def test_a_document_written_by_the_transaction_that_marks_its_revision_is_kept(
             )
         ).all()
     assert [tuple(each) for each in kept] == [("estimate", "project", AT)]
+
+
+# The kinds a marking keeps for the portfolio (EP-11, "Tables et migrations"; migration 0042).
+PORTFOLIO_KINDS = (
+    "portfolio_workload",
+    "portfolio_cost_structure",
+    "portfolio_risks",
+    "portfolio_milestones",
+    "portfolio_offer_curves",
+)
+
+
+@pytest.mark.parametrize("kind", PORTFOLIO_KINDS)
+def test_a_document_of_the_portfolio_is_kept_by_the_marking_of_its_revision_alone(
+    parents: Parents, owner: Engine, kind: str
+) -> None:
+    # Covers no requirement: the trigger of ``computed_at`` and the check of the kinds, not a direct
+    # write on a marked revision. The check admits it (#3549), of the scope ``project``; the
+    # trigger is unchanged: computed at another instant than the marking, it is refused as any
+    # other document.
+    with pytest.raises(DBAPIError, match=OUTSIDE):
+        written(owner, row(parents, kind=kind), marking(parents, AT + timedelta(seconds=1)))
+    written(owner, row(parents, kind=kind), marking(parents, AT))
+    with owner.connect() as connection:
+        kept = connection.execute(
+            RevisionIndicator.__table__.select().with_only_columns(
+                RevisionIndicator.kind, RevisionIndicator.scope, RevisionIndicator.computed_at
+            )
+        ).all()
+    assert [tuple(each) for each in kept] == [(kind, "project", AT)]
 
 
 def test_the_kinds_the_interface_names_are_those_the_base_holds() -> None:

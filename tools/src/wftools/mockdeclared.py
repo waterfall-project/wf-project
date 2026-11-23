@@ -14,7 +14,8 @@ three, on the examples written by hand and the core of the witness:
   E-12 to E-14); a revision opened on the offer while an import creates it
   (``revision_create_background_running``, E-13); the deletion of the wiring of the cabinets,
   started, and of the last task that would bear a provision (``node_delete_started_refused``,
-  ``node_delete_last_provision_task_refused``, F-04, H-05); an inscription on the reference
+  ``node_delete_last_provision_task_refused``, F-04, H-05), and of the line of provision itself,
+  its risk's alone (``node_delete_provision_line_refused``, #4007); an inscription on the reference
   (``node_tracking_marked_refused``, F-11); a line of actual cost excluded on the witness completed
   (``actual_cost_scope_terminal``, I-06), and on a project in pricing
   (``actual_cost_scope_before_in_progress``, I-07); the result of a task that has not succeeded
@@ -45,7 +46,7 @@ from wftools.mockids import universe
 from wftools.mockproject import TAKEN_NAME, name_taken
 from wftools.mockrefusals import REFERENCE, field_refused, problem, state_refused
 from wftools.mockstructure import described
-from wftools.mockwitness import CONTROL_STATION, CORE, N, Task, fixture
+from wftools.mockwitness import CONTROL_STATION, CORE, FIRST_WRITE, N, Task, fixture
 from wftools.mockwitnessrisks import IDENTIFIED, REGISTER
 from wftools.mockwrites import amended, totals_said, written
 
@@ -76,6 +77,9 @@ DUPLICATE_CORRELATION, STARTED_CORRELATION, LAST_TASK_CORRELATION = (
     universe(1648),
     universe(1649),
 )
+PROVISION_LINE_CORRELATION = universe(1715)
+"""The correlation of the deletion of the provision line itself, refused (#4007)."""
+
 TRACKING_CORRELATION, TIMELINE_REQUIRED_CORRELATION, TIMELINE_UNKNOWN_CORRELATION = (
     universe(1650),
     universe(1651),
@@ -154,6 +158,27 @@ def last_provision_task_refused() -> JsonObject:
     }
 
 
+def provision_line_refused() -> JsonObject:
+    """Return the refusal of the deletion of the provision line of an identified risk (#4007).
+
+    The line of the risk of the rewiring, the one the witness bears: the risk named.
+    """
+    owner = next(
+        risk
+        for risk in REGISTER
+        if risk.provision_line is not None and risk.last.state == IDENTIFIED
+    )
+    return {
+        "code": "STATE_FORBIDS_OPERATION",
+        "status": 409,
+        "params": {
+            "missing_condition": "line_not_provision",
+            "risks": [{"risk_id": universe(owner.number), "label": owner.label}],
+        },
+        "correlation_id": PROVISION_LINE_CORRELATION,
+    }
+
+
 def provision_readings() -> tuple[JsonObject, JsonObject]:
     """Return the structure read before and after the deletion of a task bearing a provision.
 
@@ -208,7 +233,11 @@ def node_deleted_provision_moved() -> JsonObject:
     """Return what deleteNode answers for a task, not started, that bears a line of provision."""
     before, after = provision_readings()
     return written(
-        before, after, [universe(N.PROVISION)], deleted=[universe(N.MOUNTING)], structure_version=2
+        before,
+        after,
+        [universe(N.PROVISION)],
+        deleted=[universe(N.MOUNTING)],
+        structure_version=FIRST_WRITE,
     )
 
 
@@ -333,6 +362,13 @@ def _tree_examples() -> dict[str, JsonObject]:
             f"ranger ; refusée en nommant le risque, rien n'est supprimé (WF-RIS-0010, "
             f"WF-PLA-0070).",
             last_provision_task_refused(),
+        ),
+        "node_delete_provision_line_refused.json": mocktext.example(
+            f"La suppression demandée de la « {labels[N.PROVISION]} », ligne de provision de "
+            f"{mocktext.listed(risks)} : la ligne ne s'écrit que par son risque — son écartement, "
+            f"sa survenance, sa suppression ; refusée par la condition qui manque, "
+            f"line_not_provision, en nommant le risque ; rien n'est supprimé (WF-RIS-0010).",
+            provision_line_refused(),
         ),
         "node_tracking_marked_refused.json": mocktext.example(
             f"La « {labels[TRACKED_TASK]} » inscrite à une chronologie sur la structure "

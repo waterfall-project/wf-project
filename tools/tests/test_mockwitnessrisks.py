@@ -12,7 +12,14 @@ from typing import Any
 
 import pytest
 
-from wftools import mockcore, mockdata, mockhistory, mockwitness, mockwitnessrisks
+from wftools import (
+    mockcore,
+    mockdata,
+    mockhistory,
+    mockriskwrites,
+    mockwitness,
+    mockwitnessrisks,
+)
 from wftools.mockids import universe
 from wftools.mockwitness import AMENDMENT_MERGED, TODAY
 from wftools.mockwitnessrisks import REGISTER
@@ -183,14 +190,16 @@ def test_each_risk_names_the_category_and_the_subproject_its_line_of_provision_b
 def test_the_reviews_of_a_risk_and_its_audit_follow_the_chronology(
     history: dict[str, Any],
 ) -> None:
-    # The reviews of 751, the latest first: identified on 12 January at 25 % of 1,000,000 — the
-    # 250,000 the reference knew on 1 February —, raised to 1,250,000 on 2 February, to 40 % on
-    # 2 March.
+    # The reviews of 751, the latest first: declared on 12 January at 25 %, its own estimate still
+    # empty, then identified the same instant at 1,000,000 once it is entered — the 250,000 the
+    # reference knew on 1 February —, raised to 1,250,000 on 2 February, to 40 % on 2 March
+    # (US-2650/L1).
     reviews = history["risk_reviews"]
     assert [(r["reviewed_on"], r["probability"], r["severity"]) for r in reviews] == [
         ("2026-03-02", "0.4", "1250000.00"),
         ("2026-02-02", "0.25", "1250000.00"),
         ("2026-01-12", "0.25", "1000000.00"),
+        ("2026-01-12", "0.25", "0.00"),
     ]
     known = mockwitnessrisks.REWORK.known_on(AMENDMENT_MERGED.on)
     assert known is not None
@@ -214,3 +223,18 @@ def test_the_coverage_sets_the_reserve_against_what_the_risks_cost_today(
         covered["occurred_cost"],
         covered["coverage_variance"],
     ) == ("850060.00", "500000.00", "200.00", "349860.00")
+
+
+def test_the_counters_of_the_register_are_those_the_witness_leaves_on_its_risks() -> None:
+    # #4287: the counter of a risk, its reviews and the writes the loader adds, is read from the
+    # example of the register, not written by hand in two places; and the one of the nodes of the
+    # own estimate of 751, from its example.
+    risks = json.loads((mockwitness.FIXTURES / "risks.json").read_text(encoding="utf-8"))
+    counters = {item["label"]: item["lock_version"] for item in risks["value"]["items"]}
+    assert counters == {risk.label: risk.lock_version for risk in REGISTER}
+    estimate = json.loads(
+        (mockwitness.FIXTURES / "nodes_risk_estimate.json").read_text(encoding="utf-8")
+    )
+    assert {item["lock_version"] for item in estimate["value"]["items"]} == {
+        mockriskwrites.OWN_ESTIMATE_COUNTER
+    }

@@ -130,7 +130,7 @@ type Take = Callable[[], UUID]
 
 
 def no_rotation(_taking: BackupTask, _session: Session) -> None:
-    """Turn nothing: the schema of an installation brought back lacks the schedule (0038)."""
+    """Turn nothing: the schema of an installation brought back lacks the schedule (0047)."""
 
 
 def no_copy(_session: Session, _backup_id: UUID) -> None:

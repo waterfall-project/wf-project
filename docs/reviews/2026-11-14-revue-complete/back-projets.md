@@ -36,6 +36,8 @@ Aucun.
 
 ### BPR-01 — `setWorkBreakdown` prend les verrous dans l'ordre inverse du marquage et de l'abandon : interblocage, 500
 
+- **Issue** : #4442 (EP-35), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec BPR-08, BPR-12.
 - **Où** : `core/projects/interface/work_breakdown.py:552` (verrou du projet, `_locked`), puis
   `:515-518` (`_remove` → `detach_item`) ; `core/planning/interface/work_breakdown.py:82-94`
   (`UPDATE task … SET work_package_id = NULL` sur les tâches de la révision en cours) ; le
@@ -79,6 +81,7 @@ Aucun.
 
 ### BPR-02 — La correction de la référence reste ouverte après réception de coûts réels (contrat et WF-REV-0040)
 
+- **Issue** : #4440 (EP-35), ouverte le 2026-11-21, avec SPB-01.
 - **Où** : `core/revisions/interface/reference.py:77-102` (`reference_correctable`), docstring
   `:83` « The actual costs, which also close it, are EP-09's » ; contrat
   `docs/api/components/schemas/projects.yaml:387-389` et `docs/api/paths/revisions.yaml:358-360`
@@ -111,6 +114,7 @@ Aucun.
 
 ### BPR-03 — L'année de référence d'une révision est celle du temps universel, et échappera au fuseau d'EP-25
 
+- **Issue** : #3983 (EP-35), à laquelle la ventilation du 2026-11-21 joint ce constat.
 - **Où** : `core/revisions/interface/revisions.py:501` (`reference_year=act.at.year`) ;
   `core/projects/interface/days.py:8-9`, `:18`.
 - **Quoi** : WF-REV-0060 veut « l'année courante ». Le jour courant passe par `current_day`, la
@@ -125,6 +129,9 @@ Aucun.
 
 ### BPR-04 — Révision, sous-projet et liste des contributeurs naissent à `lock_version` 0, contre le contrat
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — l'auteur a tranché le même écart
+  pour les rôles et les comptes le 2026-11-11 (#2779 et #2843 closes, « rien avant la v1, aucune
+  migration ») ; aucun dommage fonctionnel.
 - **Où** : `core/revisions/interface/revisions.py:496-509` (aucun `lock_version` à l'insertion,
   donc le défaut 0 de `core/revisions/tables.py:69`, dont le commentaire `:66-68` affirme le
   contraire) ; `core/projects/interface/subprojects.py:456` (`lock_version=0`) ;
@@ -144,6 +151,7 @@ Aucun.
 
 ### BPR-05 — Les questions « la révision porte-t-elle… » ignorent la partition et se répètent par ligne de liste
 
+- **Issue** : #4484 (EP-40), ouverte le 2026-11-21, avec DON-01, DON-04, BPR-06.
 - **Où** : `core/revisions/interface/reference.py:70` (signature du registre :
   `Callable[[Session, UUID], bool]`, la révision seule), `:219-239` ;
   `core/revisions/states.py:65-67` ; `core/revisions/interface/revisions.py:309-322` (`_views`,
@@ -169,6 +177,7 @@ Aucun.
 
 ### BPR-06 — `item_cited` cherche les tâches d'un lot dans toutes les partitions
 
+- **Issue** : #4484 (EP-40), ouverte le 2026-11-21, avec DON-01, DON-04, BPR-05.
 - **Où** : `core/projects/interface/attachments.py:35`, `:48` (`cited(session, item_id)`, sans
   projet) ; appel `core/projects/interface/work_breakdown.py:520`, `:526` ;
   `core/planning/interface/work_breakdown.py:69-79` (jointure `node`/`task` sans `project_id`,
@@ -179,6 +188,7 @@ Aucun.
 
 ### BPR-07 — Un projet En cours peut perdre son code
 
+- **Issue** : #3989 (EP-35), à laquelle la ventilation du 2026-11-21 joint ce constat.
 - **Où** : `api/projects.py:297`, `:309` (un `code: null` envoyé est porté) ;
   `core/projects/interface/projects.py:728-739` (écrit `None`, `advance` non appelé, rien ne refuse).
 - **Quoi** : WF-PRJ-0010 exige le code pour passer En cours ; rien ne l'exige ensuite. Le contrat
@@ -194,6 +204,7 @@ Aucun.
 
 ### BPR-08 — `updateProject` rechiffre la révision en cours pendant qu'un marquage est en file
 
+- **Issue** : #4442 (EP-35), ouverte le 2026-11-21, avec BPR-12, BPR-01.
 - **Où** : `core/projects/interface/projects.py:708-741` (aucune lecture des tâches de fond ;
   `core/projects/commands.py:101-106` ne suspend pas `update`).
 - **Quoi** : la conception (« Le worker ») veut que les commandes « qui écriraient dans la
@@ -209,6 +220,7 @@ Aucun.
 
 ### BPR-09 — `api/subprojects.py` importe la table privée du module des projets
 
+- **Issue** : #3966 (EP-33), à laquelle la ventilation du 2026-11-21 joint ce constat.
 - **Où** : `api/subprojects.py:42` (`from waterfall.core.projects.tables import SUBPROJECT_CODE_LENGTH`).
 - **Quoi** : seule entrée de l'API dans un `tables.py` du noyau (`grep` sur `api/`, `worker/`,
   `witness/`) ; le contrat `independence` d'import-linter ne couvre que les modules du noyau entre
@@ -219,6 +231,9 @@ Aucun.
 
 ### BPR-10 — « Marquée depuis la désignation » compare deux horloges
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — la revue le dit « plausible »,
+  sans scénario constaté : il faut un écart d'horloge entre deux hôtes supérieur au délai entre une
+  désignation et un marquage, et l'effet est une référence restée corrigeable.
 - **Où** : `core/revisions/interface/reference.py:98` (`marked_at > designated_at`), `:153`
   (instant de la désignation : horloge de l'API) ; `core/revisions/interface/marking.py:232`
   (instant du marquage : horloge du worker).
@@ -231,6 +246,7 @@ Aucun.
 
 ### BPR-11 — `project.current_revision_id` et `reference_revision_id` : deux vérités que la base ne lie pas
 
+- **Issue** : #4469 (EP-38), ouverte le 2026-11-21, avec DON-07, DON-08, DON-09, DON-14.
 - **Où** : `core/projects/tables.py:133-139` (clés simples vers `revision.id`) ;
   `migrations/versions/0020_projects_and_revisions.py:369-370`.
 - **Quoi** : la révision en cours se lit tantôt dans `project.current_revision_id`
@@ -245,6 +261,7 @@ Aucun.
 
 ### BPR-12 — Fenêtre d'interblocage documentée et laissée ouverte
 
+- **Issue** : #4442 (EP-35), ouverte le 2026-11-21, avec BPR-08, BPR-01.
 - **Où** : `core/revisions/interface/shared.py:19-27` ; `core/revisions/interface/reference.py:194`.
 - **Quoi** : une révision ouverte entre les deux lectures de `hold_current_revision` est partagée
   sous le verrou du projet ; un `markRevision` simultané s'interbloque (500). Le code le dit et

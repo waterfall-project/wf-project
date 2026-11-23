@@ -21,6 +21,8 @@ from waterfall.core.exchanges import interface as exchanges_interface
 from waterfall.core.history import interface as history_interface
 from waterfall.core.indicators import interface as indicators_interface
 from waterfall.core.planning import interface as planning_interface
+from waterfall.core.portfolio import interface as portfolio_interface
+from waterfall.core.risks import interface as risks_interface
 from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.installation import TIME_ZONE, stored_in
@@ -42,6 +44,8 @@ from waterfall.worker.backup import BackupTask
 from waterfall.worker.backup_copy import CopyTask
 from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.marking import mark
+from waterfall.worker.merge import merge
+from waterfall.worker.occurrence import occur
 from waterfall.worker.purge import PurgeTask
 from waterfall.worker.runner import Timing, Worker
 from waterfall.worker.schedule import deposit_due, planned
@@ -58,7 +62,10 @@ USAGE = f"usage: {NAME} [--version | schedule]\n"
 # their part — the estimate keeps its images and its rates at the marking (US-1500/L2); the actual
 # costs register the format of an extraction, which the worker analyses and applies, and answer
 # whether a subproject bears costs to the import of an estimate it applies (US-1610/L2); the
-# indicators keep theirs at the marking (US-1670/L1).
+# indicators keep theirs at the marking (US-1670/L1); the risks theirs at the copy, the closing and
+# the designation of a revision, from the stories that register them on (EP-08, US-2550/L1); the
+# portfolio its documents at the marking, from the story that registers them on (EP-11,
+# US-2670/L1), though the worker receives no task of its own.
 EXTENDING = (
     costs_interface,
     estimate_interface,
@@ -66,6 +73,8 @@ EXTENDING = (
     history_interface,
     indicators_interface,
     planning_interface,
+    portfolio_interface,
+    risks_interface,
 )
 
 
@@ -74,7 +83,8 @@ def handlers(
 ) -> dict[str, TaskHandler]:
     """Give what the worker runs, by kind of task: a backup, its copy, the reading of the accounts.
 
-    The marking is the first task of the trade (US-0970); the analysis and the application of an
+    The marking is the first task of the trade (US-0970); the merge of a differential (US-2560/L2)
+    and the occurrence of a risk (US-2620/L2) are EP-08's; the analysis and the application of an
     import and an export are the exchanges' (EP-06). The reading of the accounts counts in
     ``metrics`` the directories it could not read (#917). The purge is the task of what expired,
     which the schedule deposits (EP-13, "Une commande planifiée unique"); the copy of a backup, the
@@ -86,6 +96,8 @@ def handlers(
         "backup_copy": CopyTask.of(settings),
         "identity_sync": IdentitySync.of(settings, metrics),
         "revision_mark": mark,
+        "structure_merge": merge,
+        "risk_occurrence": occur,
         "import_analysis": imports.analyse,
         "import_apply": imports.apply,
         "export": exchanges.ExportTask.of(settings),

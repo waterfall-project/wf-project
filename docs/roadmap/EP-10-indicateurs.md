@@ -1,6 +1,6 @@
 ---
 id: EP-10
-titre: Lire où en est un projet : avancement, indices, projections et courbes
+titre: Lire où en est un projet — avancement, indices, projections et courbes
 statut: livré
 depend_de: EP-25, EP-26
 famille: front, back
@@ -86,7 +86,7 @@ EP-11 celle du plan de charge agrégé.
 |---|---|---|---|
 | `WF-IND-0010-A` | Date et périmètre de calcul | entière | US-1660, US-1670 |
 | `WF-IND-0020-A` | Granularité des indicateurs | entière | US-1660 |
-| `WF-IND-0030-A` | Valeur acquise | début — close en EP-08 | US-1660 |
+| `WF-IND-0030-A` | Valeur acquise | début — close en EP-30 | US-1660 |
 | `WF-IND-0040-A` | Avancement financier et consommation du budget | entière | US-1660 |
 | `WF-IND-0050-A` | Projections à terminaison | entière | US-1660 |
 | `WF-IND-0060-A` | Avancement physique | entière | US-1660, US-1680 |
@@ -1031,6 +1031,9 @@ grandeur manque —, **afin de** savoir où en est mon projet entre deux revues.
   les tâches terminées, la valeur acquise vaut le budget de référence ; les lignes de provision et
   les tâches issues d'un risque survenu (`origin_risk_id`, nul avant EP-08) sont d'EP-08, qui
   clôt — la règle « hors provision, hors survenance » est écrite dans la sélection des lignes ;
+- écart : `WF-IND-0030-A` — « Une tâche budgétée à 100 qu'un risque survenu abandonne contribue pour
+  100 à la valeur acquise à la date de la survenance. » : ajouté par la spécification 1.0.9 (#4519)
+  ; EP-30 (US-3120) ;
 - `WF-IND-0040-A` — « Sur un sous-projet de budget 100, de coût réel 70 et de reste à engager 70,
   l’avancement financier vaut 50 % et la consommation 70 %. » : `financial_progress` `0.5000`,
   `budget_consumption` `0.7000`, un test sans base du module et le même sur le service ;

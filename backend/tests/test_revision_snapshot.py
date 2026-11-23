@@ -775,7 +775,7 @@ def test_a_structure_created_after_the_first_read_of_the_revision_is_locked_befo
     reads: list[int] = []
     events: list[tuple[str, UUID | None]] = []
     real_list, real_lock = keeping.revision_structures, keeping.structure_facts
-    real_lines = keeping.lines_of_revision
+    real_lines = keeping.revision_lines
 
     def list_missing_first(*args: Any) -> tuple[UUID, ...]:
         reads.append(1)
@@ -785,13 +785,13 @@ def test_a_structure_created_after_the_first_read_of_the_revision_is_locked_befo
         events.append(("lock", structure))
         return real_lock(session, project, structure, **kwargs)
 
-    def lines_spy(*args: Any) -> Any:
+    def lines_spy(*args: Any, **kwargs: Any) -> Any:
         events.append(("lines", None))
-        return real_lines(*args)
+        return real_lines(*args, **kwargs)
 
     monkeypatch.setattr(keeping, "revision_structures", list_missing_first)
     monkeypatch.setattr(keeping, "structure_facts", lock_spy)
-    monkeypatch.setattr(keeping, "lines_of_revision", lines_spy)
+    monkeypatch.setattr(keeping, "revision_lines", lines_spy)
     with stage.database.transaction() as session:
         keeping.reprice_revision(session, (project_id, revision_id), utc_now())
     assert len(reads) >= 2

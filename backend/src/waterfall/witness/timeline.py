@@ -13,6 +13,7 @@ identifiers of the witness end with (``01926f3a-…-000000000100``).
 """
 
 from dataclasses import replace
+from decimal import Decimal
 from typing import TYPE_CHECKING, Annotated, Literal, Self
 from uuid import UUID
 
@@ -124,6 +125,66 @@ class ImportExpired(_Strict):
     import_id: UUID
 
 
+class RiskDeclared(_Strict):
+    """A risk declared in the revision in progress, as ``witness_risks.json`` describes it.
+
+    Its own estimate entered then, if the revision gives it (``witness.risks``, US-2650/L1).
+    """
+
+    kind: Literal["risk_declared"]
+    project: str
+    risk_id: UUID
+
+
+class RiskReviewed(_Strict):
+    """A review of a risk: the probability and the state retained (WF-RIS-0020)."""
+
+    kind: Literal["risk_reviewed"]
+    project: str
+    risk_id: UUID
+    probability: Decimal
+    state: Literal["identified", "dismissed"]
+
+
+class RiskOccurred(_Strict):
+    """The occurrence of a risk, its own estimate grafted into the main structure (WF-RIS-0060)."""
+
+    kind: Literal["risk_occurred"]
+    project: str
+    risk_id: UUID
+
+
+class AmendmentOpened(_Strict):
+    """An amendment opened in a revision, as ``witness_amendments.json`` describes it (US-2650/L1).
+
+    Its content entered then, if the revision gives it.
+    """
+
+    kind: Literal["amendment_opened"]
+    project: str
+    revision: int
+    structure_id: UUID
+
+
+class AmendmentMerged(_Strict):
+    """An amendment merged: its revision marked under a name of version, made the reference."""
+
+    kind: Literal["amendment_merged"]
+    project: str
+    revision: int
+    structure_id: UUID
+    version_name: str
+
+
+class AmendmentRebased(_Strict):
+    """An amendment updated from the main structure, then its content entered (US-3050)."""
+
+    kind: Literal["amendment_rebased"]
+    project: str
+    revision: int
+    structure_id: UUID
+
+
 class StateTransition(_Strict):
     """The project moved from a state to another, by what is written before it."""
 
@@ -143,6 +204,12 @@ type Write = Annotated[
     | CostImportApplied
     | CostLineExcluded
     | ImportExpired
+    | RiskDeclared
+    | RiskReviewed
+    | RiskOccurred
+    | AmendmentOpened
+    | AmendmentMerged
+    | AmendmentRebased
     | StateTransition,
     Field(discriminator="kind"),
 ]

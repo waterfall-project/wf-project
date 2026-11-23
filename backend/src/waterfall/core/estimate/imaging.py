@@ -43,7 +43,7 @@ from waterfall.core.estimate.tables import (
     RevisionRate,
     RevisionRole,
 )
-from waterfall.core.planning.interface import lines_of_revision
+from waterfall.core.planning.interface import revision_lines
 from waterfall.core.resource_settings.interface import (
     CalendarFilters,
     CalendarSort,
@@ -177,8 +177,11 @@ def _stamped(marking: RevisionMarking, stamp: Stamp) -> dict[str, object]:
 def _employed(
     session: Session, project_id: UUID, revision_id: UUID
 ) -> tuple[frozenset[UUID], frozenset[UUID]]:
-    """Give the categories the lines of a revision employ, and the roles of its labour lines."""
-    nodes = list(lines_of_revision(session, project_id, revision_id).values())
+    """Give the categories the lines of a revision employ, and the roles of its labour lines.
+
+    The bases of its differentials left out, which employ nothing (US-3050).
+    """
+    nodes = list(revision_lines(session, project_id, revision_id, bases=False))
     if not nodes:
         return frozenset(), frozenset()
     rows = session.execute(

@@ -1,0 +1,20 @@
+{
+  "summary": "Ce que getPortfolioPilotHealth doit répondre sur le témoin chargé avec la tranche du portefeuille, lu au 2026-06-03 par as_of : chaque projet par ce que sa dernière révision marquée à cette date a conservé (WF-PTF-0010, WF-DAT-0040, WF-QUA-0040).",
+  "description": "Lecture attendue engendrée par `make mock-data` (`wftools.mocksliceviews`) : elle ne se retouche pas.",
+  "operation": "getPortfolioPilotHealth",
+  "query": {
+    "as_of": "2026-06-03",
+    "states": "in_progress,pricing,completed"
+  },
+  "value": {
+    "scope": {"states":["in_progress","pricing","completed"],"as_of":"2026-06-03","from":null,"to":null,"org_node_id":null,"org_node_label":null,"project_count":5},
+    "signals": [
+      {"project_id":"01926f3a-7c00-7000-8000-001100000001","project_label":"Modernisation de la chaufferie — Valence","can_open":true,"zone":"watch","code":"risks_not_reviewed"},
+      {"project_id":"01926f3a-7c00-7000-8000-000000000001","project_label":"Modernisation du poste de commande","can_open":true,"zone":"watch","code":"review_overdue","params":{"weeks_since_last_mark":17}},
+      {"project_id":"01926f3a-7c00-7000-8000-000000000001","project_label":"Modernisation du poste de commande","can_open":true,"zone":"watch","code":"risks_not_reviewed"},
+      {"project_id":"01926f3a-7c00-7000-8000-000000000001","project_label":"Modernisation du poste de commande","can_open":true,"zone":"watch","code":"no_actual_cost_since_last_review"},
+      {"project_id":"01926f3a-7c00-7000-8000-000000000001","project_label":"Modernisation du poste de commande","can_open":true,"zone":"alert","code":"contractual_milestone_overdue","params":{"lineage_id":"01926f3a-7c00-7000-8000-000000000625","milestone_label":"Réception des études","reference_date":"2026-04-24"}},
+      {"project_id":"01926f3a-7c00-7000-8000-001100000003","project_label":"Rénovation de la sous-station — Valence","can_open":true,"zone":"watch","code":"review_overdue","params":{"weeks_since_last_mark":16}}
+    ]
+  }
+}

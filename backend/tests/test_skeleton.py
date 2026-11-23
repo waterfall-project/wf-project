@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
-from nodes_support import Tree, entries, mark, opened, refusal, signed_in
+from nodes_support import Tree, entries, lotted, mark, opened, refusal, signed_in
 from planning_support import insert_task
 from projects_support import PROJECTS, Person, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
@@ -68,27 +68,6 @@ def generated(tree: Tree) -> dict[str, Any]:
     answer = generate(tree)
     assert answer.status_code == 201, answer.text
     return answer.json()
-
-
-def lotted(tree: Tree, *packages: tuple[str, list[tuple[str, list[str]]]]) -> None:
-    """Write the work breakdown of the project: packages of items of deliverables, by label."""
-    path = f"{PROJECTS}/{tree.stage.project['project_id']}/work-breakdown"
-    headers = tree.stage.manager.headers
-    read = tree.api.get(path, headers=headers).json()
-    sent = [
-        {
-            "label": label,
-            "order_items": [
-                {"label": item, "deliverables": [{"label": each} for each in deliverables]}
-                for item, deliverables in items
-            ],
-        }
-        for label, items in packages
-    ]
-    answer = tree.api.put(
-        path, headers=headers, json={"work_packages": sent, "lock_version": read["lock_version"]}
-    )
-    assert answer.status_code == 200, answer.text
 
 
 def rewritten(tree: Tree, edit: Callable[[list[dict[str, Any]]], None]) -> None:
@@ -630,7 +609,7 @@ def test_the_links_and_the_nodes_are_those_of_the_main_structure_of_the_revision
 @pytest.mark.requirement("WF-PRJ-0030-A")
 def test_the_project_names_the_background_task_before_the_tasks_of_the_revision_to_open() -> None:
     held = {"planning.write", "revisions.write"}
-    busy = Running(no_task_running=False, mapping_complete=True, opening_has_tasks=True)
+    busy = Running(no_task_running=False, mapping_complete=True, opening_has_main_task=True)
     listed = dict(commands_of(held, "contributor", "pricing", None, running=busy))
     assert listed["generate_skeleton"] == (
         "no_background_task_running",

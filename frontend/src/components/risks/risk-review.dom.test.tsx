@@ -42,6 +42,9 @@ const UPDATE = "PATCH /projects/{project_id}/risks/{risk_id}";
 
 const IDENTIFIED = example("risk") as Risk;
 const REVIEWED = example("risk_reviewed") as Risk;
+// The risk of the modifications of the commands, and its answer: the version the server holds.
+const CREATED = example("risk_created") as Risk;
+const UPDATED = example("risk_updated") as Risk;
 const OCCURRED = example("risk_occurred_detail") as Risk;
 const REVIEWS = example("risk_reviews") as RiskReview[];
 const REVIEWS_AFTER = example("risk_reviews_reviewed") as RiskReview[];
@@ -112,6 +115,84 @@ afterEach(() => {
   vi.restoreAllMocks();
   refresh.mockClear();
   router.push.mockClear();
+  router.refresh.mockReset();
+});
+
+describe("« Réexaminer » a risk after its own estimate was written [US-2640]", () => {
+  it("reads the risk anew when the detail is mounted, and reviews from the version read (#1626)", async () => {
+    const client = serve();
+    // What the client had sent when the page was asked to be read anew: nothing yet.
+    const sentBefore: number[] = [];
+    router.refresh.mockImplementation(() => sentBefore.push(client.calls.length));
+    const { rerender } = render(detail(IDENTIFIED));
+    expect(sentBefore).toEqual([0]);
+    // The page read anew brings the risk whose own estimate was written meanwhile: its counter has
+    // advanced (the answer of the review, the next version of the risk, stands for it).
+    rerender(detail(REVIEWED));
+    await send(await open());
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(client.calls[0]?.body).toMatchObject({ lock_version: REVIEWED.lock_version });
+    expect(REVIEWED.lock_version).toBeGreaterThan(IDENTIFIED.lock_version);
+  });
+
+  it("offers to read the page anew on a stale version (412), and reviews from the version it brings", async () => {
+    const client = serve({
+      [REVIEW]: [
+        { problem: example("stale_lock_version") as Problem & { status: 412 } },
+        { example: "risk_reviewed", status: 201 },
+      ],
+    });
+    const { rerender } = render(detail(IDENTIFIED));
+    router.refresh.mockClear();
+    const form = await open();
+    await send(form);
+    await userEvent.click(await within(form).findByRole("button", { name: "Recharger" }));
+    expect(router.refresh).toHaveBeenCalledOnce();
+    rerender(detail(REVIEWED));
+    // The offer closes the form: the next gesture opens it anew, on the risk read anew.
+    await send(await open());
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(
+      client.calls.map((call) => (call.body as { lock_version: number }).lock_version),
+    ).toEqual([IDENTIFIED.lock_version, REVIEWED.lock_version]);
+  });
+});
+
+describe("« Modifier » a risk after its own estimate was written [US-2640]", () => {
+  it("offers to read the page anew on a stale version (412), and writes from the version it brings", async () => {
+    const client = serve({
+      [UPDATE]: [
+        { problem: example("stale_lock_version") as Problem & { status: 412 } },
+        { example: "risk_updated", status: 200 },
+      ],
+    });
+    const { rerender } = render(detail(CREATED));
+    router.refresh.mockClear();
+    const modify = () => screen.getByRole("button", { name: "Modifier" });
+    await userEvent.click(modify());
+    const form = screen.getByRole("dialog");
+    // An identity unchanged is not written: the label is changed for the write to go out.
+    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), " (toit)");
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await userEvent.click(await within(form).findByRole("button", { name: "Recharger" }));
+    expect(router.refresh).toHaveBeenCalledOnce();
+    // The page read anew brings the risk at the version the server holds; the offer closed the form.
+    rerender(detail(UPDATED));
+    await userEvent.click(modify());
+    const again = screen.getByRole("dialog");
+    await userEvent.type(within(again).getByRole("textbox", { name: "Libellé" }), " (toit)");
+    await userEvent.click(within(again).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(
+      client.calls.map((call) => (call.body as { lock_version: number }).lock_version),
+    ).toEqual([CREATED.lock_version, UPDATED.lock_version]);
+  });
 });
 
 describe("« Réexaminer » a risk", () => {

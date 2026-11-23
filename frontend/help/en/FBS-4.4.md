@@ -6,7 +6,7 @@ The estimate of a revision: the tasks of the structure read and the estimate lin
 
 Above the grid, the [estimate indicators](FBS-4.4.1.md) — its total, its provisions, its variances, its breakdowns —, with their date of calculation; and, when some are missing, the hourly rates the calculation needs. The banner says the reading context and the structure read — the main structure, a differential of amendment or the own estimate of a risk —, and offers to change it.
 
-The estimate is entered as long as the project is in pricing: on the main structure of a project In progress, it is read only, and the remaining expense is re-estimated in the [remaining to commit](FBS-4.5.md). The differential of an amendment and the own estimate of a risk are still entered. A line costs at the reference year of the revision; the server projects it onto its year of consumption, which the planning gives, at the inflation rate of the project.
+The estimate is entered as long as the project is in pricing: on the main structure of a project In progress, it is read only, and the remaining expense is re-estimated in the [remaining to commit](FBS-4.5.md). The differential of an amendment and the own estimate of a risk are still entered. An amendment in arrears — the main structure has received writes since it was opened — says so in a note above the grid; its gestures (update the amendment, contractualise it, abandon it) stay at the [planning](FBS-4.3.md). A line costs at the reference year of the revision; the server projects it onto its year of consumption, which the planning gives, at the inflation rate of the project.
 
 ## Its commands
 

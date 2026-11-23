@@ -1,0 +1,12 @@
+{
+  "summary": "Les liaisons FD, DD, FF et DF et leur décalage, les tâches en mode manuel et la contrainte « Pas avant le » d'un fichier de MS Project ressortent identiques après une écriture puis une relecture ; la contrainte à date est signalée à la lecture (WF-INTF-0040).",
+  "examples": ["WF-INTF-0040-A#90a413b0721b", "WF-INTF-0040-A#144393ff59c5"],
+  "files": {
+    "links": "01-links-and-lags-days.xml",
+    "manual": "06-manual-tasks.xml",
+    "constraints": "08-constraints.xml"
+  },
+  "link_types": ["finish_to_start", "start_to_start", "finish_to_finish", "start_to_finish"],
+  "lags_in_tenths_of_a_minute": [9600, -4800, 14400],
+  "constraint": {"task": "Debut au plus tot", "type": "start_no_earlier_than", "date": "2026-11-10T09:00:00"}
+}

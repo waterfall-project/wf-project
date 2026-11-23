@@ -1,0 +1,9 @@
+{
+  "summary": "Un projet en cours de budget 1 000, de coût réel 500 et de reste à engager 550 affiche une projection de 1 050 et un écart de 50 (WF-PTF-0040).",
+  "examples": ["WF-PTF-0040-A#b7dfea08ee32"],
+  "reference_budget": "1000.00",
+  "actual_cost": "500.00",
+  "remaining": "550.00",
+  "projection": "1050.00",
+  "variance": "50.00"
+}

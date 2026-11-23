@@ -265,7 +265,9 @@
       order item outside the subtree of the task of its work package is rejected whole in the
       report, which names both tasks, like a schedule that would extend the duration of the
       project beyond fifteen years (`ImportReport.refusals`, `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
-      `PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150; EP-14/L42s), and the deletion of an attached task
+      `PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150; EP-14/L42s), or a schedule that would leave
+      without a task a main structure that carries the provision line of a risk, naming the
+      risks (`PROVISION_WITHOUT_TASK`, WF-RIS-0010; #4011), and the deletion of an attached task
       is applied, the report naming the work package or order item that loses its task
       (`ImportDifference.work_breakdown_label`, WF-INTF-0040, WF-PLA-0170). On an In progress
       project, the estimate import is refused on the main structure, naming the condition — its

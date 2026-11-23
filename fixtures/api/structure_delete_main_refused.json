@@ -1,0 +1,10 @@
+{
+  "summary": "La « Structure principale » de la révision courante du témoin abandonnée : elle existe autant que sa révision, et seul un différentiel non fusionné s'abandonne — sa liste de commandes ne le propose pas (delete) ; refusée par la condition qui manque, unmerged_amendment_exists ; rien n'est supprimé (WF-REV-0100).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"unmerged_amendment_exists"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001957"
+  }
+}

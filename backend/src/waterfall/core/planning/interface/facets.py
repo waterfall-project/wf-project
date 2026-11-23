@@ -29,7 +29,8 @@ amount, which take the short path of a write (``inert``; EP-26, "Les écritures"
 with the budgeted amounts a tally counts the provisions left out (``Tally.earnable``), which the
 physical progress of a summary weighs (EP-10, "L'avancement physique"). US-2400/L1 gives every
 write that prices lines again the refusal at the fields that carry its change (``refused_at``,
-#3401).
+#3401). US-2620/L1 adds the nodes of the kind a graft copies from a structure into another, judged
+then written (``judge_graft``, ``graft``, ``FacetGraft``; EP-08, "La fusion et la survenance").
 """
 
 from contextlib import contextmanager
@@ -129,8 +130,8 @@ class Tally:
     """What the nodes of a kind a task bears count, read grouped by task (``FacetHooks.tally``).
 
     ``amounts`` their figures summed, as ``Amounts`` adds them, nought for nodes without a facet;
-    ``count`` how many they are, those without a facet included; ``own`` whether one is not
-    provided for a risk (``Node.origin_risk_id``); ``held_open`` whether one of those keeps it open,
+    ``count`` how many they are, those without a facet included; ``own`` whether one is not a line
+    of provision, as ``provisions`` tells; ``held_open`` whether one of those keeps it open,
     as ``register_open_lines`` tells; ``calendars`` the calendars they name, as ``calendars`` gives
     them (WF-PLA-0010); ``earnable`` the budgeted amounts of those not of a provision, as
     ``Amounts.budgeted`` reads each, which the physical progress of a summary weighs (WF-IND-0060,
@@ -179,6 +180,21 @@ class FacetWrite:
     revision_id: UUID
     node_id: UUID
     bearer: BearingTask
+    act: Act
+
+
+@dataclass(frozen=True, slots=True)
+class FacetGraft:
+    """Nodes of the kind a graft copies into another structure, their copies written already.
+
+    ``copies`` gives, for each node of the structure grafted, the node of the structure grafted
+    into that copies it, created under the copy of its task; its facet is to be written. ``act``
+    the author and the instant of the graft, which stamp the facets.
+    """
+
+    session: Session
+    project_id: UUID
+    copies: Mapping[UUID, UUID]
     act: Act
 
 
@@ -282,10 +298,15 @@ class FacetHooks:
     ``compareRevisions``): their figures and their facets, which ``totals`` and ``read`` give a
     write from its objects (US-2220). ``tally`` gives, by task, what its nodes of the kind count
     (``Tally``), read in one statement grouped by task from the nodes of the structure the planning
-    names — a subquery of their ``node_id``, the ``task_id`` bearing them and whether they are
-    ``from_risk`` —, for a reading of the tasks alone, which reads none of these nodes (US-2280).
-    ``provisions`` gives, of the nodes the planning names as ``tally`` does, those that are lines of
-    provision, whatever their amount (WF-IND-0060, US-1680).
+    names — a subquery of their ``node_id`` and the ``task_id`` bearing them —, for a reading of the
+    tasks alone, which reads none of these nodes (US-2280). ``provisions`` gives, of the nodes the
+    planning names as ``tally`` does, those that are lines of provision, whatever their amount
+    (WF-IND-0060, US-1680): what the planning asks of a line, never judging it by the risk it came
+    from (EP-08, "Ce qui reconnaît une ligne de provision").
+    ``judge_graft`` gives the reasons that refuse a graft (``graft``) for the nodes of the kind it
+    would copy, each named with the task bearing it in the structure grafted, in the form of the
+    contract (``ReportRefusal``), none when it accepts them; ``graft`` writes the facets of their
+    copies (``FacetGraft``), as the kind says a node grafted is (US-2620/L1).
     ``inert`` names, as ``FacetRead.editable_fields`` does, the fields of a node of the kind that
     neither the calendars the kind names (``calendars``) nor any amount of the kind (``reinflate``,
     ``totals``) read: a write that sends none but these can move no date nor change an amount, and
@@ -311,6 +332,10 @@ class FacetHooks:
     columns: Callable[[Session, UUID, Collection[UUID]], FacetColumns]
     tally: Callable[[Session, UUID, Subquery], Mapping[UUID, Tally]]
     provisions: Callable[[Session, UUID, Subquery], frozenset[UUID]]
+    judge_graft: Callable[
+        [Session, UUID, Mapping[UUID, BearingTask]], tuple[Mapping[str, Any], ...]
+    ]
+    graft: Callable[[FacetGraft], None]
     inert: tuple[str, ...]
 
 

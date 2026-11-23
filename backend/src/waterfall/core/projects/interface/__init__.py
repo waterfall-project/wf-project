@@ -12,12 +12,17 @@ the file.
 
 # ``commands`` (US-0920; exported by US-1380/L5 and US-1480/L4): the states that end the cycle of
 # life and those before In progress, the condition a terminal project lacks and the one a running
-# background task takes away, which the other modules judge by these names, never a copy (#2555).
+# background task takes away, which the other modules judge by these names, never a copy (#2555);
+# the entries of the risks and the two conditions a declaration lacks, written here once for the
+# revisions and the risks, which would else drift apart (#3996).
 from waterfall.core.projects.commands import (
+    ACTIVE_PROVISION_CATEGORY,
+    AT_LEAST_ONE_TASK,
     BEFORE_IN_PROGRESS,
     NO_BACKGROUND_TASK_RUNNING,
     PROJECT_BEFORE_IN_PROGRESS,
     PROJECT_NOT_TERMINAL,
+    RISK_ENTRIES,
     TERMINAL,
 )
 
@@ -88,9 +93,18 @@ from waterfall.core.projects.interface.lifecycle import (
     stored_lock_version,
 )
 
+# ``portfolio`` (US-2670/L1; US-2670/L3): what the portfolio reads of several projects at once.
+from waterfall.core.projects.interface.portfolio import (
+    ClosedOffer,
+    ProjectAtDate,
+    offers_closed_between,
+    openable,
+    projects_in_states_on,
+)
+
 # ``projects`` (US-0920): the project, its commands, its names for the journal.
 from waterfall.core.projects.interface.projects import (
-    ALL_PROJECTS_READ,
+    NOBODY,
     CommandAvailability,
     ProjectChange,
     ProjectColumn,
@@ -120,10 +134,17 @@ from waterfall.core.projects.interface.projects import (
     update_project,
 )
 
-# ``skeleton`` (US-1460): whether the revision a project would open carries a task.
+# ``risk_designations`` (US-3060/L4, #4208): the subprojects the provisions of the risks designate.
+from waterfall.core.projects.interface.risk_designations import (
+    RiskDesignations,
+    register_risk_designations,
+)
+
+# ``skeleton`` (US-1460, #2541): whether the main structure of the revision a project would open
+# carries a task.
 from waterfall.core.projects.interface.skeleton import (
-    opening_with_tasks,
-    register_opening_question,
+    opening_main_with_tasks,
+    register_opening_main_question,
 )
 
 # ``subprojects`` (US-0940; the facts of the actual costs, US-1610/L3): the subprojects of a
@@ -133,6 +154,7 @@ from waterfall.core.projects.interface.subprojects import (
     SubprojectChange,
     SubprojectColumn,
     SubprojectCommandAvailability,
+    SubprojectDeletion,
     SubprojectFilters,
     SubprojectLoad,
     SubprojectSort,
@@ -177,14 +199,18 @@ from waterfall.core.projects.interface.work_breakdown import (
 )
 
 __all__ = [
-    "ALL_PROJECTS_READ",
+    "ACTIVE_PROVISION_CATEGORY",
+    "AT_LEAST_ONE_TASK",
     "BEFORE_IN_PROGRESS",
     "BORN_LOCK_VERSION",
+    "NOBODY",
     "NO_BACKGROUND_TASK_RUNNING",
     "PROJECT_BEFORE_IN_PROGRESS",
     "PROJECT_NOT_TERMINAL",
+    "RISK_ENTRIES",
     "TERMINAL",
     "Attachments",
+    "ClosedOffer",
     "CommandAvailability",
     "ContributorColumn",
     "ContributorEntry",
@@ -208,6 +234,7 @@ __all__ = [
     "NextState",
     "OrderItemEntry",
     "OrderItemView",
+    "ProjectAtDate",
     "ProjectChange",
     "ProjectColumn",
     "ProjectDraft",
@@ -220,9 +247,11 @@ __all__ = [
     "ProjectState",
     "ProjectView",
     "RevisionFate",
+    "RiskDesignations",
     "SubprojectChange",
     "SubprojectColumn",
     "SubprojectCommandAvailability",
+    "SubprojectDeletion",
     "SubprojectFilters",
     "SubprojectLoad",
     "SubprojectSort",
@@ -266,13 +295,16 @@ __all__ = [
     "lock_project",
     "next_state",
     "no_background_task_running",
-    "opening_with_tasks",
+    "offers_closed_between",
+    "openable",
+    "opening_main_with_tasks",
     "project_code",
     "project_commands",
     "project_exists",
     "project_facts",
     "project_label",
     "project_subproject_labels",
+    "projects_in_states_on",
     "projects_named",
     "projects_present",
     "read_next_state",
@@ -281,7 +313,8 @@ __all__ = [
     "register_attachments",
     "register_cost_facts",
     "register_estimate_facts",
-    "register_opening_question",
+    "register_opening_main_question",
+    "register_risk_designations",
     "require_project_manager",
     "set_contributors",
     "set_current_revision",

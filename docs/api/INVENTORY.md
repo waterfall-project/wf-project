@@ -6,8 +6,8 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**171 opérations sur 133 chemins, dans 13 familles.**
-Le contrat cite **195 des 219 exigences** de la spécification.
+**174 opérations sur 134 chemins, dans 13 familles.**
+Le contrat cite **195 des 224 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -155,7 +155,7 @@ Le contrat cite **195 des 219 exigences** de la spécification.
 
 ## Révisions, structures et arbre commun
 
-`paths/revisions.yaml` — 31 opérations
+`paths/revisions.yaml` — 34 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -171,8 +171,11 @@ Le contrat cite **195 des 219 exigences** de la spécification.
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Cost structures of the revision | WF-DEV-0050, WF-IHM-0090, WF-RAE-0040, WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Open a differential | WF-REV-0050, WF-REV-0100, WF-RIS-0030 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Modify the planning start date and the label of a structure | WF-PLA-0010, WF-PLA-0020, WF-REV-0100 |
+| DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Abandon a differential | WF-IHM-0110, WF-REV-0050, WF-REV-0100, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Preliminary report of the merge of a differential | WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0050 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Merge a differential into the main structure | WF-ARC-0090, WF-DEV-0020, WF-IHM-0080, WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0020, WF-REV-0050, WF-REV-0060, WF-SEC-0030 |
+| GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase` | Preliminary report of the update of a differential | WF-REV-0050, WF-REV-0100 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase` | Update a differential from the main structure | WF-IHM-0110, WF-REV-0010, WF-REV-0100 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Common tree of the structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-IHM-0130, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170, WF-REV-0100, WF-RIS-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Create a task or an estimate line | WF-CYC-0100, WF-DAT-0020, WF-DEV-0020, WF-DEV-0050, WF-PLA-0010, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0080, WF-PLA-0150, WF-PLA-0170, WF-RAE-0040, WF-RAE-0050, WF-REV-0050, WF-RIS-0010 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}` | The node that carries a row number | WF-ADM-0110, WF-PLA-0080 |
@@ -249,7 +252,7 @@ Le contrat cite **195 des 219 exigences** de la spécification.
 | PUT | `/chunked-uploads/{chunked_upload_id}/parts/{part_number}` | Upload a chunk | WF-ADM-0160 |
 | POST | `/chunked-uploads/{chunked_upload_id}/completion` | Complete the chunked upload | WF-ADM-0160 |
 | GET | `/projects/{project_id}/imports` | Imports of the project | WF-ARC-0100, WF-INTF-0080 |
-| POST | `/projects/{project_id}/imports` | Open an import and start its analysis | WF-ARC-0090, WF-ARC-0100, WF-CRE-0050, WF-DAT-0120, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050, WF-REF-0190 |
+| POST | `/projects/{project_id}/imports` | Open an import and start its analysis | WF-ARC-0090, WF-ARC-0100, WF-CRE-0050, WF-DAT-0120, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050, WF-REF-0190, WF-RIS-0010 |
 | GET | `/projects/{project_id}/imports/{import_id}` | Report of an import | WF-ARC-0110, WF-CRE-0020, WF-IHM-0090, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0160, WF-REF-0190 |
 | DELETE | `/projects/{project_id}/imports/{import_id}` | Abandon an import | WF-ARC-0100, WF-DAT-0120, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports/{import_id}/apply` | Apply an import | WF-ARC-0100, WF-CRE-0030, WF-DAT-0110, WF-INTF-0080, WF-INTF-0100, WF-INTF-0140, WF-REF-0190 |
@@ -273,7 +276,7 @@ Le contrat cite **195 des 219 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-24 sur 219. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+29 sur 224. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
@@ -283,6 +286,9 @@ surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 | CMP | WF-CMP-0010 | Compatibilité des navigateurs et largeurs d'affichage : propriété du front. |
 | DAT | WF-DAT-0050, WF-DAT-0140, WF-DAT-0150 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
 | EXP | WF-EXP-0010 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
-| IHM | WF-IHM-0010, WF-IHM-0100, WF-IHM-0140 | Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent dans le front. |
+| IHM | WF-IHM-0010, WF-IHM-0100, WF-IHM-0140, WF-IHM-0180 | Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent dans le front. La copie de lignes d'une grille (WF-IHM-0180), ajoutée par la spécification 1.0.8, attend son contrat (#4398). |
+| IND | WF-IND-0140 | La marque d'une survenance sur les courbes de valeur acquise (WF-IND-0140), ajoutée par la spécification 1.0.9 : EP-30 écrit son contrat (US-3120), dont les issues s'ouvrent avec celles de ses lots. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
 | QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0030, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070, WF-QUA-0080 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |
+| REV | WF-REV-0110 | La base d'un différentiel et sa mise à jour (WF-REV-0110), ajoutées par la spécification 1.0.8 : les opérations qu'EP-08 écrit pour elles (US-3050) les servent, et leur citation au contrat reste à écrire (#4402). |
+| RIS | WF-RIS-0070, WF-RIS-0080 | La mise à jour du devis propre d'un risque (WF-RIS-0070) et la gravité d'un risque (WF-RIS-0080), ajoutées par la spécification 1.0.9 : EP-30 écrit leur contrat (US-3090, US-3080), dont les issues s'ouvrent avec celles de ses lots. |

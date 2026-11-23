@@ -27,15 +27,34 @@ the slice writes at that instant, in the order it writes it. A write is
 - ``state_transition``, ``from``, ``to``: the project changes state, by what is written before it
   (the opening of the offer: Created to Pricing; the code entered, once the reference is
   designated: Pricing to In progress).
+- ``risk_declared``, ``risk_id``: a risk declared in the revision in progress, as
+  ``witness_risks.json`` describes it, its own estimate entered then (``mockwitnessrisksfile``),
+  which a review at its probability follows, the same instant: the declaration keeps the severity
+  of an own estimate still empty, the review the one entered (WF-RIS-0010);
+- ``risk_reviewed``, ``risk_id``, ``probability``, ``state``: a review of a risk, which may dismiss
+  it (WF-RIS-0020);
+- ``risk_occurred``, ``risk_id``: the occurrence of a risk, its own estimate grafted into the main
+  structure of the revision in progress (WF-RIS-0060);
+- ``amendment_opened``, ``revision``, ``structure_id``: an amendment opened in the revision in
+  progress, as ``witness_amendments.json`` describes it, and its content entered if that revision
+  gives it;
+- ``amendment_merged``, ``revision``, ``structure_id``, ``version_name``: an amendment merged, which
+  marks its revision under that name and makes it the reference (WF-REV-0050);
+- ``amendment_rebased``, ``revision``, ``structure_id``: an amendment updated from the main
+  structure, then its content entered if that revision gives it (US-3050).
 
 An event the slice does not write (the installation, the entries of risks and of costs, the
 imports; EP-06 to EP-09) has no write, and keeps its place: the order and the instants are the
 chronology's.
 
-The writes are exactly those the design of EP-04 lists for the loader (« L'amorçage et le
-chargeur »), in that order: the revision 100 opened (Created to Pricing), its marking « v1.0 », the
-101 opened, the designation of 100, the code entered, the 101 marked « Référence », the 102
-opened; and, from EP-07 (« Le chargeur du témoin », US-1570/L1), the update
+The writes are those the design of EP-04 lists for the loader (« L'amorçage et le chargeur »), in
+that order: the revision 100 opened (Created to Pricing), its marking « v1.0 », the 101 opened,
+the designation of 100, the code entered, the 101 marked « Référence », the 102 opened; from EP-08
+(« Le chargeur du témoin », US-2650/L1), the 101 is opened by the declaration of the risks, which
+the reviews, the dismissal of 753 and the occurrence of 752 follow, the two amendments are opened
+in it, the first entered with what separates the offer from the reference, and the 101 is marked
+by the merge of the amendment 1, the second updated in the 102 after the last write of its main
+structure; and, from EP-07 (« Le chargeur du témoin », US-1570/L1), the update
 of the rates of 2026 accepted on the 101 a quarter of an hour after its opening, for the two labour
 categories the offer employs. The witness abandons no revision, and the form has no kind of
 abandon: the abandon of a revision is in the journey of the cycle, played by L2. The code entered
@@ -50,10 +69,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from wftools import mocktext, mockwitness, mockwitnesscostfile
-from wftools.mockids import hex_identifier
+from wftools import mocktext, mockwitness, mockwitnesscostfile, mockwitnessrisksfile
+from wftools.mockids import hex_identifier, universe
 from wftools.mockstructure import LABOUR_RATES
 from wftools.mockwitnesscosts import COSTS, JOURNAL
+from wftools.mockwitnessrisks import IDENTIFIED, OCCURRED, REGISTER
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
@@ -76,10 +96,37 @@ REFERENCE_VERSION = "Référence"
 """The names under which the offer and the reference are marked."""
 
 
+def _risk_writes(into: JsonObject) -> dict[Event, list[JsonObject]]:
+    """Return what the slice writes of the risks, at the event of each review of each risk.
+
+    The first review of a risk is its declaration, the occurrence its last; the others review it,
+    the first of them its identification once its own estimate is entered.
+    """
+    events = {event.instant: event for event in mockwitness.CHRONOLOGY}
+    writes: dict[Event, list[JsonObject]] = {}
+    for risk in REGISTER:
+        named: JsonObject = {**into, "risk_id": universe(risk.number)}
+        for number, review in enumerate(risk.reviews):
+            if number == 0 and review.state == IDENTIFIED:
+                write: JsonObject = {"kind": "risk_declared", **named}
+            elif review.state == OCCURRED:
+                write = {"kind": "risk_occurred", **named}
+            else:
+                write = {
+                    "kind": "risk_reviewed",
+                    **named,
+                    "probability": str(review.probability),
+                    "state": review.state,
+                }
+            writes.setdefault(events[review.at], []).append(write)
+    return writes
+
+
 def _writes() -> dict[Event, list[JsonObject]]:
     """Return what the slice writes, at each event it writes at, into the witness project."""
     code = mockwitness.fixture("project")["code"]
     into: JsonObject = {"project": code}
+    risks = _risk_writes(into)
     return {
         mockwitness.CREATED: [{"kind": "project_created", **into}],
         mockwitness.OFFER_OPENED: [
@@ -94,7 +141,10 @@ def _writes() -> dict[Event, list[JsonObject]]:
                 "version_name": OFFER_VERSION,
             }
         ],
-        mockwitness.RISKS_IDENTIFIED: [{"kind": "revision_opened", **into, "revision": REFERENCE}],
+        mockwitness.RISKS_IDENTIFIED: [
+            {"kind": "revision_opened", **into, "revision": REFERENCE},
+            *risks.pop(mockwitness.RISKS_IDENTIFIED),
+        ],
         mockwitness.RATES_UPDATED: [
             {
                 "kind": "rate_update_applied",
@@ -108,15 +158,44 @@ def _writes() -> dict[Event, list[JsonObject]]:
             {"kind": "code_entered", **into, "code": code},
             {"kind": "state_transition", **into, "from": "pricing", "to": "in_progress"},
         ],
-        mockwitness.AMENDMENT_MERGED: [
+        mockwitness.AMENDMENT_1_OPENED: [
             {
-                "kind": "revision_marked",
+                "kind": "amendment_opened",
                 **into,
                 "revision": REFERENCE,
+                "structure_id": mockwitnessrisksfile.AMENDMENT_1,
+            }
+        ],
+        mockwitness.AMENDMENT_2_OPENED: [
+            {
+                "kind": "amendment_opened",
+                **into,
+                "revision": REFERENCE,
+                "structure_id": mockwitnessrisksfile.AMENDMENT_2,
+            }
+        ],
+        mockwitness.AMENDMENT_MERGED: [
+            {
+                "kind": "amendment_merged",
+                **into,
+                "revision": REFERENCE,
+                "structure_id": mockwitnessrisksfile.AMENDMENT_1,
                 "version_name": REFERENCE_VERSION,
             }
         ],
-        mockwitness.RISK_751_REVIEWED: [{"kind": "revision_opened", **into, "revision": CURRENT}],
+        mockwitness.RISK_751_REVIEWED: [
+            {"kind": "revision_opened", **into, "revision": CURRENT},
+            *risks.pop(mockwitness.RISK_751_REVIEWED),
+        ],
+        mockwitness.AMENDMENT_2_REBASED: [
+            {
+                "kind": "amendment_rebased",
+                **into,
+                "revision": CURRENT,
+                "structure_id": mockwitnessrisksfile.AMENDMENT_2,
+            }
+        ],
+        **risks,
         mockwitness.RECEPTION_EXCLUDED: [
             {
                 "kind": "cost_line_excluded",

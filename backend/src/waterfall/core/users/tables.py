@@ -173,7 +173,7 @@ class IdentitySyncReport(Base):
 
 # The periodicity as the platform ships it: daily at 01:30 UTC, half an hour after the shipped
 # backup (`IdentitySyncSchedule`), its counter at 1, as a created object's, and by the platform.
-# Migration 0038 writes it.
+# Migration 0047 writes it.
 SHIPPED_SCHEDULE: dict[str, object] = {
     "id": SINGLE_ROW,
     "is_enabled": True,

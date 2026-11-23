@@ -295,7 +295,7 @@ services:
   # TLS alone (TFX-04, TFX-10): no port in the clear (--port 0); no certificate asked of its
   # clients, who sign in with the password.
   redis:
-    image: ${WATERFALL_MIRROR:-}redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+    image: ${WATERFALL_MIRROR:-}redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
     user: redis
     command: ["sh", "-c", "exec redis-server --requirepass \"$$REDISCLI_AUTH\" --save '' --port 0 --tls-port 6379 --tls-cert-file /tls/tls.crt --tls-key-file /tls/tls.key --tls-ca-cert-file /tls/ca.crt --tls-auth-clients no"]
     environment:

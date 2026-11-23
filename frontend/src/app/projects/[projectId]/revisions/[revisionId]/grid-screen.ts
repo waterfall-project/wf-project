@@ -44,6 +44,7 @@ import type { ChartProvenance } from "@/components/chart/chart";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
 import { type BaseChoices, baseOptions } from "@/components/context/revision";
 import {
+  type ListedStructure,
   listedStructure,
   STRUCTURE_PARAMETER,
   type StructureChoices,
@@ -217,6 +218,8 @@ export interface GridScreen<Row> {
    * grid that reads the main structure alone (`GridReading.chooses`).
    */
   readonly structures: StructureChoices | undefined;
+  /** The structure read as the server lists it, on every grid: what says an amendment is late. */
+  readonly read: ListedStructure;
   /**
    * The base the grid is compared to and those the banner offers, on a grid that compares read on the
    * main structure (US-2330); none on any other, where the banner offers no base.
@@ -399,6 +402,7 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     structure,
     structureVersion: read.lock_version,
     planningStart: read.planning_start_on,
+    read: listedStructure(read),
     structures: chooses
       ? { read: listedStructure(read), listed: structures.map(listedStructure) }
       : undefined,
@@ -524,6 +528,10 @@ export async function readGridScreen<N extends NodeField, T extends TaskField, L
     asked,
     grid.byBreakdown === true ? readBreakdownItems(at, needed) : undefined,
     occurred,
+    // Awaited here as well as by the nodes, which wait for the structures first: a reading of the
+    // risks that rejects while they are not yet awaited would leave `requested` without a handler
+    // (#1972). Its value is the one `structure` carries.
+    requested,
   ]);
   if (reading === "not_found") {
     notFound();

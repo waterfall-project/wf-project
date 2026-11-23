@@ -21,7 +21,9 @@ imposes (``Act.at``).
 ``load_line_nodes`` does the same for the lines of the revision (EP-07, "Le chargeur du témoin"),
 once the tasks are written: the lines the copy gave are deleted, kept or created by lineage, at the
 identifiers the witness imposes, their facets written by the hooks of the kind ``estimate_line``;
-the engine is replayed once and the lines of the tasks priced again on the dates it computes.
+the engine is replayed once and the lines of the tasks priced again on the dates it computes. The
+lines of provision are none of the witness's: a risk creates them (WF-RIS-0010), and they stay as
+they are, after the lines described of their task (EP-08, US-2650/L1).
 
 A file of its own: ``nodes`` holds the reading and the writes of the tree, and a source file stops
 at a thousand lines.
@@ -32,6 +34,7 @@ from typing import TYPE_CHECKING
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from sqlalchemy import delete, insert
+from sqlalchemy.orm.attributes import flag_modified
 
 from waterfall.core.planning.carrying import borne
 from waterfall.core.planning.interface.facets import (
@@ -45,6 +48,7 @@ from waterfall.core.planning.rescheduling import Holding, replayed
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.shaping import deleted
 from waterfall.core.planning.tables import Node, Task, TaskLink
+from waterfall.core.planning.tallying import provision_lines
 from waterfall.core.planning.tree import LINE, TASK, read_tree
 from waterfall.core.planning.views import NOT_STARTED
 from waterfall.core.planning.writing import facts_of, hold_before_lock, judge_revision
@@ -110,6 +114,15 @@ class ParentageLoopError(ValueError):
         super().__init__(f"the parentage of task {lineage_id} loops on itself")
 
 
+class ParentAbsentError(ValueError):
+    """A task described has a parent that the tasks described do not hold."""
+
+    def __init__(self, lineage_id: UUID, parent_lineage_id: UUID) -> None:
+        super().__init__(
+            f"task {lineage_id} has the parent {parent_lineage_id}, which is not described"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class TasksLoad:
     """What the witness describes of a structure: its planning start, its tasks, in any order."""
@@ -173,11 +186,13 @@ def _parents_first(tasks: tuple[TaskLoad, ...]) -> list[TaskLoad]:
         current: TaskLoad | None = each
         while current is not None and current.lineage_id not in depths:
             if len(chain) >= len(tasks):
-                raise ParentageLoopError(each.lineage_id)
+                # The walk went further than the tasks are many: current is in the cycle.
+                raise ParentageLoopError(current.lineage_id)
             chain.append(current)
-            current = (
-                None if current.parent_lineage_id is None else by_lineage[current.parent_lineage_id]
-            )
+            parent_id = current.parent_lineage_id
+            if parent_id is not None and parent_id not in by_lineage:
+                raise ParentAbsentError(current.lineage_id, parent_id)
+            current = None if parent_id is None else by_lineage[parent_id]
         base = -1 if current is None else depths[current.lineage_id]
         for step, found in enumerate(reversed(chain), start=1):
             depths[found.lineage_id] = base + step
@@ -368,6 +383,22 @@ def _laid(lines: tuple[LineNodeLoad, ...]) -> list[tuple[LineNodeLoad, int]]:
     ]
 
 
+def _provisions_last(
+    tree: Tree, provisions: frozenset[UUID], laid: list[tuple[LineNodeLoad, int]]
+) -> None:
+    """Rank the lines of provision after the lines described of their task, in their order."""
+    counted: dict[UUID | None, int] = {}
+    for each, _ in laid:
+        counted[each.task_lineage_id] = counted.get(each.task_lineage_id, 0) + 1
+    for node_id in tree.order:
+        if node_id not in provisions:
+            continue
+        node = tree.nodes[node_id]
+        bearer = None if node.parent_id is None else tree.nodes[node.parent_id].lineage_id
+        counted[bearer] = counted.get(bearer, 0) + 1
+        node.rank = counted[bearer]
+
+
 def load_line_nodes(
     session: Session, place: Place, lines: tuple[LineNodeLoad, ...], act: Act
 ) -> frozenset[UUID]:
@@ -390,10 +421,12 @@ def load_line_nodes(
         message = f"lines name {len(unknown)} tasks the structure does not hold"
         raise ValueError(message)
     described = {each.lineage_id: each for each in lines}
+    provisions = provision_lines(session, project_id, place.structure_id)
     stale = [
         node_id
         for node_id in tree.order
         if tree.nodes[node_id].kind == LINE
+        and node_id not in provisions
         and (
             tree.nodes[node_id].lineage_id not in described
             or described[tree.nodes[node_id].lineage_id].node_id != node_id
@@ -431,6 +464,7 @@ def load_line_nodes(
     if made:
         with session.no_autoflush:
             session.execute(insert(Node), made)
+    _provisions_last(tree, provisions, laid)
     session.flush()
     hooks = facets()[LINE]
     # The tasks that bear a line, told of once, before any facet is written: their calendars read
@@ -448,6 +482,10 @@ def load_line_nodes(
             node.parent_id, node.rank = task_id, rank
             node.lock_version += 1
             node.updated_at, node.updated_by = act.at, act.author
+            # Every column written, those that stay included: the nodes kept then go out in one
+            # statement, which a flush splits wherever two neighbours move different columns.
+            for name in ("parent_id", "updated_at", "updated_by"):
+                flag_modified(node, name)
             write = FacetWrite(
                 session, project_id, place.revision_id, each.node_id, bearers[task_id], act
             )

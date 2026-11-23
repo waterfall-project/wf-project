@@ -32,9 +32,15 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from waterfall.core.projects.interface import project_code, project_facts, project_label
-from waterfall.core.revisions.tables import Revision
+from waterfall.core.revisions.tables import STRUCTURE_KINDS, Revision
 from waterfall.core.users.interface import inscribed_actor
-from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
+from waterfall.platform.audit import (
+    AuditObject,
+    AuditProject,
+    AuditRevision,
+    Inscription,
+    record,
+)
 from waterfall.platform.errors import (
     NOT_FOUND,
     STATE_FORBIDS_OPERATION,
@@ -47,7 +53,14 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.revisions.interface.structures import StructureFacts
     from waterfall.platform.audit import Act, AuditAction
+
+
+# The kind of the main structure of a revision (``StructureKind``), read by the modules of this
+# package that cannot import ``structures``, which imports them (#4003); the kinds all derive from
+# ``STRUCTURE_KINDS``, the list the table constrains, so that no declaration can drift (#4033).
+MAIN, AMENDMENT, RISK, BASE = STRUCTURE_KINDS
 
 
 def refuse(condition: str) -> ConflictError:
@@ -85,6 +98,28 @@ def inscribe_revision(
     named = None if label is None else AuditProject(revision.project_id, code, label)
     audited = AuditObject("revision", revision.id, name)
     actor = inscribed_actor(session, act.author)
+    record(session, Inscription(action, actor, audited, act.at, project=named))
+
+
+def inscribe_structure(
+    session: Session,
+    project_id: UUID,
+    structure: StructureFacts,
+    act: Act,
+    merged: tuple[UUID, str] | None = None,
+) -> None:
+    """Inscribe the abandonment of a differential, or its merge: it, its revision, its project.
+
+    ``merged`` the revision a merge marks and the name it marks it under (US-2560/L2): the merge
+    is inscribed then (``structure_merge``), the abandonment otherwise, its revision unnamed.
+    """
+    code = project_code(session, project_id)
+    label = project_label(session, project_id)
+    named = None if label is None else AuditProject(project_id, code, label)
+    revision = AuditRevision(*(merged or (structure.revision_id, None)))
+    audited = AuditObject("cost_structure", structure.structure_id, structure.label, revision)
+    actor = inscribed_actor(session, act.author)
+    action: AuditAction = "structure_abandon" if merged is None else "structure_merge"
     record(session, Inscription(action, actor, audited, act.at, project=named))
 
 

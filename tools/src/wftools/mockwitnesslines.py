@@ -72,7 +72,7 @@ def _structures() -> dict[int, list[mockcore.Row]]:
     }
 
 
-def _line(revision: int, row: mockcore.Row, lineages: dict[str, str]) -> JsonObject:
+def line_entry(revision: int, row: mockcore.Row, lineages: dict[str, str]) -> JsonObject:
     """Return a line of a revision, from the node the structure emits for it."""
     node = row.node
     facet = cast("JsonObject", node["estimate_line"])
@@ -97,7 +97,7 @@ def lines() -> JsonObject:
             if row.kind == mockcore.TASK
         }
         own = [
-            _line(revision, row, lineages)
+            line_entry(revision, row, lineages)
             for row in rows
             if row.kind == mockcore.ESTIMATE_LINE and not mockhistory.is_provision(row)
         ]

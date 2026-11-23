@@ -63,6 +63,7 @@ class RemainingFormat:
     header_length = HEADER_LENGTH
     judged_first = True
     scope: ImportScope = "structure"
+    reading = "remaining.read"
     permission = "remaining.write"
 
     def read_header(self, session: Session, head: bytes) -> None:

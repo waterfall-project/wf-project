@@ -13,7 +13,7 @@ conservation au marquage"):
   for the project, the lines out of any subproject (``unassigned``) and each subproject of the
   project;
 - ``remaining``, the indicators of its remaining to commit (``remaining_indicators``, EP-09), the
-  coverage of the risks nought until EP-08, once, for the project: the contract reads them on no
+  coverage of the risks included (EP-08), once, for the project: the contract reads them on no
   other scope, each subproject having its balance in the document;
 - ``project``, the project In progress alone, its earned value indicators on each of those scopes,
   computed in one pass on the day of the marking in the time zone of the installation, on the
@@ -36,7 +36,6 @@ Nothing is caught: a computation that raises fails the marking, nothing being wr
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 from waterfall.core.costs.interface import PROJECT, UNASSIGNED
 from waterfall.core.estimate import interface as estimate
@@ -55,17 +54,19 @@ from waterfall.core.indicators.interface.estimate_documents import (
 from waterfall.core.indicators.shaping import Context, instant
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.projects.interface import (
+    NOBODY,
     SubprojectFilters,
     SubprojectSort,
-    Viewer,
     current_day,
     list_subprojects,
     project_facts,
 )
-from waterfall.core.revisions.interface import revision_project
+from waterfall.core.revisions.interface import reference_at_marking, revision_project
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from sqlalchemy.orm import Session
 
     from waterfall.core.costs.interface import CostScope
@@ -74,8 +75,6 @@ if TYPE_CHECKING:
 
 IN_PROGRESS = "in_progress"
 MARKED = "marked"
-# Who reads the subprojects of the project for the marking: no account, no permission.
-NOBODY = Viewer(UUID(int=0), ())
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,7 +139,12 @@ def _documents(session: Session, project_id: UUID, revision_id: UUID, act: Act) 
     remaining = estimate.remaining_indicators(session, project_id, revision_id, act.at)
     kept.append(Kept("remaining", PROJECT, _as_kept(remaining_document(remaining), act)))
     if facts.state == IN_PROGRESS:
-        basis = Basis(project_id, revision_id, facts.reference_revision_id)
+        reference = reference_at_marking(session, revision_id, facts.reference_revision_id)
+        if reference == revision_id:
+            # A merge marks and designates at once: the document is drawn on the new reference.
+            basis = Basis(project_id, revision_id, revision_id, act.at)
+        else:
+            basis = Basis(project_id, revision_id, reference)
         context = Context(revision_id, MARKED, act.at, PROJECT, is_stored=True)
         documents = day_documents(session, basis, context, scopes)
         kept.extend(Kept("project", scope, documents[scope]) for scope in scopes)
