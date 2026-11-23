@@ -283,7 +283,11 @@ def _how(template: Template) -> str:
         # The watcher writes before it releases the lock: without it, the loading still runs, or
         # was killed with its watcher by the process that started it.
         return "had not ended, or was killed with its watcher (SIGKILL)"
-    status = int(written.read_text("utf-8"))
+    try:
+        status = int(written.read_text("utf-8"))
+    except OSError, ValueError:
+        # Empty or unreadable: the watcher was cut in its writing, or is still at it.
+        return "ended in a way its watcher did not say"
     if status == -signal.SIGALRM:
         return "was ended by the system at its deadline (SIGALRM): it lasted past LOADING_TIMEOUT"
     if status == -signal.SIGKILL:

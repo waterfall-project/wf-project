@@ -4422,7 +4422,9 @@ travail, sous la sienne : passé ce délai, le test échoue avec ce que le charg
 façon dont il s'est terminé (code de sortie que son surveillant écrit : échec, `SIGALRM` à
 l'échéance, `SIGKILL`), le chargement s'arrête et la fin de pytest ne l'attend plus. Le délai d'un
 test couvre l'item entier, démontage compris : un démontage qui suit un gel peut se figer à son
-tour, et le délai du travail (25 minutes, pour des parts de 8 à 20 minutes) reste le filet.
+tour, et le délai du travail (25 minutes, pour des parts de 8 à 21 minutes : environ 4 minutes de
+marge avec un chargement de 570 secondes, moins d'une si le chargement prend toute son échéance
+de 780) reste le filet.
 
 Un pytest tué (`SIGTERM`, `SIGKILL`) avant sa fin laisse la base `waterfall_witness_*` (et ses
 copies), les rôles `waterfall_witness_*_signing` et `waterfall_witness_*_service` et le répertoire

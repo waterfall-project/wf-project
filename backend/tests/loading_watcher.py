@@ -32,6 +32,10 @@ def watch(loader: Sequence[str]) -> NoReturn:
     ``loader`` ends with that directory. The loader is not handed the lock of the loading, which
     the watcher releases when it ends, once ``exit`` is written. A loader that cannot start is
     said in the log, which the watcher's output is.
+
+    No handler of ``SIGTERM``: one sent to the watcher alone ends it at once and leaves the loader
+    alive until its own alarm (``SIGALRM``), which bounds it; ``ended()`` of the loading kills the
+    whole group, which is how a test or the end of pytest stops it.
     """
     directory = Path(loader[-1])
     try:
@@ -40,7 +44,11 @@ def watch(loader: Sequence[str]) -> NoReturn:
         sys.stdout.write(f"the loader did not start: {error}\n")
         sys.stdout.flush()
         status = NOT_STARTED
-    (directory / EXIT).write_text(str(status), encoding="utf-8")
+    # Written aside, then put in place whole: the test that reads at its deadline, the watcher not
+    # yet done, finds the file complete or not at all.
+    pending = directory / f"{EXIT}.pending"
+    pending.write_text(str(status), encoding="utf-8")
+    pending.replace(directory / EXIT)
     if status < 0:
         if -status != signal.SIGKILL:
             signal.signal(-status, signal.SIG_DFL)

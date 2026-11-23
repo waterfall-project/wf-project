@@ -4383,7 +4383,8 @@ past it, the test fails with what the loading said and how it ended (the exit st
 writes: a failure, `SIGALRM` at the deadline, `SIGKILL`), the loading stops, and the end of pytest
 no longer waits for it. The delay of a test covers the whole item, its teardown included: a
 teardown that follows a freeze may freeze in turn, and the delay of the job (25 minutes, for parts
-of 8 to 20 minutes) remains the net.
+of 8 to 21 minutes: some 4 minutes of margin with a loading of 570 seconds, under 1 if the
+loading takes its whole deadline of 780) remains the net.
 
 A pytest killed (`SIGTERM`, `SIGKILL`) without reaching its end leaves the database
 `waterfall_witness_*` (and its copies), the roles `waterfall_witness_*_signing` and

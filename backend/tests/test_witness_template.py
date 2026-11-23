@@ -186,6 +186,20 @@ def test_a_loading_ended_by_its_alarm_says_it_lasted_past_its_deadline(
     with pytest.raises(pytest.fail.Exception, match=r"ended by the system at its deadline"):
         built(planned)
     assert (planned.directory / EXIT).read_text("utf-8") == str(-signal.SIGALRM)
+    assert sorted(each.name for each in planned.directory.glob(f"{EXIT}*")) == [EXIT]
+
+
+@pytest.mark.parametrize("written", ["", "not a status"], ids=["empty", "unreadable"])
+def test_the_end_of_a_loading_whose_exit_is_not_a_status_is_said_without_failing(
+    planned: Template, written: str
+) -> None:
+    """The ``exit`` the watcher did not finish, read at the deadline, names no status, no error."""
+    loading = start(planned, IDLE)
+    assert loading is not None
+    assert loading.ended() == 0
+    (planned.directory / EXIT).write_text(written, encoding="utf-8")
+    with pytest.raises(pytest.fail.Exception, match=r"(?s)was not loaded; .*did not say"):
+        built(planned)
 
 
 def test_a_loading_that_said_it_ended_is_not_given_a_cause_when_it_fails(

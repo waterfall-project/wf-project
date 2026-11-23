@@ -82,7 +82,7 @@ def _copy_tasks(
     session.execute(insert(TASK).from_select(names, rows))
 
 
-def _copy_links(copy: RevisionCopy, nodes: dict[UUID, UUID], structures: dict[UUID, UUID]) -> None:
+def copy_links(copy: RevisionCopy, nodes: dict[UUID, UUID], structures: dict[UUID, UUID]) -> None:
     """Copy the links of the structures copied, each under an identifier of its own.
 
     The copies of a link's structure and of its two tasks are found here, by the link: joined in
@@ -190,7 +190,7 @@ def _copy(copy: RevisionCopy, *, attached: bool, left_out: frozenset[UUID] = fro
     )
     session.execute(insert(NODE).from_select(names, rows))
     _copy_tasks(copy, nodes, structures, attached=attached)
-    _copy_links(copy, nodes, structures)
+    copy_links(copy, nodes, structures)
     for hooks in facets().values():
         hooks.copy(copy)
 

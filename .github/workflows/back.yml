@@ -57,8 +57,9 @@ jobs:
     # #4653): the eight parts took 6 to 10 minutes (run 44957647502), then the six 7 to 14 minutes
     # (run 44958967745), each under the delay of 20 minutes, a margin to the slowest runner rather
     # than a wait. Since the own estimates of the risks are born whole (EP-30, US-3070/L3), the
-    # template takes 280 to 570 seconds on a runner, and the six parts 8 to 20 minutes (run
-    # 45209389445): the slowest, its loading at its deadline (780 s, 210 more), would take 23.
+    # template takes 280 to 570 seconds on a runner, and the six parts 8 to 21 minutes (runs
+    # 45209389445, 45215979199): some 4 minutes of margin to this delay with a loading of 570 s, and
+    # under 1 if a loading took its whole deadline (780 s, 210 more), for the slowest part.
     timeout-minutes: 25
     services:
       postgres:

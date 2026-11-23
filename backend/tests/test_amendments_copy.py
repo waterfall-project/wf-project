@@ -18,6 +18,7 @@ import pytest
 from amendments_support import on, opened_amendment, structures_path
 from estimate_support import Costing, Lines, costing
 from nodes_support import Tree, mark, opened
+from planning_support import insert_link, insert_task
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from risks_support import Costed, costed, declared, material
@@ -27,9 +28,12 @@ from waterfall.core.estimate.tables import (
     EstimateLine,
     RevisionRate,
 )
+from waterfall.core.planning.interface import copy_links
 from waterfall.core.planning.tables import Node, Task, TaskLink
+from waterfall.core.revisions.interface import RevisionCopy
 from waterfall.core.revisions.tables import CostStructure
 from waterfall.core.risks.tables import RiskEvaluation
+from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -217,3 +221,68 @@ def test_a_differential_taken_up_is_read_against_the_main_structure_as_it_was(
         "Essais": "added",
         "Banc": "added",
     }
+
+
+@pytest.mark.story("US-3070")
+def test_the_copy_of_the_links_remaps_their_ends_and_structures_and_leaves_out_a_link_cut(
+    api: ContractClient, project: Costed
+) -> None:
+    # The links of two structures copied each under an identifier of its own, their two ends and
+    # their structure remapped; the link one of whose tasks is not copied is left out, and so is
+    # the link of a structure that is not copied (US-3070/L3, the copy of the links by the link).
+    stage = project.stage
+    sources = [project.structure_id, UUID(opened_amendment(api, project, "Avenant 1"))]
+    targets = [UUID(opened_amendment(api, project, f"Avenant {each}")) for each in (2, 3)]
+    other = UUID(opened_amendment(api, project, "Avenant 4"))
+    revision_id = project.revision_id
+    with stage.owner.begin() as connection:
+        rank = 100
+
+        def task(structure_id: UUID) -> UUID:
+            nonlocal rank
+            rank += 1
+            return insert_task(connection, project.project_id, revision_id, structure_id, rank=rank)
+
+        first, second, cut = (task(sources[0]) for _ in range(3))
+        third, fourth = task(sources[1]), task(sources[1])
+        apart_first, apart_second = task(other), task(other)
+        copies = [task(targets[0]), task(targets[0]), task(targets[1]), task(targets[1])]
+        links = [
+            (sources[0], first, second),
+            (sources[0], second, cut),
+            (sources[1], third, fourth),
+            (other, apart_first, apart_second),
+        ]
+        for structure_id, predecessor, successor in links:
+            connection.execute(
+                insert_link(project.project_id, revision_id, structure_id, predecessor, successor)
+            )
+    nodes = dict(zip((first, second, third, fourth), copies, strict=True))
+    structures = dict(zip(sources, targets, strict=True))
+
+    with stage.owner.connect() as connection:
+        kept_ids = set(connection.scalars(select(TaskLink.id)))
+    with stage.database.transaction() as session:
+        copy_links(
+            RevisionCopy(
+                session, project.project_id, revision_id, revision_id, utc_now(), None, {}
+            ),
+            nodes,
+            structures,
+        )
+        session.flush()
+        copied = list(
+            session.scalars(
+                select(TaskLink).where(
+                    TaskLink.revision_id == revision_id,
+                    TaskLink.structure_id.in_(targets),
+                    TaskLink.predecessor_id.in_(copies),
+                )
+            )
+        )
+        assert {(each.structure_id, each.predecessor_id, each.successor_id) for each in copied} == {
+            (targets[0], copies[0], copies[1]),
+            (targets[1], copies[2], copies[3]),
+        }
+        assert len({each.id for each in copied}) == 2
+        assert {each.id for each in copied}.isdisjoint(kept_ids)

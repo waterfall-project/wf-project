@@ -97,6 +97,9 @@ from waterfall.core.planning.interface.closing import (
 # ``copying`` (US-1380/L2; moved out of ``nodes`` and written as one statement a table by
 # US-2240/L2): the copy of the nodes of a revision opened from a marked one.
 from waterfall.core.planning.interface.copying import (
+    copy_links as copy_links,
+)
+from waterfall.core.planning.interface.copying import (
     copy_nodes as copy_nodes,
 )
 from waterfall.core.planning.interface.copying import (
