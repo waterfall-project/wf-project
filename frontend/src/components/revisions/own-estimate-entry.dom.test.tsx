@@ -304,7 +304,12 @@ describe("the opening of an own estimate a marking pruned", () => {
 
   it("tells the refusal of the recomposition, and reads and updates nothing [US-3140] [WF-RIS-0030]", async () => {
     const client = serve({
-      [RECOMPOSE]: { problem: example("structure_recompose_revision_marked") as Problem },
+      [RECOMPOSE]: {
+        problem: {
+          ...(example("structure_recompose_revision_marked") as Problem),
+          status: 409 as const,
+        },
+      },
     });
     entry({ structureId: PRUNED, late: false, recompose: true });
     expect(await screen.findByRole("alert")).toBeVisible();

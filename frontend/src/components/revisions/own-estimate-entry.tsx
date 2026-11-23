@@ -84,7 +84,7 @@ function refusedAsLate(outcome: Outcome<unknown>): boolean {
     outcome.kind !== "done" &&
     outcome.kind !== "unreachable" &&
     outcome.problem.code === "STATE_FORBIDS_OPERATION" &&
-    outcome.problem.params?.["missing_condition"] === "own_estimate_up_to_date"
+    outcome.problem.params?.missing_condition === "own_estimate_up_to_date"
   );
 }
 

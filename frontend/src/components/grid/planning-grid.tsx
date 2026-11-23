@@ -139,8 +139,7 @@ export interface PlanningGridProps {
    * the grid shows none.
    */
   readonly planningStart?:
-    | { readonly on: string; readonly label: string; readonly editable?: boolean }
-    | undefined;
+    { readonly on: string; readonly label: string; readonly editable?: boolean } | undefined;
   /** What the revision offers of the skeleton (`generate_skeleton`); none, it does not list it. */
   readonly skeleton?: CommandOffer | undefined;
   /**
@@ -326,6 +325,11 @@ function useRowNames(
     [structure],
   );
   return useMemo(() => ({ resolve, ask }), [resolve, ask]);
+}
+
+/** Whether the start date may be changed: the grid is entered, and the page says the structure has its own. */
+function startEntered(editable: boolean | undefined, own: boolean | undefined): boolean {
+  return editable === true && own !== false;
 }
 
 /** Render the grid of the planning, its totals counting the tasks the answer retained. */
@@ -595,7 +599,7 @@ export function PlanningGrid({
           read={structureVersion}
           label={planningStart.label}
           account={account}
-          editable={editable === true && planningStart.editable !== false}
+          editable={startEntered(editable, planningStart.editable)}
         />
       )}
       {offered && (skeleton !== undefined || ours !== undefined) ? (

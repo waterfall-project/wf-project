@@ -102,10 +102,7 @@ function tree(version: number) {
 async function enterRole(): Promise<void> {
   cell(LABOUR, "resource_role").focus();
   await userEvent.keyboard("{Enter}");
-  await userEvent.selectOptions(
-    screen.getByRole("combobox", { name: "Rôle" }),
-    "Monteur câbleur",
-  );
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "Rôle" }), "Monteur câbleur");
   await userEvent.keyboard("{Tab}");
 }
 
