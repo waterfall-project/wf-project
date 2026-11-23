@@ -431,8 +431,8 @@ def test_the_bundle_of_the_repository_serves_the_amendment_203_the_volume_and_th
         literal = f"/api/v1{path.replace('{structure_id}', RISK)}"
         assert next(iter(examples_of(served[literal], method))) == example, (path, method)
     templated = served[f"/api/v1{REBASE}"]
-    assert next(iter(examples_of(templated))) != "risk"
-    assert next(iter(examples_of(templated, "post"))) != "risk_rebased"
+    assert next(iter(examples_of(templated))) == "applicable"
+    assert next(iter(examples_of(templated, "post"))) == "rebased"
     volume = served[f"/api/v1{COMPARISON.replace('{project_id}', mock.VOLUME_PROJECT)}"]
     assert next(iter(examples_of(volume))) == "volume"
     assert next(iter(examples_of(served[f"/api/v1{COMPARISON}"]))) == "witness"
