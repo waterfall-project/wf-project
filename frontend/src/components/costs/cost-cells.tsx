@@ -74,7 +74,10 @@ export function SubprojectCell({ line }: { readonly line: CostRow }) {
   // cell, leaving room for the label, and given whole by its title (#4896).
   return (
     <span className="flex min-w-0 gap-1.5">
-      <span className="max-w-3/5 shrink-0 truncate font-medium" title={line.subproject_code}>
+      <span
+        className="max-w-3/5 shrink-0 truncate font-medium"
+        title={line.subproject_code ?? undefined}
+      >
         {line.subproject_code}
       </span>
       <span className="truncate">{line.subproject_label}</span>
