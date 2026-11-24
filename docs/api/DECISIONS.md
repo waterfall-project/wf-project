@@ -13256,6 +13256,31 @@ confirmation) ; les phrases de `SUBPROJECT_CODE_INVALID` et de
   l'onglet d'un sous-projet comme le service (`sheet_name`) : `PRJ-001_SP-ESS`, la barre oblique
   remplacée.
 
+### Le rejet d'un onglet de sous-projet inconnu nomme le code lu en tête (US-3270/L3b, #4898)
+
+Depuis US-3270/L3, un onglet de lignes d'un reste à engager désigne son sous-projet par le code
+qu'il porte en tête (B1), non par son nom. Le rejet `UNKNOWN_SUBPROJECT` d'une ligne d'un onglet
+qui ne désigne aucun sous-projet ne portait que le nom de l'onglet (`params.value`) : pour un
+onglet renommé, le compte rendu taisait le code en cause, celui que l'utilisateur doit déclarer.
+L'auteur a confié la correction à ce lot le 2026-11-24 ; la forme retenue :
+
+- **`params.subproject_code`**, le code lu en tête, tel que le fichier le porte, à côté de
+  `params.value`, qui garde le nom de l'onglet, où l'utilisateur retrouve la ligne. Il est
+  **absent** d'une tête sans code (un fichier exporté avant que le code vienne en tête), comme les
+  paramètres de `Problem.params` qui ne s'appliquent pas, jamais nul.
+- **Pas `code`**, que proposait le constat : `code` est, juste à côté, le motif du rejet
+  (`ImportRejection.code`, `Problem.code`), et le nom des objets que nomment `resource_roles` ou
+  `cost_categories` ; `params.code` se lirait comme l'un ou l'autre. `subproject_code` est le nom
+  que le contrat donne déjà au code d'un sous-projet (`ActualCostLine.subproject_code`).
+- **Décrit dans `Problem.params`**, non déclaré dans `ProblemParams` : un seul refus le porte.
+  L'import du devis ne change pas : son `UNKNOWN_SUBPROJECT` cite déjà la cellule de la colonne
+  « Sous-projet », c'est-à-dire le code.
+- **Un exemple engendré**, `import_remaining_unknown_subproject` (`getImport`,
+  `wftools.mockexchanges`) : l'onglet des essais renommé, un code qu'aucun sous-projet ne porte en
+  tête, ses deux lignes rejetées.
+
+La version reste `1.0.0` : un paramètre ajouté, qu'un client qui l'ignore lit comme avant.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

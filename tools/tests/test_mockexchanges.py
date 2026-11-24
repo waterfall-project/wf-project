@@ -70,6 +70,22 @@ def test_a_lineage_carried_twice_rejects_both_lines_each_naming_the_other() -> N
     assert second["params"]["lines"] == [{"sheet": first["sheet"], "row": first["row"]}]
 
 
+def test_a_renamed_tab_of_an_unknown_code_rejects_its_lines_naming_the_tab_and_the_code() -> None:
+    """The example of #4898: each line of the tab names the tab and the code read at its head."""
+    report = cast("dict[str, Any]", mockexchanges.import_remaining_unknown_subproject()["report"])
+    assert [(each["sheet"], each["code"], each["params"]) for each in report["rejected"]] == [
+        (
+            mockexchanges.UNKNOWN_TAB,
+            "UNKNOWN_SUBPROJECT",
+            {"value": mockexchanges.UNKNOWN_TAB, "subproject_code": mockexchanges.UNKNOWN_CODE},
+        )
+    ] * len(mockexchanges.IMPORTED)
+    assert mockexchanges.UNKNOWN_CODE not in {
+        entry["code"] for entry in mockwitness.fixture("subprojects")
+    }
+    assert (report["differences"], report["read_count"]) == ([], len(mockexchanges.IMPORTED))
+
+
 def test_every_refusal_is_an_example_the_contract_cites_under_its_answer() -> None:
     examples = mockexchanges.examples()
     assert "paste_plan_subproject_held" in _cited(
@@ -87,6 +103,9 @@ def test_every_refusal_is_an_example_the_contract_cites_under_its_answer() -> No
     assert "import_remaining_duplicate_lineage" in _cited(
         _operation("exchanges.yaml", "getImport"), "200"
     )
+    assert "import_remaining_unknown_subproject" in _cited(
+        _operation("exchanges.yaml", "getImport"), "200"
+    )
     assert "import_actual_costs_first" in _cited(_operation("exchanges.yaml", "getImport"), "200")
     assert "export_revision_not_found" in _cited(
         _operation("exchanges.yaml", "requestExport"), "404"
@@ -96,6 +115,7 @@ def test_every_refusal_is_an_example_the_contract_cites_under_its_answer() -> No
         "import_remaining_subproject_held.json",
         "import_remaining_completed_tasks.json",
         "import_remaining_duplicate_lineage.json",
+        "import_remaining_unknown_subproject.json",
         "import_estimate_main_in_progress.json",
         "import_actual_costs_first.json",
         "export_revision_not_found.json",

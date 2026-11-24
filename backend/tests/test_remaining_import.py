@@ -679,7 +679,8 @@ def test_lines_without_a_lineage_citing_an_ambiguous_unknown_or_hourless_designa
 def test_a_line_in_a_tab_that_is_no_subproject_is_rejected_naming_the_tab(
     api: ContractClient, stage: Scene, worker: Worker, scene: Rows
 ) -> None:
-    # « un onglet […] de sous-projet inconnu rejette ses lignes » (UNKNOWN_SUBPROJECT, params.value)
+    # « un onglet […] de sous-projet inconnu rejette ses lignes » (UNKNOWN_SUBPROJECT, params.value
+    # the tab, params.subproject_code the code its head bears, the tab's name here; #4898)
     rows = scene.exported()
     import_id = analysed(
         api, stage, worker, workbook({OUTSIDE: rows[:3], "Lot fantôme": rows[3:]}, scene.tasks())
@@ -689,7 +690,10 @@ def test_a_line_in_a_tab_that_is_no_subproject_is_rejected_naming_the_tab(
         ("Lot fantôme", 3, "UNKNOWN_SUBPROJECT"),
         ("Lot fantôme", 4, "UNKNOWN_SUBPROJECT"),
     ]
-    assert found["rejected"][0]["params"] == {"value": "Lot fantôme"}
+    assert found["rejected"][0]["params"] == {
+        "value": "Lot fantôme",
+        "subproject_code": "Lot fantôme",
+    }
     assert (found["read_count"], found["unchanged_count"]) == (5, 3)
 
 
