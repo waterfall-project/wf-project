@@ -13142,17 +13142,18 @@ reste `1.0.0` (« La règle d'après le gel ») : le lot ajoute et assouplit. Ex
 
 - **Le code d'un sous-projet est libre, et n'est jamais celui de son projet** (WF-PRJ-0050).
   `DeclaredSubprojectCode` : de 1 à 100 caractères, jamais blanc — le motif `\S`, celui d'un
-  libellé ; l'issue disait « sans motif », et le motif reste un écart assumé : un code blanc reste
-  un refus du contrat, comme pour `ProjectCode` —, sans caractère interdit ni nom réservé ; 100, parce que la reprise écrit le code du
+  libellé —, sans caractère interdit ni nom réservé ; 100, parce que la reprise écrit le code du
   projet (50 au plus), une barre oblique et l'ancien code (31 au plus), soit 82 (conception
-  d'EP-33). Vide ou blanc, `VALUE_REQUIRED`, comme le service le rend déjà ; trop long,
-  `VALUE_TOO_LONG`, `max_length` à `100`. Égal au code du projet, comparé en entier :
-  `SUBPROJECT_CODE_INVALID` sur `/code`, sans paramètre, à la création et au recodage d'un
-  sous-projet ; et `updateProject` refuse de même, sur `/code`, le projet recodé vers le code de
-  l'un de ses sous-projets. Écarté : un code nouveau, une clé de catalogue de plus pour un refus que
-  le code existant et son champ disent. Exemples : `subproject_code_of_project`, cité par
-  `createSubproject` et `updateSubproject`, `project_code_of_subproject`, cité par
-  `updateProject` ; `subproject_code_too_long` passe à 101 caractères, `max_length` à `100`.
+  d'EP-33). L'issue disait « sans motif » : le motif reste un écart assumé, un code blanc restant
+  un refus du contrat, comme pour `ProjectCode`. Vide ou blanc, `VALUE_REQUIRED`, comme le
+  service le rend déjà ; trop long, `VALUE_TOO_LONG`, `max_length` à `100`. Égal au code du
+  projet, comparé en entier : `SUBPROJECT_CODE_INVALID` sur `/code`, sans paramètre, à la
+  création et au recodage d'un sous-projet ; et `updateProject` refuse de même, sur `/code`, le
+  projet recodé vers le code de l'un de ses sous-projets. Écarté : un code nouveau, une clé de
+  catalogue de plus pour un refus que le code existant et son champ disent. Exemples :
+  `subproject_code_of_project`, cité par `createSubproject` et `updateSubproject`,
+  `project_code_of_subproject`, cité par `updateProject` ; `subproject_code_too_long` passe à
+  101 caractères, `max_length` à `100`.
 - **Le code d'un projet peut porter une barre oblique** (WF-PRJ-0010). `ProjectCode` garde sa
   borne de 1 à 50 caractères, jamais blanc (le motif `\S`) ; la barre oblique n'est plus interdite.
 - **L'élément d'OTP se compare en entier** (WF-CRE-0020). `WBS_ELEMENT_OUTSIDE_PROJECT` rejette

@@ -5,7 +5,7 @@
 The specification 1.0.7 compares the WBS element of an actual cost line whole with the code of the
 project and those of its subprojects, and frees the code of a subproject, which is never that of
 its project (WF-CRE-0020, WF-PRJ-0050; #3966, `docs/api/DECISIONS.md`, « L'élément d'OTP comparé
-en entier et le code de sous-projet libre »). The contract precedes the service (US-3270/L2):
+en entier et le code de sous-projet libre »). The service gives them since US-3270/L2:
 
 - ``import_actual_costs_unknown_elements.json``, the Vérif of WF-CRE-0020-A as an analysed
   extraction, a counterfactual variant of ``import_actual_costs_dotted_code``: on the project of
@@ -115,7 +115,8 @@ def import_actual_costs_unknown_elements() -> JsonObject:
 
     A counterfactual variant of ``import_actual_costs_dotted_code``, whose import, task and
     instants it keeps, as ``import_remaining_amount_rounded`` keeps those of the import it varies:
-    only the lines of the file, and so the report, differ.
+    only the lines of the file, and so the report, differ. It keeps them because the family of the
+    background tasks 920-959 is full, a reason of the generation the example does not say (#4867).
     """
     dotted = cast("Entry", fixture("import_actual_costs_dotted_code"))
     report = unknown_elements_report()
@@ -149,9 +150,8 @@ def _unknown_said() -> str:
         f"élément inconnu une fois, avec le nombre de ses lignes — {named} —, ce qui dit quels "
         f"sous-projets déclarer avant de réimporter. L'application demande une confirmation "
         f"explicite pour les lignes rejetées pour leur élément (WF-CRE-0020, #3966). L'import et "
-        f"les tâches sont ceux d'import_actual_costs_dotted_code, dont la famille des tâches de "
-        f"fond 920-959 est pleine : les deux exemples décrivent le même import, avec deux comptes "
-        f"rendus que seul le contenu du fichier distingue."
+        f"les tâches sont ceux d'import_actual_costs_dotted_code : les deux exemples décrivent le "
+        f"même import, avec deux comptes rendus que seul le contenu du fichier distingue."
     )
 
 
