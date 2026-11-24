@@ -110,7 +110,8 @@ export async function exportPlanning(api: Caller, project: string, revision: str
 
 /**
  * The lines of an extraction of a pass: its WBS elements on the subprojects of the project in
- * turn (the code of a subproject is the whole element, the service compares it whole), its documents its own, its dates within a month, its amounts in cents of every size.
+ * turn (the code of a subproject is the whole element, the service compares it whole), its
+ * documents its own, its dates within a month, its amounts in cents of every size.
  */
 export function extraction(subprojects: readonly string[], pass: number) {
   return Array.from({ length: IMPORTED_LINES }, (_, line) => [

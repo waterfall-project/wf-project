@@ -48,6 +48,7 @@ from waterfall.core.cost_settings.interface import (
 )
 from waterfall.core.costs.tables import DOCUMENT_NUMBER_LENGTH
 from waterfall.core.exchanges.interface import DAMAGES, opened_workbook
+from waterfall.core.projects.interface import compared_code
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
@@ -195,9 +196,10 @@ def read_header(session: Session, row: Sequence[object]) -> Reading:
 def _element_of(code: str) -> str:
     """Give a code as an element is compared to it: without its blanks at the ends, as read.
 
-    ``compared_code`` of the projects, which judges the codes unique so.
+    The one rule of the projects (``compared_code``), which judges the codes unique so: a blank
+    that one counts and the other does not would split the two (#4892).
     """
-    return code.strip()
+    return compared_code(code)
 
 
 @dataclass(frozen=True, slots=True)

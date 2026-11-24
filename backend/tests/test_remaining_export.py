@@ -57,6 +57,8 @@ from waterfall.worker.marking import mark as marking
 from waterfall.worker.runner import Worker
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from nodes_support import Tree
     from openapi_core import OpenAPI
     from openpyxl import Workbook
@@ -594,3 +596,132 @@ def test_two_subprojects_whose_codes_differ_in_case_only_are_exported_and_read_u
     for label, code in placed.items():
         node = line_named(scene.tree, label)["node_id"]
         assert row_of(stage, node).subproject_id == UUID(subprojects[code])
+
+
+# --- The tab of a subproject: named from its code, designated by its code (US-3270/L3) -----------
+
+LONG_CODE = "ELEMENT-" + "X" * 32
+CODE_LABEL = "Code du sous-projet"
+
+
+def place(api: ContractClient, stage: Scene, scene: Rows, placed: dict[str, str]) -> dict[str, str]:
+    """Create a subproject of each code, put the line of each label under its code; give the ids."""
+    project_id = stage.project["project_id"]
+    created: dict[str, str] = {}
+    for code in dict.fromkeys(placed.values()):
+        made = api.post(
+            f"{PROJECTS}/{project_id}/subprojects",
+            headers=stage.manager.headers,
+            json={"code": code, "label": f"Lot {len(created) + 1}"},
+        )
+        assert made.status_code == 201, made.text
+        created[code] = made.json()["subproject_id"]
+    with stage.owner.begin() as connection:
+        for label, code in placed.items():
+            connection.execute(
+                update(EstimateLine)
+                .where(EstimateLine.node_id == UUID(line_named(scene.tree, label)["node_id"]))
+                .values(subproject_id=UUID(created[code]))
+            )
+    return created
+
+
+def edited(content: bytes, edit: Callable[[Workbook], None]) -> bytes:
+    """Open a workbook as Excel would, let ``edit`` change it, save it."""
+    book = book_of(content)
+    edit(book)
+    out = BytesIO()
+    book.save(out)
+    return out.getvalue()
+
+
+@pytest.mark.requirement("WF-PRJ-0050-A")
+def test_a_subproject_of_a_slash_a_fixed_name_or_forty_characters_gets_a_tab_with_its_code(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de quarante caractères se
+    # crée, et le fichier de reste à engager lui donne un onglet qui porte son code en tête. » :
+    # the name is drawn from the code (the slash replaced, 31 characters at most, numbered when it
+    # meets a tab already named: « Synthèse » is the first tab), the code is in B1 whole.
+    placed = {
+        "Fournitures": "A.ABC.26001/10001",
+        "Banc": "Synthèse",
+        "Raccordement": LONG_CODE,
+    }
+    place(api, stage, scene, placed)
+    content = exported(api, stage, worker, scene.tree.revision["revision_id"])
+    book = book_of(content)
+    names = book.sheetnames
+    assert len(LONG_CODE) == 40
+    assert names == [
+        SUMMARY,
+        "A.ABC.26001_10001",
+        LONG_CODE[:31],
+        "Synthèse (2)",
+        OUTSIDE,
+        "Tâches",
+        "Paramètres",
+    ]
+    heads = {
+        name: (book[name]["A1"].value, book[name]["B1"].value, book[name]["C1"].value)
+        for name in names[1:5]
+    }
+    # C1 holds the label of the subproject (never empty: the base refuses a blank one).
+    assert heads == {
+        "A.ABC.26001_10001": (CODE_LABEL, "A.ABC.26001/10001", "Lot 1"),
+        LONG_CODE[:31]: (CODE_LABEL, LONG_CODE, "Lot 3"),
+        "Synthèse (2)": (CODE_LABEL, "Synthèse", "Lot 2"),
+        OUTSIDE: (OUTSIDE, None, None),
+    }
+    assert [each["Désignation"] for each in lines_of(content, "Synthèse (2)")] == ["Banc"]
+    clean(content, stage, worker, api)
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_tab_renamed_in_excel_keeps_its_subproject_whatever_its_name(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « Un onglet renommé dans Excel garde son sous-projet. » : the import designates the
+    # subproject by the code at the head of the tab, not by its name; the two tabs exchange their
+    # names, and the lines are unchanged, each under the subproject of its code.
+    created = place(api, stage, scene, {"Fournitures": "SP-A", "Banc": "SP-B"})
+    content = exported(api, stage, worker, scene.tree.revision["revision_id"])
+
+    def rename(book: Workbook) -> None:
+        book["SP-A"].title = "Mon lot"
+        book["SP-B"].title = "SP-A"
+
+    renamed = edited(content, rename)
+    assert book_of(renamed).sheetnames[1:3] == ["Mon lot", "SP-A"]
+    clean(renamed, stage, worker, api)
+    for label, code in (("Fournitures", "SP-A"), ("Banc", "SP-B")):
+        node = line_named(scene.tree, label)["node_id"]
+        assert row_of(stage, node).subproject_id == UUID(created[code])
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_tab_without_a_known_code_at_its_head_rejects_its_lines_as_an_unknown_tab(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # A file exported before the code came to the head (a title in A1, no code in B1), or a tab
+    # whose code is no subproject's: its name designates no subproject, its lines are rejected
+    # (``UNKNOWN_SUBPROJECT``, the tab named) and no line moves.
+    created = place(api, stage, scene, {"Fournitures": "SP-A", "Banc": "SP-B"})
+    content = exported(api, stage, worker, scene.tree.revision["revision_id"])
+
+    def retitle(book: Workbook) -> None:
+        book["SP-A"]["A1"] = "SP-A Lot 1"
+        book["SP-A"]["B1"] = None
+        book["SP-B"]["B1"] = "SP-Z"
+
+    import_id = analysed(api, stage, worker, edited(content, retitle))
+    found = report(api, stage, import_id)
+    assert [(each["sheet"], each["code"], each["params"]) for each in found["rejected"]] == [
+        ("SP-A", "UNKNOWN_SUBPROJECT", {"value": "SP-A"}),
+        ("SP-B", "UNKNOWN_SUBPROJECT", {"value": "SP-B"}),
+    ]
+    assert found["differences"] == []
+    applied(api, stage, worker, import_id)
+    for label, code in (("Fournitures", "SP-A"), ("Banc", "SP-B")):
+        node = line_named(scene.tree, label)["node_id"]
+        assert row_of(stage, node).subproject_id == UUID(created[code])

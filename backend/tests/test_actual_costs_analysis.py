@@ -37,6 +37,7 @@ from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.costs.analysing import imputed, unknown_elements
 from waterfall.core.costs.extraction import Kept, Known, Reading, read_lines
+from waterfall.core.projects.interface import compared_code
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 
 if TYPE_CHECKING:
@@ -188,6 +189,24 @@ def test_the_unknown_elements_that_differ_by_their_blanks_alone_are_named_once()
         {"wbs_element": f"{other} ", "line_count": 2},
         {"wbs_element": "", "line_count": 2},
     ]
+
+
+@pytest.mark.requirement("WF-CRE-0020-A")
+def test_the_codes_are_compared_to_the_element_as_the_projects_compare_them_on_unicode_blanks() -> (
+    None
+):
+    # #4892 : the element is compared to a code by the rule of the projects (``compared_code``),
+    # not by a second strip of its own: a no-break space, an em space and a line separator at the
+    # ends of a code are blanks for both, so that the projects judge unique the codes the costs
+    # judge one element.
+    nbsp = chr(0xA0)
+    blanks = nbsp + chr(0x2003) + chr(0x2028)
+    blanked = f"{blanks}{ELEMENT}{blanks}"
+    known = Known(f"{blanks}{CODE}{blanks}", {blanked: UUID(int=10001)})
+    assert dict(known.elements) == {compared_code(blanked): blanked}
+    assert known.is_project(CODE)
+    [read] = read_lines([line(element=f"{nbsp}{ELEMENT}")], READING, known).lines
+    assert (read.subproject_code, imputed(read, known)) == (blanked, UUID(int=10001))
 
 
 @pytest.mark.requirement("WF-INTF-0140-A")

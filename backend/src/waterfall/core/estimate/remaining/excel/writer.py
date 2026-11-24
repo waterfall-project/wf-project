@@ -320,12 +320,27 @@ def _write_band(
         sheet.write(row, first, text, style)
 
 
+def _write_head(sheet: Worksheet, tab: RemainingTab, fmt: dict[str, Format]) -> None:
+    """Write the head of a tab: the code of its subproject, which the import designates it by.
+
+    A1 says what B1 holds, as text whatever the code (``write_string``: « 10001 » stays a text),
+    the label of the subproject after it (never empty: the base refuses a blank one); the tab of
+    the lines of none says « Hors sous-projet » and holds no code (``layout.CODE_LABEL``).
+    """
+    if tab.code == layout.OUTSIDE_KEY:
+        sheet.write_string("A1", layout.OUTSIDE, fmt["title"])
+        return
+    sheet.write_string("A1", layout.CODE_LABEL, fmt["bold"])
+    sheet.write_string(layout.CODE_CELL, tab.code, fmt["title"])
+    sheet.write_string(layout.LABEL_CELL, tab.label, fmt["left"])
+
+
 def _write_header(
     sheet: Worksheet, ctx: _Context, tab: RemainingTab, table: str, shown: Indicators
 ) -> dict[str, str]:
     """Write the header of a tab: its amounts and its indicators; give their cells."""
     fmt, values = ctx.fmt, shown.values
-    sheet.write("A1", _title(tab), fmt["title"])
+    _write_head(sheet, tab, fmt)
     sheet.write(
         "A2",
         f"Revue du {ctx.book.review_date.isoformat()} — une ligne par rôle ou par débours, comme "

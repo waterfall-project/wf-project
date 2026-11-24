@@ -41,12 +41,14 @@ A line that carries the lineage of a provision line of a risk is ignored, the li
 and named in the report (``provision_lines``, WF-INTF-0120, WF-RIS-0010; US-2580/L2): a provision
 is its risk's, and the remaining to commit counts it for its amount.
 
-The subproject of a line is the one of its tab, named by its code as the writer names it
-(``sheet_name``), « Hors sous-projet » none: a line placed in another tab changes subproject — an
+The subproject of a line is the one of its tab, designated by the code the head of the tab bears
+(``layout.CODE_CELL``), never by the name of the tab — a tab renamed in Excel keeps its subproject
+—, « Hors sous-projet » none: a line placed in another tab changes subproject — an
 ``updated`` difference on ``subproject`` —, rejected when its task is started or completed and its
 subproject received actual costs (``SUBPROJECT_HAS_ACTUAL_COSTS``, by the entry); a tab of no
-subproject rejects its lines (``UNKNOWN_SUBPROJECT``, ``params.value`` the tab). The lines of the
-structure absent from the file are left as they are, without a difference (WF-INTF-0120).
+subproject — a head with an unknown code, or without a code, as a file exported before the code
+came to the head — rejects its lines (``UNKNOWN_SUBPROJECT``, ``params.value`` the tab). The lines
+of the structure absent from the file are left as they are, without a difference (WF-INTF-0120).
 
 A task the import leaves with no remaining to commit — every line of it the file writes set to
 nought, none of its other lines holding a remaining, a provision never — is completed by the
@@ -83,6 +85,7 @@ from waterfall.core.estimate.remaining.excel.reader import DAYS_HEADER, DISBURSE
 from waterfall.core.estimate.remaining.reviewing import provisions_of
 from waterfall.core.estimate.spreading import Placement, spread_by_year
 from waterfall.core.planning.interface import weekly_calendar
+from waterfall.core.projects.interface import compared_code
 from waterfall.core.resource_settings.interface import get_duration_units
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION
 
@@ -190,14 +193,21 @@ def unit_disbursement(amount: Decimal, quantity: Decimal, coefficient: Decimal) 
     return round_to_cent(amount / (quantity * coefficient))
 
 
-def scale_of(session: Session, held: Aimed, reference: Reference) -> Scale:
-    """Read what the figures of a file are read at, for the structure aimed at."""
+def scale_of(
+    session: Session, held: Aimed, reference: Reference, heads: Mapping[str, str | None]
+) -> Scale:
+    """Read what the figures of a file are read at, for the structure aimed at.
+
+    ``heads`` the code each tab of the file bears in its head: a tab is the subproject of that
+    code, compared as the projects compare a code, whatever its name.
+    """
     hours = get_duration_units(session).units.hours_per_day
     basis = (
         None if held.revision_id is None else basis_of(session, held.project_id, held.revision_id)
     )
     codes = {subproject: code for code, subproject in reference.subprojects.items()}
-    return Scale(hours, basis, tab_subprojects(reference.subprojects), codes)
+    by_code = {compared_code(each): found for each, found in reference.subprojects.items()}
+    return Scale(hours, basis, tab_subprojects(heads, by_code), codes)
 
 
 def _coefficient(basis: Basis | None, year: int) -> Decimal:
@@ -262,7 +272,7 @@ def analyse(
     """
     reference = importing.reference_of(session, held.project_id)
     named = importing.designations(held, read.tasks)
-    scale = scale_of(session, held, reference)
+    scale = scale_of(session, held, reference, read.heads)
     found = importing.Analysis(
         rejected=[importing.reader_rejection(each) for each in read.rejected]
     )

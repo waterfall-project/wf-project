@@ -340,6 +340,27 @@ def test_a_line_imputed_whose_code_would_pass_the_bound_once_prefixed_stops_the_
 
 
 @pytest.mark.story("US-3270")
+def test_a_subproject_whose_code_would_pass_the_bound_once_prefixed_stops_the_reprise(
+    empty_engine: Engine,
+) -> None:
+    # #4891 : un sous-projet écrit depuis 0046, dont le code est libre jusqu'à 100 caractères,
+    # sous un projet de 50, passerait 100 une fois préfixé, même sans ligne imputée : la reprise
+    # s'arrête en nommant son projet, sans rien écrire ; le projet voisin, dans la borne, n'est pas
+    # nommé.
+    upgrade(empty_engine, "0046")
+    project, fitting, longest = uuid4(), uuid4(), "P" * 50
+    with empty_engine.begin() as connection:
+        connection.execute(insert_project(id=project, code=longest))
+        connection.execute(insert_project(id=fitting, code=OTHER))
+        subproject(connection, project, "S" * 60)
+        subproject(connection, fitting, "S" * 60)
+    with pytest.raises(RuntimeError, match=f"beyond 100 characters.*{project}") as caught:
+        upgrade(empty_engine, "0047")
+    assert str(fitting) not in str(caught.value)
+    assert codes(empty_engine) == [("S" * 60, 0), ("S" * 60, 0)]
+
+
+@pytest.mark.story("US-3270")
 def test_the_descent_strips_the_prefix_and_gives_back_no_line_deleted(
     empty_engine: Engine,
 ) -> None:
