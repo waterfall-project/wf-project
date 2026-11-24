@@ -34,9 +34,11 @@ from remaining_import_support import (
 from remaining_support import in_progress, line_named, task_named
 from sqlalchemy import update
 from support import ContractClient
+from test_inert_writes import counting
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.estimate.remaining import applying as remaining_applying
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.tables import CostStructure
@@ -326,3 +328,28 @@ def test_the_amount_signalled_is_the_amount_the_projection_re_estimates(
         "written_amount": format(written, "f"),
     }
     assert written != Decimal("56.27")
+
+
+@pytest.mark.story("US-3230")
+@pytest.mark.requirement("WF-RAE-0040-A")
+def test_the_counters_of_the_lines_that_complete_their_tasks_are_read_in_one_query(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    scene: Rows,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # [US-3230b] (#4849): the application read the counter of each closing line, one query a task;
+    # two tasks completed by the file read them once, and are completed as before.
+    tree = scene.tree
+    set_progress(stage, task_named(tree, "Câblage")["node_id"], "started", STARTED_ON)
+    rows = scene.exported()
+    rows[0][3], rows[1][4], rows[2][4] = 0, 0, 0
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    assert len(report(api, stage, import_id)["completed_tasks"]) == 2
+    reads = counting(monkeypatch, (remaining_applying,), "node_versions")
+    applied(api, stage, worker, import_id)
+    monkeypatch.undo()
+    assert reads.count == 1
+    for name in ("Câblage", "Essais"):
+        assert task_row(stage, task_named(tree, name)["node_id"]).progress == "completed"
