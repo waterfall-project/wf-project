@@ -276,6 +276,13 @@ Constats relevés à la livraison d'US-3230 et d'US-3240, tranchés par l'auteur
 - #4854 — front : le refus du plafond redit « Valeur maximale : 20 » après « moins de vingt » →
   US-3280, un libellé propre à la condition.
 
+Instabilité de la file vue trois fois, tranchée par l'auteur le 2026-11-24 :
+
+- #4846 — tests : `test_each_process_closes_its_services_when_the_api_stops` (EP-26, US-2230) ne
+  voit qu'un `service.stopped` sur deux → US-3170b. EP-26 est livré dans `main` : le lot va dans
+  la branche où l'instabilité a été vue. La fixture attend le démarrage des deux processus avant
+  le SIGTERM, sans délai élargi.
+
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
 qui réalisera #3966, à nommer par le cadreur ») → US-3270.
@@ -509,6 +516,10 @@ faire écrire à l'export `UID = external_id`, qui change le fichier exporté et
 avec les tâches créées dans Waterfall. La numérotation d'une tâche ajoutée par MS Project (« plus
 grand `UID` + 1 ») n'a pas été vérifiée dans MS Project lui-même : le scénario se rejoue à la
 recette de l'aller-retour, la correction n'en dépend pas.
+
+US-3170b (#4846, ajouté le 2026-11-24) porte la correction d'une instabilité de la file, sans
+lien avec cette US : le test d'arrêt de l'API d'EP-26 attend le démarrage de ses deux processus.
+Il est rattaché ici faute d'une US d'EP-33 qui porte ce test.
 
 **Hors périmètre.** Les bornes du lecteur (US-3180) ; le compte rendu périmé (US-3210).
 
