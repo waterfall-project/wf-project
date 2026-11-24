@@ -66,8 +66,20 @@ class Served:
 
     def events(self) -> list[str]:
         """Give the event of each record of the logs written so far."""
-        lines = self.logs.read_text(encoding="utf-8").splitlines()
+        text = self.logs.read_text(encoding="utf-8")
+        # The workers write while this reads: a last line without its newline is not finished.
+        lines = text.split("\n")[:-1]
         return [json.loads(line).get("event", "") for line in lines if line.startswith("{")]
+
+
+def wait_for_started(served: Served, expected: int, deadline: float) -> None:
+    """Wait until ``expected`` processes have written ``service.started``, or fail with the logs."""
+    while (opened := served.events().count("service.started")) < expected:
+        assert served.process.poll() is None, served.logs.read_text(encoding="utf-8")
+        assert time.monotonic() < deadline, (
+            f"{opened} of {expected} processes started:\n{served.logs.read_text(encoding='utf-8')}"
+        )
+        time.sleep(0.1)
 
 
 def stop(process: subprocess.Popen[bytes]) -> None:
@@ -122,12 +134,7 @@ def served(
             assert time.monotonic() < deadline, logs.read_text(encoding="utf-8")
             time.sleep(0.1)
         # A first 200 proves one process ready, not both: wait until each has opened its services.
-        while (opened := started.events().count("service.started")) < PROCESSES:
-            assert process.poll() is None, logs.read_text(encoding="utf-8")
-            assert time.monotonic() < deadline, (
-                f"{opened} of {PROCESSES} processes started:\n{logs.read_text(encoding='utf-8')}"
-            )
-            time.sleep(0.1)
+        wait_for_started(started, PROCESSES, deadline)
         yield started
     finally:
         stop(process)
@@ -155,6 +162,29 @@ def test_two_successive_requests_of_a_user_served_by_two_processes_give_the_same
     assert realm.reads == 2, f"{len(answers)} requests, all served by one process"
     assert answers[-2:] == [first, first]
     assert all(given == first for given in answers)
+
+
+def test_the_logs_read_while_written_leave_out_a_last_line_cut_short(tmp_path: Path) -> None:
+    # A worker may be writing its record while the fixture reads: the cut line is not counted.
+    logs = tmp_path / "api.log"
+    logs.write_text('{"event": "service.started"}\n{"event": "service.sta', encoding="utf-8")
+    running = subprocess.Popen([sys.executable, "-c", "pass"])
+    running.wait()
+    assert Served(running, 0, logs).events() == ["service.started"]
+
+
+def test_the_wait_for_the_processes_fails_with_the_count_and_the_logs(tmp_path: Path) -> None:
+    logs = tmp_path / "api.log"
+    logs.write_text('{"event": "service.started"}\nnoise\n', encoding="utf-8")
+    running = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        served = Served(running, 0, logs)
+        with pytest.raises(AssertionError) as failure:
+            wait_for_started(served, 2, time.monotonic() + 0.3)
+    finally:
+        stop(running)
+    assert "1 of 2 processes started" in str(failure.value)
+    assert "noise" in str(failure.value)
 
 
 def test_each_process_closes_its_services_when_the_api_stops(served: Served) -> None:
