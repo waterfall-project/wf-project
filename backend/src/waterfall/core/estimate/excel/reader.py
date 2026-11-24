@@ -75,7 +75,14 @@ _NUMBER_HEADERS = (QUANTITY_HEADER, HOURS_HEADER, DISBURSEMENT_HEADER, PAYMENT_D
 _ALL_HEADERS = _TEXT_HEADERS + _NUMBER_HEADERS
 # The columns a tab of lines cannot lack, in the order of the writer: without them an import would
 # create or remove lines, or set amounts, on a column it cannot read (#4421).
-_REQUIRED_HEADERS = (QUANTITY_HEADER, HOURS_HEADER, DISBURSEMENT_HEADER, LINEAGE_HEADER)
+_REQUIRED_HEADERS = (
+    TASK_HEADER,
+    ROLE_OR_CATEGORY_HEADER,
+    QUANTITY_HEADER,
+    HOURS_HEADER,
+    DISBURSEMENT_HEADER,
+    LINEAGE_HEADER,
+)
 _READ_HEADERS = frozenset(_ALL_HEADERS)
 # A tab of lines is the one that carries both of these, on whichever row.
 _KEY_HEADERS = frozenset({TASK_HEADER, ROLE_OR_CATEGORY_HEADER})
@@ -120,9 +127,10 @@ class Rejection:
 class WorkbookRead:
     """What a workbook says: the lines read, tab by tab and row by row, and the rejections.
 
-    ``unread_sheets`` names the tabs that are not tabs of lines and are not fixed ones (no
-    "Tâche" and "Rôle ou catégorie" headers); ``missing_headers`` gives, by tab read, the headers
-    of the columns read that the tab lacks (their cells read as none). The policy is the analysis'.
+    ``unread_sheets`` names the tabs that are not fixed ones and carry no header read at all;
+    ``missing_headers`` gives, by tab with at least one header read, the headers of the columns
+    read that the tab lacks, "Tâche" and "Rôle ou catégorie" included (US-3200b); the opening
+    refuses the required ones, the rest is the analysis' policy.
     ``tasks`` gives, by the entry « Tâches » lists, the lineage of its task, as the workbook
     writes them (US-1550/L3): the analysis designates the task of a line by it.
     """
@@ -319,15 +327,19 @@ def _read_sheet(
 ) -> tuple[list[ReadLine], list[Rejection], dict[str, int] | None]:
     """Read the lines of a tab: none if no row carries the headers of a tab of lines.
 
-    The last item is the columns found, none for a tab that has no headers of lines.
+    The last item is the columns found: those of the row that carries both keys, else those of
+    the first row that carries any header read (no line is read then), none without any.
     """
     lines: list[ReadLine] = []
     rejected: list[Rejection] = []
     columns: dict[str, int] | None = None
+    partial: dict[str, int] | None = None
     for number, row in enumerate(rows, start=1):
         if columns is None:
             found = header_columns(row, _READ_HEADERS)
             columns = found if found.keys() >= _KEY_HEADERS else None
+            if columns is None and found and partial is None:
+                partial = found
             continue
         texts = {header: text(at(row, columns, header)) for header in _TEXT_HEADERS}
         raws = {header: at(row, columns, header) for header in _NUMBER_HEADERS}
@@ -363,7 +375,7 @@ def _read_sheet(
                 lineage=texts[LINEAGE_HEADER],
             )
         )
-    return lines, rejected, columns
+    return lines, rejected, columns or partial
 
 
 def load_sheets(
