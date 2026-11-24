@@ -444,7 +444,12 @@ const DETAILS: readonly Reader[] = [
   ({ max_columns }) =>
     typeof max_columns === "number" ? ["max_columns", { max_columns }] : undefined,
   ({ minimum }, _label, locale) => bound("minimum", minimum, locale),
-  ({ maximum }, _label, locale) => bound("maximum", maximum, locale),
+  // The ceiling of the deposits of an import, whose condition already says « fewer than twenty »:
+  // told as what it bounds, not as a value (`pending_uploads_below_limit`, US-3240, #4854).
+  ({ maximum, missing_condition }, _label, locale) =>
+    missing_condition === "pending_uploads_below_limit"
+      ? bound("maximum", maximum, locale, "pendingUploadsMaximum")
+      : bound("maximum", maximum, locale),
   ({ component }, label) => {
     const name = label("enums.PlatformComponent", component);
     return name === undefined ? undefined : ["component", { component: name }];
@@ -540,12 +545,17 @@ const DECIMAL = /^-?\d+(\.\d+)?$/;
  * of the contract written in the language of the reader; nothing for any other value — a date, which
  * the filter of a period says by itself.
  */
-function bound(key: "minimum" | "maximum", value: unknown, locale: Locale): Detail | undefined {
+function bound(
+  key: "minimum" | "maximum",
+  value: unknown,
+  locale: Locale,
+  sentence: "pendingUploadsMaximum" | typeof key = key,
+): Detail | undefined {
   if (typeof value === "number") {
-    return [key, { [key]: value }];
+    return [sentence, { [key]: value }];
   }
   return typeof value === "string" && DECIMAL.test(value)
-    ? [key, { [key]: formatDecimal(value, locale) }]
+    ? [sentence, { [key]: formatDecimal(value, locale) }]
     : undefined;
 }
 

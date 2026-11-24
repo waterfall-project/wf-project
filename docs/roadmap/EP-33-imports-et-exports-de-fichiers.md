@@ -1027,7 +1027,7 @@ journal, par projet.
 
 ## US-3280 — L'écran des imports : l'application échouée ou refusée, le formulaire pendant un envoi, la zone de dépôt, un long compte rendu
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0080-A`, `WF-INTF-0080-A`
 - **opérations** : `uploadFile`, `openImport`, `getImport`, `listImports`, `applyImport`,
   `abandonImport`, `setImportDurationRule`

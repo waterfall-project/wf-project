@@ -319,25 +319,42 @@ describe("the sentence of a refusal", () => {
     expect(say(noSheet, "en")).toContain("missing from the file: \u201CQuantité\u201D.");
   });
 
-  it("[US-3200] names each column an estimate lacks with its sheet, the format and the version being those of the refusal [WF-INTF-0070-A]", () => {
-    const missing: ProblemText = {
+  it("[US-3200] names each column an estimate lacks with its sheet, sheet by sheet, the format and the version being those of the refusal [WF-INTF-0070-A]", () => {
+    const missing = fromExample("import_estimate_column_missing", {
       code: "FILE_FORMAT_UNREADABLE",
       params: {
         expected_format: "estimate",
         expected_version: "1",
         missing_columns: [
-          { header: "ID ligne", sheet: "Lignes" },
-          { header: "Heures", sheet: "Lignes" },
-          { header: "Débours unitaire", sheet: "Débours" },
+          { header: "Heures", sheet: "PRJ-001_SP-CMD" },
+          { header: "ID ligne", sheet: "PRJ-001_SP-CMD" },
+          { header: "Quantité", sheet: "PRJ-001_SP-ESS" },
+          { header: "Débours unitaire", sheet: "PRJ-001_SP-ESS" },
         ],
       },
-    };
-    // The params are written against the schema: the contract example is tracked by #4785.
+    });
     expect(say(missing, "en")).toBe(
-      "The file format cannot be read. Expected format: Estimate. Expected version: 1. Required columns missing from the file: \u201CID ligne\u201D (sheet \u201CLignes\u201D), \u201CHeures\u201D (sheet \u201CLignes\u201D) and \u201CDébours unitaire\u201D (sheet \u201CDébours\u201D).",
+      "The file format cannot be read. Expected format: Estimate. Expected version: 1. Required columns missing from the file: \u201CHeures\u201D (sheet \u201CPRJ-001_SP-CMD\u201D), \u201CID ligne\u201D (sheet \u201CPRJ-001_SP-CMD\u201D), \u201CQuantité\u201D (sheet \u201CPRJ-001_SP-ESS\u201D) and \u201CDébours unitaire\u201D (sheet \u201CPRJ-001_SP-ESS\u201D).",
     );
     expect(say(missing, "fr")).toBe(
-      "Le format du fichier est illisible. Format attendu\u00A0: Devis. Version attendue\u00A0: 1. Colonnes exigées absentes du fichier\u00A0: \u00AB\u00A0ID ligne\u00A0\u00BB (onglet \u00AB\u00A0Lignes\u00A0\u00BB), \u00AB\u00A0Heures\u00A0\u00BB (onglet \u00AB\u00A0Lignes\u00A0\u00BB) et \u00AB\u00A0Débours unitaire\u00A0\u00BB (onglet \u00AB\u00A0Débours\u00A0\u00BB).",
+      "Le format du fichier est illisible. Format attendu\u00A0: Devis. Version attendue\u00A0: 1. Colonnes exigées absentes du fichier\u00A0: \u00AB\u00A0Heures\u00A0\u00BB (onglet \u00AB\u00A0PRJ-001_SP-CMD\u00A0\u00BB), \u00AB\u00A0ID ligne\u00A0\u00BB (onglet \u00AB\u00A0PRJ-001_SP-CMD\u00A0\u00BB), \u00AB\u00A0Quantité\u00A0\u00BB (onglet \u00AB\u00A0PRJ-001_SP-ESS\u00A0\u00BB) et \u00AB\u00A0Débours unitaire\u00A0\u00BB (onglet \u00AB\u00A0PRJ-001_SP-ESS\u00A0\u00BB).",
+    );
+  });
+
+  it("[US-3280] tells a sheet and a header that bear a brace and an apostrophe as they are, in both languages (#4787)", () => {
+    const missing: ProblemText = {
+      code: "FILE_FORMAT_UNREADABLE",
+      params: {
+        expected_format: "estimate",
+        expected_version: "1",
+        missing_columns: [{ header: "Coût d'achat {HT}", sheet: "Devis d'avril {A}" }],
+      },
+    };
+    expect(say(missing, "en")).toContain(
+      "\u201CCoût d'achat {HT}\u201D (sheet \u201CDevis d'avril {A}\u201D)",
+    );
+    expect(say(missing, "fr")).toContain(
+      "\u00AB\u00A0Coût d'achat {HT}\u00A0\u00BB (onglet \u00AB\u00A0Devis d'avril {A}\u00A0\u00BB)",
     );
   });
 

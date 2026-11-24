@@ -130,6 +130,13 @@ describe("the screen of the revisions of a project", () => {
     );
   });
 
+  it("dit que l’import nommé n’existe plus, sans renvoyer à une liste que l’écran n’a pas [US-3280]", async () => {
+    server.answers = { ...server.answers, [GET_IMPORT]: NOT_FOUND };
+    const page = text(html(await RevisionsPage(at({ import: IMPORT }))));
+    expect(page).toContain("L’import que l’adresse nomme n’existe plus");
+    expect(page).not.toContain("listés ci-dessous");
+  });
+
   it("reads no import and shows no report when its address names none, or one no identifier can stand for [WF-RIS-0050-A] [WF-IHM-0010-A]", async () => {
     server.answers = { ...server.answers, [GET_IMPORT]: "import_analysed" };
     const plain = html(await RevisionsPage(at()));

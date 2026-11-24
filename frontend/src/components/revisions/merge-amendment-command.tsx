@@ -34,7 +34,7 @@ import { ConfirmedCommand } from "@/components/commands/confirmed-command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
-import { Differences } from "@/components/exchanges/import-report";
+import { Differences } from "@/components/exchanges/report-tables";
 import { DiffMark } from "@/components/grid/diff-mark";
 import { DoneNotice } from "@/components/notices/done-notice";
 import { Following } from "@/components/tasks/following";

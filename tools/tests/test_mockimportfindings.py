@@ -20,7 +20,7 @@ import yaml
 
 from wftools import REPOSITORY, mockimportfindings
 from wftools.mockexchanges import tab_name
-from wftools.mockwitness import SUBPROJECT_CONTROL, TODAY, fixture
+from wftools.mockwitness import SUBPROJECT_CONTROL, SUBPROJECT_TESTS, TODAY, fixture
 
 type Entry = dict[str, Any]
 
@@ -62,6 +62,7 @@ def test_every_example_is_the_one_the_generator_writes_and_is_cited() -> None:
         "file_upload_pending_limit": ("uploadFile", "409"),
         "file_upload_filename_nul": ("uploadFile", "422"),
         "import_actual_costs_task_purged": ("getImport", "200"),
+        "import_estimate_column_missing": ("openImport", "422"),
         "import_remaining_column_missing": ("openImport", "422"),
         "import_remaining_amount_rounded": ("getImport", "200"),
     }
@@ -154,6 +155,25 @@ def test_a_remaining_to_commit_whose_tab_lost_a_column_names_it_with_its_tab() -
     ]
     # The one or the other: a column of an extraction by its identifier, one of a workbook by its
     # header and its sheet.
+    shape = _schema("common.yaml", "ProblemMissingColumn")
+    assert shape["oneOf"] == [{"required": ["column", "labels"]}, {"required": ["header", "sheet"]}]
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.story("US-3280")
+def test_an_estimate_whose_tabs_lost_columns_names_each_with_its_tab() -> None:
+    refused = fixture("import_estimate_column_missing")
+    assert (refused["status"], refused["code"]) == (422, "FILE_FORMAT_UNREADABLE")
+    params = refused["params"]
+    assert (params["expected_format"], params["expected_version"]) == ("estimate", "1")
+    control, tests = tab_name(SUBPROJECT_CONTROL), tab_name(SUBPROJECT_TESTS)
+    assert params["missing_columns"] == [
+        {"header": "Heures", "sheet": control},
+        {"header": "ID ligne", "sheet": control},
+        {"header": "Quantité", "sheet": tests},
+        {"header": "Débours unitaire", "sheet": tests},
+    ]
+    # A column of a workbook by its header and its sheet, as the contract admits it.
     shape = _schema("common.yaml", "ProblemMissingColumn")
     assert shape["oneOf"] == [{"required": ["column", "labels"]}, {"required": ["header", "sheet"]}]
 

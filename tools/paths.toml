@@ -841,6 +841,7 @@ paths = [
     "fixtures/api/file_upload_pending_limit.json",
     "fixtures/api/file_upload_filename_nul.json",
     "fixtures/api/import_actual_costs_task_purged.json",
+    "fixtures/api/import_estimate_column_missing.json",
     "fixtures/api/import_remaining_column_missing.json",
     "fixtures/api/import_remaining_amount_rounded.json",
     "fixtures/api/import_actual_costs_unknown_elements.json",

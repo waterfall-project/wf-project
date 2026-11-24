@@ -44,7 +44,7 @@ import {
   listsAnImport,
 } from "@/components/exchanges/offers";
 import { readMappingGap } from "@/components/exchanges/mapping-gap";
-import { readShownImport } from "@/components/exchanges/shown-import";
+import { readEntry, readShownImport } from "@/components/exchanges/shown-import";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridPreferences } from "@/components/grid/settings";
 import { LEAF_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
@@ -140,7 +140,7 @@ export default async function ExchangesPage({
   const preferences = session.then(
     (account) => account?.display_preferences?.grids?.[IMPORT_GRID_KEY] ?? undefined,
   );
-  const [reading, imports, shown, account, kept] = await Promise.all([
+  const [reading, imports, named, account, kept] = await Promise.all([
     // The imports take neither a sub-project nor a date: the banner shows no filter (#302).
     readProjectContext(at.pathname, at.context, []),
     readImports(at, offset, preferences),
@@ -151,6 +151,7 @@ export default async function ExchangesPage({
   if (reading === "not_found") {
     notFound();
   }
+  const shown = readEntry(named);
   const readsPlanning = account?.permissions.includes("planning.read") === true;
   if (!readsPlanning && !listsAnImport(reading.project)) {
     notFound();
@@ -175,6 +176,7 @@ export default async function ExchangesPage({
           imports={imports.items}
           total={imports.meta.total}
           current={shown?.import_id}
+          purged={named.kind === "purged"}
           start={start}
         >
           <ListPages

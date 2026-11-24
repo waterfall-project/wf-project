@@ -1,0 +1,10 @@
+{
+  "summary": "Un devis déposé aujourd'hui dont l'onglet « PRJ-001_SP-CMD » a perdu ses colonnes « Heures » et « ID ligne », et l'onglet « PRJ-001_SP-ESS » ses colonnes « Quantité » et « Débours unitaire ». Refusé à l'ouverture, le format et la version attendus nommés, et chaque colonne nommée avec son onglet, onglet par onglet dans l'ordre du fichier puis dans l'ordre du format ; rien n'est analysé : aucune ligne n'est créée ni retirée (WF-INTF-0070, #4785).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "FILE_FORMAT_UNREADABLE",
+    "status": 422,
+    "params": {"expected_format":"estimate","expected_version":"1","missing_columns":[{"header":"Heures","sheet":"PRJ-001_SP-CMD"},{"header":"ID ligne","sheet":"PRJ-001_SP-CMD"},{"header":"Quantité","sheet":"PRJ-001_SP-ESS"},{"header":"Débours unitaire","sheet":"PRJ-001_SP-ESS"}]},
+    "correlation_id": "01926f3a-7c00-7000-8000-617ab65eec1a"
+  }
+}

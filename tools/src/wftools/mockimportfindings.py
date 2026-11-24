@@ -20,6 +20,8 @@ the contract precedes the service, each lot of the epic filling what it declares
 - ``import_remaining_column_missing.json``, a remaining to commit whose tab of the control
   station has lost its column « Débours restant », renamed in the spreadsheet: refused at its
   opening, the column named with its tab (WF-INTF-0070; US-3200, #4421);
+- ``import_estimate_column_missing.json``, an estimate whose two tabs of lines have lost columns
+  the import reads, each named by its header and its tab (WF-INTF-0070; US-3280, #4785);
 - ``import_remaining_amount_rounded.json``, a counterfactual variant of
   ``import_remaining_analysed``: the terminal blocks counted by the thousand, whose remaining
   amount the file carries at 1,234.56, which the import writes at 1,230.00, and signals
@@ -44,7 +46,7 @@ from wftools.mockexchanges import (
     tab_name,
 )
 from wftools.mockhistory import stamp
-from wftools.mockwitness import SUBPROJECT_CONTROL, TODAY, N, fixture
+from wftools.mockwitness import SUBPROJECT_CONTROL, SUBPROJECT_TESTS, TODAY, N, fixture
 from wftools.mockwitnesscosts import APRIL
 
 if TYPE_CHECKING:
@@ -57,6 +59,7 @@ PERMISSION_MISSING = "file_upload_permission_missing"
 PENDING_LIMIT = "file_upload_pending_limit"
 FILENAME_NUL = "file_upload_filename_nul"
 COLUMN_MISSING = "import_remaining_column_missing"
+ESTIMATE_COLUMN_MISSING = "import_estimate_column_missing"
 """The names of the examples of a refusal, from which their correlation is derived (#1007)."""
 
 IMPORT_PERMISSIONS = ("planning.write", "estimate.write", "remaining.write", "actual_costs.write")
@@ -175,6 +178,37 @@ def import_remaining_column_missing() -> JsonObject:
             "missing_columns": [{"header": LOST_HEADER, "sheet": tab_name(SUBPROJECT_CONTROL)}],
         },
         "correlation_id": correlation(COLUMN_MISSING),
+    }
+
+
+# --- An estimate whose two tabs lost columns it reads (#4785) ----------------------------------
+
+ESTIMATE_VERSION = "1"
+"""The version of the format of the estimate (annex B)."""
+
+LOST_ESTIMATE_COLUMNS = (
+    (SUBPROJECT_CONTROL, ("Heures", "ID ligne")),
+    (SUBPROJECT_TESTS, ("Quantité", "Débours unitaire")),
+)
+"""The columns each tab lost, tab by tab in the order of the file, then in the order of the format
+(the writer's: quantity, hours, unit disbursement, then the line identifier)."""
+
+
+def import_estimate_column_missing() -> JsonObject:
+    """Return what openImport answers to an estimate whose two tabs lost columns it reads."""
+    return {
+        "code": "FILE_FORMAT_UNREADABLE",
+        "status": 422,
+        "params": {
+            "expected_format": "estimate",
+            "expected_version": ESTIMATE_VERSION,
+            "missing_columns": [
+                {"header": header, "sheet": tab_name(subproject)}
+                for subproject, headers in LOST_ESTIMATE_COLUMNS
+                for header in headers
+            ],
+        },
+        "correlation_id": correlation(ESTIMATE_COLUMN_MISSING),
     }
 
 
@@ -309,6 +343,16 @@ def examples() -> dict[str, JsonObject]:
             f"avec son onglet ; rien n'est analysé : aucun reste n'est mis à zéro, aucune tâche "
             f"n'est terminée (WF-INTF-0070, WF-INTF-0120, #4421).",
             import_remaining_column_missing(),
+        ),
+        "import_estimate_column_missing.json": mocktext.example(
+            f"Un devis déposé aujourd'hui dont l'onglet « {tab_name(SUBPROJECT_CONTROL)} » a perdu "
+            f"ses colonnes « Heures » et « ID ligne », et l'onglet « "
+            f"{tab_name(SUBPROJECT_TESTS)} » ses colonnes « Quantité » et « Débours "
+            f"unitaire ». Refusé à l'ouverture, le format "
+            f"et la version attendus nommés, et chaque colonne nommée avec son onglet, onglet par "
+            f"onglet dans l'ordre du fichier puis dans l'ordre du format ; rien n'est analysé : "
+            f"aucune ligne n'est créée ni retirée (WF-INTF-0070, #4785).",
+            import_estimate_column_missing(),
         ),
         "import_remaining_amount_rounded.json": mocktext.example(
             f"Variante contrefactuelle de import_remaining_analysed : les « {signal['label']} » "
