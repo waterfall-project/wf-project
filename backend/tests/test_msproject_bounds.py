@@ -108,8 +108,8 @@ def test_an_integer_of_18_digits_is_read() -> None:
 @pytest.mark.parametrize("element", ["MinutesPerDay", "MinutesPerWeek", "DaysPerMonth"])
 @pytest.mark.parametrize("value", ["0", "-480"])
 def test_a_constant_of_unit_that_is_not_positive_is_refused(element: str, value: str) -> None:
-    # « et une constante d'unité — `MinutesPerDay`, `MinutesPerWeek`, `DaysPerMonth` — nulle ou »
-    # (US-3180b, #4830): the conversions of the engine divide by the constants
+    # « et une constante d'unité — `MinutesPerDay`, `MinutesPerWeek`, `DaysPerMonth` — nulle ou
+    # négative » (US-3180b, #4766): the conversions of the engine divide by the constants
     # of unit, so a zero or a negative one is refused at the reading, an unreadable format, never
     # an internal error of the analysis or of the application. No upper bound is added: the digits
     # of the reader are the bound.
