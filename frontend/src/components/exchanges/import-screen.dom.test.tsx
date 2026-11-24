@@ -61,17 +61,39 @@ function serve(answers: FakeAnswers, timing?: FakeTiming): FakeClient {
   return client;
 }
 
-/** Render a part of the screen within the shell that follows the tasks, in French. */
-function open(part: ReactNode) {
-  return render(
+/** A part of the screen within the shell that follows the tasks, in French. */
+function shell(part: ReactNode) {
+  return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <TaskTracker>
         <TasksButton />
         <TaskPanel />
         <main>{part}</main>
       </TaskTracker>
-    </NextIntlClientProvider>,
+    </NextIntlClientProvider>
   );
+}
+
+/** Render a part of the screen within the shell. */
+function open(part: ReactNode) {
+  return render(shell(part));
+}
+
+/**
+ * An import as the screen reads it anew once its application was refused for good: `refused`, no
+ * application offered. The contract has no example of an import `refused` — `import_apply_refused_permission`
+ * is the refusal of the permission, whose import stays analysed —, so it is derived by hand from the
+ * example of an import whose report asks a choice, which bears the radio the refusal must take away.
+ */
+function refused(): Import {
+  return {
+    ...(example("import_planning_calendar_gap") as Import),
+    status: "refused",
+    available_commands: [
+      { command: "apply", is_available: false, missing_conditions: ["import_awaiting_decision"] },
+      { command: "abandon", is_available: false, missing_conditions: ["import_not_applied"] },
+    ],
+  };
 }
 
 /** The report of an import, as the screen shows it. */
@@ -104,7 +126,10 @@ afterEach(() => {
 describe("the application of an import that fails or is refused", () => {
   it("tells the failure of the application with its motive, offers no « Relancer » and says to start again from the screen [WF-IHM-0080-A]", async () => {
     // An import that failed has lost its file, and the service refuses its application still: the
-    // tracker does not hold the command that would run it again (#4424, FCO-02).
+    // tracker does not hold the command that would run it again (#4424, FCO-02). The contract has
+    // no example of a task of application that failed: `task_import_analysis_failed`, of kind
+    // `import_analysis`, stands for it — the tracker treats a failed task by its status and its
+    // problem, not by its kind.
     serve({
       [APPLY]: { example: "task_import_queued", status: 202 },
       [TASK]: "task_import_analysis_failed",
@@ -116,6 +141,8 @@ describe("the application of an import that fails or is refused", () => {
     await waitFor(() => {
       expect(within(tasks).getByText("Échouée")).toBeVisible();
     });
+    // The motive of the failure, said as the problem of the task names it.
+    expect(within(tasks).getByText("Erreur inattendue du service.")).toBeVisible();
     expect(within(tasks).queryByRole("button", { name: /Relancer/ })).toBeNull();
     expect(
       within(tasks).getByText("Pour relancer cette tâche, repartez de l’écran de son objet."),
@@ -129,34 +156,29 @@ describe("the application of an import that fails or is refused", () => {
     "reads the screen anew once the application is refused (409): %s — %s [US-3280]",
     async (name) => {
       serve({ [APPLY]: { problem: example(name) as Problem & { status: 409 } } });
-      open(report(example("import_analysed") as Import));
+      const view = open(report(example("import_planning_calendar_gap") as Import));
       const confirmation = await apply();
       await waitFor(() => {
         expect(within(confirmation).getByRole("alert")).toBeVisible();
       });
-      // The screen read anew says the import « Refusé » and lists no application: it does not stay
-      // « Analysé », its « Appliquer » pressable for a refusal that will come again (FCO-04).
       expect(router.refresh).toHaveBeenCalledOnce();
+      // The page read anew gives the import `refused` (the refresh is faked: it is given here). It
+      // says « Refusé » and its explanation, offers no choice of the rule, and its « Appliquer » is
+      // not pressable for a refusal that would come again (FCO-04).
+      view.rerender(shell(report(refused())));
+      expect(screen.getByText("Refusé", { selector: "dd" })).toBeVisible();
+      expect(screen.getAllByText(CATALOGUES.fr.exchanges.refused).length).toBeGreaterThan(0);
+      expect(screen.queryByRole("radio")).toBeNull();
+      expect(screen.getByRole("button", { name: "Appliquer l’import" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
     },
   );
 
   it("shows an import refused as such, with its explanation, and offers neither the application nor the choice of the rule [US-3280]", () => {
     serve({});
-    const gapped = example("import_planning_calendar_gap") as Import;
-    open(
-      report({
-        ...gapped,
-        status: "refused",
-        available_commands: [
-          {
-            command: "apply",
-            is_available: false,
-            missing_conditions: ["import_awaiting_decision"],
-          },
-          { command: "abandon", is_available: false, missing_conditions: ["import_not_applied"] },
-        ],
-      }),
-    );
+    open(report(refused()));
     expect(screen.getByText("Refusé", { selector: "dd" })).toBeVisible();
     expect(screen.getAllByText(CATALOGUES.fr.exchanges.refused).length).toBeGreaterThan(0);
     expect(screen.queryByRole("radio")).toBeNull();
