@@ -393,7 +393,7 @@ describe("the creation and the modification of a sub-project", () => {
     });
     expect(code).toHaveAttribute("aria-invalid", "true");
     expect(code).toHaveAccessibleDescription(
-      "Ce code est celui du projet ou de l’un de ses sous-projets : un sous-projet ne porte jamais le code de son projet.",
+      "Ce code est celui du projet ou de l’un de ses sous-projets\u00a0: un sous-projet ne porte jamais le code de son projet.",
     );
     expect(within(form).queryByRole("alert")).toBeNull();
   });
