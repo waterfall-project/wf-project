@@ -14,7 +14,12 @@ it ("Tables et migrations") and the decision of the author of 2026-11-21:
   slash, then its former code — the WBS element the ERP gives its lines —, its counter advanced, so
   that a form read before cannot write the former code back (412); and the code of each line imputed
   to a subproject, the code it was imported under, becomes so as well: the line stays imputed to its
-  subproject, and the reimport of its extraction imputes it to the same. The unique code of a
+  subproject, and the reimport of its extraction imputes it to the same. A code of subproject was
+  31 characters at most and that of a project 50: the code of a subproject prefixed is 82 at most,
+  within the bound of 0046. A line imputed was imported under the code of its subproject, 31 at
+  most, then kept it through a recoding; one whose code, written around the service, would pass
+  100 characters once prefixed stops the reprise before any write, naming its projects
+  (``RuntimeError``): no code is cut. The unique code of a
   subproject in its project holds: every code of the project takes the same prefix, and no former
   code bore a slash. A project without a code — it never imported a line — keeps the codes of its
   subprojects;
@@ -52,6 +57,15 @@ depends_on: str | Sequence[str] | None = None
 
 logger = get_logger(__name__)
 
+# The bound of the code of a subproject and of a line of cost (0046).
+CODE_LENGTH = 100
+# The projects whose line imputed would bear a code beyond the bound once prefixed.
+TOO_LONG = sa.text(
+    "SELECT DISTINCT c.project_id FROM cost_line AS c JOIN project AS p ON p.id = c.project_id "
+    "WHERE c.subproject_id IS NOT NULL "
+    "AND char_length(p.code) + 1 + char_length(c.subproject_code) > :longest "
+    "ORDER BY c.project_id"
+).bindparams(longest=CODE_LENGTH)
 # The lines that wait for a subproject, by project, with the code of the project.
 WAITING = sa.text(
     "SELECT c.project_id, p.code, count(*) FROM cost_line AS c JOIN project AS p "
@@ -94,6 +108,13 @@ STRIP_LINES = sa.text(
 def upgrade() -> None:
     """Delete the lines that wait for a subproject, logged; prefix the codes; forget the reason."""
     connection = op.get_bind()
+    too_long = [str(project_id) for project_id in connection.scalars(TOO_LONG)]
+    if too_long:
+        message = (
+            f"a line imputed would bear a code beyond {CODE_LENGTH} characters once prefixed, "
+            f"in the projects {too_long}: shorten its code before the reprise"
+        )
+        raise RuntimeError(message)
     waiting = connection.execute(WAITING).all()
     for project_id, code, deleted in waiting:
         logger.info(

@@ -10,8 +10,14 @@ refused a slash (``code_without_slash``). 100, because the reprise writes the co
 50 characters, a slash, then a former code of 31: 82. The reserved names were the service's alone.
 
 Every constraint is relaxed: the code before runs on it as it did, and every row holds. The checks
-are dropped and created again, validated at once: ``subproject`` is small, and ``cost_line`` is
-read once, under the lock this migration takes anyway.
+are dropped and created again, validated at once, not ``NOT VALID`` then validated apart, as
+``docs/dev/sql.md`` (rule 6) asks of a long lock, and this is tolerable: dropping the check of
+``cost_line`` takes its exclusive lock, which the transaction of the migrations, one for the whole
+upgrade, holds until its end whatever follows, so a validation apart would shorten no lock; and
+the reprise of 0047, in that same transaction, rewrites every line imputed and deletes those that
+wait, reading the whole table anyway — the scan of the check, under the lock already held, adds a
+read of the table to it. A validation in a transaction of its own would split the upgrade, which
+then could stop between the schema and the reprise. ``subproject`` is small.
 
 The descent creates the former checks again: it fails while a code holds what they refuse — a
 subproject code beyond 31 characters or bearing a character a tab refuses, a line of cost whose
