@@ -413,12 +413,21 @@ const DETAILS: readonly Reader[] = [
   ({ subproject }) =>
     subproject === undefined ? undefined : ["subproject", { label: subproject.label }],
   // What a line of a file imported is rejected for, named as the file bears it: the value it holds
-  // that no object has (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `value`), the
-  // label that several tasks share, with those tasks (`AMBIGUOUS_TASK_LABEL`, `label`, `tasks`,
-  // WF-INTF-0120), the element of work breakdown read whole (`WBS_ELEMENT_OUTSIDE_PROJECT`,
-  // WF-CRE-0020), and the ranks of the other lines of the same document and item
-  // (`DUPLICATE_COST_LINE`, `rows`, WF-INTF-0080).
-  ({ value }) => (typeof value === "string" ? ["unknown_value", { value }] : undefined),
+  // that no object has (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `value`) —
+  // for a sheet of the remaining to commit, the code read at its head, which the user declares,
+  // and the sheet, where he finds the line (`subproject_code`, absent when the head has none,
+  // WF-INTF-0120, #4898) —, the label that several tasks share, with those tasks
+  // (`AMBIGUOUS_TASK_LABEL`, `label`, `tasks`, WF-INTF-0120), the element of work breakdown read
+  // whole (`WBS_ELEMENT_OUTSIDE_PROJECT`, WF-CRE-0020), and the ranks of the other lines of the same
+  // document and item (`DUPLICATE_COST_LINE`, `rows`, WF-INTF-0080).
+  ({ value, subproject_code }) => {
+    if (typeof value !== "string") {
+      return undefined;
+    }
+    return typeof subproject_code === "string"
+      ? ["unknown_subproject_code", { sheet: value, code: subproject_code }]
+      : ["unknown_value", { value }];
+  },
   ({ label, tasks }, _label, locale, say) => {
     const named = itemsOf(tasks, isLabelled).map((task) => say("taskName", { label: task.label }));
     return typeof label === "string" && named.length > 0

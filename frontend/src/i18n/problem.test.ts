@@ -560,6 +560,28 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("names the code read at the head of a sheet that no sub-project bears, and the sheet, in the rejection of its lines [WF-INTF-0120-A] [US-3270]", () => {
+    // The sheet renamed in the spreadsheet: the code at its head is what the user declares (#4898).
+    const unknown = {
+      code: "UNKNOWN_SUBPROJECT",
+      params: { value: "Essais sur site", subproject_code: "PRJ-001/SP-MES" },
+    } as const;
+    expect(example("import_remaining_unknown_subproject")).toMatchObject({
+      report: { rejected: [unknown, unknown] },
+    });
+    expect(say(unknown, "fr")).toBe(
+      "Sous-projet inconnu. Code lu en tête de l’onglet « Essais sur site » : " +
+        "« PRJ-001/SP-MES », qu’aucun sous-projet du projet ne porte.",
+    );
+    expect(say(unknown, "en")).toContain(
+      "Code read at the head of the sheet “Essais sur site”: “PRJ-001/SP-MES”, which no subproject of the project bears.",
+    );
+    // A head without a code names the value read, as before: the sheet.
+    expect(say({ code: "UNKNOWN_SUBPROJECT", params: { value: "Essais sur site" } }, "fr")).toBe(
+      "Sous-projet inconnu. Valeur lue dans le fichier : « Essais sur site ».",
+    );
+  });
+
   it("says the day without a working hour in the language of the reader, from the refusal of a start or of a finish [WF-PLA-0020-A]", () => {
     const refused = fromExample("task_date_non_working_day", TASK_ON_SATURDAY);
     expect(say(refused, "fr")).toBe(
