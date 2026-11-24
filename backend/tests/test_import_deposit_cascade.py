@@ -20,13 +20,14 @@ from imports_trial import deposited, import_worker, open_import, path, read, run
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from risks_support import MAKING, STUDY, Costed, costed
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from support import ContractClient
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.cost_settings.tables import CostCategory
 from waterfall.core.exchanges.tables import ImportReport
+from waterfall.core.revisions.interface import differential_base
 from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.storage import Bucket
@@ -148,6 +149,25 @@ def refused_unread(
     assert reads == []
 
 
+def removed_differential(api: ContractClient, project: Costed, aimed: str) -> None:
+    """Abandon a differential, its base with it."""
+    held = next(each for each in listed(api, project) if each["structure_id"] == aimed)
+    gone = api.delete(
+        f"{structures_path(project)}/{aimed}?lock_version={held['lock_version']}",
+        headers=project.stage.manager.headers,
+    )
+    assert gone.status_code == 204, gone.text
+
+
+def removed_revision(api: ContractClient, project: Costed) -> None:
+    """Abandon the current revision of the project."""
+    revision_path = f"{PROJECTS}/{project.project_id}/revisions/{project.revision_id}"
+    headers = project.stage.manager.headers
+    revision = api.get(revision_path, headers=headers).json()
+    gone = api.delete(f"{revision_path}?lock_version={revision['lock_version']}", headers=headers)
+    assert gone.status_code == 204, gone.text
+
+
 def pending(database: Database, stage: Scene) -> int:
     """Count the deposits of the manager that live and that no import names."""
     with database.transaction() as session:
@@ -210,3 +230,47 @@ def test_the_deposit_of_an_import_goes_expired_with_the_revision_it_writes_in(
     assert expired(database, upload_id)
     assert pending(database, stage) == 0
     refused_unread(api, stage, upload_id, monkeypatch)
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_the_deposit_of_an_import_aimed_at_the_base_of_a_differential_goes_expired(
+    api: ContractClient,
+    project: Costed,
+    worker: Worker,
+    database: Database,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Vérif : un dépôt employé par un import ne redevient jamais libre. [US-3250] The import aims
+    # at the base, the second of the two structures a differential abandoned holds.
+    aimed = opened_amendment(api, project)
+    upload_id = employed(api, project, worker, aimed)
+    with database.transaction() as session:
+        base = differential_base(session, project.project_id, UUID(aimed))
+        assert base is not None
+        session.execute(update(ImportReport).values(structure_id=base))
+    removed_differential(api, project, aimed)
+    assert imports_kept(database) == 0
+    assert expired(database, upload_id)
+    assert pending(database, project.stage) == 0
+    refused_unread(api, project.stage, upload_id, monkeypatch)
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_the_deposit_of_an_import_of_the_project_goes_expired_with_the_revision_it_reads(
+    api: ContractClient,
+    project: Costed,
+    worker: Worker,
+    database: Database,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Vérif : un dépôt employé par un import ne redevient jamais libre. [US-3250] An import of
+    # ``scope=project`` has no revision, yet aims at a structure of the revision abandoned: the
+    # structure takes it by the key.
+    upload_id = employed(api, project, worker, None)
+    with database.transaction() as session:
+        session.execute(update(ImportReport).values(revision_id=None))
+    removed_revision(api, project)
+    assert imports_kept(database) == 0
+    assert expired(database, upload_id)
+    assert pending(database, project.stage) == 0
+    refused_unread(api, project.stage, upload_id, monkeypatch)
