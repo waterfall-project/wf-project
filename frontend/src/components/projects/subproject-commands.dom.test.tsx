@@ -67,22 +67,12 @@ const UPDATE = "PATCH /projects/{project_id}/subprojects/{subproject_id}";
 const DELETE = "DELETE /projects/{project_id}/subprojects/{subproject_id}";
 const AVAILABLE: CommandOffer = { is_available: true, missing_conditions: [] };
 const SUBPROJECTS = example("subprojects") as Subproject[];
-// Both sub-projects of the example are charged with actual costs and cited by the reference revision
-// (EP-14/L45a, L42l): none deletes. The one a test deletes is a counterfactual variant of the
-// sub-project created (`subproject_created`), « SP-REC », which no marked revision cites, relieved of
-// its costs and its deletion listed available as the server would then list it, the rest of the
-// example kept; it is listed after the two of `subprojects`.
+// The two sub-projects of the example are charged with actual costs and cited by the reference
+// revision (EP-14/L45a, L42l): none deletes. The one a test deletes is the sub-project created
+// (`subproject_created`), « PRJ-001/SP-REC », which no line charges and no marked revision cites:
+// its deletion is listed available, and it is listed after the two of `subprojects`.
 const CREATED = example("subproject_created") as Subproject;
-const DELETABLE: Subproject[] = [
-  ...SUBPROJECTS,
-  {
-    ...CREATED,
-    has_actual_costs: false,
-    available_commands: CREATED.available_commands.map((each) =>
-      each.command === "delete" ? { ...each, is_available: true, missing_conditions: [] } : each,
-    ),
-  },
-];
+const DELETABLE: Subproject[] = [...SUBPROJECTS, CREATED];
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}, timing: FakeTiming = {}): FakeClient {
@@ -160,7 +150,7 @@ describe("the creation and the modification of a sub-project", () => {
     expect(code).toHaveAccessibleDescription("Une valeur est requise.");
     expect(code).toHaveFocus();
     expect(client.calls).toEqual([]);
-    await userEvent.type(code, " SP-REC ");
+    await userEvent.type(code, " PRJ-001/SP-REC ");
     await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Réception");
     await expectAccessible(container);
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
@@ -171,20 +161,20 @@ describe("the creation and the modification of a sub-project", () => {
       {
         route: CREATE,
         path: `/projects/${PROJECT}/subprojects`,
-        body: { code: "SP-REC", label: "Réception" },
+        body: { code: "PRJ-001/SP-REC", label: "Réception" },
       },
     ]);
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(announced()).toContain("«\u00A0SP-REC\u00A0» créé.");
+    expect(announced()).toContain("«\u00A0PRJ-001/SP-REC\u00A0» créé.");
   });
 
   it("modifies a sub-project from the version read, and shows its row as the server answered it", async () => {
     const client = serve();
     render(list());
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }),
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0PRJ-001/SP-ESS\u00A0»" }),
     );
-    const form = screen.getByRole("dialog", { name: "Modifier «\u00A0SP-ESS\u00A0»" });
+    const form = screen.getByRole("dialog", { name: "Modifier «\u00A0PRJ-001/SP-ESS\u00A0»" });
     const label = within(form).getByRole("textbox", { name: "Libellé" });
     expect(label).toHaveValue("Essais et mise en service");
     expect(within(form).getByRole("textbox", { name: "Code ERP" })).toHaveAttribute(
@@ -198,20 +188,20 @@ describe("the creation and the modification of a sub-project", () => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
     expect(writes(client)[0]?.body).toEqual({
-      code: "SP-ESS",
+      code: "PRJ-001/SP-ESS",
       label: "Essais, mise en service et réception",
       lock_version: 1,
     });
-    expect(within(grid()).getByRole("row", { name: /^SP-ESS/ })).toHaveTextContent(
+    expect(within(grid()).getByRole("row", { name: /^PRJ-001\/SP-ESS/ })).toHaveTextContent(
       "Essais, mise en service et réception",
     );
-    expect(announced()).toContain("«\u00A0SP-ESS\u00A0» enregistré.");
+    expect(announced()).toContain("«\u00A0PRJ-001/SP-ESS\u00A0» enregistré.");
     // Noted once in the history of the messages, about the sub-project it names.
     expect(readMessages().messages).toEqual([
       expect.objectContaining({
         tone: "success",
-        sentence: "«\u00a0SP-ESS\u00a0» enregistré.",
-        object: "SP-ESS",
+        sentence: "«\u00a0PRJ-001/SP-ESS\u00a0» enregistré.",
+        object: "PRJ-001/SP-ESS",
       }),
     ]);
   });
@@ -221,27 +211,29 @@ describe("the creation and the modification of a sub-project", () => {
     const client = serve({}, timing);
     render(list());
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }),
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0PRJ-001/SP-ESS\u00A0»" }),
     );
-    const first = screen.getByRole("dialog", { name: "Modifier «\u00A0SP-ESS\u00A0»" });
+    const first = screen.getByRole("dialog", { name: "Modifier «\u00A0PRJ-001/SP-ESS\u00A0»" });
     await userEvent.click(within(first).getByRole("button", { name: "Enregistrer" }));
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(1);
     });
     await userEvent.click(within(first).getByRole("button", { name: "Annuler" }));
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-CMD\u00A0»" }),
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0PRJ-001/SP-CMD\u00A0»" }),
     );
     const label = within(
-      screen.getByRole("dialog", { name: "Modifier «\u00A0SP-CMD\u00A0»" }),
+      screen.getByRole("dialog", { name: "Modifier «\u00A0PRJ-001/SP-CMD\u00A0»" }),
     ).getByRole("textbox", { name: "Libellé" });
     await userEvent.type(label, " principal");
     release();
     // Said and shown behind the form opened since, which hides the rest of the screen from its
     // readers — a text found with its no-break spaces read as plain ones.
-    expect(await screen.findByText("« SP-ESS » enregistré.")).toBeInTheDocument();
+    expect(await screen.findByText("« PRJ-001/SP-ESS » enregistré.")).toBeInTheDocument();
     expect(screen.getByText("Essais, mise en service et réception")).toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Modifier «\u00A0SP-CMD\u00A0»" })).toBeVisible();
+    expect(
+      screen.getByRole("dialog", { name: "Modifier «\u00A0PRJ-001/SP-CMD\u00A0»" }),
+    ).toBeVisible();
     expect(label).toHaveValue("Poste de commande principal");
   });
 
@@ -250,9 +242,9 @@ describe("the creation and the modification of a sub-project", () => {
     const client = serve({}, timing);
     render(list());
     const command = () =>
-      within(grid()).getByRole("button", { name: "Modifier «\u00a0SP-ESS\u00a0»" });
+      within(grid()).getByRole("button", { name: "Modifier «\u00a0PRJ-001/SP-ESS\u00a0»" });
     await userEvent.click(command());
-    const form = screen.getByRole("dialog", { name: "Modifier «\u00a0SP-ESS\u00a0»" });
+    const form = screen.getByRole("dialog", { name: "Modifier «\u00a0PRJ-001/SP-ESS\u00a0»" });
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(1);
@@ -268,7 +260,7 @@ describe("the creation and the modification of a sub-project", () => {
     expect(command()).toHaveAttribute("aria-busy", "true");
     expect(command()).toHaveAccessibleDescription("Enregistrement en cours…");
     expect(
-      within(grid()).getByRole("button", { name: "Modifier «\u00a0SP-CMD\u00a0»" }),
+      within(grid()).getByRole("button", { name: "Modifier «\u00a0PRJ-001/SP-CMD\u00a0»" }),
     ).not.toHaveAttribute("aria-disabled");
     await userEvent.click(command());
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -277,7 +269,7 @@ describe("the creation and the modification of a sub-project", () => {
       expect(command()).not.toHaveAttribute("aria-disabled");
     });
     await userEvent.click(command());
-    const reopened = screen.getByRole("dialog", { name: "Modifier «\u00a0SP-ESS\u00a0»" });
+    const reopened = screen.getByRole("dialog", { name: "Modifier «\u00a0PRJ-001/SP-ESS\u00a0»" });
     await userEvent.click(within(reopened).getByRole("button", { name: "Enregistrer" }));
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(2);
@@ -286,7 +278,7 @@ describe("the creation and the modification of a sub-project", () => {
   });
 
   it.each([
-    ["answered", {}, "status", "«\u00a0SP-ESS\u00a0» enregistré."],
+    ["answered", {}, "status", "«\u00a0PRJ-001/SP-ESS\u00a0» enregistré."],
     [
       "refused",
       { [UPDATE]: { problem: example("subproject_code_taken") as Problem & { status: 409 } } },
@@ -301,7 +293,7 @@ describe("the creation and the modification of a sub-project", () => {
       failing.until = outcome.startsWith("rejected") ? until : undefined;
       const client = serve(answers, timing);
       render(list());
-      const name = "Modifier «\u00a0SP-ESS\u00a0»";
+      const name = "Modifier «\u00a0PRJ-001/SP-ESS\u00a0»";
       const command = () => within(grid()).getByRole("button", { name });
       await userEvent.click(command());
       const form = screen.getByRole("dialog", { name });
@@ -328,30 +320,30 @@ describe("the creation and the modification of a sub-project", () => {
   it("tells the modification of a sub-project answered for another one as a failure of the service, the form kept open", async () => {
     const client = serve();
     render(list());
-    // The example answers « SP-ESS », whatever sub-project was modified: here « SP-CMD ».
+    // The example answers « PRJ-001/SP-ESS », whatever sub-project was modified: here « PRJ-001/SP-CMD ».
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-CMD\u00A0»" }),
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0PRJ-001/SP-CMD\u00A0»" }),
     );
-    const form = screen.getByRole("dialog", { name: "Modifier «\u00A0SP-CMD\u00A0»" });
+    const form = screen.getByRole("dialog", { name: "Modifier «\u00A0PRJ-001/SP-CMD\u00A0»" });
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     expect(await within(form).findByRole("alert")).toHaveTextContent(
       "Erreur inattendue du service.",
     );
     expect(client.calls).toHaveLength(1);
-    // Nothing takes the place of any row: the form closed, « SP-ESS » keeps its label read,
+    // Nothing takes the place of any row: the form closed, « PRJ-001/SP-ESS » keeps its label read,
     // and nothing is said saved.
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
     await vi.waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
-    expect(within(grid()).getByRole("row", { name: /^SP-ESS/ })).toHaveTextContent(
+    expect(within(grid()).getByRole("row", { name: /^PRJ-001\/SP-ESS/ })).toHaveTextContent(
       "Essais et mise en service",
     );
-    expect(within(grid()).getByRole("row", { name: /^SP-CMD/ })).toHaveTextContent(
+    expect(within(grid()).getByRole("row", { name: /^PRJ-001\/SP-CMD/ })).toHaveTextContent(
       "Poste de commande",
     );
-    expect(announced()).not.toContain("«\u00A0SP-ESS\u00A0» enregistré.");
-    expect(announced()).not.toContain("«\u00A0SP-CMD\u00A0» enregistré.");
+    expect(announced()).not.toContain("«\u00A0PRJ-001/SP-ESS\u00A0» enregistré.");
+    expect(announced()).not.toContain("«\u00A0PRJ-001/SP-CMD\u00A0» enregistré.");
   });
 
   it("says at the code a code another sub-project of the project bears, the form kept to be corrected [WF-PRJ-0050-A]", async () => {
@@ -360,12 +352,12 @@ describe("the creation and the modification of a sub-project", () => {
     });
     render(list());
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }),
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0PRJ-001/SP-ESS\u00A0»" }),
     );
-    const form = screen.getByRole("dialog", { name: "Modifier «\u00A0SP-ESS\u00A0»" });
+    const form = screen.getByRole("dialog", { name: "Modifier «\u00A0PRJ-001/SP-ESS\u00A0»" });
     const code = within(form).getByRole("textbox", { name: "Code ERP" });
     await userEvent.clear(code);
-    await userEvent.type(code, "SP-CMD");
+    await userEvent.type(code, "PRJ-001/SP-CMD");
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     // La création de deux sous-projets de même code dans un même projet est refusée.
     // Said at its field, which takes the focus — the holder named by the label the refusal gives it
@@ -382,18 +374,18 @@ describe("the creation and the modification of a sub-project", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it("bounds the code to thirty-one characters, and says the reason the server refuses it, the form kept to be corrected [WF-PRJ-0050-A]", async () => {
-    // La création d'un sous-projet de code « SP/01 », « Synthèse » ou de plus de trente et un
-    // caractères est refusée.
+  it("bounds the code to thirty-one characters, and says at the code the refusal of the code of the project, the form kept to be corrected [WF-PRJ-0050-A]", async () => {
+    // Un sous-projet ne porte jamais le code de son projet (« PRJ-001 ») : la création est refusée
+    // sur le code, sans paramètre. Le service n'en refuse plus d'autre sur la forme du code.
     serve({
-      [CREATE]: { problem: example("subproject_code_invalid") as Problem & { status: 422 } },
+      [CREATE]: { problem: example("subproject_code_of_project") as Problem & { status: 422 } },
     });
     render(list());
     await userEvent.click(screen.getByRole("button", { name: "Nouveau sous-projet" }));
     const form = screen.getByRole("dialog", { name: "Nouveau sous-projet" });
     const code = within(form).getByRole("textbox", { name: "Code ERP" });
     expect(code).toHaveAttribute("maxlength", "31");
-    await userEvent.type(code, "SP/01");
+    await userEvent.type(code, "PRJ-001");
     await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Essais");
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     await vi.waitFor(() => {
@@ -401,36 +393,18 @@ describe("the creation and the modification of a sub-project", () => {
     });
     expect(code).toHaveAttribute("aria-invalid", "true");
     expect(code).toHaveAccessibleDescription(
-      "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager. Caractères interdits dans le code\u00a0: /.",
+      "Ce code est celui du projet ou de l’un de ses sous-projets\u00a0: un sous-projet ne porte jamais le code de son projet.",
     );
     expect(within(form).queryByRole("alert")).toBeNull();
-  });
-
-  it("says the reserved name a code bears when the server refuses it [WF-PRJ-0050-A]", async () => {
-    serve({
-      [CREATE]: { problem: example("subproject_code_reserved") as Problem & { status: 422 } },
-    });
-    render(list());
-    await userEvent.click(screen.getByRole("button", { name: "Nouveau sous-projet" }));
-    const form = screen.getByRole("dialog", { name: "Nouveau sous-projet" });
-    const code = within(form).getByRole("textbox", { name: "Code ERP" });
-    await userEvent.type(code, "synthèse");
-    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Essais");
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-    await vi.waitFor(() => {
-      expect(code).toHaveAccessibleDescription(
-        "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager. «\u00a0Synthèse\u00a0» est un nom réservé, que le code ne peut pas porter.",
-      );
-    });
   });
 
   it("says the version stale under the form, with the offer to read the page anew", async () => {
     serve({ [UPDATE]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } } });
     render(list());
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }),
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0PRJ-001/SP-ESS\u00A0»" }),
     );
-    const form = screen.getByRole("dialog", { name: "Modifier «\u00A0SP-ESS\u00A0»" });
+    const form = screen.getByRole("dialog", { name: "Modifier «\u00A0PRJ-001/SP-ESS\u00A0»" });
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     await userEvent.click(await within(form).findByRole("button", { name: "Recharger" }));
     expect(router.refresh).toHaveBeenCalledOnce();
@@ -441,11 +415,13 @@ describe("the deletion of a sub-project", () => {
   it("deletes a sub-project once confirmed, saying which ones never delete, and takes its row away; cancelled, asks nothing [WF-IHM-0110-A]", async () => {
     const client = serve();
     render(list(AVAILABLE, DELETABLE));
-    const command = within(grid()).getByRole("button", { name: "Supprimer «\u00A0SP-REC\u00A0»" });
+    const command = within(grid()).getByRole("button", {
+      name: "Supprimer «\u00A0PRJ-001/SP-REC\u00A0»",
+    });
     await userEvent.click(command);
-    const title = "Supprimer le sous-projet «\u00A0SP-REC\u00A0»\u00A0?";
+    const title = "Supprimer le sous-projet «\u00A0PRJ-001/SP-REC\u00A0»\u00A0?";
     expect(screen.getByRole("dialog", { name: title })).toHaveAccessibleDescription(
-      "Le sous-projet «\u00A0SP-REC\u00A0», Réception sur site, sera supprimé. " +
+      "Le sous-projet «\u00A0PRJ-001/SP-REC\u00A0», Réception sur site, sera supprimé. " +
         "Un sous-projet auquel des coûts réels sont imputés, ou qu’une révision marquée cite, ne se " +
         "supprime pas.",
     );
@@ -468,14 +444,14 @@ describe("the deletion of a sub-project", () => {
     ]);
     const deleted = client.calls.find((call) => call.route === DELETE);
     expect(deleted?.query.get("lock_version")).toBe(String(CREATED.lock_version));
-    expect(within(grid()).queryByText("SP-REC")).toBeNull();
-    expect(announced()).toContain("«\u00A0SP-REC\u00A0» supprimé.");
+    expect(within(grid()).queryByText("PRJ-001/SP-REC")).toBeNull();
+    expect(announced()).toContain("«\u00A0PRJ-001/SP-REC\u00A0» supprimé.");
     // Noted once in the history of the messages, about the sub-project it names.
     expect(readMessages().messages).toEqual([
       expect.objectContaining({
         tone: "success",
-        sentence: "«\u00a0SP-REC\u00a0» supprimé.",
-        object: "SP-REC",
+        sentence: "«\u00a0PRJ-001/SP-REC\u00a0» supprimé.",
+        object: "PRJ-001/SP-REC",
       }),
     ]);
   });
@@ -485,10 +461,10 @@ describe("the deletion of a sub-project", () => {
     const client = serve({}, timing);
     render(list(AVAILABLE, DELETABLE));
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Supprimer «\u00A0SP-REC\u00A0»" }),
+      within(grid()).getByRole("button", { name: "Supprimer «\u00A0PRJ-001/SP-REC\u00A0»" }),
     );
     const confirmation = screen.getByRole("dialog", {
-      name: "Supprimer le sous-projet «\u00A0SP-REC\u00A0»\u00A0?",
+      name: "Supprimer le sous-projet «\u00A0PRJ-001/SP-REC\u00A0»\u00A0?",
     });
     await userEvent.click(within(confirmation).getByRole("button", { name: "Supprimer" }));
     await vi.waitFor(() => {
@@ -496,27 +472,27 @@ describe("the deletion of a sub-project", () => {
     });
     await userEvent.click(within(confirmation).getByRole("button", { name: "Annuler" }));
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }),
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0PRJ-001/SP-ESS\u00A0»" }),
     );
     release();
     // Said behind the form opened since, which hides the rest of the screen from its readers — a
     // text found with its no-break spaces read as plain ones.
-    expect(await screen.findByText("« SP-REC » supprimé.")).toBeInTheDocument();
-    expect(screen.queryByText("SP-REC")).toBeNull();
-    expect(screen.getByRole("dialog", { name: "Modifier «\u00A0SP-ESS\u00A0»" })).toBeVisible();
+    expect(await screen.findByText("« PRJ-001/SP-REC » supprimé.")).toBeInTheDocument();
+    expect(screen.queryByText("PRJ-001/SP-REC")).toBeNull();
+    expect(
+      screen.getByRole("dialog", { name: "Modifier «\u00A0PRJ-001/SP-ESS\u00A0»" }),
+    ).toBeVisible();
   });
 
   it.each([
     // Charged, cited by the reference revision and borne by lines of the current revision
     // (EP-14/L45a, L42l, L42q).
     [
-      "SP-CMD",
+      "PRJ-001/SP-CMD",
       "Conditions non remplies\u00A0: sous-projet cité par aucune révision marquée, aucun coût réel " +
         "imputé au sous-projet et aucune ligne de devis de la révision en cours portant le " +
         "sous-projet.",
     ],
-    // Created charged with an invoice, cited by no marked revision (`subproject_created`).
-    ["SP-REC", "Condition non remplie\u00A0: aucun coût réel imputé au sous-projet."],
   ])(
     "presents unavailable the deletion of %s, charged with actual costs, naming each condition its row lists, and asks nothing [WF-PRJ-0050-A]",
     async (code, unmet) => {
@@ -540,12 +516,12 @@ describe("the deletion of a sub-project", () => {
   );
 
   it("leads from a deletion the estimate lines alone keep to the estimate filtered on the sub-project, and from no other", async () => {
-    // A counterfactual variant of `subprojects`: « SP-ESS » lacking only the passing of the lines
+    // A counterfactual variant of `subprojects`: « PRJ-001/SP-ESS » lacking only the passing of the lines
     // that bear it, the rest of the example kept. The lines of its main structure show in the
     // estimate, to be passed out of it (EP-14/L42q); those of another structure, the link does not
     // reach.
     const passable: Subproject[] = SUBPROJECTS.map((row) =>
-      row.code === "SP-ESS"
+      row.code === "PRJ-001/SP-ESS"
         ? {
             ...row,
             available_commands: row.available_commands.map((each) =>
@@ -558,21 +534,19 @@ describe("the deletion of a sub-project", () => {
     );
     const client = serve();
     render(list(AVAILABLE, [...passable, CREATED], REVISION));
-    // « SP-CMD », cited by the reference revision, and « SP-REC », charged with an invoice: no line
-    // passed lifts what they lack, and they lead nowhere.
-    for (const code of ["SP-CMD", "SP-REC"]) {
-      await userEvent.click(
-        within(grid()).getByRole("button", { name: `Supprimer «\u00a0${code}\u00a0»` }),
-      );
-      expect(screen.queryByRole("link")).toBeNull();
-    }
+    // « PRJ-001/SP-CMD », cited by the reference revision and charged with actual costs: no line
+    // passed lifts what it lacks, and it leads nowhere.
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Supprimer «\u00a0SP-ESS\u00a0»" }),
+      within(grid()).getByRole("button", { name: "Supprimer «\u00a0PRJ-001/SP-CMD\u00a0»" }),
     );
-    const ess = SUBPROJECTS.find((row) => row.code === "SP-ESS")?.subproject_id ?? "";
+    expect(screen.queryByRole("link")).toBeNull();
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Supprimer «\u00a0PRJ-001/SP-ESS\u00a0»" }),
+    );
+    const ess = SUBPROJECTS.find((row) => row.code === "PRJ-001/SP-ESS")?.subproject_id ?? "";
     expect(
       screen.getByRole("link", {
-        name: "Voir au devis les lignes de la structure principale qui portent «\u00a0SP-ESS\u00a0»",
+        name: "Voir au devis les lignes de la structure principale qui portent «\u00a0PRJ-001/SP-ESS\u00a0»",
       }),
     ).toHaveAttribute(
       "href",
@@ -590,7 +564,7 @@ describe("the deletion of a sub-project", () => {
     });
     render(list(AVAILABLE, DELETABLE));
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Supprimer «\u00A0SP-REC\u00A0»" }),
+      within(grid()).getByRole("button", { name: "Supprimer «\u00A0PRJ-001/SP-REC\u00A0»" }),
     );
     await userEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
@@ -599,7 +573,7 @@ describe("the deletion of a sub-project", () => {
     expect(refusal).toHaveTextContent(
       "Condition non remplie : sous-projet cité par aucune révision marquée.",
     );
-    expect(within(grid()).getByText("SP-REC")).toBeInTheDocument();
+    expect(within(grid()).getByText("PRJ-001/SP-REC")).toBeInTheDocument();
   });
 
   it("says above the list a sub-project written since it was read, with the offer to read the page anew, and keeps its row [WF-IHM-0110-A]", async () => {
@@ -608,19 +582,19 @@ describe("the deletion of a sub-project", () => {
     });
     render(list(AVAILABLE, DELETABLE));
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Supprimer «\u00A0SP-REC\u00A0»" }),
+      within(grid()).getByRole("button", { name: "Supprimer «\u00A0PRJ-001/SP-REC\u00A0»" }),
     );
     await userEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
     );
     await userEvent.click(await screen.findByRole("button", { name: "Recharger" }));
     expect(router.refresh).toHaveBeenCalledOnce();
-    expect(within(grid()).getByText("SP-REC")).toBeInTheDocument();
+    expect(within(grid()).getByText("PRJ-001/SP-REC")).toBeInTheDocument();
   });
 
   it("tells above the list a deletion refused for the estimate lines that bear the sub-project, naming them [WF-DAT-0080-A]", async () => {
     // Celle d'un sous-projet que portent des lignes de devis de la révision en cours est refusée
-    // et nomme ces lignes — passées à « SP-REC » depuis la lecture (EP-14/L42q).
+    // et nomme ces lignes — passées à « PRJ-001/SP-REC » depuis la lecture (EP-14/L42q).
     serve({
       [DELETE]: {
         problem: example("subproject_delete_estimated") as Problem & { status: 409 },
@@ -628,7 +602,7 @@ describe("the deletion of a sub-project", () => {
     });
     render(list(AVAILABLE, DELETABLE));
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Supprimer «\u00A0SP-REC\u00A0»" }),
+      within(grid()).getByRole("button", { name: "Supprimer «\u00A0PRJ-001/SP-REC\u00A0»" }),
     );
     await userEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
@@ -638,7 +612,7 @@ describe("the deletion of a sub-project", () => {
         "« Raccordement des borniers » et ligne 11 « Borniers ». Une ligne de " +
         "provision change de sous-projet par son risque.",
     );
-    expect(within(grid()).getByText("SP-REC")).toBeInTheDocument();
+    expect(within(grid()).getByText("PRJ-001/SP-REC")).toBeInTheDocument();
   });
 
   it("presents unavailable the deletion of a sub-project that estimate lines bear, naming the one condition it lacks [WF-DAT-0080-A]", () => {
@@ -647,7 +621,9 @@ describe("the deletion of a sub-project", () => {
     const rows = example("subprojects_estimated") as Subproject[];
     serve();
     render(list(AVAILABLE, rows));
-    const remove = within(grid()).getByRole("button", { name: "Supprimer «\u00a0SP-REC\u00a0»" });
+    const remove = within(grid()).getByRole("button", {
+      name: "Supprimer «\u00a0PRJ-001/SP-REC\u00a0»",
+    });
     expect(remove).toHaveAttribute("aria-disabled", "true");
     expect(remove).toHaveAccessibleDescription(
       "Condition non remplie\u00A0: aucune ligne de devis de la révision en cours portant le sous-projet.",
@@ -657,18 +633,18 @@ describe("the deletion of a sub-project", () => {
 
 describe("the commands a sub-project lists", () => {
   it("offers on a row only the commands it lists", () => {
-    // A counterfactual variant of the example: « SP-CMD » listing no command, the rest kept.
+    // A counterfactual variant of the example: « PRJ-001/SP-CMD » listing no command, the rest kept.
     const rows: Subproject[] = SUBPROJECTS.map((row) =>
-      row.code === "SP-CMD" ? { ...row, available_commands: [] } : row,
+      row.code === "PRJ-001/SP-CMD" ? { ...row, available_commands: [] } : row,
     );
     serve();
     render(list(AVAILABLE, rows));
     // The grid has no row header: the row is the one of the code's cell.
-    const cmd = within(grid()).getByText("SP-CMD").closest("tr");
+    const cmd = within(grid()).getByText("PRJ-001/SP-CMD").closest("tr");
     expect(cmd).not.toBeNull();
     expect(within(cmd as HTMLElement).queryByRole("button")).toBeNull();
     expect(
-      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }),
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0PRJ-001/SP-ESS\u00A0»" }),
     ).not.toHaveAttribute("aria-disabled");
   });
 });
@@ -693,7 +669,7 @@ describe("the commands a project lists", () => {
     const rows = example("subprojects_completed") as Subproject[];
     const client = serve();
     render(list(null, rows));
-    expect(within(grid()).getByText("SP-ESS")).toBeInTheDocument();
+    expect(within(grid()).getByText("PRJ-001/SP-ESS")).toBeInTheDocument();
     expect(screen.queryAllByRole("button", { name: /Nouveau|Modifier|Supprimer/ })).toEqual([]);
     expect(client.calls).toEqual([]);
     expect(readMessages().messages).toEqual([]);

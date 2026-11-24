@@ -250,8 +250,8 @@ def _report(view: ImportView) -> dict[str, Any] | None:
     (US-2000/L2). A report analysed before ``unit_constants`` (#2580) or ``calendar_gap`` (#2977),
     or by the code that precedes them during an update (WF-DAT-0140), lacks a key the contract
     requires, as the reports of the other kinds do: it is read as the constants and the calendars
-    of the file not differing. No analysis writes ``unknown_wbs_elements`` yet (#3966): it is read
-    empty until the extraction names its unknown elements (US-3270/L2).
+    of the file not differing. The analysis of an extraction writes ``unknown_wbs_elements``
+    (#3966); a report of another kind, or analysed before it, is read without an unknown element.
     """
     if view.report is None:
         return None

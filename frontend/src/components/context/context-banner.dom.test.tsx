@@ -147,7 +147,7 @@ describe("the banner of the reading context", () => {
     const chips = screen.getByRole("list", { name: "Active filters" });
     const items = within(chips).getAllByRole("listitem");
     expect(items.map((item) => item.textContent)).toEqual([
-      "Subproject: SP-CMD — Poste de commande",
+      "Subproject: PRJ-001/SP-CMD — Poste de commande",
       "Calculation date: 31 May 2026",
     ]);
     expect(items[0]).toBeVisible();
@@ -156,7 +156,7 @@ describe("the banner of the reading context", () => {
     ).toHaveAttribute("href", `${REMAINING}?subproject_id=${SUBPROJECT}`);
     expect(
       screen.getByRole("link", {
-        name: "Remove the filter “Subproject: SP-CMD — Poste de commande”",
+        name: "Remove the filter “Subproject: PRJ-001/SP-CMD — Poste de commande”",
       }),
     ).toHaveAttribute("href", `${REMAINING}?as_of=2026-05-31`);
     await expectAccessible(container);
@@ -179,12 +179,12 @@ describe("the banner of the reading context", () => {
       "listitem",
     );
     expect(chips.map((chip) => chip.textContent)).toEqual([
-      "Subproject: SP-CMD — Poste de commande, on the grid only",
+      "Subproject: PRJ-001/SP-CMD — Poste de commande, on the grid only",
       "Calculation date: 31 May 2026",
     ]);
     expect(
       screen.getByRole("link", {
-        name: "Remove the filter “Subproject: SP-CMD — Poste de commande, on the grid only”",
+        name: "Remove the filter “Subproject: PRJ-001/SP-CMD — Poste de commande, on the grid only”",
       }),
     ).toHaveAttribute("href", `${REMAINING}?as_of=2026-05-31`);
   });
@@ -204,7 +204,9 @@ describe("the banner of the reading context", () => {
     );
     expect(
       within(screen.getByRole("list", { name: "Active filters" })).getByRole("listitem"),
-    ).toHaveTextContent("Subproject: SP-CMD — Poste de commande, except the milestone tracking");
+    ).toHaveTextContent(
+      "Subproject: PRJ-001/SP-CMD — Poste de commande, except the milestone tracking",
+    );
   });
 
   it("keeps the revision a function of the project carries when a filter is lifted", () => {

@@ -138,14 +138,12 @@
           `VALUE_REQUIRED`, or longer than the schema allows, `VALUE_TOO_LONG` (WF-PRJ-0080);
           `/code` empty, `VALUE_REQUIRED`, made only of whitespace, `VALIDATION_FAILED`, or
           longer than the schema allows, `VALUE_TOO_LONG` (`ProjectCode`, WF-PRJ-0010,
-          WF-CRE-0020). A code may bear a slash and dots (`A.ABC.26001`): `PROJECT_CODE_INVALID`,
-          which refused a slash (`code_invalid`), is no longer given (#3966).
+          WF-CRE-0020). A code may bear a slash and dots (`A.ABC.26001`; #3966).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               refused: { $ref: ../../../fixtures/api/project_creation_refused.json }
-              code_invalid: { $ref: ../../../fixtures/api/project_code_invalid.json }
               code_blank: { $ref: ../../../fixtures/api/project_code_blank.json }
               fields_too_long: { $ref: ../../../fixtures/api/project_fields_too_long.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
@@ -735,15 +733,11 @@
           of the field —; `/code` equal to the code of the project, compared whole,
           `SUBPROJECT_CODE_INVALID`, without a parameter (`DeclaredSubprojectCode`, WF-PRJ-0050;
           #3966). A code may bear a slash, a character a tab refuses or the name of a tab that
-          Waterfall writes: `SUBPROJECT_CODE_INVALID` with `fields[].params.forbidden_characters`
-          or `fields[].params.reserved_name` (`code_invalid`, `code_reserved`) is no longer
-          given. Nothing is written.
+          Waterfall writes. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
-              code_invalid: { $ref: ../../../fixtures/api/subproject_code_invalid.json }
-              code_reserved: { $ref: ../../../fixtures/api/subproject_code_reserved.json }
               code_too_long: { $ref: ../../../fixtures/api/subproject_code_too_long.json }
               code_of_project: { $ref: ../../../fixtures/api/subproject_code_of_project.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
@@ -804,15 +798,11 @@
           of the field —; `/code` equal to the code of the project, compared whole,
           `SUBPROJECT_CODE_INVALID`, without a parameter (`DeclaredSubprojectCode`, WF-PRJ-0050;
           #3966). A code may bear a slash, a character a tab refuses or the name of a tab that
-          Waterfall writes: `SUBPROJECT_CODE_INVALID` with `fields[].params.forbidden_characters`
-          or `fields[].params.reserved_name` (`code_invalid`, `code_reserved`) is no longer
-          given. Nothing is written.
+          Waterfall writes. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
-              code_invalid: { $ref: ../../../fixtures/api/subproject_code_invalid.json }
-              code_reserved: { $ref: ../../../fixtures/api/subproject_code_reserved.json }
               code_too_long: { $ref: ../../../fixtures/api/subproject_code_too_long.json }
               code_of_project: { $ref: ../../../fixtures/api/subproject_code_of_project.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }

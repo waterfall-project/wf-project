@@ -440,6 +440,16 @@ message = '''Failed to fetch https?://(?:deb\.debian\.org|apt\.postgresql\.org)/
 frequency = "aucun passage relevé du 2026-11-05 au 2026-11-12 ; source nommée par #3015"
 cause = "hypothèse : la construction d'une image tire apt faute de cache de couches, et la source ne répond pas ; dépendance absente de l'inventaire d'US-1900"
 
+# Le miroir des images sur ghcr.io (`ghcr.io/waterfall-project/mirror/…`) : le pull d'une image
+# échoue à la résolution de la référence, avant tout téléchargement (#4894).
+[[known]]
+class = "infrastructure"
+family = "ghcr.io, miroir des images"
+issue = "#4894"
+message = '''failed to resolve reference "ghcr\.io/waterfall-project/mirror/[^\n]*(?:dial tcp|i/o timeout|connection (?:refused|reset)|no such host)'''
+frequency = "1 passage le 2026-11-24 : service / paths (4/4) (45392474366)"
+cause = "établie : le registre ghcr.io est injoignable depuis le runner, `dial tcp … i/o timeout` au bout de 60 s ; `make e2e-service` ne finit pas de tirer `node:26-alpine`"
+
 # Le délai d'un job, dépassé : la chaîne trop longue, que US-1910 raccourcit.
 
 [[known]]

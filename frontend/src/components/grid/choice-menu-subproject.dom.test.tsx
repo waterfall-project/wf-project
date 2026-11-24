@@ -74,8 +74,8 @@ describe("the submenu « Sous-projet » of a line", () => {
     const radios = within(menu).getAllByRole("menuitemradio");
     expect(radios.map((radio) => radio.textContent)).toEqual([
       "Aucun sous-projet",
-      "SP-CMD — Poste de commande",
-      "SP-ESS — Essais et mise en service",
+      "PRJ-001/SP-CMD — Poste de commande",
+      "PRJ-001/SP-ESS — Essais et mise en service",
     ]);
     expect(radios.map((radio) => radio.getAttribute("aria-checked"))).toEqual([
       "true",
@@ -123,8 +123,8 @@ describe("the submenu « Sous-projet » of a line", () => {
         .map((radio) => radio.textContent),
     ).toEqual([
       "Aucun sous-projet",
-      "SP-CMD — Poste de commande",
-      "SP-ESS — Essais et mise en service",
+      "PRJ-001/SP-CMD — Poste de commande",
+      "PRJ-001/SP-ESS — Essais et mise en service",
     ]);
   });
 
@@ -134,7 +134,9 @@ describe("the submenu « Sous-projet » of a line", () => {
     render(estimateGrid());
     const menu = await openSubmenu(WIRING, "Sous-projet");
     await userEvent.click(
-      within(menu).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
+      within(menu).getByRole("menuitemradio", {
+        name: "PRJ-001/SP-ESS — Essais et mise en service",
+      }),
     );
     await waitFor(() => {
       expect(sent(client, LINE)).toHaveLength(1);
@@ -204,7 +206,9 @@ describe("the submenu « Sous-projet » of a line", () => {
     render(estimateGrid());
     const menu = await openSubmenu(WIRING, "Sous-projet");
     await userEvent.click(
-      within(menu).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
+      within(menu).getByRole("menuitemradio", {
+        name: "PRJ-001/SP-ESS — Essais et mise en service",
+      }),
     );
     const alert = await screen.findByRole("alert");
     const row = installation.items[WIRING]?.row_number ?? 0;
@@ -228,7 +232,9 @@ describe("the submenu « Sous-projet » of a line", () => {
     await select(WIRING, COMMISSIONING);
     const menu = await openSubmenu(WIRING, "Sous-projet");
     await userEvent.click(
-      within(menu).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
+      within(menu).getByRole("menuitemradio", {
+        name: "PRJ-001/SP-ESS — Essais et mise en service",
+      }),
     );
     await waitFor(() => {
       expect(sent(client, LINE)).toHaveLength(3);
@@ -251,7 +257,9 @@ describe("the submenu « Sous-projet » of a line", () => {
     await select(THREE[0], THREE[2]);
     const menu = await openSubmenu(THREE[0], "Sous-projet");
     await userEvent.click(
-      within(menu).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
+      within(menu).getByRole("menuitemradio", {
+        name: "PRJ-001/SP-ESS — Essais et mise en service",
+      }),
     );
     const second = installation.items[THREE[1]]?.row_number ?? 0;
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -274,7 +282,7 @@ describe("the submenu « Sous-projet » of a line", () => {
     await select(THREE[0], THREE[2]);
     const menu = await openSubmenu(THREE[0], "Sous-projet");
     await userEvent.click(
-      within(menu).getByRole("menuitemradio", { name: "SP-CMD — Poste de commande" }),
+      within(menu).getByRole("menuitemradio", { name: "PRJ-001/SP-CMD — Poste de commande" }),
     );
     await waitFor(() => {
       expect(sent(client, LINE)).toHaveLength(1);
@@ -288,7 +296,7 @@ describe("the submenu « Sous-projet » of a line", () => {
     render(estimateGrid(threeLines()));
     const menu = await openSubmenu(THREE[0], "Sous-projet");
     await userEvent.click(
-      within(menu).getByRole("menuitemradio", { name: "SP-CMD — Poste de commande" }),
+      within(menu).getByRole("menuitemradio", { name: "PRJ-001/SP-CMD — Poste de commande" }),
     );
     expect(sent(client, LINE)).toHaveLength(0);
     expect(router.refresh).not.toHaveBeenCalled();
@@ -300,7 +308,9 @@ describe("the submenu « Sous-projet » of a line", () => {
     render(estimateGrid());
     const first = await openSubmenu(WIRING, "Sous-projet");
     await userEvent.click(
-      within(first).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
+      within(first).getByRole("menuitemradio", {
+        name: "PRJ-001/SP-ESS — Essais et mise en service",
+      }),
     );
     await waitFor(() => {
       expect(sent(client, LINE)).toHaveLength(1);
@@ -381,7 +391,9 @@ describe("the submenu « Sous-projet » of a line of the remaining to commit", (
     expect(cellAt(WIRING, "subproject")).toHaveAttribute("aria-readonly", "true");
     const menu = await openSubmenu(WIRING, "Sous-projet");
     await userEvent.click(
-      within(menu).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
+      within(menu).getByRole("menuitemradio", {
+        name: "PRJ-001/SP-ESS — Essais et mise en service",
+      }),
     );
     await waitFor(() => {
       expect(sent(client, LINE)).toHaveLength(1);
@@ -397,7 +409,9 @@ describe("the submenu « Sous-projet » of a line of the remaining to commit", (
     expect(cellAt(COMMISSIONING, "subproject")).toHaveTextContent("Poste de commande");
     const menu = await openSubmenu(COMMISSIONING, "Sous-projet");
     await userEvent.click(
-      within(menu).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
+      within(menu).getByRole("menuitemradio", {
+        name: "PRJ-001/SP-ESS — Essais et mise en service",
+      }),
     );
     await waitFor(() => {
       expect(cellAt(COMMISSIONING, "subproject")).toHaveTextContent("Essais et mise en service");

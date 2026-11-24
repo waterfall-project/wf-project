@@ -25,6 +25,7 @@ from actual_costs_import_support import (
     in_progress,
     line,
     opening,
+    subproject,
     untouched,
 )
 from fastapi.testclient import TestClient
@@ -82,9 +83,14 @@ def api(contract: OpenAPI, import_services: Services) -> ContractClient:
 
 @pytest.fixture
 def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
-    """Give a platform installed — its mapping empty —, its sessions, a project In progress."""
+    """Give a platform installed — its mapping empty —, its sessions, a project In progress.
+
+    The project bears the subproject whose code is the element of the lines of the support: an
+    element no code is would be rejected (#3966).
+    """
     made = make_scene(api, owner, database, realm)
     in_progress(made)
+    subproject(api, made)
     return made
 
 

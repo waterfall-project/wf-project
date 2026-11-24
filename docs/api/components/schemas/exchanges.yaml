@@ -465,13 +465,12 @@ ImportReport:
         `unknown_wbs_elements` names. The confirmation guards against a file of the wrong project
         (#2724): such a line is judged for its element alone, never compared with the lines of the
         project for `DUPLICATE_COST_LINE`, and no line of the project is rejected because of it
-        (BRC-04; #3966). `unknown_subproject`, a line charged to the project alone under a
-        subproject code that no subproject bore, is no longer given: such a line is rejected
+        (BRC-04; #3966). A line of a subproject code that no subproject bears is such a line
         (#3966). A difference in dates or durations is no longer one: it is stated by
         `date_mismatches`.
       items:
         type: string
-        enum: [lines_outside_project, unknown_subproject]
+        enum: [lines_outside_project]
     unknown_wbs_elements:
       type: array
       description: >-
@@ -885,8 +884,7 @@ ImportRejection:
     of another project, a subproject code without the code of the project, a subproject not
     declared —, `params.wbs_element` the element as the file carries it; the report names each
     such element once, with the number of its lines (`ImportReport.unknown_wbs_elements`;
-    #3966). `WBS_ELEMENT_INVALID` and `params.project_code`, which cut the element at its slash
-    (#2721), are no longer given. The amount of a line is
+    #3966). The amount of a line is
     rounded to the cent, half away from zero — `-0.005` gives `-0.01` — before it is judged
     against its bounds (#2721). A cell of a line of an actual cost extraction that is refused
     (`VALUE_REQUIRED`, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE`, `NUMBER_INVALID`, `DATE_INVALID`)

@@ -465,7 +465,7 @@ def test_the_marked_reference_cites_both_subprojects_of_the_witness_not_the_crea
     for name in ("subprojects", "subproject_updated"):
         for subproject in _subprojects(name):
             assert _commands(subproject)[1] == ("delete", False, every)
-    assert _commands(fixture("subproject_created"))[1] == ("delete", False, [WITHOUT_COSTS])
+    assert _commands(fixture("subproject_created"))[1] == ("delete", True, [])
 
 
 def test_the_current_revision_bears_both_subprojects_of_the_witness_not_the_created_one() -> None:
@@ -476,14 +476,20 @@ def test_the_current_revision_bears_both_subprojects_of_the_witness_not_the_crea
     assert fixture("subproject_created")["subproject_id"] not in borne
 
 
-def test_every_subproject_of_the_examples_is_charged_and_none_offers_its_deletion() -> None:
-    # The witness charges each of its subprojects since EP-14/L45a, the created one included
-    # (#625): no example shows the deletion available (WF-PRJ-0050).
+def test_every_subproject_of_the_witness_is_charged_and_the_created_one_is_not() -> None:
+    # The witness charges each of its subprojects since EP-14/L45a: no example of them shows the
+    # deletion available (WF-PRJ-0050). The one created today is charged by no line: its creation
+    # imputes nothing, only a reimport would (#3966), and it offers its deletion.
     cited = _cited_by_a_marked_revision()
+    created = fixture("subproject_created")
     for name in SUBPROJECTS:
         for subproject in _subprojects(name):
+            if subproject["subproject_id"] == created["subproject_id"]:
+                continue
             assert subproject["has_actual_costs"] is True, (name, subproject["code"])
             assert _commands(subproject)[1][1] is False, (name, subproject["code"])
+    assert created["has_actual_costs"] is False
+    assert _listed(created, cited) == _commands(created)
     # The rule the test applies to the examples, fixed on variants built here rather than new
     # examples: relieved of its costs, the created subproject, which no marked revision cites,
     # would offer its deletion; the tests and commissioning, which the reference cites, would not
@@ -508,10 +514,7 @@ def test_the_subproject_borne_by_lines_alone_is_an_example_its_refused_deletion_
     *witness, estimated = _subprojects("subprojects_estimated")
     assert witness == fixture("subprojects")
     created = fixture("subproject_created")
-    assert {**estimated, "available_commands": None, "has_actual_costs": True} == {
-        **created,
-        "available_commands": None,
-    }
+    assert {**estimated, "available_commands": None} == {**created, "available_commands": None}
     assert estimated["has_actual_costs"] is False
     borne = {cast("str", estimated["subproject_id"])}
     assert _commands(estimated) == _listed(estimated, cited, borne=borne)
@@ -609,8 +612,8 @@ def test_the_citation_by_a_marked_revision_is_a_condition_of_the_catalogue() -> 
 @pytest.mark.parametrize(
     ("name", "read", "code"),
     [
-        ("subproject_delete_cited", "subprojects", "SP-CMD"),
-        ("subproject_delete_refused", "subproject_created", "SP-REC"),
+        ("subproject_delete_cited", "subprojects", "PRJ-001/SP-CMD"),
+        ("subproject_delete_refused", "subproject_created", "PRJ-001/SP-REC"),
     ],
 )
 def test_the_refused_deletion_names_the_first_condition_its_command_misses(
@@ -618,7 +621,13 @@ def test_the_refused_deletion_names_the_first_condition_its_command_misses(
 ) -> None:
     refused = fixture(name)
     [subproject] = [each for each in _subprojects(read) if each["code"] == code]
-    _, available, missing = _commands(subproject)[1]
+    commands = _commands(subproject)
+    if name == "subproject_delete_refused":
+        # A counterfactual variant: the created subproject charged by the reimport of the
+        # extraction whose element is its code, which its creation does not do (#3966).
+        charged = {**subproject, "has_actual_costs": True}
+        commands = _listed(charged, _cited_by_a_marked_revision())
+    _, available, missing = commands[1]
     assert not available
     assert set(refused) == {"code", "status", "params", "correlation_id"}
     assert (refused["status"], refused["code"]) == FORBIDDEN

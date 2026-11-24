@@ -1,5 +1,5 @@
 {
-  "summary": "Variante contrefactuelle : l'extraction d'avril importée sur un projet de code A.ABC.26001, qui porte des points, et dont un sous-projet a pour code 10001. Seule la barre oblique sépare le code projet du code de sous-projet : la ligne 2, d'élément d'OTP « A.ABC.26001/10001 », est ajoutée et imputée au sous-projet 10001 ; la ligne 3, d'élément « A.ABC.26002/10001 », est rejetée comme d'un autre projet, le code projet lu, A.ABC.26002, nommé. L'application demande une confirmation explicite pour la ligne d'un autre projet (WF-CRE-0020, WF-PRJ-0010, WF-INTF-0140).",
+  "summary": "Variante contrefactuelle : l'extraction d'avril importée sur un projet de code A.ABC.26001, qui porte des points, et dont un sous-projet a pour code A.ABC.26001/10001. L'élément d'OTP se compare en entier au code du projet et à ceux de ses sous-projets : la ligne 2, d'élément « A.ABC.26001/10001 », est ajoutée et imputée à ce sous-projet ; la ligne 3, d'élément « A.ABC.26002/10001 », qui n'est le code ni du projet ni de l'un de ses sous-projets, est rejetée, l'élément nommé au compte rendu avec le nombre de ses lignes. L'application demande une confirmation explicite pour la ligne rejetée pour son élément (WF-CRE-0020, WF-PRJ-0010, WF-INTF-0140, #3966).",
   "value": {
     "import_id": "01926f3a-7c00-7000-8000-000000000af0",
     "kind": "actual_costs",
@@ -21,8 +21,7 @@
           "row": 3,
           "code": "WBS_ELEMENT_OUTSIDE_PROJECT",
           "params": {
-            "wbs_element": "A.ABC.26002/10001",
-            "project_code": "A.ABC.26002"
+            "wbs_element": "A.ABC.26002/10001"
           }
         }
       ],

@@ -217,12 +217,7 @@ COSTS = "waterfall.core.costs.interface"
 # ``CostFacts``; and the own lines that hold a summary task open, which the estimate tells the
 # planning (US-1590/L1), and when they were set to nought (US-1650/L2, #2803).
 REGISTERED_BY_EP09 = {
-    "projects.cost_facts": [
-        (
-            f"CostFacts({COSTS}.subprojects.subproject_has_actual_costs, "
-            f"{COSTS}.subprojects.impute_waiting_lines)"
-        )
-    ],
+    "projects.cost_facts": [f"CostFacts({COSTS}.subprojects.subproject_has_actual_costs)"],
     "exchanges.formats": [
         f"actual_costs:{COSTS}.actual_costs.ActualCostsFormat",
         f"remaining:{ESTIMATE}.remaining_excel.RemainingFormat",

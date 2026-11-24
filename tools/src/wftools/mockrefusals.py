@@ -66,9 +66,8 @@ avatar sent empty or too large (``avatar_malformed``, ``avatar_too_large``); the
 who is not even a contributor (``project_update_not_contributor``); a bound of a reading that is
 no number, an instant that is no date, a calendar the reference lacks
 (``access_roles_number_invalid``, ``access_roles_date_invalid``,
-``resource_role_calendar_unknown``); and two motives of a line imported, its element of the work
-breakdown structure malformed and its task named by a label several tasks bear
-(``import_actual_costs_wbs_invalid``, ``import_remaining_ambiguous_label``).
+``resource_role_calendar_unknown``); and a motive of a line imported, its task named by a label
+several tasks bear (``import_remaining_ambiguous_label``).
 
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
@@ -180,16 +179,10 @@ NUMBER_CORRELATION, INSTANT_CORRELATION, CALENDAR_CORRELATION = (
 )
 """The correlations of the refusals the catalogue named without an example."""
 
-WBS_IMPORT, WBS_IMPORT_TASK = hex_identifier(0xA30), universe(956)
-WBS_INSTANTS = ("2026-05-04T09:25:00Z", "2026-05-04T09:26:00Z", "2026-05-05T09:26:00Z")
 LABEL_IMPORT, LABEL_IMPORT_TASK = hex_identifier(0xA31), universe(957)
 LABEL_INSTANTS = ("2026-06-03T10:40:05Z", "2026-06-03T10:41:00Z", "2026-06-04T10:41:00Z")
-"""The imports whose line is rejected for its element of the work breakdown structure and for an
-ambiguous label, the tasks that analysed them, and the instants of their opening, their analysis
-and their expiry: each import has its own, an instant naming one task."""
-
-MALFORMED_ELEMENT = "/SP-CAB"
-"""An element of the work breakdown structure with nothing before the slash (WF-CRE-0020)."""
+"""The import whose line is rejected for an ambiguous label, the task that analysed it, and the
+instants of its opening, its analysis and its expiry: an instant naming one task."""
 
 AMBIGUOUS_LABEL = "Mise en service"
 """A label two tasks of the witness bear: the commissioning of the installation, and a task of the
@@ -441,25 +434,6 @@ def _rejecting(
     report["rejected"] = [rejected]
     report["read_count"] = len(report["differences"]) + 1
     report["unchanged_count"] = 0
-
-
-def import_wbs_invalid() -> JsonObject:
-    """Return the extraction of April whose line of another project is a malformed element."""
-    imported = mockexchanges.import_actual_costs_first()
-    report = _report(imported)
-    [outside] = report["rejected"]
-    rejected: JsonObject = {
-        "sheet": None,
-        "row": outside["row"],
-        "code": "WBS_ELEMENT_INVALID",
-        "params": {"wbs_element": MALFORMED_ELEMENT},
-    }
-    _rejecting(imported, (WBS_IMPORT, WBS_IMPORT_TASK), WBS_INSTANTS, rejected)
-    report["requires_confirmation_reasons"] = [
-        each for each in report["requires_confirmation_reasons"] if each != "lines_outside_project"
-    ]
-    report["unknown_wbs_elements"] = []
-    return imported
 
 
 def import_ambiguous_label() -> JsonObject:
@@ -917,12 +891,6 @@ def _tree_examples() -> dict[str, JsonObject]:
     }
 
 
-def _april_row() -> int:
-    """Return the row of the line of the extraction of April the analysis rejected."""
-    [rejected] = _report(mockexchanges.import_actual_costs_first())["rejected"]
-    return int(cast("int", rejected["row"]))
-
-
 def _named_examples() -> dict[str, JsonObject]:
     avatar_mio = int(cast("int", fixture("installation")["avatar_max_bytes"])) // 2**20
     tab = mockexchanges.tab_name(mockexchanges.TAB)
@@ -977,14 +945,6 @@ def _named_examples() -> dict[str, JsonObject]:
             "Un rôle créé rattaché à un calendrier que le référentiel n'a pas : refusé sur "
             "/calendar_id ; rien n'est écrit (WF-REF-0090).",
             field_refused("/calendar_id", "UNKNOWN_CALENDAR", CALENDAR_CORRELATION),
-        ),
-        "import_actual_costs_wbs_invalid.json": mocktext.example(
-            f"Une variante de l'extraction d'avril : la ligne {_april_row()} porte l'élément "
-            f"d'OTP « {MALFORMED_ELEMENT} », sans rien avant la barre oblique, qui n'a pas la "
-            f"forme d'un code projet suivi d'un code de sous-projet : rejetée, l'élément nommé "
-            f"tel que le fichier le porte ; les lignes lues avant elle sont ajoutées "
-            f"(WF-CRE-0020, WF-INTF-0140, WF-INTF-0080).",
-            import_wbs_invalid(),
         ),
         "import_remaining_ambiguous_label.json": mocktext.example(
             f"Une variante du reste à engager importé aujourd'hui : la ligne "

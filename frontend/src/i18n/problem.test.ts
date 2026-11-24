@@ -303,14 +303,14 @@ describe("the sentence of a refusal", () => {
       params: {
         expected_format: "remaining",
         expected_version: "1",
-        missing_columns: [{ header: "Débours restant", sheet: "SP-CMD" }],
+        missing_columns: [{ header: "Débours restant", sheet: "PRJ-001_SP-CMD" }],
       },
     });
     expect(say(missing, "en")).toContain(
-      "Required column missing from the file: \u201CDébours restant\u201D (sheet \u201CSP-CMD\u201D).",
+      "Required column missing from the file: \u201CDébours restant\u201D (sheet \u201CPRJ-001_SP-CMD\u201D).",
     );
     expect(say(missing, "fr")).toContain(
-      "Colonne exigée absente du fichier\u00A0: \u00AB\u00A0Débours restant\u00A0\u00BB (onglet \u00AB\u00A0SP-CMD\u00A0\u00BB).",
+      "Colonne exigée absente du fichier\u00A0: \u00AB\u00A0Débours restant\u00A0\u00BB (onglet \u00AB\u00A0PRJ-001_SP-CMD\u00A0\u00BB).",
     );
     const noSheet: ProblemText = {
       code: "FILE_FORMAT_UNREADABLE",
@@ -483,8 +483,8 @@ describe("the sentence of a refusal", () => {
         { code: "UNKNOWN_TASK", params: { value: "Essais de compatibilité électromagnétique" } },
         { code: "UNKNOWN_RESOURCE_ROLE", params: { value: "Soudeur (SOUD)" } },
       ],
-      import_actual_costs_wbs_invalid: [
-        { code: "WBS_ELEMENT_INVALID", params: { wbs_element: "/SP-CAB" } },
+      import_actual_costs_dotted_code: [
+        { code: "WBS_ELEMENT_OUTSIDE_PROJECT", params: { wbs_element: "A.ABC.26002/10001" } },
       ],
       import_remaining_ambiguous_label: [
         {
@@ -519,11 +519,11 @@ describe("the sentence of a refusal", () => {
     expect(say(rejection("import_analysed", 1), "en")).toContain(
       "Value read in the file: “Soudeur (SOUD)”.",
     );
-    expect(say(rejection("import_actual_costs_wbs_invalid"), "fr")).toContain(
-      "Élément d’OTP lu\u00A0: «\u00A0/SP-CAB\u00A0».",
+    expect(say(rejection("import_actual_costs_dotted_code"), "fr")).toContain(
+      "Élément d’OTP lu\u00A0: «\u00A0A.ABC.26002/10001\u00A0».",
     );
-    expect(say(rejection("import_actual_costs_wbs_invalid"), "en")).toContain(
-      "Work breakdown element read: “/SP-CAB”.",
+    expect(say(rejection("import_actual_costs_dotted_code"), "en")).toContain(
+      "Work breakdown element read: “A.ABC.26002/10001”.",
     );
     expect(say(rejection("import_remaining_ambiguous_label"), "fr")).toContain(
       "Libellé lu\u00A0: «\u00A0Mise en service\u00A0», porté par les tâches «\u00A0Mise en service\u00A0» et «\u00A0Mise en service\u00A0».",
@@ -537,18 +537,7 @@ describe("the sentence of a refusal", () => {
     expect(say(rejection("import_actual_costs_duplicate_line", 1), "en")).toContain(
       "Other line of the file with the same document and item: 4.",
     );
-    // The code of the project a code of work breakdown is outside of, and several other lines.
-    expect(
-      say(
-        {
-          code: "WBS_ELEMENT_OUTSIDE_PROJECT",
-          params: { wbs_element: "P9-SP", project_code: "P9" },
-        },
-        "fr",
-      ),
-    ).toContain(
-      "Élément d’OTP lu\u00A0: «\u00A0P9-SP\u00A0». Code projet lu\u00A0: «\u00A0P9\u00A0».",
-    );
+    // A document and item found on several other lines names all their ranks, joined by "et".
     expect(say({ code: "DUPLICATE_COST_LINE", params: { rows: [4, 6, 7] } }, "fr")).toContain(
       "Autres lignes du fichier de même pièce et de même poste\u00A0: 4, 6 et 7.",
     );
@@ -656,42 +645,6 @@ describe("the sentence of a refusal", () => {
     expect(say(reduced, "fr")).toBe(
       "Une tâche porte un lot ou un poste, jamais les deux. Ce lot ou ce poste est déjà porté par une autre tâche.",
     );
-  });
-
-  it("says why a code cannot name the tab of a sub-project: the characters it bears, or its reserved name [WF-PRJ-0050-A]", () => {
-    // La création d'un sous-projet de code « SP/01 » ou « Synthèse » est refusée.
-    const { fields } = fromExample("subproject_code_invalid", {
-      code: "VALIDATION_FAILED",
-      fields: [
-        {
-          pointer: "/code",
-          code: "SUBPROJECT_CODE_INVALID",
-          params: { forbidden_characters: ["/"] },
-        },
-      ],
-    });
-    expect(say({ code: "SUBPROJECT_CODE_INVALID", fields }, "fr")).toBe(
-      "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager. Caractères interdits dans le code\u00A0: /.",
-    );
-    const reserved = fromExample("subproject_code_reserved", {
-      code: "VALIDATION_FAILED",
-      fields: [
-        {
-          pointer: "/code",
-          code: "SUBPROJECT_CODE_INVALID",
-          params: { reserved_name: "Synthèse" },
-        },
-      ],
-    });
-    expect(say(reserved, "fr")).toMatch(/ «\u00A0Synthèse\u00A0» est un nom réservé/);
-    expect(say(reserved, "en")).toMatch(/ “Synthèse” is a reserved name/);
-    // Neither a list of characters that is empty, nor a name that is no text, says anything.
-    expect(
-      say(
-        { code: "SUBPROJECT_CODE_INVALID", params: { forbidden_characters: [], reserved_name: 3 } },
-        "en",
-      ),
-    ).toBe("This code cannot name the tab of the subproject in the estimate-to-complete file.");
   });
 
   it("says the minimum a value falls short of", () => {

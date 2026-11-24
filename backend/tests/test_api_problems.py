@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from waterfall.api.authentication import Services
 
 PREFIX = "/api/v1"
-INVALID = "PROJECT_CODE_INVALID"
+INVALID = "DUPLICATE_COLUMN_LABEL"
 
 
 class Entry(BaseModel):
@@ -87,7 +87,7 @@ class Coded(BaseModel):
     def without_slash(cls, code: str) -> str:
         if "/" in code:
             message = "a slash"
-            raise PydanticCustomError(INVALID, message, {"forbidden_characters": ["/"]})
+            raise PydanticCustomError(INVALID, message, {"duplicate_of": "/labels/0"})
         return code
 
 
@@ -509,7 +509,7 @@ def test_a_rule_that_names_a_code_of_the_contract_is_refused_under_that_code(app
     problem = problem_of(TestClient(app).post("/coded", json={"code": "A/B"}))
     assert problem.fields is not None
     assert [(f.pointer, f.code.value, params_of(f)) for f in problem.fields] == [
-        ("/code", "PROJECT_CODE_INVALID", {"forbidden_characters": ["/"]})
+        ("/code", "DUPLICATE_COLUMN_LABEL", {"duplicate_of": "/labels/0"})
     ]
     assert TestClient(app).post("/coded", json={"code": "A-B"}).status_code == 200
 

@@ -10,7 +10,8 @@ against those of the project as they stand under the lock:
 
 - a line accepted whose document and item no line of the project bears is inserted, tracked;
 - one that matches a line of the project and changes its date, its amount, its subproject or a
-  column kept updates it — its imputation computed again from its WBS element, its columns kept
+  column kept updates it — its imputation computed again from its WBS element, compared whole with
+  the codes of the project and of its subprojects as they stand under the lock, its columns kept
   replaced, its exclusion intact (WF-INTF-0140, WF-CRE-0020) —; one that changes nothing leaves it
   as it is, counted unchanged, but for the import it names: ``last_import_id`` only, neither
   ``updated_at`` nor ``updated_by``;
@@ -32,12 +33,11 @@ from waterfall.core.costs.analysing import (
     changed,
     doubled_lines,
     imputed,
-    subprojects_of,
+    known_elements,
 )
 from waterfall.core.costs.extraction import HEADER_ROW, Reading, read_lines
 from waterfall.core.costs.tables import CostImport
 from waterfall.core.costs.writing import Placed, held_lines, write_line
-from waterfall.core.projects.interface import project_code
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
@@ -76,16 +76,16 @@ def apply(
     """
     project_id = applied.project_id
     reading = Reading.from_report(report[READING])
-    read = read_lines(rows[HEADER_ROW:], reading, project_code(session, project_id))
+    known = known_elements(session, project_id)
+    read = read_lines(rows[HEADER_ROW:], reading, known)
     lines, others, doubled = doubled_lines(read)
-    codes = subprojects_of(session, project_id, lines)
     held = held_lines(session, project_id, {line.document_number for line in lines})
     written: list[tuple[Line, CostLine | None]] = []
     unchanged = 0
     unchanged_rows: list[CostLine] = []
     for line in lines:
         before = held.get(line.key)
-        if before is None or changed(Held.of(before), line, imputed(line, codes)):
+        if before is None or changed(Held.of(before), line, imputed(line, known)):
             written.append((line, before))
         else:
             unchanged += 1
@@ -108,7 +108,7 @@ def apply(
     session.add(entry)
     session.flush()
     for line, before in written:
-        placed = Placed(project_id, new_id(), imputed(line, codes), entry.id)
+        placed = Placed(project_id, new_id(), imputed(line, known), entry.id)
         write_line(session, before, line, placed, act)
     for row in unchanged_rows:
         # Named by the import, nothing else touched: the last import is of the whole retained set.

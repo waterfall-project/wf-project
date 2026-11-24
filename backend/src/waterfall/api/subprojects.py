@@ -7,8 +7,9 @@
 A project is read by its contributors and by the holders of ``all_projects_read``
 (``RequiresProject``); its subprojects are written by its project managers, as the command
 ``update`` of the project is. The body is judged field by field: a code too long is
-``VALUE_TOO_LONG``; one that holds a character a tab refuses or is a reserved name is
-``SUBPROJECT_CODE_INVALID``, which the module of the projects names (#1502).
+``VALUE_TOO_LONG``, its bound read from the interface of the projects (BPR-09); one blank is
+``VALUE_REQUIRED``. The code is free otherwise: the code of the project, which only the module of
+the projects reads under its lock, is ``SUBPROJECT_CODE_INVALID`` (#3966).
 """
 
 from typing import Annotated, Any, LiteralString, cast
@@ -27,6 +28,7 @@ from waterfall.api.evaluation import Acting, RequiresProject
 from waterfall.api.projects import viewer_of
 from waterfall.api.queries import Search
 from waterfall.core.projects.interface import (
+    SUBPROJECT_CODE_LENGTH,
     SubprojectChange,
     SubprojectColumn,
     SubprojectDeletion,
@@ -40,7 +42,6 @@ from waterfall.core.projects.interface import (
     list_subprojects,
     update_subproject,
 )
-from waterfall.core.projects.tables import SUBPROJECT_CODE_LENGTH
 from waterfall.core.users.interface import read_authors
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -52,24 +53,19 @@ CHANGE = "project_settings.write"
 
 
 def _checked(code: str) -> str:
-    """Refuse a code that is blank, holds a character a tab refuses or is a reserved name.
+    """Refuse a code that is blank.
 
     The service judges the same (``code_faults``), for the witness; here the faults of the code
     add to those of the label, as the contract's ``fields`` names each field.
     """
     for fault in code_faults(code):
-        message = (
-            "a subproject code cannot be blank"
-            if fault.code == "VALUE_REQUIRED"
-            else "a subproject code cannot name a tab"
-        )
+        message = "a subproject code cannot be blank"
         raise PydanticCustomError(cast("LiteralString", fault.code), message, dict(fault.params))
     return code
 
 
 # ``DeclaredSubprojectCode`` of the contract, judged field by field: the generated model gives one
-# refusal to a pattern that fails, where the contract names three; the characters and the names
-# are judged by the module of the projects.
+# refusal to a pattern that fails, where the contract names two (empty, blank).
 Code = Annotated[
     str, Field(min_length=1, max_length=SUBPROJECT_CODE_LENGTH), AfterValidator(_checked)
 ]

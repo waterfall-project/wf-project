@@ -8,11 +8,10 @@ of its subprojects, by their codes — is the application's, which reads the sub
 project; this file replays the element each line is read with and the lines rejected for it.
 
 The specification 1.0.7 changes WF-CRE-0020 (the element compared whole, the slash no longer a
-separator; issue #3966, the core not yet changed): what the sentences of the examples say of an
-element with a slash — a subproject of code ``A.ABC.26001/10001``, a code ``/10002`` known or
-created, the reimport — is not replayed here, the core reading the part after the slash as the
-code of the subproject. What the report says of each rejected element and of the number of its
-lines, and the imputation itself, take a database.
+separator; issue #3966, the core changed by US-3270/L2): what the sentences of the examples say of
+an element with a slash — a subproject of code ``A.ABC.26001/10001``, a code ``/10002`` known or
+created, the reimport — enters this harness with US-3270/L5 (#4022). What the report says of each
+rejected element and of the number of its lines, and the imputation itself, take a database.
 """
 
 from datetime import date
@@ -20,7 +19,7 @@ from typing import TYPE_CHECKING, cast
 
 import pytest
 
-from waterfall.core.costs.extraction import Reading, read_lines
+from waterfall.core.costs.extraction import Known, Reading, read_lines
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -44,7 +43,8 @@ def test_a_line_of_the_element_of_the_project_is_read_for_the_project_alone(
     # imputée au seul projet [...]. » Only that half: the line is read without a subproject.
     data = example("WF-CRE-0020-A#327d63bf4748")
     element = cast("str", data["project_element"])
-    read = read_lines([_row(element, "4500000001")], READING, cast("str", data["project_code"]))
+    known = Known(cast("str", data["project_code"]), {})
+    read = read_lines([_row(element, "4500000001")], READING, known)
     assert read.rejected == ()
     assert [(each.document_number, each.subproject_code) for each in read.lines] == [
         ("4500000001", None)
@@ -62,7 +62,7 @@ def test_the_lines_of_an_element_of_another_project_or_of_a_bare_code_or_of_no_e
     data = example("WF-CRE-0020-A#80d94ea6d2fe")
     elements = cast("list[str]", data["rejected_elements"])
     rows = [_row(element or None, f"450000000{rank}") for rank, element in enumerate(elements)]
-    read = read_lines(rows, READING, cast("str", data["project_code"]))
+    read = read_lines(rows, READING, Known(cast("str", data["project_code"]), {}))
     assert read.lines == ()
     assert read.read_count == len(elements)
     assert [each.params["wbs_element"] for each in read.rejected] == elements

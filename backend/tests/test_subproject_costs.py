@@ -106,11 +106,11 @@ def test_the_deletion_of_a_subproject_that_bears_actual_costs_is_refused_even_ex
 
 
 @pytest.mark.requirement("WF-PRJ-0050-A")
-def test_a_subproject_whose_code_lines_wait_for_elsewhere_is_deleted(
-    api: ContractClient, stage: Scene
-) -> None:
-    # A line of another code retains nothing: the subproject without a line is deleted.
+def test_a_subproject_no_line_is_imputed_to_is_deleted(api: ContractClient, stage: Scene) -> None:
+    # A line of another subproject, or of the project alone, retains nothing: the subproject
+    # without a line is deleted.
     free = made(api, stage, "SP-LIB")
+    made(api, stage, "SP-AUTRE")
     charge(stage, "SP-AUTRE", None)
     answer = api.delete(
         path(stage, free["subproject_id"]),
@@ -118,7 +118,7 @@ def test_a_subproject_whose_code_lines_wait_for_elsewhere_is_deleted(
         params={"lock_version": 0},
     )
     assert answer.status_code == 204, answer.text
-    assert stored(stage) == 0
+    assert stored(stage) == 1
 
 
 @pytest.mark.requirement("WF-PRJ-0050-A")

@@ -140,8 +140,12 @@ def numbers(read_: dict[str, Any]) -> list[str]:
     return [item["document_number"] for item in read_["items"]]
 
 
-def three_lines(stage: Scene) -> None:
-    """Load three lines: two for SP-CAB, one of them excluded, and one without a subproject."""
+def three_lines(api: ContractClient, stage: Scene) -> dict[str, Any]:
+    """Load three lines: two for SP-CAB, one of them excluded, and one without a subproject.
+
+    SP-CAB created first, as a line is loaded under the code of a subproject alone (#3966); given.
+    """
+    cabling = made(api, stage, "SP-CAB", "Câblage")
     bring(
         stage,
         [
@@ -151,6 +155,7 @@ def three_lines(stage: Scene) -> None:
         ],
     )
     exclude_by_owner(stage, "FA-2", reason="Câbles d'un autre projet")
+    return cabling
 
 
 @pytest.mark.requirement("WF-CRE-0040-A")
@@ -159,7 +164,7 @@ def test_the_three_totals_are_those_of_all_the_lines_retained_and_not_of_the_pag
 ) -> None:
     # « Les trois totaux sont présents, et le total général égale la somme du total du périmètre
     # suivi et du total exclu. » : on the whole set, a page of one line or a page beyond the end.
-    three_lines(stage)
+    three_lines(api, stage)
     whole = read(api, stage)
     assert whole["totals"] == {"tracked": "60.00", "excluded": "250.50", "overall": "310.50"}
     assert whole["meta"]["total"] == 3
@@ -177,7 +182,7 @@ def test_an_excluded_line_stays_in_the_list_and_in_no_tracked_sum(
 ) -> None:
     # « Une ligne exclue n'apparaît dans aucun total d'indicateur, et reste visible dans la
     # consultation des coûts réels. » : ``in_tracked_scope=false`` retains it alone.
-    three_lines(stage)
+    three_lines(api, stage)
     everything = read(api, stage)
     [excluded] = [item for item in everything["items"] if item["document_number"] == "FA-2"]
     assert (excluded["is_in_tracked_scope"], excluded["excluded_reason"]) == (
@@ -202,8 +207,7 @@ def test_a_filter_by_subproject_by_period_or_by_scope_applies_to_the_three_total
     # « Un filtre par sous-projet ou par période s'applique aux trois (WF-IHM-0130). » : the
     # subproject by its identifier or ``unassigned``, the period on the date of the document, its
     # two ends included.
-    cabling = made(api, stage, "SP-CAB", "Câblage")
-    three_lines(stage)
+    cabling = three_lines(api, stage)
     by_subproject = read(api, stage, subproject_id=cabling["subproject_id"])
     assert sorted(numbers(by_subproject)) == ["FA-1", "FA-2"]
     assert by_subproject["totals"] == {
@@ -231,6 +235,7 @@ def test_the_columns_kept_follow_the_filters_and_the_last_import_does_not(
 ) -> None:
     # The union of the columns kept, like the totals, is the one of the lines retained: the two
     # imports of the project declare different columns, and a filter keeps the lines of one.
+    made(api, stage, "SP-CAB", "Câblage")
     bring(stage, [line("FA-1", "SP-CAB", Fournisseur="Durand")], ("Fournisseur",), FIRST)
     bring(
         stage,
@@ -256,6 +261,7 @@ def test_the_last_import_is_the_last_of_the_project_whatever_the_filters_retain(
     # "null" says only that the project has no import (DECISIONS.md): a filter that retains
     # nothing, or only a line of an older import, still reads the date of the last import.
     assert read(api, stage, to="2026-04-30")["last_import_at"] is None
+    made(api, stage, "SP-CAB", "Câblage")
     bring(stage, [line("FA-1", "SP-CAB", Fournisseur="Durand")], ("Fournisseur",), FIRST)
     bring(stage, [line("FA-2", None, "20.00", date(2026, 5, 20))], ("Fournisseur",), SECOND)
     nothing = read(api, stage, **{"from": "2030-01-01"})
@@ -303,13 +309,13 @@ def test_a_project_without_a_line_reads_empty_totals_and_no_last_import(
 
 
 @pytest.mark.requirement("WF-CRE-0020-A")
-def test_a_line_names_its_subproject_by_its_code_and_its_label_unknown_code_included(
+def test_a_line_names_its_subproject_by_its_code_and_its_label(
     api: ContractClient, stage: Scene
 ) -> None:
-    # The code is kept as read; the label is resolved at the reading, none for a line charged to
-    # the project alone, whether it bears no code or one no subproject bears.
+    # The code is that of the subproject of imputation, as read; the label is resolved at the
+    # reading; both none for a line charged to the project alone (#3966).
     cabling = made(api, stage, "SP-CAB", "Câblage")
-    bring(stage, [line("FA-1", "SP-CAB"), line("FA-2", "SP-AUT"), line("FA-3", None)])
+    bring(stage, [line("FA-1", "SP-CAB"), line("FA-3", None)])
     items = {item["document_number"]: item for item in read(api, stage)["items"]}
     held = items["FA-1"]
     assert (held["subproject_id"], held["subproject_code"], held["subproject_label"]) == (
@@ -317,13 +323,12 @@ def test_a_line_names_its_subproject_by_its_code_and_its_label_unknown_code_incl
         "SP-CAB",
         "Câblage",
     )
-    waiting = items["FA-2"]
-    assert (waiting["subproject_id"], waiting["subproject_code"], waiting["subproject_label"]) == (
+    alone = items["FA-3"]
+    assert (alone["subproject_id"], alone["subproject_code"], alone["subproject_label"]) == (
         None,
-        "SP-AUT",
+        None,
         None,
     )
-    assert items["FA-3"]["subproject_code"] is None
     assert held["audit"]["created_by"]["user_id"] == str(stage.manager.user_id)
 
 
@@ -333,7 +338,7 @@ def test_a_period_reversed_and_an_unknown_subproject_are_refused_on_their_parame
 ) -> None:
     # « … une fin qui précède le début refusée par 422 ; un sous-projet inconnu par
     # UNKNOWN_SUBPROJECT » : no empty list stands for a refusal.
-    three_lines(stage)
+    three_lines(api, stage)
     inverted = api.get(
         path(stage),
         headers=stage.manager.headers,
@@ -407,6 +412,8 @@ def test_each_column_sorts_in_code_point_order_the_absent_values_after_in_ascend
     # « Every column of the grid can be sorted » : the item and the reason compare as text, without
     # reading a number ("10" before "2"), a line without a value after the others in ascending order
     # and before them in descending order.
+    for code in ("SP-A", "SP-B", "SP-C"):
+        made(api, stage, code, f"Lot {code}")
     bring(
         stage,
         [
@@ -457,7 +464,7 @@ def test_a_sort_by_a_column_that_is_none_is_refused(api: ContractClient, stage: 
 def test_the_lines_are_read_on_a_terminal_project(
     api: ContractClient, stage: Scene, state: str
 ) -> None:
-    three_lines(stage)
+    three_lines(api, stage)
     put_in_state(stage.owner, stage.project["project_id"], state)
     assert read(api, stage)["meta"]["total"] == 3
 
@@ -466,7 +473,7 @@ def test_the_lines_are_read_on_a_terminal_project(
 def test_the_lines_are_read_by_a_reader_and_unknown_to_an_outsider(
     api: ContractClient, stage: Scene
 ) -> None:
-    three_lines(stage)
+    three_lines(api, stage)
     seen = api.get(path(stage), headers=stage.reader.headers)
     assert seen.status_code == 200, seen.text
     unseen = api.get(path(stage), headers=stage.outsider.headers)
