@@ -283,6 +283,30 @@ Instabilité de la file vue trois fois, tranchée par l'auteur le 2026-11-24 :
   la branche où l'instabilité a été vue. La fixture attend le démarrage des deux processus avant
   le SIGTERM, sans délai élargi.
 
+Constats relevés à la livraison d'US-3190/L2b, US-3240b, US-3230b, US-3640, US-3270 et US-3280,
+tranchés par l'auteur le 2026-11-24 :
+
+- #4862 — back : un `styles.xml` ou un `workbook.xml` qui porte des millions d'éléments hors des
+  items bornés passe les bornes (543 Mio pour 25 Ko) → US-3190b : la pré-lecture compte tous les
+  éléments des membres qu'openpyxl lit en arbre, et refuse au-delà de 1 000 000 au total ;
+- #4881 — tests : le journal lu pendant son écriture, sur un caractère UTF-8 coupé — clos sans
+  suite, le journal JSON échappe tout caractère non ASCII ;
+- #4885 — back : un import emporté par la cascade d'une structure ou d'une révision libère encore
+  son dépôt → US-3250/L2b : le dépôt échoit (WF-DAT-0120), le cas d'abord reproduit par un test ;
+- #4886 — back : l'application du reste à engager rejoue le moteur une fois par tâche qu'elle
+  termine → reporté à EP-40, qui mesure avant de récrire l'interface de `core/planning` ;
+- #4889 — tests : un test d'US-3640 lit la ligne du devis par son rang → reporté à EP-31, dont la
+  refonte de l'onglet « Devis » (#4399) réécrit ce test ;
+- #4894 — chaîne : le pull d'une image du miroir `ghcr.io` expire, vu deux fois → US-3270b, ouvert
+  par le pilote (« Une instabilité de la file ») ;
+- #4896, #4898, #4899 — le code du sous-projet déborde la colonne de l'écran des coûts réels ; le
+  rejet `UNKNOWN_SUBPROJECT` ne nomme pas le code lu en tête ; une règle de comparaison écrite deux
+  fois, variante d'un défaut du guide Python → US-3270/L3b ;
+- #4902, #4903 — front : le refus d'un envoi annulé perdu ; la zone de dépôt qui libère deux fois
+  un envoi → reportés à EP-37 ;
+- #4904 — contrat : aucun exemple d'un import refusé ni d'une tâche d'application échouée →
+  reporté à EP-38.
+
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
 qui réalisera #3966, à nommer par le cadreur ») → US-3270.
@@ -620,7 +644,9 @@ bornés, ne pas se décompresser au-delà de ce qu'il déclare : `ZipFile.read` 
 en entier avant de le couper (L1). La pré-lecture en flux des membres XML est d'US-3190/L1b
 (#4734) ; les bornes des autres vecteurs et le cumul des onglets lus sont d'US-3190/L2b, qui
 versionne ses scripts de mesure et sa fabrique de classeurs démesurés (des classeurs engendrés,
-ceux des tests et du témoin, aucun autre).
+ceux des tests et du témoin, aucun autre). US-3190b (#4862, ajouté le 2026-11-24) borne en plus
+les éléments des membres qu'openpyxl lit en arbre, hors des onglets et de `sharedStrings.xml` :
+1 000 000 au total.
 
 **Hors périmètre.** La limite de mémoire du service dans le chart (EP-13, EP-39) ; la colonne
 absente d'un onglet (US-3200).
@@ -923,7 +949,9 @@ colonne `report`, qui amendait la spécification ; supprimer après la rétentio
 À livrer avant la fusion d'EP-13, dont la purge supprime les tâches de trente jours.
 
 **Hors périmètre.** La purge des tâches de fond elle-même (EP-13, US-2830) ; le dépôt qu'une
-restauration désigne (#4471, EP-39) ; le fichier d'un import emporté par une cascade (#4331, EP-08).
+restauration désigne (#4471, EP-39) ; le fichier d'un import emporté par une cascade (#4331, EP-08),
+qui part au balayage de la purge. Son dépôt, lui, échoit dans la transaction de la cascade :
+US-3250/L2b (#4885, ajouté le 2026-11-24).
 
 ---
 
@@ -1019,6 +1047,10 @@ Les Vérif de la 1.0.7 sont les critères. La suppression des lignes en attente 
 laissait « à dire » ; écartés : les garder imputées au seul projet, ou garder pour elles l'imputation
 à la création. La migration touche des données saisies : elle dit ce qu'elle supprime dans son
 journal, par projet.
+
+US-3270/L3b (ajouté le 2026-11-24) : le rejet `UNKNOWN_SUBPROJECT` porte le code lu en tête
+(#4898), le code du sous-projet se tronque dans l'écran des coûts réels (#4896), et le guide Python
+reçoit la variante « règle de comparaison écrite deux fois » (#4899).
 
 **Hors périmètre.** L'export du devis selon l'annexe B (#4399, EP-31) ; les noms d'onglet du devis
 (#3371), que le nom tiré du code règle pour le reste à engager.
