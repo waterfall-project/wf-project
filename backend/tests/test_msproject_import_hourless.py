@@ -146,7 +146,7 @@ def test_a_default_calendar_that_loses_its_hours_after_the_report_fails_the_appl
     assert tasks(stage) == []
 
 
-def test_a_task_matched_whose_roles_no_longer_share_a_day_is_named_with_them_at_the_application(
+def test_a_task_matched_whose_roles_no_longer_share_a_day_is_named_with_them(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
     # [US-3210b] #4799: a task the structure holds, matched by its UID, keeps the lines of two
@@ -163,17 +163,23 @@ def test_a_task_matched_whose_roles_no_longer_share_a_day_is_named_with_them_at_
     for role, label in ((first, "Premier"), (second, "Second")):
         line = {"quantity": "1", "resource_role_id": str(role), "hours": "10", "label": label}
         lines.made(str(node.id), **line)
+    roles = [
+        {"resource_role_id": str(first), "code": "AA", "label": "Rôle AA"},
+        {"resource_role_id": str(second), "code": "BB", "label": "Rôle BB"},
+    ]
+    named = [{"lineage_id": str(node.lineage_id), "label": "Câblage"}]
     found = analysed(api, stage, worker, content)
     assert found["report"]["refusals"] == []
     set_week(stage.database, WEEKEND, calendar_of_role(stage.database, second))
+    again = analysed(api, stage, worker, content)
+    assert again["report"]["refusals"] == [
+        {
+            "code": "TASK_WITHOUT_WORKING_HOURS",
+            "params": {"resource_roles": roles, "tasks": named},
+        }
+    ]
     failed = confirmed(api, stage, worker, found["import_id"])
     assert failed["status"] == "failed"
     problem = failed["task"]["problem"]
     assert problem["code"] == "TASK_WITHOUT_WORKING_HOURS"
-    assert problem["params"] == {
-        "resource_roles": [
-            {"resource_role_id": str(first), "code": "AA", "label": "Rôle AA"},
-            {"resource_role_id": str(second), "code": "BB", "label": "Rôle BB"},
-        ],
-        "tasks": [{"lineage_id": str(node.lineage_id), "label": "Câblage"}],
-    }
+    assert problem["params"] == {"resource_roles": roles, "tasks": named}

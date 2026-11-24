@@ -246,7 +246,8 @@ Problem:
         by its identifier (`ActualCostSourceColumn`), in the order of the mapping;
         `resource_roles` for any refusal that would leave a task without a working hour
         (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) — a write to the reference data or to a
-        revision, a pasted or imported line, a merge —: the roles whose calendars never overlap
+        revision, a pasted or imported line, a merge, the report of an MS Project import
+        (`ImportReport.refusals`) —: the roles whose calendars never overlap
         — that role alone when, on a task of which that role is the only one, it has no hour in
         the week (EP-14/L42s); none when it is the default calendar of a task without a labour
         line that has no hour left —, active or deactivated, each by its identifier, its code
@@ -894,7 +895,8 @@ ProblemParams:
         EP-14/L42r); and those of any refusal that would leave a task without a working hour
         (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) — a write to the reference data or to a
         revision, a pasted (`PasteRejection.params`) or imported line
-        (`ImportRejection.params`), a merge —, empty when only tasks without a labour
+        (`ImportRejection.params`), a merge, the report of an MS Project import
+        (`ImportReport.refusals`) —, empty when only tasks without a labour
         line lose their hours (#768; #1684).
       items: { $ref: '#/ProblemResourceRole' }
     cost_categories:
