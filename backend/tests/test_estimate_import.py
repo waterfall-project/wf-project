@@ -396,7 +396,7 @@ def test_a_missing_header_reads_its_cells_empty_and_an_unknown_tab_is_ignored(
     dropped = {HEADERS.index("Délai de paiement (j)"), HEADERS.index("Sous-projet")}
     kept = [at for at in range(len(HEADERS)) if at not in dropped]
     rows = [[each[at] for at in kept] for each in as_exported(held)]
-    notes = [["Remarque", "Quantité"], ["à revoir", "beaucoup"]]
+    notes = [["Remarque", "Commentaire"], ["à revoir", "beaucoup"]]
     content = workbook(rows, held["tasks"], sheet=[HEADERS[at] for at in kept], notes=notes)
     report = analysed(api, stage, worker, content)
     assert report["differences"] == []
