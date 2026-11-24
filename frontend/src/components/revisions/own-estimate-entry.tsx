@@ -21,9 +21,11 @@
  *   the other, each from the counter the one before answered; an entry made before the last of them is
  *   answered joins them, from those counters too, not from the grid's, which may not have taken them yet.
  *
- * The replay queue holds for the entries passed as an `Entry` alone: the gestures of structure — a
- * move, an indentation, a sub-project, the chronologies — are written once and not replayed, and are
- * withheld like any other write while the update is pending (#4818, to settle).
+ * The gestures of structure — an insertion, an indentation, a move, a deletion — and the sub-project
+ * of lines are passed as an `Entry` too, and replayed likewise: a gesture is written from the counters
+ * read again, the nodes it touches and the structure's (#4818). Only the inscription to the timelines
+ * stays a write alone, withheld like any other while the update is pending: it may create a timeline
+ * before it writes, which would be created twice if it were replayed.
  *
  * The front decides none of it but by the word of the structure and of the report (`signals`). The
  * component is mounted for one structure — its parent keys it by the structure —, and renders what it

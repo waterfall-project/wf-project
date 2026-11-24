@@ -310,6 +310,41 @@ describe("the first entry into an own estimate in arrears", () => {
     expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, NODES]);
   });
 
+  it("sends a gesture made while an entry is still being written from the counters read, not from the grid's: no stale counter, no 409 [US-3140] [WF-RIS-0070-A]", async () => {
+    serve({
+      [REPORT]: "structure_rebase_report_risk_clean",
+      [REBASE]: "structure_rebased_risk",
+      [NODES]: "nodes_risk_estimate",
+    });
+    const sent: (Fresh | undefined)[] = [];
+    const answered = quantity(sent, { moved: 4 });
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const first: Entry<NodesWritten> = {
+      ...answered,
+      send: async (fresh) => {
+        const outcome = answered.send(fresh);
+        await held;
+        return outcome;
+      },
+    };
+    // A gesture of structure: it touches no field, and carries the counter of the structure.
+    const gesture: Entry<NodesWritten> = { nodes: [LINE], fields: [], send: answered.send };
+    entry({ entries: [first, gesture] });
+    await userEvent.click(screen.getByRole("button", { name: "Saisir la quantité" }));
+    await waitFor(() => {
+      expect(sent).toHaveLength(1);
+    });
+    release();
+    await waitFor(() => {
+      expect(screen.getByRole("status", { name: "Saisies" })).toHaveTextContent("done,done");
+    });
+    expect(sent[1]?.nodes.get(LINE)?.lock_version).toBe(4);
+    expect(sent[1]?.structureLockVersion).toBe(7);
+  });
+
   it("writes the entries made while the update is under way one after the other, each from the counters the one before answered [US-3140] [WF-RIS-0070-A]", async () => {
     const client = serve({
       [REPORT]: "structure_rebase_report_risk_clean",

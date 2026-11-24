@@ -21,6 +21,7 @@ import { setNodeTracking, updateEstimateLine } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
 import { useUnmet } from "@/components/commands/command";
 import { UNAVAILABLE } from "@/components/commands/offer";
+import { counterOf, type Fresh } from "@/components/revisions/entry-guard";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenuCheckboxItem,
@@ -280,7 +281,8 @@ export interface ChangeWritten<Row> {
 
 /**
  * Write a change on each row in turn, one write per row with the version of that row (`lock_version`),
- * each answer told as it comes. The writes stop at the first refusal, which is told for its row: those
+ * each answer told as it comes, from the counters read again once an own estimate in arrears is
+ * updated (`fresh`, US-3140) rather than from the rows'. The writes stop at the first refusal, which is told for its row: those
  * made stay made, and the rows after it are not written.
  */
 export async function writeChange<Row extends GridNode>(
@@ -289,16 +291,17 @@ export async function writeChange<Row extends GridNode>(
   change: RowChange,
   rows: readonly [Row, ...Row[]],
   wrote: (written: NodesWritten) => void,
+  fresh?: Fresh,
 ): Promise<ChangeWritten<Row>> {
   const one = (row: Row): Promise<Outcome<NodesWritten>> =>
     change.kind === "subproject"
       ? updateEstimateLine(structure, row.node_id, {
           subproject_id: change.id,
-          lock_version: row.lock_version,
+          lock_version: counterOf(fresh, row.node_id, row.lock_version),
         })
       : setNodeTracking(structure, row.node_id, {
           entries: [...entriesAfter(choices.tracking?.entries(row) ?? [], change)],
-          lock_version: row.lock_version,
+          lock_version: counterOf(fresh, row.node_id, row.lock_version),
         });
   const [first, ...others] = rows;
   let last = await one(first);

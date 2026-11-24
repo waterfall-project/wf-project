@@ -83,7 +83,12 @@ import {
   refusalDescription,
   useReadAnew,
 } from "@/components/commands/outcome-notice";
-import { useEntryGuard } from "@/components/revisions/entry-guard";
+import {
+  counterOf,
+  type Entry,
+  type Fresh,
+  useEntryGuard,
+} from "@/components/revisions/entry-guard";
 import { taskRemainingHref } from "@/components/remaining/address";
 import { type Said, useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
@@ -464,7 +469,7 @@ export function useStructureGestures<Row extends GridNode>(
   const refusal = (why: MilestoneRefusal | undefined) => (why === undefined ? undefined : t(why));
   /** Send a write, and take its answer: the grid read anew when done, the refusal told otherwise. */
   const send = (
-    call: () => Promise<Outcome<NodesWritten>>,
+    call: (() => Promise<Outcome<NodesWritten>>) | Entry<NodesWritten>,
     row: () => Row | undefined,
     node: {
       /** What the write is about, by name; none for a line created without one. */
@@ -480,7 +485,9 @@ export function useStructureGestures<Row extends GridNode>(
     setWriting(true);
     // A refusal by field is told by the reason of its field — a node to follow that is no sibling —,
     // the envelope saying only that the entry is invalid.
-    const sent = guard(call).then(byField);
+    // An entry the guard can write again once the own estimate is updated is passed as an `Entry`;
+    // a write that cannot — the timelines, which may create one first — is withheld instead.
+    const sent = (typeof call === "function" ? guard(call) : guard(call)).then(byField);
     account.writing(sent);
     void held(sent).then((outcome) => {
       setWriting(false);
@@ -529,7 +536,12 @@ export function useStructureGestures<Row extends GridNode>(
   const remove = (row: Row, opening: number | undefined, cell?: HTMLElement) => {
     const label = labelOf(row);
     send(
-      () => deleteNode(scope.structure, row.node_id, row.lock_version),
+      {
+        nodes: [row.node_id],
+        fields: [],
+        send: (fresh) =>
+          deleteNode(scope.structure, row.node_id, counterOf(fresh, row.node_id, row.lock_version)),
+      },
       () => row,
       { label, done: t("deleted", { label }) },
       opening,
@@ -554,7 +566,16 @@ export function useStructureGestures<Row extends GridNode>(
     }
     const label = labelOf(first);
     send(
-      () => moveNodes(scope.structure, body),
+      {
+        nodes: body.node_ids,
+        fields: [],
+        // The version of the structure the update moved on to, not the one the grid read.
+        send: (fresh) =>
+          moveNodes(scope.structure, {
+            ...body,
+            lock_version: fresh?.structureLockVersion ?? body.lock_version,
+          }),
+      },
       () => first,
       { label, done: t(`moved.${done}`, { label, others: tops.length - 1 }), moves: from ?? first },
       undefined,
@@ -592,8 +613,14 @@ export function useStructureGestures<Row extends GridNode>(
     // subject of a refusal never name the line it was created beside (#1701).
     const unnamed = entered.label === "" && current.row !== undefined;
     const named = unnamed ? undefined : entered.label;
+    const body = bodyOf(current.gesture, current.row, entered);
     send(
-      () => createNode(scope.structure, bodyOf(current.gesture, current.row, entered)),
+      {
+        // The nodes it rests on, which the update may have removed.
+        nodes: [body.parent_id, body.after_node_id].filter((id) => typeof id === "string"),
+        fields: [],
+        send: () => createNode(scope.structure, body),
+      },
       () => current.row,
       {
         label: named,
@@ -624,25 +651,37 @@ export function useStructureGestures<Row extends GridNode>(
       account.reach(written.structure_lock_version);
       applied(choices.written(written));
     };
-    const call = async (): Promise<Outcome<NodesWritten>> => {
-      let made = change;
-      if (timeline !== undefined) {
-        const created = await createTimeline(choices.tracking?.project ?? "", timeline.label);
-        if (created.kind !== "done") {
-          return created;
-        }
-        made = { kind: "timeline", id: created.data.timeline_id, on: true };
-      }
+    const write = async (made: RowChange, fresh?: Fresh): Promise<Outcome<NodesWritten>> => {
       const { outcome, at } = await writeChange(
         scope.structure,
         choices,
         made,
         [first, ...others],
         wrote,
+        fresh,
       );
       refused = at ?? first;
       return outcome;
     };
+    // The sub-project of lines is written again once the own estimate is updated, from the counter of
+    // each line read again; the timelines are not (#4818): one may be created before the write.
+    const call: (() => Promise<Outcome<NodesWritten>>) | Entry<NodesWritten> =
+      timeline === undefined && change.kind === "subproject"
+        ? {
+            nodes: [first, ...others].map((row) => row.node_id),
+            fields: ["estimate_line.subproject_id"],
+            send: (fresh) => write(change, fresh),
+          }
+        : async () => {
+            if (timeline === undefined) {
+              return write(change);
+            }
+            const created = await createTimeline(choices.tracking?.project ?? "", timeline.label);
+            if (created.kind !== "done") {
+              return created;
+            }
+            return write({ kind: "timeline", id: created.data.timeline_id, on: true });
+          };
     send(
       call,
       () => refused,
