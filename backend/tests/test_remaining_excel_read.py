@@ -20,6 +20,7 @@ from waterfall.core.estimate.remaining.excel.layout import (
     FORMAT_VERSION,
     HEADERS,
     OUTSIDE,
+    OUTSIDE_KEY,
     PREPARED,
     REVIEW_DATE_CELL,
     SUMMARY,
@@ -154,6 +155,41 @@ def test_the_tabs_are_read_by_their_headers_and_the_fixed_tabs_are_not() -> None
     assert [(r.sheet, r.row, r.code) for r in read.rejected] == [(OUTSIDE, 2, "NUMBER_INVALID")]
     assert read.unread_sheets == ("Notes",)
     assert dict(read.tasks) == {"1 A": "t-1", "2 B": "t-2"}
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_the_head_of_a_tab_bears_a_code_only_under_the_label_of_a_code_or_the_outside() -> None:
+    # The subproject of a tab is the one of the code at its head (WF-PRJ-0050): A1 says what B1
+    # holds; any other head, and a code cell left empty, bears none; a number is read as the figure
+    # the cell holds, in text (the writer never writes one: it writes the code as a text).
+    row = ["1 A", ARCH, "x", 3, None, "l-1"]
+
+    def tab(*head: Any) -> list[list[Any]]:
+        return [list(head), SMALL, row]
+
+    read = read_remaining_workbook(
+        workbook(
+            {
+                "Avec code": tab("Code du sous-projet", "SP/1"),
+                "Code vide": tab("Code du sous-projet", None),
+                "Libellé inconnu": tab("Lot", "SP/2"),
+                "Dehors": tab(OUTSIDE),
+                "Dehors avec code": tab(OUTSIDE, "SP/3"),
+                "Numérique": tab("Code du sous-projet", 10001.5),
+                "Sans tête": [SMALL, row],
+            }
+        )
+    )
+
+    assert dict(read.heads) == {
+        "Avec code": "SP/1",
+        "Code vide": None,
+        "Libellé inconnu": None,
+        "Dehors": OUTSIDE_KEY,
+        "Dehors avec code": OUTSIDE_KEY,
+        "Numérique": "10001.5",
+        "Sans tête": None,
+    }
 
 
 @pytest.mark.requirement("WF-INTF-0120-A")

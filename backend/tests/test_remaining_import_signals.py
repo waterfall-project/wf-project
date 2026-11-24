@@ -5,6 +5,8 @@
 A task started is completed by the import only when none of its lines keeps a remaining, the lines
 the file does not carry included (#3978); a line other than labour whose amount the import writes
 is not the amount typed is signalled to the report, ``AMOUNT_ROUNDED`` (#4428). Both are US-3230.
+
+Two tabs that bear one code are one subproject (US-3270/L3).
 """
 
 from datetime import date
@@ -17,7 +19,7 @@ from estimate_support import YEAR, Costing, Lines, costing
 from fastapi.testclient import TestClient
 from imports_trial import import_worker, read
 from nodes_support import Tree, put_facts, set_progress
-from projects_support import Scene
+from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from remaining_import_support import (
     REVIEW,
@@ -352,3 +354,37 @@ def test_the_counters_of_the_lines_that_complete_their_tasks_are_read_in_one_que
     assert reads.count == 1
     for name in ("Câblage", "Essais"):
         assert task_row(stage, task_named(tree, name)["node_id"]).progress == "completed"
+
+
+@pytest.mark.requirement("WF-PRJ-0050-A")
+def test_two_tabs_that_bear_one_code_are_one_subproject_and_their_doubled_lines_are_rejected(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # US-3270/L3: a tab copied in Excel keeps its code, so both tabs designate the subproject of
+    # that code and the lines they share are doubles (DUPLICATE_LINEAGE, #2798): each is rejected,
+    # none is written twice, and the lines of the structure are left as they are.
+    path = f"{PROJECTS}/{stage.project['project_id']}/subprojects"
+    made = api.post(path, headers=stage.manager.headers, json={"code": "SP-1", "label": "Lot 1"})
+    assert made.status_code == 201, made.text
+    rows = scene.exported()
+    before = {
+        label: row_of(stage, line_named(scene.tree, label)["node_id"])
+        for label in ("Fournitures", "Banc")
+    }
+    tabs = {"SP-1": [list(each) for each in rows], "SP-1 (copie)": [list(each) for each in rows]}
+    import_id = analysed(
+        api, stage, worker, workbook(tabs, scene.tasks(), heads={"SP-1 (copie)": "SP-1"})
+    )
+    found = report(api, stage, import_id)
+    assert {each["code"] for each in found["rejected"]} == {"DUPLICATE_LINEAGE"}
+    assert [(each["sheet"], each["row"]) for each in found["rejected"]] == [
+        (sheet, row) for sheet in tabs for row in range(3, len(rows) + 3)
+    ]
+    assert found["differences"] == []
+    applied(api, stage, worker, import_id)
+    for label, row in before.items():
+        after = row_of(stage, line_named(scene.tree, label)["node_id"])
+        assert (after.subproject_id, after.reestimated_amount) == (
+            row.subproject_id,
+            row.reestimated_amount,
+        )

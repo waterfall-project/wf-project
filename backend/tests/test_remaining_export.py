@@ -662,11 +662,16 @@ def test_a_subproject_of_a_slash_a_fixed_name_or_forty_characters_gets_a_tab_wit
         "Tâches",
         "Paramètres",
     ]
-    assert {name: (book[name]["A1"].value, book[name]["B1"].value) for name in names[1:5]} == {
-        "A.ABC.26001_10001": (CODE_LABEL, "A.ABC.26001/10001"),
-        LONG_CODE[:31]: (CODE_LABEL, LONG_CODE),
-        "Synthèse (2)": (CODE_LABEL, "Synthèse"),
-        OUTSIDE: (OUTSIDE, None),
+    heads = {
+        name: (book[name]["A1"].value, book[name]["B1"].value, book[name]["C1"].value)
+        for name in names[1:5]
+    }
+    # C1 holds the label of the subproject (never empty: the base refuses a blank one).
+    assert heads == {
+        "A.ABC.26001_10001": (CODE_LABEL, "A.ABC.26001/10001", "Lot 1"),
+        LONG_CODE[:31]: (CODE_LABEL, LONG_CODE, "Lot 3"),
+        "Synthèse (2)": (CODE_LABEL, "Synthèse", "Lot 2"),
+        OUTSIDE: (OUTSIDE, None, None),
     }
     assert [each["Désignation"] for each in lines_of(content, "Synthèse (2)")] == ["Banc"]
     clean(content, stage, worker, api)
