@@ -641,6 +641,200 @@ def test_sheet_name_suffixed_and_truncated_still_avoids_a_name_taken_in_another_
     assert pair_cut == "a" + "😀" * 13 + " (3)"
 
 
+CALCULATED = (
+    "Description de la tâche",
+    "Nature",
+    "Code comptable",
+    "Service",
+    "Taux horaire",
+    "Type",
+    "Heures totales",
+    "Main-d’œuvre",
+    "Débours",
+    "Montant",
+)
+
+
+def _cached_lines(content: bytes, name: str) -> list[dict[str, Any]]:
+    """Read a tab of lines as a viewer that does not recalculate shows it, the totals last."""
+    sheet = load_workbook(BytesIO(content), data_only=True)[name]
+    headers = [str(cell.value) for cell in sheet[1]]
+    return [
+        dict(zip(headers, [cell.value for cell in row], strict=True))
+        for row in sheet.iter_rows(min_row=2)
+    ]
+
+
+def _cached_summary(content: bytes, name: str, row: int) -> list[Any]:
+    """Read the values of a row of « Devis » or « Présentation », from the first column."""
+    return [cell.value for cell in load_workbook(BytesIO(content), data_only=True)[name][row]]
+
+
+@pytest.mark.story("US-3640")
+def test_each_calculated_cell_of_a_line_carries_its_value_without_a_recalculation() -> None:
+    content = write_workbook(_estimate())
+    labour, disbursement, provision = _cached_lines(content, "1.1 Centrale et logiciel")[:3]
+    assert {header: labour[header] for header in CALCULATED} == {
+        "Description de la tâche": "Description de Management",
+        "Nature": "Main-d’œuvre",
+        "Code comptable": "I810",
+        "Service": "Affaires > Activité 1",
+        "Taux horaire": 100,
+        "Type": "Main-d’œuvre",
+        "Heures totales": pytest.approx(37),
+        "Main-d’œuvre": pytest.approx(3700),
+        "Débours": 0,
+        "Montant": pytest.approx(3700),
+    }
+    assert {header: disbursement[header] for header in CALCULATED} == {
+        "Description de la tâche": "Description de Carte d’interface",
+        "Nature": "Fournitures",
+        "Code comptable": "fo-AINT",
+        "Service": None,
+        "Taux horaire": 0,
+        "Type": "Hors main-d’œuvre",
+        "Heures totales": 0,
+        "Main-d’œuvre": 0,
+        "Débours": 100,
+        "Montant": 100,
+    }
+    assert (provision["Type"], provision["Débours"], provision["Montant"]) == (
+        "Provision",
+        1500,
+        1500,
+    )
+
+
+@pytest.mark.story("US-3640")
+def test_each_amount_of_a_line_equals_the_amount_waterfall_without_a_recalculation() -> None:
+    content = write_workbook(_estimate())
+    checked = 0
+    for name in ("1.1 Centrale et logiciel", "1 Contrôle d’accès", "Hors lot"):
+        for line in _cached_lines(content, name)[:-1]:
+            if line["Montant Waterfall"] is not None:
+                assert line["Montant"] == pytest.approx(line["Montant Waterfall"])
+                checked += 1
+    assert checked == 4
+
+
+@pytest.mark.story("US-3640")
+def test_a_prepared_row_caches_the_empty_text_and_not_zero() -> None:
+    prepared = _cached_lines(write_workbook(_estimate()), "1 Contrôle d’accès")[1:-1]
+    assert len(prepared) == 30
+    assert all(line[header] is None for line in prepared for header in CALCULATED)
+
+
+@pytest.mark.story("US-3640")
+def test_the_row_of_totals_of_a_tab_carries_its_totals_without_a_recalculation() -> None:
+    content = write_workbook(_estimate())
+    package = _cached_lines(content, "1.1 Centrale et logiciel")[-1]
+    assert [package[header] for header in TOTALS] == [
+        pytest.approx(37),
+        pytest.approx(3700),
+        1600,
+        pytest.approx(5300),
+        5300,
+    ]
+    outside = _cached_lines(content, "Hors lot")[-1]
+    assert (outside["Heures totales"], outside["Montant Waterfall"]) == (pytest.approx(148), 0)
+
+
+TOTALS = ("Heures totales", "Main-d’œuvre", "Débours", "Montant", "Montant Waterfall")
+
+
+@pytest.mark.story("US-3640")
+def test_the_summary_and_the_presentation_carry_their_values_without_a_recalculation() -> None:
+    content = write_workbook(_estimate())
+    # Nature columns (E, F, G), the hours of the codes of the roles (I329, I810), the two totals.
+    package = _cached_summary(content, "Devis", 7)[4:]
+    assert package == [pytest.approx(3700), 100, 1500, 0, pytest.approx(37), 5300, 5300]
+    lot = _cached_summary(content, "Devis", 6)[4:]
+    assert lot == [
+        pytest.approx(3700 + 1776),
+        100,
+        1500,
+        pytest.approx(22.2),
+        pytest.approx(37),
+        pytest.approx(5300 + 1776),
+        5300 + 1776,
+    ]
+    total = _cached_summary(content, "Devis", 10)[4:]
+    assert total == [
+        pytest.approx(3700 + 1776 + 14800),
+        100,
+        1500,
+        pytest.approx(22.2),
+        pytest.approx(37 + 148),
+        pytest.approx(21876),
+        pytest.approx(7076),
+    ]
+    presentation = {
+        row[0]: row[1:3]
+        for row in load_workbook(BytesIO(content), data_only=True)["Présentation"].iter_rows(
+            values_only=True
+        )
+        if row[0] in {"Main-d’œuvre", "Fournitures", "Provisions pour risques", "Total"}
+        or str(row[0]).startswith("Montant Waterfall")
+    }
+    assert presentation["Main-d’œuvre"] == (pytest.approx(20276), pytest.approx(20276 / 21876))
+    assert presentation["Provisions pour risques"] == (1500, pytest.approx(1500 / 21876))
+    assert presentation["Total"][0] == pytest.approx(21876)
+    assert presentation["Montant Waterfall, inflation comprise"][0] == pytest.approx(7076)
+
+
+@pytest.mark.story("US-3640")
+def test_the_formulas_stay_beside_the_values_they_cache() -> None:
+    book = _open(write_workbook(_estimate()))
+    sheet = book["1.1 Centrale et logiciel"]
+    headers = [cell.value for cell in sheet[1]]
+    first = {header: sheet.cell(2, column + 1).value for column, header in enumerate(headers)}
+    assert all(str(first[header]).startswith("=") for header in CALCULATED)
+    assert sheet.cell(sheet.max_row, headers.index("Montant") + 1).value == (
+        "=SUBTOTAL(109,Lignes_1_1[[Montant]])"
+    )
+    assert str(book["Devis"]["E7"].value).startswith('=IF($C$7="Oui",SUMIFS(')
+    assert str(book["Présentation"]["B16"].value).startswith("=Devis!")
+
+
+@pytest.mark.story("US-3640")
+def test_the_summary_has_a_column_of_hours_per_code_of_the_roles_and_no_other() -> None:
+    labour = tuple(
+        Category(f"641{number:03d}", f"Catégorie {number}", "Main-d’œuvre", D(50))
+        for number in range(1, 151)
+    )
+    others = (
+        Category("fo-AINT", "Anti-intrusion", "Fournitures"),
+        Category("PRV", "Provision pour risques", "Provisions pour risques"),
+    )
+    roles = tuple(
+        Role(code, f"Rôle {code}", "Service", accounting)
+        for code, accounting in (
+            ("RA-A1", "641002"),
+            ("ARCH-LOG", "641001"),
+            ("DEV", "641001"),
+            ("TEST", "641002"),
+            ("DOC", "641001"),
+        )
+    )
+    content = write_workbook(_estimate(categories=(*labour, *others), roles=roles))
+    headers = [str(cell.value) for cell in _open(content)["Devis"][5] if cell.value is not None]
+    assert [header for header in headers if header.startswith("Heures")] == [
+        "Heures 641001",
+        "Heures 641002",
+    ]
+    assert len(headers) == 4 + 3 + 2 + 2
+    assert _cached_summary(content, "Devis", 10)[7:9] == [pytest.approx(22.2), pytest.approx(185)]
+
+
+@pytest.mark.story("US-3640")
+def test_a_code_no_role_carries_has_no_column_of_hours() -> None:
+    purchase = _task("3", "Achats", _line("l-1", category="fo-AINT", disbursement=D(10)))
+    outside = Tab("", "Hors lot", "Hors lot", (purchase,))
+    content = write_workbook(_estimate(roles=(), lots=(), outside_lot=outside))
+    headers = [str(cell.value) for cell in _open(content)["Devis"][5] if cell.value is not None]
+    assert not any(header.startswith("Heures") for header in headers)
+
+
 def test_sheet_name_avoids_the_name_excel_reserves() -> None:
     assert sheet_name("history") == "history (2)"
     assert sheet_name("History") == "History (2)"

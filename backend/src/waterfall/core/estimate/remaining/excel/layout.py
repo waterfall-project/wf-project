@@ -8,12 +8,11 @@ the tabs of lines by these headers.
 
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.estimate.excel.model import DISBURSEMENT, LABOUR
 from waterfall.core.estimate.excel.names import sheet_name
 from waterfall.core.estimate.excel.writer import (
-    DISBURSEMENT,
     GREY,
     HOURS_FORMAT,
-    LABOUR,
     NOTE,
     amount_format,
     footer_text,
@@ -193,15 +192,15 @@ def line_formulas(table: str) -> dict[str, str]:
             f'MATCH({key},Referentiel[[Entrée]],0)){suffix},"?"))'
         )
 
-    def of_task(column: str, default: str) -> str:
+    def of_task(column: str, default: str, suffix: str = "") -> str:
         found = f"MATCH({cell('Tâche')},Taches[[Entrée]],0)"
-        return f"IFERROR(INDEX(Taches[[{column}]],{found}),{default})"
+        return f"IFERROR(INDEX(Taches[[{column}]],{found}){suffix},{default})"
 
     empty = f'{cell("Rôle ou catégorie")}=""'
     labour = f"{cell('Type')}={quote(LABOUR)}"
     return {
         "Description de la tâche": (
-            f'=IF({cell("Tâche")}="","",{of_task("Description", quote(""))})'
+            f'=IF({cell("Tâche")}="","",{of_task("Description", quote(""), '&""')})'
         ),
         "État": f'=IF({cell("Tâche")}="","",{of_task("État", quote(""))})',
         "Nature": lookup("Nature"),
