@@ -243,6 +243,19 @@ toute tâche terminée que la survenance rouvre.
   de survenance (« tâches terminées qu'elle rouvre ») ; la phrase d'EP-08 (#4240) reste, EP-08
   étant livré.
 
+Constats relevés à la livraison d'US-3070/L3 et d'US-3140/L1, tranchés par l'auteur le
+2026-11-24 :
+
+- #4874 — e2e : le PUT du calendrier par défaut et celui des unités de durée redatent toutes les
+  structures de la révision en cours ; tant que le devis propre consommé n'est pas élagué, la 102
+  de PRJ-001 en porte 9 (≈ 54 000 nœuds) et ces écritures dépassent `WORKING` (14 à 19,5 s).
+  US-3070/L3 leur pose une borne à part, sur la mesure, sans relever `WORKING` ; corrigé par
+  US-3070/L4, qui la retire une fois l'élagage en place ;
+- #4818 — front : un geste de structure, le sous-projet d'une ligne ou l'inscription aux
+  chronologies, fait sur un devis propre en retard, est retenu après la mise à jour, à refaire →
+  US-3140/L1b : le sous-projet et les gestes de structure se rejouent sur les compteurs relus ;
+  l'inscription aux chronologies reste retenue, parce qu'elle ne se rejoue pas sans doublon.
+
 ## Conception
 
 Écrite au cadrage du 2026-11-21, sur le code d'`epic/EP-08` et d'`epic/EP-11` à cette date, après la
@@ -843,6 +856,12 @@ ayant sa base comme un différentiel. La conception dit ses états — entier da
 élagué au marquage —, la recomposition et l'élagage. Le devis propre d'EP-08, structure autonome qui
 tient seule ses lignées (`holds_its_lineages`), disparaît.
 
+Bascule (US-3070/L3, décision de l'auteur du 2026-11-24) : entre elle et US-3150/L1, les parcours
+`@shared` que l'écart du témoin fausse contre le service sont gardés par `inService`, et le guide
+porte une entrée « EP-30 / US-3150 » dans la liste des entrées non rejouées ; US-3150/L1 lève les
+gardes et retire l'entrée. Le lot a dépassé son estimation (3 191 lignes pour ≈ 1 500), ce que
+l'auteur a accepté.
+
 **Hors périmètre.** La gravité et la provision (US-3080) ; la mise à jour et ses refus (US-3090) ;
 la survenance (US-3100) ; les écrans (US-3140) ; le témoin (US-3150).
 
@@ -1427,6 +1446,9 @@ les formulaires, le réexamen, le compte rendu de survenance, et pour un avenant
 « Mettre à jour l'avenant » (`structure-late-note.tsx`, `rebase-structure-command.tsx`), que le
 devis propre reprend. Cette US ne redessine aucun écran : la reprise du graphique à bulles et la
 colonne de tendance sont d'US-3160.
+
+US-3140/L1b (#4818, ajouté le 2026-11-24) étend le rejeu des saisies après une mise à jour sans
+question au sous-projet d'une ligne et aux gestes de structure.
 
 **Hors périmètre.** La reprise de l'écran des risques (US-3160) ; les vues du portefeuille (EP-11).
 
