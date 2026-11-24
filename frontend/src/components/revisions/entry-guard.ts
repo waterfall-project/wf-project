@@ -50,7 +50,7 @@ export interface Entry<T extends NodesWritten> {
 /** Let a write go once the structure is up to date, or say why it does not. */
 export interface EntryGuard {
   <T>(write: () => Promise<Outcome<T>>): Promise<Outcome<T>>;
-  <T extends NodesWritten>(entry: Entry<T>): Promise<Outcome<T>>;
+  <T extends NodesWritten>(entry: (() => Promise<Outcome<T>>) | Entry<T>): Promise<Outcome<T>>;
 }
 
 /** No guard: the write goes as it is. */
