@@ -5,8 +5,10 @@
 From ``fixtures/projects/subproject_codes.json``: a code of a slash, a name Waterfall gives a tab of
 its own, or forty characters is admitted by the core of the projects, and the workbook « Reste à
 engager » gives it a tab named from it, whose head bears the code whole, by which the import
-designates the subproject. The creation itself, with its database, is tried by the tests of the
-subprojects; the export and the import of the file by ``test_remaining_export``.
+designates the subproject. The creation itself, with its database, is tried by
+``test_a_free_code_is_created_as_it_is_sent`` (``test_subprojects``) and the acceptance of the
+model by ``test_the_model_accepts_a_free_code`` (``test_contract_subproject_code``); the export and
+the import of the file by ``test_remaining_export``.
 """
 
 from datetime import UTC, date, datetime
@@ -60,7 +62,7 @@ def _book(codes: list[str]) -> RemainingWorkbook:
 
 
 @pytest.mark.requirement("WF-PRJ-0050-A")
-def test_a_subproject_of_a_slash_a_fixed_name_or_forty_characters_is_created(
+def test_no_code_of_a_slash_a_fixed_name_or_forty_characters_is_refused_for_its_form(
     example: Callable[[str], Example],
 ) -> None:
     # « Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de quarante caractères se
@@ -81,6 +83,9 @@ def test_the_file_of_the_remaining_gives_such_a_subproject_a_tab_that_bears_its_
     # « [...] et le fichier de reste à engager lui donne un onglet qui porte son code en tête. »
     # The tab is named from the code (the slash replaced, 31 characters at most, numbered against
     # « Synthèse »), the code is whole in B1, and the import reads the subproject back from it.
+    # The names of the ``tabs`` key come from the naming rule of the export (annex B,
+    # ``tab_names``), not from the Vérif of WF-PRJ-0050-A, which says only that the tab bears the
+    # code at its head.
     data = example("WF-PRJ-0050-A#38958d887e9a")
     codes = cast("list[str]", data["codes"])
     names = tab_names(codes)
