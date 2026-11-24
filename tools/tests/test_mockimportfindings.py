@@ -160,6 +160,7 @@ def test_a_remaining_to_commit_whose_tab_lost_a_column_names_it_with_its_tab() -
 
 
 @pytest.mark.story("US-3200")
+@pytest.mark.story("US-3280")
 def test_an_estimate_whose_tabs_lost_columns_names_each_with_its_tab() -> None:
     refused = fixture("import_estimate_column_missing")
     assert (refused["status"], refused["code"]) == (422, "FILE_FORMAT_UNREADABLE")
@@ -172,6 +173,9 @@ def test_an_estimate_whose_tabs_lost_columns_names_each_with_its_tab() -> None:
         {"header": "Quantité", "sheet": tests},
         {"header": "Débours unitaire", "sheet": tests},
     ]
+    # A column of a workbook by its header and its sheet, as the contract admits it.
+    shape = _schema("common.yaml", "ProblemMissingColumn")
+    assert shape["oneOf"] == [{"required": ["column", "labels"]}, {"required": ["header", "sheet"]}]
 
 
 @pytest.mark.story("US-3230")
