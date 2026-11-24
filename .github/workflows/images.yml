@@ -124,6 +124,13 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/build-cache
+      # make build-cache plays its builds through wftools.retried, which uv runs.
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
+          cache-dependency-glob: tools/uv.lock
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io

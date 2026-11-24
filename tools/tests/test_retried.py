@@ -3,16 +3,19 @@
 """A command of Docker is tried again when ghcr.io does not answer (#4894)."""
 
 import os
+import re
 import subprocess
 import sys
-from typing import TYPE_CHECKING
+import tomllib
+from typing import TYPE_CHECKING, Any, cast
 
-from wftools import REPOSITORY, retried, slots
+import pytest
+import yaml
+
+from wftools import REPOSITORY, queue, retried, slots
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    import pytest
 
 TIMEOUT = (
     "ERROR: failed to solve: DeadlineExceeded: failed to do request: Head "
@@ -129,3 +132,66 @@ def test_the_makefile_plays_its_builds_of_the_mirror_through_the_tool(tmp_path: 
         lines = [line for line in done.stdout.splitlines() if command in line]
         assert lines, (target, done.stderr)
         assert all("wftools.retried -- env" in line for line in lines), (target, lines)
+
+
+AUTHORIZE = (
+    'ERROR: failed to authorize: failed to fetch anonymous token: Get "https://ghcr.io/token?'
+    'scope=repository%3Awaterfall-project%2Fmirror%2Fnode%3Apull": dial tcp 20.29.134.18:443: '
+    "i/o timeout\n"
+)
+HANDSHAKE = 'Get "https://ghcr.io/v2/": net/http: TLS handshake timeout\n'
+OTHER_TIMEOUT = 'Get "https://registry-1.docker.io/v2/": dial tcp 1.2.3.4:443: i/o timeout\n'
+
+
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    [
+        (RESOLVE, True),
+        (TIMEOUT, True),
+        (AUTHORIZE, True),
+        (HANDSHAKE, True),
+        (OTHER_TIMEOUT, False),
+        (OTHER_HOST, False),
+        (DENIED, False),
+    ],
+)
+def test_what_is_tried_again_is_what_the_queue_recognises(output: str, *, expected: bool) -> None:
+    """`retried.unreachable` and the pattern of the entry of ghcr.io in the TOML agree."""
+    entry = next(
+        e
+        for e in tomllib.loads(queue.KNOWN.read_text("utf-8"))["known"]
+        if e["family"] == "ghcr.io, miroir des images"
+    )
+    assert retried.unreachable(output) is expected
+    assert (re.search(entry["message"], output) is not None) is expected
+    assert entry["message"] == retried.UNREACHABLE.pattern
+
+
+def test_a_job_that_runs_a_goal_played_through_the_tool_has_uv() -> None:
+    """`uv run` plays `wftools.retried`: a workflow job that makes such a goal sets uv up."""
+    outer = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TESTS", "WATERFALL_PROCESSORS", "WATERFALL_SLOTS")
+    environment = {k: v for k, v in os.environ.items() if k not in outer} | slots.variables(0)
+    wrapped: dict[str, bool] = {}
+    missing: list[tuple[str, str, str]] = []
+    for path in sorted((REPOSITORY / ".github" / "workflows").glob("*.yml")):
+        workflow = cast("dict[str, Any]", yaml.safe_load(path.read_text("utf-8")))
+        jobs = cast("dict[str, dict[str, Any]]", workflow.get("jobs") or {})
+        for name, job in jobs.items():
+            steps = cast("list[dict[str, str]]", job.get("steps") or [])
+            if any("setup-uv" in step.get("uses", "") for step in steps):
+                continue
+            for step in steps:
+                for goal in re.findall(r"\bmake\s+(?:-\S+\s+)*([a-z][\w-]*)", step.get("run", "")):
+                    if goal not in wrapped:
+                        done = subprocess.run(
+                            ["make", "-n", "--no-print-directory", goal],
+                            cwd=REPOSITORY,
+                            env=environment,
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                        )
+                        wrapped[goal] = "wftools.retried" in done.stdout
+                    if wrapped[goal]:
+                        missing.append((path.name, name, goal))
+    assert not missing

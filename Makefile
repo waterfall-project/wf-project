@@ -198,7 +198,8 @@ full-only = $(if $(filter full,$(TIER)),$(1))
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))
 WFTOOLS := uv run --frozen --project $(TOOLS) python -m wftools
 # A command of Docker that resolves the images of the mirror, tried again when ghcr.io does not answer
-# (#4894); `env` lets it be given variables first, as COMPOSE_SERVICE is.
+# (#4894); `env` lets it be given variables first, as COMPOSE_SERVICE is. Never read the standard
+# output of a wrapped command (`$(shell …)`, a pipe): retried returns it on the standard error.
 RETRIED := $(WFTOOLS).retried -- env
 # A part of the paths of a shape the plan refuses (i/N, N >= 2) is refused as the Makefile is read
 # too, before the installation and the build of the front, whichever goal of the paths asks for it
