@@ -167,6 +167,25 @@ def test_a_line_imported_again_with_another_wbs_element_changes_its_imputation(
     ]
 
 
+@pytest.mark.requirement("WF-CRE-0020-A")
+def test_the_loader_refuses_a_line_whose_code_no_subproject_bears_and_writes_none(
+    api: ContractClient, stage: Scene
+) -> None:
+    # « Toute autre ligne est rejetée » : le témoin ne charge pas de ligne sous un code qu'aucun
+    # sous-projet du projet ne porte, la forme que la reprise supprime (#3966) ; refusé avant
+    # toute écriture, l'import avec.
+    made(api, stage, WAITED)
+    project = project_of(stage)
+    lines = [cost("FA-1", WAITED), cost("FA-2", None), cost("FA-3", OTHER)]
+    with pytest.raises(ValueError, match=OTHER):
+        load_import(stage, project, lines)
+    assert rows(stage) == []
+    with stage.database.transaction() as session:
+        assert (
+            session.scalars(select(CostImport).where(CostImport.project_id == project)).all() == []
+        )
+
+
 @pytest.mark.requirement("WF-DAT-0110-A")
 def test_the_loader_writes_the_entry_and_the_lines_of_an_import_at_the_identifiers_imposed(
     stage: Scene,

@@ -10,7 +10,8 @@ without a counter (``setActualCostTrackedScope``, WF-CRE-0030) — both US-1620/
 lines an import of the witness creates or updates, at the identifiers and the instant it imposes
 (US-1610/L3): as the application writes them, on their document and item — a line held updated,
 its exclusion kept, another inserted —, each imputed by its code to the subproject of the project
-that bears it, or, without a code, to the project alone (WF-CRE-0020, WF-INTF-0140).
+that bears it, or, without a code, to the project alone (WF-CRE-0020, WF-INTF-0140); a code no
+subproject of the project bears is refused, as the application rejects its line (#3966).
 
 Declared by US-1580/L1; filled by US-1620/L1 and US-1610/L3.
 """
@@ -102,23 +103,26 @@ def load_cost_lines(
     Under the lock of the project, as the application: a line of the same document and item, no
     item included, is updated — its date, its amount, its code and its imputation computed again,
     its columns kept replaced, its exclusion intact —, another inserted at its identifier, tracked;
-    each names the import that wrote it last, the author and the instant of ``act`` its audit.
+    each names the import that wrote it last, the author and the instant of ``act`` its audit. A
+    line whose code no subproject of the project bears is refused before any is written
+    (``ValueError``): the application would have rejected it, and no line waits for a subproject
+    (WF-CRE-0020; #3966).
     """
     if not lines:
         return
     lock_project(session, project_id)
-    codes = subprojects_coded(
-        session, project_id, {line.subproject_code for line in lines if line.subproject_code}
-    )
+    asked = {line.subproject_code for line in lines if line.subproject_code is not None}
+    codes = subprojects_coded(session, project_id, asked)
+    unknown = sorted(asked - codes.keys())
+    if unknown:
+        message = f"the witness imputes lines to codes no subproject bears: {unknown}"
+        raise ValueError(message)
     by_document = held_lines(session, project_id, {line.document_number for line in lines})
     for line in lines:
         key = (line.document_number, line.document_item)
         code = line.subproject_code
         placed = Placed(
-            project_id,
-            line.cost_line_id,
-            None if code is None else codes.get(code),
-            cost_import_id,
+            project_id, line.cost_line_id, None if code is None else codes[code], cost_import_id
         )
         by_document[key] = write_line(session, by_document.get(key), line, placed, act)
     session.flush()
