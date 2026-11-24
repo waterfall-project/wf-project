@@ -586,6 +586,6 @@ issue = "#4846"
 job = "^back / tests"
 test = 'tests/test_api_processes\.py:155\b'
 message = 'assert 1 == 2'
-runs = [45179683507]
-frequency = "1 passage, le 2026-11-23 (45179683507, #4844)"
+runs = [45179683507, 45296835040]
+frequency = "2 passages, le 2026-11-23 (45179683507, #4844) et le 2026-11-24 (45296835040, #4869)"
 cause = "hypothèse : le second processus n'avait pas fini de démarrer ou d'écrire son journal au SIGTERM, ou son `service.stopped` est écrit après la lecture des événements"
