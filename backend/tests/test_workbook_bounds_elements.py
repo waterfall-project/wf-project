@@ -63,6 +63,10 @@ CHARTSHEET = (
     "xl/charts/chart1.xml",
 )
 LINKED = "xl/externalLinks/linked.xml"
+LINKED_RELATIONS = "xl/externalLinks/_rels/linked.xml.rels"
+# The external link of the review of US-3190b: 3 000 000 elements, named by a bare ``id``, which
+# held 612 MiB when only ``r:id`` was kept.
+LINKED_SWOLLEN = 3_000_000
 
 
 @cache
@@ -148,19 +152,37 @@ def test_the_elements_counted_are_those_of_the_parts_openpyxl_parses_into_a_tree
 
 
 @pytest.mark.story("US-3190")
+@pytest.mark.parametrize("bare", [False, True], ids=["r-id", "bare-id"])
 def test_a_part_the_workbook_names_an_external_link_is_counted_whatever_its_relation(
-    monkeypatch: pytest.MonkeyPatch,
+    bare: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # openpyxl parses into a tree the target of the relation an external reference names by its
-    # id, whatever its type: a part named so by a relation typed a tab is counted; named by the
-    # relation alone, which no sheet names, openpyxl never reads it, and it is not.
+    # id, ``r:id`` or a bare ``id`` (``Serialisable.from_tree`` keeps an attribute of no
+    # namespace), whatever its type: a part named so by a relation typed a tab is counted, with its
+    # relations; named by the relation alone, which no sheet names, openpyxl never reads it, and it
+    # is not.
     data = b"<externalLink>" + b"<x/>" * 100 + b"</externalLink>"
     ignored = linked_externally(_base("estimate"), LINKED, data, referred=False)
-    referred = linked_externally(_base("estimate"), LINKED, data, referred=True)
+    referred = linked_externally(_base("estimate"), LINKED, data, referred=True, bare=bare)
     monkeypatch.setattr(workbooks, "MOST_ELEMENTS", _nodes(ignored, PARTS))
     READINGS["estimate"].whole(ignored)
-    monkeypatch.setattr(workbooks, "MOST_ELEMENTS", _nodes(referred, (*PARTS, LINKED)) - 1)
-    assert "elements" in _refused_unopened(referred, monkeypatch)
+    nodes = _nodes(referred, (*PARTS, LINKED, LINKED_RELATIONS))
+    monkeypatch.setattr(workbooks, "MOST_ELEMENTS", nodes)
+    READINGS["estimate"].whole(referred)
+    monkeypatch.setattr(workbooks, "MOST_ELEMENTS", nodes - 1)
+    assert f"hold more than {nodes - 1} elements" in _refused_unopened(referred, monkeypatch)
+
+
+@pytest.mark.story("US-3190")
+def test_an_external_link_named_by_a_bare_id_is_refused_within_the_memory() -> None:
+    # « … sans que la mémoire réelle du processus ne passe la borne que le test fixe » : the
+    # external link of the review, 3 000 000 elements named by a bare ``id``, is refused in a fresh
+    # process under what a refusal before any inflation allocates.
+    data = b"<externalLink>" + b"<x/>" * LINKED_SWOLLEN + b"</externalLink>"
+    content = linked_externally(_base("estimate"), LINKED, data, referred=True, bare=True)
+    (found,) = resident("estimate", _base("estimate"), [content])
+    assert found.outcome == UNREADABLE
+    assert found.rise < CALM
 
 
 @pytest.mark.story("US-3190")

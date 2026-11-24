@@ -205,10 +205,12 @@ _CHARTSHEET = "chartsheet"
 _DRAWING = f"{REL_NS}/drawing"
 # The fixed names openpyxl parses into a tree: all but the theme, which it keeps as bytes. The list
 # of the workbook whose children name, by the id of a relation, the external links it parses into a
-# tree (``WorkbookParser.parse``), a child of the root in any namespace, as ``from_tree`` reads it.
+# tree (``WorkbookParser.parse``), a child of the root in any namespace, as ``from_tree`` reads it;
+# the attributes it takes their id from, that of the relationships' namespace before the bare one
+# (``Serialisable.from_tree`` keeps an attribute of no namespace, and sets the namespaced over it).
 _TREES = _FIXED - {ARC_THEME}
 _REFERENCES = "externalReferences"
-_RELATION_ID = f"{{{REL_NS}}}id"
+_RELATION_IDS = (f"{{{REL_NS}}}id", "id")
 
 
 class _Relations(Enum):
@@ -436,14 +438,17 @@ class _Referring(_Target):
     """The target of the reading of a workbook part: keeps the relations its external links name.
 
     The ids of the children of ``externalReferences``, a child of the root, whatever their tag, as
-    ``NestedSequence`` reads them. Each is an element of a part openpyxl parses into a tree: past
-    ``MOST_ELEMENTS`` of them, the workbook is refused before it holds more.
+    ``NestedSequence`` reads them, in the relationships' namespace or in none: both are kept, a
+    superset of the one openpyxl takes. Each child is an element of a part openpyxl parses into a
+    tree: past ``MOST_ELEMENTS`` of them, the workbook is refused before it holds more ids than
+    twice as many.
     """
 
     def __init__(self, name: str) -> None:
         self.name = name
         self.depth = 0
         self.within = False
+        self.children = 0
         self.ids: set[str] = set()
 
     def start(self, tag: str, attributes: dict[str, str], /) -> None:
@@ -451,11 +456,12 @@ class _Referring(_Target):
         self.depth += 1
         if self.depth == _LISTED_AT:
             self.within = _local(tag) == _REFERENCES
-        elif self.within and self.depth == _LISTED_AT + 1 and _RELATION_ID in attributes:
-            self.ids.add(attributes[_RELATION_ID])
-            if len(self.ids) > MOST_ELEMENTS:
+        elif self.within and self.depth == _LISTED_AT + 1:
+            self.children += 1
+            if self.children > MOST_ELEMENTS:
                 msg = f"{self.name!r} holds more than {MOST_ELEMENTS} elements"
                 raise WorkbookOutOfBoundsError(msg)
+            self.ids.update(attributes[key] for key in _RELATION_IDS if key in attributes)
 
     def end(self, _tag: str, /) -> None:
         """Close an element."""

@@ -595,11 +595,15 @@ def styled_in_full(base: bytes, lists: Mapping[str, int]) -> bytes:
     return base
 
 
-def linked_externally(base: bytes, member: str, data: bytes, *, referred: bool) -> bytes:
+def linked_externally(
+    base: bytes, member: str, data: bytes, *, referred: bool, bare: bool = False
+) -> bytes:
     """Give the workbook with ``member`` more, named by a relation of its workbook typed a tab.
 
     The relation is ``rIdLinked``; when ``referred``, ``workbook.xml`` names it as an external link
-    too, of which openpyxl parses the target into a tree whatever the type of the relation.
+    too, of which openpyxl parses the target into a tree whatever the type of the relation, by an
+    ``r:id`` or, when ``bare``, an ``id`` of no namespace, which openpyxl takes as well; the target
+    then has its relations, the path of the linked workbook, which openpyxl reads too.
     """
     office = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
     relations = "xl/_rels/workbook.xml.rels"
@@ -608,10 +612,22 @@ def linked_externally(base: bytes, member: str, data: bytes, *, referred: bool) 
         b"</Relationships>", relation.encode() + b"</Relationships>"
     )
     xml = _member(base, WORKBOOK)
+    written = {member: data, relations: held, WORKBOOK: xml}
     if referred:
-        reference = f'<externalReferences><externalReference xmlns:r="{office}" r:id="rIdLinked"/>'
-        xml = xml.replace(b"</sheets>", f"</sheets>{reference}</externalReferences>".encode(), 1)
-    return _rewritten(base, {member: data, relations: held, WORKBOOK: xml})
+        named = 'id="rIdLinked"' if bare else f'xmlns:r="{office}" r:id="rIdLinked"'
+        reference = f"<externalReferences><externalReference {named}/>"
+        written[WORKBOOK] = xml.replace(
+            b"</sheets>", f"</sheets>{reference}</externalReferences>".encode(), 1
+        )
+        folder, name = member.rsplit("/", 1)
+        path = (
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1"'
+            f' Type="{office}/externalLinkPath" Target="linked.xlsx" TargetMode="External"/>'
+            "</Relationships>"
+        )
+        written[f"{folder}/_rels/{name}.rels"] = path.encode()
+    return _rewritten(base, written)
 
 
 def referring(base: bytes, member: str, references: int) -> bytes:
