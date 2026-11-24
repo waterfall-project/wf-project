@@ -331,7 +331,7 @@ def test_the_amount_signalled_is_the_amount_the_projection_re_estimates(
 
 
 @pytest.mark.story("US-3230")
-@pytest.mark.requirement("WF-RAE-0040-A")
+@pytest.mark.requirement("WF-INTF-0120-A")
 def test_the_counters_of_the_lines_that_complete_their_tasks_are_read_in_one_query(
     api: ContractClient,
     stage: Scene,
@@ -349,7 +349,6 @@ def test_the_counters_of_the_lines_that_complete_their_tasks_are_read_in_one_que
     assert len(report(api, stage, import_id)["completed_tasks"]) == 2
     reads = counting(monkeypatch, (remaining_applying,), "node_versions")
     applied(api, stage, worker, import_id)
-    monkeypatch.undo()
     assert reads.count == 1
     for name in ("Câblage", "Essais"):
         assert task_row(stage, task_named(tree, name)["node_id"]).progress == "completed"
