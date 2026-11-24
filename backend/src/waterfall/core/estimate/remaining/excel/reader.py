@@ -48,9 +48,13 @@ from waterfall.core.estimate.excel.reader import (
     check_header as check_any_header,
 )
 from waterfall.core.estimate.remaining.excel.layout import (
+    CODE_CELL,
+    CODE_LABEL,
     FIXED_TABS,
     FORMAT_NAME,
     FORMAT_VERSION,
+    OUTSIDE,
+    OUTSIDE_KEY,
     REVIEW_DATE_CELL,
     SUMMARY,
     TASKS,
@@ -126,7 +130,9 @@ class RemainingRead:
     that are not fixed ones and carry no header read at all; ``missing_headers`` gives, by tab
     read (one header read suffices, US-3200b), the headers of the columns read that the tab lacks
     (their cells read as none). ``tasks`` gives, by the entry « Tâches » lists, the lineage of its
-    task: the analysis designates the task of a line by it.
+    task: the analysis designates the task of a line by it. ``heads`` gives, by tab of lines, the
+    code its head bears (``OUTSIDE_KEY`` for « Hors sous-projet », none for a head without a code):
+    the subproject of a tab is the one of that code, never the one of its name (WF-INTF-0120).
     """
 
     review_date: date | None
@@ -136,6 +142,28 @@ class RemainingRead:
     unread_sheets: tuple[str, ...] = ()
     missing_headers: Mapping[str, tuple[str, ...]] = MappingProxyType({})
     tasks: Mapping[str, str] = MappingProxyType({})
+    heads: Mapping[str, str | None] = MappingProxyType({})
+
+
+def _cell(rows: Sequence[Sequence[object]], reference: str) -> str | None:
+    """Read the text of a cell of the first rows by its reference (``B1``), none if empty."""
+    column, row = coordinate_from_string(reference)
+    cells = tuple(rows[row - 1]) if row <= len(rows) else ()
+    rank = column_index_from_string(column) - 1
+    return text(cells[rank]) if rank < len(cells) else None
+
+
+def _head(rows: Sequence[Sequence[object]]) -> str | None:
+    """Read the head of a tab of lines: the code of its subproject, ``OUTSIDE_KEY`` for the outside.
+
+    A1 says « Code du sous-projet » and B1 holds the code, or A1 says « Hors sous-projet »; any
+    other head — a title written before the code came to the head included — bears no code, and
+    the tab designates no subproject (``tab_subprojects``).
+    """
+    first = _cell(rows, "A1")
+    if first == OUTSIDE:
+        return OUTSIDE_KEY
+    return _cell(rows, CODE_CELL) if first == CODE_LABEL else None
 
 
 def _check_header(rows: Sequence[Sequence[object]]) -> None:
@@ -301,6 +329,7 @@ def read_remaining_workbook(content: bytes) -> RemainingRead:
     unread: list[str] = []
     missing: dict[str, tuple[str, ...]] = {}
     tasks: dict[str, str] = {}
+    heads: dict[str, str | None] = {}
     for name, rows in sheets:
         if name == SUMMARY:
             review_date, unparsed = _review_date(rows)
@@ -308,6 +337,7 @@ def read_remaining_workbook(content: bytes) -> RemainingRead:
             tasks = task_entries(rows)
         if name in _NOT_LINE_SHEETS:
             continue
+        heads[name] = _head(rows)
         sheet_lines, sheet_rejected, columns = _read_sheet(name, rows)
         lines += sheet_lines
         rejected += sheet_rejected
@@ -325,4 +355,5 @@ def read_remaining_workbook(content: bytes) -> RemainingRead:
         tuple(unread),
         MappingProxyType(missing),
         MappingProxyType(tasks),
+        MappingProxyType(heads),
     )

@@ -44,7 +44,7 @@ from waterfall.core.costs.extraction import (
     sheet_rows,
 )
 from waterfall.core.costs.writing import held_lines
-from waterfall.core.projects.interface import project_code, subprojects_by_code
+from waterfall.core.projects.interface import compared_code, project_code, subprojects_by_code
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -174,7 +174,7 @@ def unknown_elements(read: Iterable[Rejection]) -> list[dict[str, Any]]:
     for each in read:
         element = each.unknown_element
         if element is not None:
-            compared = element.strip()
+            compared = compared_code(element)
             shown.setdefault(compared, element)
             counted[compared] = counted.get(compared, 0) + 1
     return [
