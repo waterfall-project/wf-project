@@ -963,7 +963,7 @@ la branche d'EP-13, pour ne pas toucher le même fichier.
 
 ## US-3270 — L'élément d'OTP d'une ligne de coût se compare en entier, et le code d'un sous-projet est libre
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-CRE-0020-A`, `WF-PRJ-0050-A`
 - **opérations** : `openImport`, `getImport`, `applyImport`, `createProject`, `updateProject`,
   `createSubproject`, `updateSubproject`, `listSubprojects`, `listActualCosts`, `requestExport`
