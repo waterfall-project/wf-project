@@ -25,6 +25,8 @@ from openpyxl.utils.cell import (
     range_boundaries,
 )
 
+from waterfall.core.estimate.excel.figures import CALCULATED as FIGURED
+from waterfall.core.estimate.excel.figures import EMPTY, UNKNOWN, looked_up, tab_figures
 from waterfall.core.estimate.excel.model import (
     Category,
     Estimate,
@@ -794,6 +796,35 @@ def test_the_formulas_stay_beside_the_values_they_cache() -> None:
     )
     assert str(book["Devis"]["E7"].value).startswith('=IF($C$7="Oui",SUMIFS(')
     assert str(book["Présentation"]["B16"].value).startswith("=Devis!")
+
+
+@pytest.mark.story("US-3640")
+def test_a_prepared_row_holds_a_value_for_each_formula_of_the_lines() -> None:
+    sheet = load_workbook(BytesIO(write_workbook(_estimate())))["1 Contrôle d’accès"]
+    headers = [str(cell.value) for cell in sheet[1]]
+    formulas = {
+        header
+        for header, cell in zip(headers, sheet[2], strict=True)
+        if str(cell.value).startswith("=")
+    }
+    assert formulas
+    assert set(EMPTY) >= formulas
+    assert set(FIGURED) >= formulas
+
+
+@pytest.mark.story("US-3640")
+def test_an_entry_the_reference_does_not_hold_looks_up_as_a_question_mark() -> None:
+    assert looked_up({}, "Inconnu") == dict.fromkeys(
+        ("Nature", "Code comptable", "Service", "Taux horaire", "Type"), UNKNOWN
+    )
+    assert UNKNOWN == "?"
+
+
+@pytest.mark.story("US-3640")
+def test_a_line_of_an_unknown_type_has_no_wages_and_no_disbursement() -> None:
+    line = Line("L", "X", None, "Ligne", D(2), D(3), D(10))
+    figures = tab_figures({}, {}, [("T", "X", line)]).lines[0]
+    assert (figures["Main-d’œuvre"], figures["Débours"], figures["Montant"]) == (0, 0, 0)
 
 
 @pytest.mark.story("US-3640")

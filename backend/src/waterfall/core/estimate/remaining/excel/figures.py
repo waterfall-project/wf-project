@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from waterfall.core.estimate.excel.figures import looked_up
 from waterfall.core.estimate.excel.model import DISBURSEMENT, LABOUR
-from waterfall.core.estimate.remaining.excel.layout import STATES
+from waterfall.core.estimate.remaining.excel.layout import STATES, TOTALS
 from waterfall.core.estimate.remaining.excel.model import remaining_days
 
 if TYPE_CHECKING:
@@ -42,15 +42,6 @@ EMPTY: dict[str, Any] = {
     "Débours": "",
     "Reste à engager": "",
 }
-TOTALS = (
-    "Budget",
-    "Reste précédent",
-    "Jours restants",
-    "Débours restant",
-    "Main-d’œuvre",
-    "Débours",
-    "Reste à engager",
-)
 # What a task gives to the lookups of a line: its state, its coefficient, its description.
 TaskFacts = tuple[str, float, str]
 

@@ -278,10 +278,11 @@ def _line_row(ctx: _Context, task: RemainingTask, line: RemainingLine) -> list[A
     return [values.get(header) for header in HEADERS]
 
 
-def _column_specs(ctx: _Context, table: str, figures: TabFigures) -> list[dict[str, Any]]:
+def _column_specs(
+    ctx: _Context, table: str, figures: TabFigures, formulas: dict[str, str]
+) -> list[dict[str, Any]]:
     """Give the columns of the table of lines: formats, formulas, declared totals."""
     fmt = ctx.fmt
-    formulas = layout.line_formulas(table)
     columns: list[dict[str, Any]] = []
     for header in HEADERS:
         spec: dict[str, Any] = {"header": header, "header_format": fmt["head"]}
@@ -382,7 +383,8 @@ def _write_tab(
     )
     data = [_line_row(ctx, task, line) for task in tab.tasks for line in task.lines]
     data += [[None] * len(HEADERS) for _ in range(layout.PREPARED)]
-    columns = _column_specs(ctx, table, figures)
+    formulas = layout.line_formulas(table)
+    columns = _column_specs(ctx, table, figures, formulas)
     sheet.add_table(
         top,
         0,
@@ -398,7 +400,6 @@ def _write_tab(
     )
     # The formulas stay, each with the value it gives: a spreadsheet that does not recalculate
     # shows them (#4317). The prepared rows give the empty text, not 0.
-    formulas = layout.line_formulas(table)
     formats = {column["header"]: column["format"] for column in columns}
     for row, values in enumerate((*figures.lines, *([EMPTY] * layout.PREPARED)), start=top + 1):
         for header, formula in formulas.items():

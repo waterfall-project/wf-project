@@ -35,7 +35,6 @@ CALCULATED = (
 )
 # A prepared row: nothing typed, so every formula gives the empty text.
 EMPTY: dict[str, Any] = dict.fromkeys(CALCULATED, "")
-SUMMED = ("Heures totales", "Main-d’œuvre", "Débours", "Montant")
 
 
 def role_codes(roles: Iterable[Role]) -> tuple[str, ...]:

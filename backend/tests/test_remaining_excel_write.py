@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from openpyxl import Workbook, load_workbook
 
+from waterfall.core.estimate.remaining.excel.figures import EMPTY, TOTALS
+from waterfall.core.estimate.remaining.excel.layout import TOTALS as LAYOUT_TOTALS
 from waterfall.core.estimate.remaining.excel.layout import line_formulas
 from waterfall.core.estimate.remaining.excel.model import (
     Category,
@@ -704,3 +706,9 @@ def test_the_summary_breaks_the_days_down_by_the_codes_of_the_roles_only() -> No
     ]
     assert len(headers) == 7 + 3 + 2
     assert _cached(content, "Synthèse")["K19"].value == pytest.approx(6)
+
+
+@pytest.mark.story("US-3640")
+def test_a_prepared_row_holds_a_value_for_each_formula_and_the_totals_are_the_layouts() -> None:
+    assert set(EMPTY) >= set(line_formulas("T"))
+    assert TOTALS is LAYOUT_TOTALS
