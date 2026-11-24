@@ -420,6 +420,7 @@
             examples:
               format_unreadable: { $ref: ../../../fixtures/api/import_format_unreadable.json }
               actual_costs_column_missing: { $ref: ../../../fixtures/api/import_actual_costs_column_missing.json }
+              estimate_column_missing: { $ref: ../../../fixtures/api/import_estimate_column_missing.json }
               remaining_column_missing: { $ref: ../../../fixtures/api/import_remaining_column_missing.json }
               purpose_mismatch: { $ref: ../../../fixtures/api/import_upload_purpose_mismatch.json }
               period_inverted: { $ref: ../../../fixtures/api/import_period_inverted.json }
