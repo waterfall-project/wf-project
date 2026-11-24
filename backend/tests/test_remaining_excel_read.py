@@ -522,7 +522,7 @@ def test_each_column_a_tab_lacks_is_named_with_its_tab_in_the_order_of_the_forma
 @pytest.mark.requirement("WF-INTF-0070-A")
 @pytest.mark.parametrize("key", ["Tâche", "Rôle ou catégorie"])
 def test_a_tab_whose_task_or_role_header_is_renamed_is_refused_naming_it(key: str) -> None:
-    # US-3200b (#4784) : une clé d'onglet de lignes renommée est une colonne absente.
+    # US-3200b (#4784): a renamed key of a tab of lines is a missing column.
     renamed = [f"{key} (x)" if header == key else header for header in SMALL]
 
     with pytest.raises(UnprocessableError) as raised:
@@ -534,16 +534,18 @@ def test_a_tab_whose_task_or_role_header_is_renamed_is_refused_naming_it(key: st
 @pytest.mark.story("US-3200")
 @pytest.mark.requirement("WF-INTF-0070-A")
 def test_a_tab_of_notes_stays_ignored_but_one_with_a_header_read_is_refused() -> None:
-    # US-3200b (#4784) : sans aucun en-tête lu, ignoré ; avec un, les deux clés sont nommées.
+    # US-3200b (#4784): ignored with no header read at all; with one, both keys are named.
     check_workbook(workbook({"SP-1": [SMALL], "Notes": [["Remarque", "Commentaire"]]}))
 
     with pytest.raises(UnprocessableError) as raised:
         check_workbook(workbook({"SP-1": [SMALL], "Notes": [["Remarque", DAYS_HEADER]]}))
 
-    # Les deux clés ouvrent la liste ; les autres colonnes absentes suivent, comme pour tout onglet.
-    assert raised.value.params["missing_columns"][:2] == [
+    # Both keys open the list; only the other required columns follow, as for any tab.
+    assert raised.value.params["missing_columns"] == [
         {"header": "Tâche", "sheet": "Notes"},
         {"header": "Rôle ou catégorie", "sheet": "Notes"},
+        {"header": "Débours restant", "sheet": "Notes"},
+        {"header": "ID ligne", "sheet": "Notes"},
     ]
 
 

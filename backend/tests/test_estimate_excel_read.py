@@ -683,23 +683,26 @@ def test_a_column_the_format_reads_but_can_do_without_may_be_missing() -> None:
 @pytest.mark.story("US-3200")
 @pytest.mark.requirement("WF-INTF-0070-A")
 def test_a_tab_without_any_header_read_is_no_tab_of_lines_and_is_not_refused() -> None:
-    # US-3200b (#4784) : un onglet sans aucun en-tête lu (des notes) reste ignoré.
+    # US-3200b (#4784): a tab with no header read at all (notes) stays ignored.
     check_workbook(workbook({"SP-1": [HEADERS], "Notes": [["Remarque", "Commentaire"]]}))
 
 
 @pytest.mark.story("US-3200")
 @pytest.mark.requirement("WF-INTF-0070-A")
 def test_a_tab_with_a_header_read_but_neither_task_nor_role_is_refused_naming_them() -> None:
-    # US-3200b (#4784) : l'onglet qui porte « Quantité » sans « Tâche » ni « Rôle ou catégorie »
-    # est refusé, les deux clés nommées avec l'onglet, dans l'ordre du format.
+    # US-3200b (#4784): the tab that carries « Quantité » without « Tâche » or « Rôle ou
+    # catégorie » is refused, both keys named with the tab, in the order of the format.
     with pytest.raises(UnprocessableError) as raised:
         check_workbook(workbook({"SP-1": [HEADERS], "Notes": [["Remarque", "Quantité"]]}))
 
     assert raised.value.code == "FILE_FORMAT_UNREADABLE"
-    # Les deux clés ouvrent la liste ; les autres colonnes absentes suivent, comme pour tout onglet.
-    assert raised.value.params["missing_columns"][:2] == [
+    # Both keys open the list; only the other required columns follow, as for any tab.
+    assert raised.value.params["missing_columns"] == [
         {"header": "Tâche", "sheet": "Notes"},
         {"header": "Rôle ou catégorie", "sheet": "Notes"},
+        {"header": "Heures", "sheet": "Notes"},
+        {"header": "Débours unitaire", "sheet": "Notes"},
+        {"header": "ID ligne", "sheet": "Notes"},
     ]
 
 
@@ -707,7 +710,7 @@ def test_a_tab_with_a_header_read_but_neither_task_nor_role_is_refused_naming_th
 @pytest.mark.requirement("WF-INTF-0070-A")
 @pytest.mark.parametrize("key", ["Tâche", "Rôle ou catégorie"])
 def test_a_tab_whose_task_or_role_header_is_renamed_is_refused_naming_it(key: str) -> None:
-    # US-3200b (#4784) : une clé d'onglet de lignes renommée est une colonne absente.
+    # US-3200b (#4784): a renamed key of a tab of lines is a missing column.
     renamed = [f"{key} (x)" if header == key else header for header in HEADERS]
 
     with pytest.raises(UnprocessableError) as raised:

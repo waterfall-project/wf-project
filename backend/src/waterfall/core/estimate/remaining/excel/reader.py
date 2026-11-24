@@ -123,11 +123,10 @@ class RemainingRead:
     ``review_date`` is none when « Synthèse » holds no date the reading understands; then
     ``unreadable_review`` tells an absent date (none) from a cell that holds something else, by
     the value as the file carries it (``DATE_INVALID``, #2410). ``unread_sheets`` names the tabs
-    that are not fixed ones and carry no header read at all; ``missing_headers`` gives, by tab read
-    (one header read suffices, US-3200b),
-    the headers of the columns read that the tab lacks (their cells read as none). ``tasks`` gives,
-    by the entry « Tâches » lists, the lineage of its task: the analysis designates the task of a
-    line by it.
+    that are not fixed ones and carry no header read at all; ``missing_headers`` gives, by tab
+    read (one header read suffices, US-3200b), the headers of the columns read that the tab lacks
+    (their cells read as none). ``tasks`` gives, by the entry « Tâches » lists, the lineage of its
+    task: the analysis designates the task of a line by it.
     """
 
     review_date: date | None
@@ -220,7 +219,11 @@ def _is_empty(texts: Mapping[str, str | None], raws: Mapping[str, object]) -> bo
 def _read_sheet(
     name: str, rows: Sequence[Sequence[object]]
 ) -> tuple[list[ReadRemainingLine], list[Rejection], dict[str, int] | None]:
-    """Read the lines of a tab, below the row of its headers; the columns found, none without."""
+    """Read the lines of a tab, below the row of its headers.
+
+    The last item is the columns found: those of the row that carries both keys, else those of
+    the first row that carries any header read (no line is read then), none without any.
+    """
     lines: list[ReadRemainingLine] = []
     rejected: list[Rejection] = []
     columns: dict[str, int] | None = None
