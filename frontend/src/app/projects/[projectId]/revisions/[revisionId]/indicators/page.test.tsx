@@ -239,13 +239,13 @@ describe("the screen of the indicators of a project", () => {
     const page = html(await IndicatorsPage(at({ subproject_id: SUBPROJECT, as_of: "2026-05-31" })));
     const banner = page.slice(0, page.indexOf("</section>"));
     expect(text(banner)).toContain(
-      "Subproject: SP-CMD — Poste de commande, except the milestone tracking Calculation date: 31 May 2026",
+      "Subproject: PRJ-001/SP-CMD — Poste de commande, except the milestone tracking Calculation date: 31 May 2026",
     );
     // The address each link leads to is the client's, from the address shown (`context-banner.dom.test.tsx`).
     expect(
       [...banner.matchAll(/aria-label="(Remove the filter [^"]*)"/g)].map((m) => m[1]),
     ).toEqual([
-      "Remove the filter “Subproject: SP-CMD — Poste de commande, except the milestone tracking”",
+      "Remove the filter “Subproject: PRJ-001/SP-CMD — Poste de commande, except the milestone tracking”",
       "Remove the filter “Calculation date: 31 May 2026”",
     ]);
   });
@@ -620,8 +620,8 @@ describe("the provenance of the charts the screen exports", () => {
     html(await IndicatorsPage(at({ subproject_id: SUBPROJECT })));
     expect(exported.charts.map(([chart, provenance]) => [chart, provenance.detail])).toEqual([
       ["milestones", "Whole project, not restricted to the filtered subproject"],
-      ["s-curve", "Subproject: SP-CMD — Poste de commande"],
-      ["earned-value", "Subproject: SP-CMD — Poste de commande"],
+      ["s-curve", "Subproject: PRJ-001/SP-CMD — Poste de commande"],
+      ["earned-value", "Subproject: PRJ-001/SP-CMD — Poste de commande"],
     ]);
     // No sub-project filtered: every chart is the project whole, and says nothing more.
     exported.charts = [];

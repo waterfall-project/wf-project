@@ -321,11 +321,10 @@ describe("the screen of the imports and exports", () => {
   it("names the reasons a report asks an explicit confirmation for", async () => {
     server.answers = {
       ...server.answers,
-      [GET_IMPORT]: { example: "import_actual_costs_analysed", status: 200 },
+      [GET_IMPORT]: { example: "import_actual_costs_dotted_code", status: 200 },
     };
     const page = text(await exchangesAt({ import: IMPORT }));
-    expect(page).toContain("Explicit confirmation required Unknown subproject");
-    expect(page).toContain("No line rejected");
+    expect(page).toContain("Explicit confirmation required Lines outside the project");
   });
 
   it("names the fields a difference changes by the columns of its object, in the language of its reader [WF-ARC-0110-A]", async () => {

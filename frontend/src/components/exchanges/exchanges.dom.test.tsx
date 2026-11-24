@@ -793,12 +793,12 @@ describe("the report of an import", () => {
 
   it("names the element of work breakdown a line of actual cost is rejected for [WF-CRE-0020-A]", () => {
     serve({});
-    open(report(example("import_actual_costs_wbs_invalid") as Import));
+    open(report(example("import_actual_costs_dotted_code") as Import));
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
-      "5L’élément d’OTP de la ligne n’a pas la forme attendue",
+      "3L’élément d’OTP de la ligne n’est ni le code du projet ni celui de l’un de ses sous-projets.",
     );
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
-      "Élément d’OTP lu : « /SP-CAB ».",
+      "Élément d’OTP lu : « A.ABC.26002/10001 ».",
     );
   });
 

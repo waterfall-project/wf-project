@@ -175,7 +175,9 @@ describe("the screen of the remaining to commit", () => {
     expect(query).toEqual({ progress: "started", subproject_id: SUBPROJECT });
     expect(fields?.split(",").sort()).toEqual(nodeFieldNames(REMAINING_FIELDS).sort());
     const banner = page.slice(0, page.indexOf("</section>"));
-    expect(text(banner)).toContain("Subproject: SP-CMD — Poste de commande, on the grid only");
+    expect(text(banner)).toContain(
+      "Subproject: PRJ-001/SP-CMD — Poste de commande, on the grid only",
+    );
     expect(text(banner)).not.toContain("Calculation date");
     expect(queryOf(INDICATORS)).toEqual({ revision_id: REVISION });
   });
@@ -383,11 +385,11 @@ describe("the screen of the remaining to commit", () => {
     await remainingAt();
     expect(handed).toHaveLength(1);
     expect(handed[0]?.subprojects).toEqual([
-      { id: SUBPROJECT, label: "Poste de commande", code: "SP-CMD" },
+      { id: SUBPROJECT, label: "Poste de commande", code: "PRJ-001/SP-CMD" },
       {
         id: "01926f3a-7c00-7000-8000-000000000802",
         label: "Essais et mise en service",
-        code: "SP-ESS",
+        code: "PRJ-001/SP-ESS",
       },
     ]);
   });

@@ -2012,7 +2012,7 @@
         "help": "Signed amount of the line, as the extraction gives it."
       },
       "subproject": {
-        "help": "Sub-project the line is charged to, after its WBS element; “No subproject” for a line charged to the project alone, followed by the code read when the element bears one the project does not have."
+        "help": "Sub-project the line is charged to, after its WBS element; “No subproject” for a line charged to the project alone."
       },
       "trackedScope": {
         "help": "Whether the line is in the tracked scope; a line excluded stays consultable and enters no indicator."
@@ -3209,7 +3209,7 @@
     "PROJECT_HORIZON_EXCEEDED": "The duration of the project would exceed fifteen years.",
     "FIELD_NOT_ACCEPTED": "This field is not entered on this line.",
     "SUBPROJECT_HAS_ACTUAL_COSTS": "This line cannot leave this subproject: its task has started, and the subproject has received actual costs.",
-    "SUBPROJECT_CODE_INVALID": "This code cannot name the tab of the subproject in the estimate-to-complete file.",
+    "SUBPROJECT_CODE_INVALID": "This code is that of the project or of one of its subprojects: a subproject never bears the code of its project.",
     "DUPLICATE_COLUMN_LABEL": "This column label is already in the mapping, regardless of case, accents or surrounding spaces: each one names a single column.",
     "DUPLICATE_COST_LINE": "This line shares its document and item, blank item included, with other lines of the file: all of them are rejected, none is preferred. Correct or remove the duplicates in the file.",
     "DUPLICATE_LINEAGE": "This line carries a line identifier (“ID ligne”) that other lines of the file carry too: all of them are rejected, none is preferred, and the line of the revision is left as it is. Remove or correct the copies in the file.",
@@ -3225,7 +3225,7 @@
     "BACKUP_FROM_NEWER_VERSION": "This backup comes from a newer version than the one installed: it cannot be restored.",
     "TASK_INTERRUPTED_BY_RESTORE": "The restoration interrupted this task, under way when the restored backup was taken: it does not resume.",
     "PASTE_TARGET_REMOVED": "The target of the paste disappeared in the meantime: nothing was pasted.",
-    "WBS_ELEMENT_OUTSIDE_PROJECT": "The WBS element of the line belongs to another project.",
+    "WBS_ELEMENT_OUTSIDE_PROJECT": "The WBS element of the line is neither the code of the project nor that of one of its subprojects.",
     "AMBIGUOUS_TASK_LABEL": "This label is carried by several tasks: the report does not say which one it targets.",
     "TASK_TREE_IMAGE_TOO_LARGE": "The image of the task tree would exceed one hundred million pixels: nothing was drawn. Choose a shallower level."
   },

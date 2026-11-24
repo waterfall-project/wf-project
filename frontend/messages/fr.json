@@ -2012,7 +2012,7 @@
         "help": "Montant signé de la ligne, tel que l’extraction le donne."
       },
       "subproject": {
-        "help": "Sous-projet auquel la ligne est imputée, d’après son élément d’OTP ; « Hors sous-projet » pour une ligne imputée au seul projet, suivi du code lu quand l’élément en porte un que le projet n’a pas."
+        "help": "Sous-projet auquel la ligne est imputée, d’après son élément d’OTP ; « Hors sous-projet » pour une ligne imputée au seul projet."
       },
       "trackedScope": {
         "help": "Si la ligne entre dans le périmètre suivi ; une ligne exclue reste consultable et n’entre dans aucun indicateur."
@@ -3209,7 +3209,7 @@
     "PROJECT_HORIZON_EXCEEDED": "La durée du projet dépasserait quinze ans.",
     "FIELD_NOT_ACCEPTED": "Ce champ ne se saisit pas sur cette ligne.",
     "SUBPROJECT_HAS_ACTUAL_COSTS": "Cette ligne ne peut pas quitter ce sous-projet : sa tâche est démarrée, et le sous-projet a reçu des coûts réels.",
-    "SUBPROJECT_CODE_INVALID": "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager.",
+    "SUBPROJECT_CODE_INVALID": "Ce code est celui du projet ou de l’un de ses sous-projets : un sous-projet ne porte jamais le code de son projet.",
     "DUPLICATE_COLUMN_LABEL": "Cet intitulé de colonne figure déjà dans la correspondance, sans égard à la casse, aux accents ni aux espaces en bout : chacun ne désigne qu’une colonne.",
     "DUPLICATE_COST_LINE": "Cette ligne partage sa pièce et son poste, poste vide compris, avec d’autres lignes du fichier : toutes sont rejetées, aucune n’est préférée. Corrigez ou retirez les doublons dans le fichier.",
     "DUPLICATE_LINEAGE": "Cette ligne porte un identifiant de ligne (« ID ligne ») que d’autres lignes du fichier portent aussi : toutes sont rejetées, aucune n’est préférée, et la ligne de la révision est laissée telle quelle. Retirez ou corrigez les copies dans le fichier.",
@@ -3225,7 +3225,7 @@
     "BACKUP_FROM_NEWER_VERSION": "Cette sauvegarde vient d’une version plus récente que celle installée : elle ne se restaure pas.",
     "TASK_INTERRUPTED_BY_RESTORE": "La restauration a interrompu cette tâche, en cours au moment de la sauvegarde restaurée : elle ne reprend pas.",
     "PASTE_TARGET_REMOVED": "La cible du collage a disparu entre-temps : rien n’a été collé.",
-    "WBS_ELEMENT_OUTSIDE_PROJECT": "L’élément d’OTP de la ligne appartient à un autre projet.",
+    "WBS_ELEMENT_OUTSIDE_PROJECT": "L’élément d’OTP de la ligne n’est ni le code du projet ni celui de l’un de ses sous-projets.",
     "AMBIGUOUS_TASK_LABEL": "Ce libellé est porté par plusieurs tâches : le compte rendu ne dit pas laquelle il vise.",
     "TASK_TREE_IMAGE_TOO_LARGE": "L’image de l’arborescence de tâches dépasserait cent millions de pixels : rien n’a été dessiné. Choisissez un niveau moins profond."
   },
