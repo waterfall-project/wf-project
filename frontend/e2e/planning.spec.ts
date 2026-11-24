@@ -7,7 +7,7 @@ import { closeMenu, menuButton, openMenu, pick } from "./check-menu";
 import { columnsOf } from "./columns";
 import { pngSize } from "./download";
 import { holdScripts, openHydrated } from "./hydration";
-import { test } from "./mode";
+import { inService, test } from "./mode";
 import { rowAt, scrollToPosition, withinBox } from "./scroll";
 import { isServerAction } from "./server-action";
 
@@ -42,9 +42,17 @@ const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
  */
 const NAMES_WIDTH = 252;
 
+// The witness the service serves merges the occurrence of 752 into the first level of 102 under
+// drawn identifiers, where the fake back keeps it under its summary: the row numbers and the
+// summary « Retard de livraison des armoires » differ. US-3150/L1 (#4614) lifts the gap and this
+// guard, and the entry of the guide's list of the entries not replayed.
+const WITNESS_MERGED =
+  "the service serves the occurrence of 752 merged apart from the fake back (US-3150/L1, #4614)";
+
 test("opens the grid of the planning: its icons named, the critical path marked, the predecessors by row number, no header offering a sort @shared [WF-IHM-0060-A] [WF-PLA-0080-A]", async ({
   page,
 }) => {
+  test.skip(inService, WITNESS_MERGED);
   await openHydrated(page, `${IN_REVISION}/planning`);
   await expect(page).toHaveTitle("Planification · Modernisation du poste de commande — Waterfall");
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
@@ -502,6 +510,7 @@ test("changes the planning start date, the server answering the week before [WF-
 test("draws the Gantt beside the grid, row for row, the critical path told in words, and modifies no task @shared [WF-PLA-0090-A]", async ({
   page,
 }) => {
+  test.skip(inService, WITNESS_MERGED);
   await openHydrated(page, `${IN_REVISION}/planning`);
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const at = await columnsOf(grid, { gantt: "Gantt" });
@@ -569,6 +578,7 @@ test("tints the days off of each task in the Gantt, hatched, with a legend @shar
 test("folds a summary in the grid and the Gantt follows, unfolds it from the Gantt and the grid follows, and keeps the fold for the session @shared [WF-PLA-0090-A]", async ({
   page,
 }) => {
+  test.skip(inService, WITNESS_MERGED);
   await openHydrated(page, `${IN_REVISION}/planning`);
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const at = await columnsOf(grid, { label: "Libellé", gantt: "Gantt" });

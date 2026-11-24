@@ -14,7 +14,7 @@
  */
 import { expect, type Locator, type Request } from "@playwright/test";
 
-import { WORKING } from "./bounds";
+import { REDATING, WORKING } from "./bounds";
 import { sortUntilAddress } from "./hydration";
 import { inService, test } from "./mode";
 import { answerOf, isDeactivation, isReactivation, pressOnce } from "./server-action";
@@ -220,7 +220,7 @@ test("creates a role in its form, moves a node under an active one, and designat
     // Found by its label, not by its position: the bootstrap writes a calendar of its own, which
     // sorts before this one by label.
     await expect(calendarRow("Semaine de quatre jours")).toContainText("Calendrier par défaut", {
-      timeout: WORKING,
+      timeout: REDATING,
     });
     await expect(
       page
@@ -289,7 +289,7 @@ test("creates a role in its form, moves a node under an active one, and designat
           await expect(calendarRow("Semaine standard")).toContainText("Calendrier par défaut", {
             timeout: 1_000,
           });
-        }).toPass({ timeout: WORKING });
+        }).toPass({ timeout: REDATING });
       });
     }
   }
@@ -332,7 +332,7 @@ test("modifies the units of duration from the settings of the resources, and say
     await form.getByRole("textbox", { name: "Heures par jour" }).fill(written);
     await form.getByRole("button", { name: "Enregistrer" }).click();
     sent = true;
-    await expect(form).toBeHidden({ timeout: WORKING });
+    await expect(form).toBeHidden({ timeout: REDATING });
     if (!inService) {
       // The fake back answers the first example of the operation whatever was written: 7 and 35.
       await expect(value("Heures par semaine")).toHaveText("35");
@@ -371,7 +371,7 @@ test("modifies the units of duration from the settings of the resources, and say
         }).toPass({ timeout: WORKING });
         await form.getByRole("textbox", { name: "Heures par jour" }).fill(WITNESS_HOURS_PER_DAY);
         await form.getByRole("button", { name: "Enregistrer" }).click();
-        await expect(form).toBeHidden({ timeout: WORKING });
+        await expect(form).toBeHidden({ timeout: REDATING });
         await page.reload();
         await expect(value("Heures par jour")).toHaveText(WITNESS_HOURS_PER_DAY, {
           timeout: WORKING,

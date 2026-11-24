@@ -5063,6 +5063,13 @@ la garde et l'entrée ci-dessus :
   `revisions.spec.ts` et de `remaining.spec.ts`, l'ouverture et le défilement de la grille, ses fenêtres
   et son pli, le clavier jusqu'à la six millième ligne), les trois cents projets et les dix-huit mille
   lignes de coût du §4.6.2, et l'écran d'état du système.
+- **EP-30 / US-3150** — les parcours `@shared` que le témoin servi par le service écarte : le chargeur
+  fusionne la survenance de 752 au premier niveau de la 102, sous des identifiants tirés, là où le
+  témoin du faux back la tient sous la récapitulative « Retard de livraison des armoires »
+  (`planning.spec.ts`, ses trois parcours de la grille, du Gantt et du pli ; `risks.spec.ts`, le compte
+  rendu de la survenance, dont la ligne de provision relève aussi d'US-3140 ; le montant du Lot 1 de
+  `grid.spec.ts`, 502 234,56 € servi pour 502 434,56 € attendu). US-3150/L1 (#4614) retire ces gardes
+  et cette entrée.
 - **Aucun EPIC ne les renverse** — les parcours qui écrivent PRJ-001, dont le compte de la course n'est
   pas contributeur (#2193) : leurs jumeaux jouent le service sur un projet de la course
   (`FAKE_BACK_ONLY`, `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), ceux qui

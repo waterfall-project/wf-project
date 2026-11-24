@@ -5996,6 +5996,13 @@ the guard and the entry above:
   `revisions.spec.ts` and of `remaining.spec.ts`, the opening and the scroll of the grid, its windows
   and its folding, the keyboard to the six thousandth row), the three hundred projects and the
   eighteen thousand cost lines of §4.6.2, and the status screen of the system.
+- **EP-30 / US-3150** — the `@shared` paths that the witness served by the service departs from: the
+  loader merges the occurrence of 752 into the first level of 102, under drawn identifiers, where the
+  witness of the fake back keeps it under the summary « Retard de livraison des armoires »
+  (`planning.spec.ts`, its three paths of the grid, the Gantt and the fold; `risks.spec.ts`, the report
+  of the occurrence, whose provision line also belongs to US-3140; the amount of Lot 1 of
+  `grid.spec.ts`, 502,234.56 € served for 502,434.56 € expected). US-3150/L1 (#4614) removes these guards
+  and this entry.
 - **No epic reverses them** — the paths that write PRJ-001, whose account of the run is no
   contributor (#2193): their twins play the service on a project of the run (`FAKE_BACK_ONLY`,
   `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), those that enter or paste in

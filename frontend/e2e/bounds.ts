@@ -65,6 +65,24 @@ export const WORKING = 15_000;
 export const LOADED = 40_000;
 
 /**
+ * How long the write of the default calendar and the write of the units of duration are waited for,
+ * in milliseconds (`reference-resources.spec.ts`): both redate, in the request, every structure of
+ * the revisions in progress (`reschedule_current_structures`). Nothing else uses it.
+ *
+ * Measured on 2026-11-24 by `make e2e-service` on a quiet slot: the write of the default calendar
+ * took 14 to 18 s, that of the units of duration 18 to 19.5 s. Revision 102 of PRJ-001 holds nine
+ * structures and about 54 000 nodes, the whole own estimate of each risk and its base, that of 752
+ * included, occurred and not yet pruned. Forty seconds, twice the worst measure: the room of a
+ * runner under load, which the queue gave to the reads of `LOADED` the same way, and under what
+ * `test.slow` leaves of the budget of the path.
+ *
+ * A temporary bound: #4874, corrected by US-3070/L4 (#4587), prunes the own estimate consumed at
+ * the occurrence and the marking; L4 then removes this bound, and the two writes come back under
+ * `WORKING`.
+ */
+export const REDATING = 40_000;
+
+/**
  * How long the worker is given to mark a revision: a task taken from the queue, one transaction.
  *
  * Measured on 2026-11-16 by `make measure-version MEASURE_VERSION=0.4.0` (US-2300, fifty users of
