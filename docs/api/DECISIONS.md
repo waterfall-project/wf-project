@@ -13182,24 +13182,16 @@ reste `1.0.0` (« La règle d'après le gel ») : le lot ajoute et assouplit. Ex
   qu'Excel refuse remplacés, coupé à 31 caractères, numéroté en cas de collision — et le code en
   tête ; l'import désigne le sous-projet par ce code, jamais par le nom de l'onglet
   (`requestExport`, `openImport`, `ImportRejection.sheet` ; WF-INTF-0120, WF-INTF-0130).
-- **Ce qui attend le service** (US-3270/L2 ; fait, voir l'entrée qui suit). `PROJECT_CODE_INVALID`,
-  `WBS_ELEMENT_INVALID`,
-  `unknown_subproject` et les paramètres `forbidden_characters`, `reserved_name` et `project_code`
-  restent au contrat, dits « no longer given » : le service les émet encore, et les tests du
-  service valident chaque réponse contre le contrat ; ils sortent avec le lot qui cesse de les
-  émettre (conception d'EP-33, « un code ne sort du catalogue qu'avec le lot du service »). Leurs
-  exemples restent cités jusque-là — `project_code_invalid`, `subproject_code_invalid`,
-  `subproject_code_reserved`, `import_actual_costs_wbs_invalid`, et
-  `import_actual_costs_dotted_code`, écrit sous l'ancienne règle —, comme le témoin, dont les codes
-  de sous-projets et l'extraction d'avril, qui demande `unknown_subproject`, changent avec la
-  reprise. D'ici là, le service refuse encore un code de sous-projet de plus de 31 caractères, rend
-  encore la borne `max_length` à 50 de `VALUE_TOO_LONG` sur `wbs_element` — le contrat ne la dit
-  plus —, n'impute pas encore à la création d'un sous-projet, et `Subproject.has_actual_costs`,
-  que le contrat dit « born false » et dont « creation charges no line », est en avance sur lui
-  jusqu'à L2 ; il rend `unknown_wbs_elements` vide : un compte rendu écrit sans la clé se lit vide
-  (`waterfall.api.imports`). Les exemples de compte rendu existants portent la clé : vide, ou
-  l'élément de la ligne d'un autre projet qu'ils rejettent (l'extraction d'avril, son témoin et
-  `import_actual_costs_dotted_code`).
+- **Ce qui attendait le service** (US-3270/L2, fait : l'entrée qui suit). `PROJECT_CODE_INVALID`,
+  `WBS_ELEMENT_INVALID`, `unknown_subproject` et les paramètres `forbidden_characters`,
+  `reserved_name` et `project_code` sont restés au contrat, dits « no longer given », tant que le
+  service les émettait : les tests du service valident chaque réponse contre le contrat, et un code
+  ne sort du catalogue qu'avec le lot du service (conception d'EP-33). Leurs exemples sont restés
+  cités jusque-là, comme le témoin d'avant la reprise. Entre les deux lots, le service refusait
+  encore un code de sous-projet de plus de 31 caractères, rendait la borne `max_length` à 50 de
+  `VALUE_TOO_LONG` sur `wbs_element` que le contrat ne disait plus, imputait à la création d'un
+  sous-projet, et rendait `unknown_wbs_elements` vide ; un compte rendu écrit sans la clé se lit
+  toujours vide (`waterfall.api.imports`). US-3270/L2 a retiré le tout du contrat et du service.
 - **Le catalogue du front** ne reçoit aucune clé : aucun code ni paramètre nouveau. Les phrases de
   `errors.SUBPROJECT_CODE_INVALID` et `errors.WBS_ELEMENT_OUTSIDE_PROJECT`, qui disent l'ancienne
   règle comme le service la tient encore, se réécrivent avec le front (US-3270/L3).
@@ -13227,15 +13219,33 @@ confirmation) ; les phrases de `SUBPROJECT_CODE_INVALID` et de
   d'une autre nature, ou analysé avant, se lit sans élément inconnu. La création d'un sous-projet
   n'impute plus rien. Un sous-projet au code du projet, et un projet recodé au code de l'un de ses
   sous-projets, sont refusés sous le verrou du projet, après les refus de l'écrivain et de l'état.
+  Les codes se comparent comme l'élément, sans leurs blancs en bout (`compared_code`), le code
+  stocké restant celui envoyé : un code saisi « A.ABC.26001 » suivi d'un blanc reçoit les lignes
+  de l'élément `A.ABC.26001`, et l'unicité du code dans le projet — entre sous-projets, contre le
+  code du projet, au recodage du projet — se juge sur le code ainsi rogné, sous le verrou du
+  projet que tient tout écrivain d'un sous-projet, l'index unique de la table, sur le code stocké,
+  ne restant qu'un garde-fou : `X` et `X` suivi d'un blanc ne nomment jamais deux sous-projets d'un
+  même élément. Deux codes qu'une base d'avant garderait ainsi, l'élément est celui qui ne porte
+  pas de blanc. `unknown_wbs_elements` regroupe de même les éléments qui ne diffèrent que par
+  leurs blancs en bout, nommés comme le fichier les porte la première fois. Le contrat ne change
+  pas (`DeclaredSubprojectCode`, « free otherwise »).
 - **La reprise** (migrations 0046, le schéma, et 0047, les données, séparées selon
   `docs/dev/sql.md`) : les lignes de coût en attente d'un sous-projet supprimées, leur nombre
   journalisé par projet ; les codes des sous-projets d'un projet codé préfixés du code du projet
   et d'une barre oblique, leur compteur avancé pour qu'un formulaire lu avant ne réécrive pas
   l'ancien code ; le code des lignes imputées préfixé de même ; `unknown_subproject` retiré des
-  comptes rendus gardés. Le cache des indicateurs n'est pas vidé : la clé du jour lit le nombre des
-  lignes de coût du projet, qui tombe sous tout nombre que le projet a eu depuis son dernier
-  import — seuls les imports ajoutent des lignes, et leur nombre ne recule jamais —, si bien
-  qu'aucune entrée gardée avant la migration n'est servie après.
+  comptes rendus gardés. Une ligne imputée dont le code passerait 100 caractères une fois préfixé
+  — elle n'a pu être écrite qu'autour du service — arrête la reprise avant toute écriture, en
+  nommant ses projets : aucun code n'est coupé. Le cache des indicateurs n'est pas vidé : la clé
+  du jour lit le nombre des imports du projet, qui ne recule jamais, et celui de ses lignes de
+  coût, que seul un import fait croître, dans sa transaction ; depuis le dernier import, le nombre
+  des lignes n'a pas bougé, et la suppression le fait tomber dessous, si bien que la clé d'après
+  n'a jamais été celle du projet — elle peut retrouver le nombre de lignes d'avant le dernier
+  import, mais pas son nombre d'imports. Le test de la reprise
+  (`test_no_entry_of_the_cache_kept_before_the_reprise_is_served_after_it`) le montre de bout en
+  bout : une entrée gardée sous la clé du jour après chacun de deux imports, la seconde lecture
+  après la reprise retombant au nombre de lignes de la première, n'est servie pour aucune des
+  deux, et les entrées d'avant restent au cache jusqu'à la fin de leur validité, sans être lues.
 - **Le témoin.** Ses sous-projets sont recodés comme la reprise les écrit (`PRJ-001/SP-CMD`,
   `PRJ-001/SP-ESS`, la réception créée `PRJ-001/SP-REC`). Ses lignes qui attendaient un code
   qu'aucun sous-projet ne porte (les câbles, l'avoir, l'automate et la réception) portent
