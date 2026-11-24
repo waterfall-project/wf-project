@@ -240,6 +240,7 @@ paths = [
     "deploy/e2e/**",
     "tools/src/wftools/e2eimage.py",
     "tools/src/wftools/registry.py",
+    "tools/src/wftools/retried.py",
     # The parts of the paths, spread by the seconds they took (US-1910).
     "tools/src/wftools/e2eparts.py",
     # The launcher the Makefile starts the slots by, and the slots that run its heavy checks
@@ -306,6 +307,7 @@ paths = [
     "deploy/e2e/**",
     "tools/src/wftools/e2eimage.py",
     "tools/src/wftools/registry.py",
+    "tools/src/wftools/retried.py",
     # What spreads the parts of the paths by their measured durations (US-1910).
     "tools/src/wftools/e2eparts.py",
     # The launcher the Makefile starts the slots by, and the slots that run its heavy checks

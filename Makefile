@@ -197,6 +197,9 @@ full-only = $(if $(filter full,$(TIER)),$(1))
 # The coverage run executes the same tests: in the full tier it replaces the plain run.
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))
 WFTOOLS := uv run --frozen --project $(TOOLS) python -m wftools
+# A command of Docker that resolves the images of the mirror, tried again when ghcr.io does not answer
+# (#4894); `env` lets it be given variables first, as COMPOSE_SERVICE is.
+RETRIED := $(WFTOOLS).retried -- env
 # A part of the paths of a shape the plan refuses (i/N, N >= 2) is refused as the Makefile is read
 # too, before the installation and the build of the front, whichever goal of the paths asks for it
 # (#3108): one guard for all of E2E_PATH_GOALS. Two things keep the value from a shell. SHARD_BAD
@@ -323,11 +326,11 @@ lint-docker: ## Lint the Dockerfiles
 # A start that fails prints the log of the control of the volume of PostgreSQL, which says nothing
 # unless it refuses the data of another major version (US-1130): `up --detach` shows no log.
 service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API, the worker and its schedule, the service of the restoration, Keycloak in HTTPS and its realm, OpenLDAP, Mailpit (needs the secrets of the guide, "Commandes")
-	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler keycloak keycloak-front-end openldap mailpit \
+	@$(RETRIED) $(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler keycloak keycloak-front-end openldap mailpit \
 		|| { rc=$$?; $(COMPOSE_SERVICE) logs --no-color --no-log-prefix postgres-volume >&2; exit $$rc; }
 	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate --no-deps keycloak-realm
-	@$(COMPOSE_SERVICE) up --build --detach --wait restore
+	@$(RETRIED) $(COMPOSE_SERVICE) up --build --detach --wait restore
 
 # The bootstrap of the platform (US-0420), once its realm is applied: the link of the first
 # administrator on the standard output, alone — its image built quietly first, and no terminal,
@@ -439,7 +442,7 @@ lint-compose: ## Validate the Compose files
 	@docker compose -f deploy/compose/compose.test.yaml config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
-	@docker build --build-arg WATERFALL_MIRROR $(call build-cache-from,keycloak) --tag $(WATERFALL_KEYCLOAK_IMAGE) deploy/keycloak
+	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR $(call build-cache-from,keycloak) --tag $(WATERFALL_KEYCLOAK_IMAGE) deploy/keycloak
 
 # The cache of the builds of the images on GitHub Actions (type=gha, .github/actions/build-cache):
 # every build of an image reads it, under the name of the image (wftools.images); after a merge,
@@ -486,7 +489,7 @@ production-trial: ## Start the production platform on the images of WATERFALL_IM
 # SSL_CERT_FILE: uv reads it too, and would trust no other authority to download Python or the
 # packages (#737). One of them restarts Keycloak, whose container is named to it (#852).
 test-keycloak: ## Start Keycloak on the service platform, apply its realm, and try it, the API that validates its tokens and the bootstrap included, measuring its administration client and the bootstrap (needs the secrets of service-up)
-	@$(COMPOSE_SERVICE) up --build --detach --wait keycloak keycloak-front-end openldap
+	@$(RETRIED) $(COMPOSE_SERVICE) up --build --detach --wait keycloak keycloak-front-end openldap
 	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate --no-deps keycloak-realm
 	@cd $(BACK) && uv sync --frozen
