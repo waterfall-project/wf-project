@@ -574,7 +574,7 @@ def _replayed(session: Session, plan: Plan, constants: UnitConstants) -> None:
 
     A loop of links, or a link between a summary and its subordinate, which MS Project refuses
     too, fails the analysis by the engine's code, the tasks named by their label. A task left
-    without an hour in its week refuses the file (``hourless``); its dates are not computed.
+    without an hour in its week refuses the file (``_hourless``); its dates are not computed.
     """
     if not plan.order or plan.start is None:
         return
