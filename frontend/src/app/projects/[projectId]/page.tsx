@@ -29,6 +29,7 @@ import { readMappingGap } from "@/components/exchanges/mapping-gap";
 import { ImportReport } from "@/components/exchanges/import-report";
 import { IMPORT_PARAMETER, importOffers } from "@/components/exchanges/offers";
 import {
+  endedImport,
   namedImport,
   readEntry,
   readShownImport,
@@ -163,11 +164,7 @@ export default async function ProjectPage(props: ProjectPageProps) {
             offers={startable}
             breakdownHref={`${breakdown}${breakdown.includes("?") ? "&" : "?"}start=skeleton`}
             start={start}
-            ended={
-              entry?.status === "refused" || entry?.status === "failed"
-                ? entry.import_id
-                : undefined
-            }
+            ended={endedImport(shown)}
           />
         )}
         {entry === undefined ? null : (

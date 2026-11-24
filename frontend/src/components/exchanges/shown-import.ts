@@ -36,6 +36,15 @@ export function namedImport(shown: ShownImport): string | undefined {
 }
 
 /**
+ * The import the address names when the API reads it refused or failed: its report stays shown
+ * with no command to apply or abandon it, so the drop zone beside it no longer waits for it.
+ */
+export function endedImport(shown: ShownImport): string | undefined {
+  const entry = readEntry(shown);
+  return entry?.status === "refused" || entry?.status === "failed" ? entry.import_id : undefined;
+}
+
+/**
  * Read the import the address names, when it names one an identifier can stand for. A 404 is the
  * import gone — or not the project's, which the API answers alike (WF-ADM-0110).
  */
