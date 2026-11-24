@@ -201,6 +201,20 @@ describe("the grid of the actual costs", () => {
     expect(cellsOf("FA-2026-0521")[4]).toHaveTextContent("PRJ-001/SP-CMDPoste de commande");
   });
 
+  it("cuts a code of a hundred characters within the column, and gives it whole by its title [WF-PRJ-0050-A] [US-3270]", () => {
+    // The code the reprise of the codes gives: the project's, a slash, the former code (#4896).
+    const code = `PRJ-001/${"SP-".padEnd(92, "X")}`;
+    expect(code).toHaveLength(100);
+    const costs = costsOf("actual_costs_subproject");
+    const long = costs.items.map((line) => ({ ...line, subproject_code: code }));
+    render(costsGrid({ ...costs, items: long }));
+    const shown = within(cellsOf("FA-2026-0521")[4] ?? grid()).getByText(code);
+    expect(shown).toHaveAttribute("title", code);
+    expect(shown).toHaveClass("truncate");
+    // The label keeps its place beside the code cut.
+    expect(cellsOf("FA-2026-0521")[4]).toHaveTextContent(`${code}Poste de commande`);
+  });
+
   it("keeps an excluded line visible, said excluded in words, with the reason of its exclusion [WF-CRE-0030-A]", () => {
     render(costsGrid(costsOf("actual_costs")));
     const cells = cellsOf("FA-2026-0295");

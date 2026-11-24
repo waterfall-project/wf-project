@@ -70,9 +70,13 @@ export function SubprojectCell({ line }: { readonly line: CostRow }) {
   if (line.subproject_label === null) {
     return <span className="truncate text-muted-foreground italic">{t("unassigned")}</span>;
   }
+  // A code may run to a hundred characters (WF-PRJ-0050, US-3270): cut within three fifths of the
+  // cell, leaving room for the label, and given whole by its title (#4896).
   return (
     <span className="flex min-w-0 gap-1.5">
-      <span className="shrink-0 font-medium">{line.subproject_code}</span>
+      <span className="max-w-3/5 shrink-0 truncate font-medium" title={line.subproject_code}>
+        {line.subproject_code}
+      </span>
       <span className="truncate">{line.subproject_label}</span>
     </span>
   );
