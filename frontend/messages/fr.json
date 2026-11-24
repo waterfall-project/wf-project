@@ -4344,7 +4344,8 @@
       }
     },
     "list": {
-      "purged": "L’import que l’adresse nomme n’existe plus : il a été supprimé à l’échéance de sa conservation ou à son abandon. Les imports du projet sont listés ci-dessous.",
+      "purged": "L’import que l’adresse nomme n’existe plus : il a été supprimé à l’échéance de sa conservation ou à son abandon.",
+      "purgedListed": "L’import que l’adresse nomme n’existe plus : il a été supprimé à l’échéance de sa conservation ou à son abandon. Les imports du projet sont listés ci-dessous.",
       "title": "Imports du projet",
       "none": "Aucun import n’a encore été ouvert sur ce projet.",
       "file": "Fichier",

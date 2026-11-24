@@ -101,6 +101,16 @@ describe("the imports on the screen of a project without revision", () => {
     expect(report).toBeLessThan(page.indexOf('aria-label="Import a file"'));
   });
 
+  it("says the import its address names is gone, without pointing to a list the screen has not [US-3280]", async () => {
+    server.answers = {
+      ...server.answers,
+      [IMPORT_READ]: { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    const page = text(await projectAt({ import: IMPORT }));
+    expect(page).toContain("The import the address names no longer exists");
+    expect(page).not.toContain("listed below");
+  });
+
   it("says on the import of actual costs unavailable the columns without a label, with the way to the correspondence, reading it once [WF-REF-0190-A]", async () => {
     server.answers = {
       ...server.answers,

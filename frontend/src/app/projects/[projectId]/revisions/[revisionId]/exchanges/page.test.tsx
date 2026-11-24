@@ -413,6 +413,7 @@ describe("the screen of the imports and exports", () => {
     };
     const page = await exchangesAt({ import: IMPORT });
     expect(text(page)).toContain("The import the address names no longer exists");
+    expect(text(page)).toContain("The imports of the project are listed below.");
     expect(text(page)).toContain("devis-avenant-2-reprise-des-essais.xlsx");
     expect(page).not.toContain("Report of");
   });

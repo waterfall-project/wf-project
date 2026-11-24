@@ -38,13 +38,14 @@ export interface ImportListProps {
 
 /**
  * What the screen says of an import its address names and the API no longer knows: the purge deleted
- * it at its expiry or its abandonment (US-3280). A note, not an error page.
+ * it at its expiry or its abandonment (US-3280). A note, not an error page. It points to the list
+ * below it only where the screen has one.
  */
-export function PurgedImport() {
+export function PurgedImport({ listed = false }: { readonly listed?: boolean }) {
   const t = useTranslations("exchanges.list");
   return (
     <p role="status" className="text-sm text-muted-foreground">
-      {t("purged")}
+      {t(listed ? "purgedListed" : "purged")}
     </p>
   );
 }
@@ -63,7 +64,7 @@ export function ImportList({
   return (
     <SectionCard title={title} icon={History}>
       <div className="flex min-w-0 flex-col gap-2">
-        {purged ? <PurgedImport /> : null}
+        {purged ? <PurgedImport listed /> : null}
         {total === 0 ? (
           <p className="text-sm text-muted-foreground">{t("exchanges.list.none")}</p>
         ) : (

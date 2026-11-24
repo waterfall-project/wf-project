@@ -4344,7 +4344,8 @@
       }
     },
     "list": {
-      "purged": "The import the address names no longer exists: it was deleted at the end of its retention or on its abandonment. The imports of the project are listed below.",
+      "purged": "The import the address names no longer exists: it was deleted at the end of its retention or on its abandonment.",
+      "purgedListed": "The import the address names no longer exists: it was deleted at the end of its retention or on its abandonment. The imports of the project are listed below.",
       "title": "Imports of the project",
       "none": "No import has been opened on this project yet.",
       "file": "File",
