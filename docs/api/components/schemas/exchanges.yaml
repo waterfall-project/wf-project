@@ -325,6 +325,7 @@ ImportReport:
     - date_mismatches
     - signals
     - requires_confirmation_reasons
+    - unknown_wbs_elements
     - unit_constants
     - calendar_gap
   description: >-
@@ -381,9 +382,9 @@ ImportReport:
         reason; the others apply (WF-INTF-0080). Among them, for an estimate or a remaining to
         commit, a line that would leave a subproject that has received actual costs, the report
         naming that subproject (`ImportRejection`, WF-INTF-0100, WF-INTF-0120); for an actual
-        cost extraction, a line whose WBS element does not have the expected form or designates
-        another project (WF-CRE-0020), each counted in the log among the rejected lines
-        (`CostImport.rejected_count`, WF-CRE-0050).
+        cost extraction, a line whose WBS element is neither the code of the project nor that of
+        one of its subprojects, compared whole (WF-CRE-0020; #3966), each counted in the log among
+        the rejected lines (`CostImport.rejected_count`, WF-CRE-0050).
       items: { $ref: '#/ImportRejection' }
     refusals:
       type: array
@@ -458,16 +459,30 @@ ImportReport:
     requires_confirmation_reasons:
       type: array
       description: >-
-        Reasons for an explicit confirmation, specific to actual costs: lines of another
-        project, rejected, or an unknown subproject, kept by its code (WF-CRE-0020). A line of
-        another project counts for `lines_outside_project` even when it is rejected
-        `DUPLICATE_COST_LINE`, another line of the file bearing its document and its item
-        (#2724): the confirmation guards against a file of the wrong project, which a double does
-        not excuse. A difference in dates or durations is no longer one: it is stated by
+        Reasons for an explicit confirmation, specific to actual costs: lines rejected for their
+        WBS element, neither the code of the project nor that of one of its subprojects
+        (`lines_outside_project`, `WBS_ELEMENT_OUTSIDE_PROJECT`, WF-CRE-0020), which
+        `unknown_wbs_elements` names. The confirmation guards against a file of the wrong project
+        (#2724): such a line is judged for its element alone, never compared with the lines of the
+        project for `DUPLICATE_COST_LINE`, and no line of the project is rejected because of it
+        (BRC-04; #3966). `unknown_subproject`, a line charged to the project alone under a
+        subproject code that no subproject bore, is no longer given: such a line is rejected
+        (#3966). A difference in dates or durations is no longer one: it is stated by
         `date_mismatches`.
       items:
         type: string
         enum: [lines_outside_project, unknown_subproject]
+    unknown_wbs_elements:
+      type: array
+      description: >-
+        For an actual cost extraction, each WBS element of the file that is neither the code of
+        the project nor that of one of its subprojects, compared whole, once, with the number of
+        its lines, in the order in which the file first carries it — "the report names each
+        unknown WBS element and the number of its lines" (WF-CRE-0020; #3966): what subprojects
+        to declare before importing the file again, which then charges them their lines. Its
+        lines are rejected (`WBS_ELEMENT_OUTSIDE_PROJECT`, `rejected`). Empty when every element
+        is known, and for the other kinds of import.
+      items: { $ref: '#/ImportUnknownWbsElement' }
     unit_constants:
       anyOf: [{ $ref: '#/ImportUnitConstants' }, { type: 'null' }]
       description: >-
@@ -709,6 +724,24 @@ ImportIgnored:
         name, the progress or the costs. Never more than `count`.
       items: { type: string }
 
+ImportUnknownWbsElement:
+  type: object
+  required: [wbs_element, line_count]
+  description: >-
+    A WBS element of an actual cost extraction that is neither the code of the project nor that
+    of one of its subprojects, and the number of the lines of the file that carry it, all rejected
+    (`ImportReport.unknown_wbs_elements`, WF-CRE-0020; #3966).
+  properties:
+    wbs_element:
+      type: string
+      description: >-
+        The element as the file carries it, compared whole: `A.ABC.26001/10002`, `10001` and
+        `A.ABC.26002` are three elements (WF-CRE-0020). Empty for the lines without an element.
+    line_count:
+      type: integer
+      minimum: 1
+      description: The lines of the file that carry it.
+
 ImportCompletedTask:
   type: object
   required: [lineage_id, label, completed_on]
@@ -838,26 +871,27 @@ ImportRejection:
     extraction, a line for which another line of the file carries the same document and the same
     item, null included: `DUPLICATE_COST_LINE`, each of these lines rejected, `params.rows`
     naming the rows of the others in the order of the file — the line cannot be identified, and
-    none is preferred to the other (WF-INTF-0140, D-4; EP-16/US-0630). For an estimate or a
-    remaining to commit, likewise a line whose lineage — the « ID ligne » column — another line of
-    the file carries, on the same tab or on another: `DUPLICATE_LINEAGE`, each of these lines
-    rejected, `params.lines` naming the tab and the row of the others in the order of the file,
-    and the line of the revision that the lineage names left as it is (WF-INTF-0100,
-    WF-INTF-0120; #2798). And a line rejected for
-    its WBS element (WF-CRE-0020), `params.wbs_element` the element as the file carries it:
-    `WBS_ELEMENT_INVALID`, an element that does not have the form of a project code optionally
-    followed by a slash and a subproject code — empty, or with nothing before the slash —, only
-    the slash separating the two codes, and the project code possibly containing dots
-    (`A.ABC.26001/10001`, WF-PRJ-0010) — an element with nothing after the slash,
-    `A.ABC.26001/`, is one as well (#2721);
-    `WBS_ELEMENT_OUTSIDE_PROJECT`, an element of another project, `params.project_code` the
-    project code read, which is not that of the imported project. The amount of a line is
+    none is preferred to the other (WF-INTF-0140, D-4; EP-16/US-0630). Only the lines whose WBS
+    element is the code of the project or that of one of its subprojects are compared: a line of
+    another element is rejected for its element, and no line of the project is rejected because
+    of it (BRC-04; #3966). For an estimate or a remaining to commit, likewise a line whose lineage
+    — the « ID ligne » column — another line of the file carries, on the same tab or on another:
+    `DUPLICATE_LINEAGE`, each of these lines rejected, `params.lines` naming the tab and the row of
+    the others in the order of the file, and the line of the revision that the lineage names left
+    as it is (WF-INTF-0100, WF-INTF-0120; #2798). And a line rejected for its WBS element
+    (WF-CRE-0020):
+    `WBS_ELEMENT_OUTSIDE_PROJECT`, an element that is neither the code of the project nor that of
+    one of its subprojects, compared whole, without being cut nor supposed of any form — empty,
+    of another project, a subproject code without the code of the project, a subproject not
+    declared —, `params.wbs_element` the element as the file carries it; the report names each
+    such element once, with the number of its lines (`ImportReport.unknown_wbs_elements`;
+    #3966). `WBS_ELEMENT_INVALID` and `params.project_code`, which cut the element at its slash
+    (#2721), are no longer given. The amount of a line is
     rounded to the cent, half away from zero — `-0.005` gives `-0.01` — before it is judged
     against its bounds (#2721). A cell of a line of an actual cost extraction that is refused
     (`VALUE_REQUIRED`, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE`, `NUMBER_INVALID`, `DATE_INVALID`)
-    names its column in `params.column`, by the identifier of the mapping (#2722). A line whose
-    subproject code is that of no subproject is not rejected: imported and charged to the project alone, it
-    requires confirmation (`unknown_subproject`). For an estimate or a remaining to commit, a
+    names its column in `params.column`, by the identifier of the mapping (#2722). For an
+    estimate or a remaining to commit, a
     line that cites a task, a role or a subproject that the revision does not have
     (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`), `params.value` the value of
     the cell as the file carries it, so that the user finds it without reading their file again
@@ -897,7 +931,9 @@ ImportRejection:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
         The sheet that carries the line, by its name as the file carries it: the work package of
-        an estimate, the subproject of a remaining to commit, or a sheet that Waterfall names,
+        an estimate, the subproject of a remaining to commit — designated by the code at the head
+        of its sheet, never by the name of the sheet, which may be renamed (WF-INTF-0120; #3966)
+        —, or a sheet that Waterfall names,
         "Hors lot" or "Hors sous-projet", whose name does not depend on the language (annex B,
         WF-INTF-0180). Null for a single-sheet file — an MS Project schedule, an actual cost
         extraction (WF-INTF-0040, WF-INTF-0140) — (#1162).
@@ -1054,16 +1090,16 @@ ActualCostColumn:
   description: >-
     Column of an actual cost line carried by the imported file, named as the sort of
     `listActualCosts` names it (WF-CRE-0010): the date and the number of the document, the
-    number of the item in the document, its amount, its subproject — the code read in the WBS
-    element (`subproject_code`); a re-import that changes it recalculates the charging of the
-    line, and the report states it with an `updated` difference on this column (WF-CRE-0020,
-    WF-INTF-0140). A kept column of the file (`ActualCostLine.passthrough`, WF-CRE-0010) is
-    named `passthrough.<column>`, as the sort names it: a re-import that changes its value —
-    the supplier of a document — is an `updated` difference on it, and not an unchanged line.
-    The document number identifies the line together with the item of the document
-    (`document_item`): both serve for sorting and are never a difference field
-    (`ImportDifference.label`, `ImportDifference.document_item`; D-4). The tracked scope and the
-    exclusion reason, which the server deduces, are not columns of the file.
+    number of the item in the document, its amount, its subproject — the code of the subproject
+    its WBS element designates (`subproject_code`); a re-import that changes the element
+    recalculates the charging of the line, and the report states it with an `updated`
+    difference on this column (WF-CRE-0020, WF-INTF-0140). A kept column of the file
+    (`ActualCostLine.passthrough`, WF-CRE-0010) is named `passthrough.<column>`, as the sort names
+    it: a re-import that changes its value — the supplier of a document — is an `updated`
+    difference on it, and not an unchanged line. The document number identifies the line together
+    with the item of the document (`document_item`): both serve for sorting and are never a
+    difference field (`ImportDifference.label`, `ImportDifference.document_item`; D-4). The tracked
+    scope and the exclusion reason, which the server deduces, are not columns of the file.
   anyOf:
     - type: string
       enum: [document_date, document_number, document_item, amount, subproject]

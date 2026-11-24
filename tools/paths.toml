@@ -403,7 +403,8 @@ by = "make fixtures"
 # service served undeclared (wftools.mockservedrefusals, held by
 # tools/tests/test_mockservedrefusals.py), and the examples of the contract of the exchanges that
 # EP-33 changes (wftools.mockimportfindings, held by tools/tests/test_mockimportfindings.py), and
-# the examples
+# those of the WBS element compared whole and of the free subproject code (wftools.mockfreecodes,
+# held by tools/tests/test_mockfreecodes.py), and the examples
 # of the majors of the review of the 2026-10-31 (wftools.mockreview, held by
 # tools/tests/test_mockreview.py), and the chronology of the witness the loader of the projects
 # reads (wftools.mockchronology, held by tools/tests/test_mockchronology.py), and its tasks the
@@ -844,6 +845,9 @@ paths = [
     "fixtures/api/import_actual_costs_task_purged.json",
     "fixtures/api/import_remaining_column_missing.json",
     "fixtures/api/import_remaining_amount_rounded.json",
+    "fixtures/api/import_actual_costs_unknown_elements.json",
+    "fixtures/api/subproject_code_of_project.json",
+    "fixtures/api/project_code_of_subproject.json",
     "fixtures/api/users_by_access_role.json",
     "fixtures/api/users_without_access_role.json",
     "fixtures/api/users_search.json",

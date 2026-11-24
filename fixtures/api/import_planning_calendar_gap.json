@@ -72,6 +72,7 @@
       ],
       "signals": [],
       "requires_confirmation_reasons": [],
+      "unknown_wbs_elements": [],
       "unit_constants": {
         "file": {
           "hours_per_day": "7",

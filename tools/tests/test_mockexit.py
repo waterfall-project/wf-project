@@ -383,31 +383,24 @@ def test_a_command_the_quality_does_not_allow_names_that_quality() -> None:
 
 @pytest.mark.requirement("WF-PRJ-0010-A")
 @pytest.mark.requirement("WF-CRE-0020-A")
-def test_the_project_code_is_never_blank_and_bears_no_slash() -> None:
+def test_the_project_code_is_never_blank_and_may_bear_a_slash() -> None:
+    # The specification 1.0.7 compares the WBS element whole (#3966): the slash is no longer a
+    # separator, and a project code may bear one, as it bears dots.
     code = _schemas()["ProjectCode"]
     assert (code["minLength"], code["maxLength"]) == (1, 50)
     pattern = re.compile(code["pattern"])
-    for accepted in ("PRJ-001", "PRJ.2026.01", "A", "PRJ 001"):
-        assert pattern.search(accepted), accepted
-    for refused in ("   ", "PRJ/001", "/", "PRJ-001/SP-CMD", mockproject.INVALID_CODE):
-        assert not pattern.search(refused), refused
+    accepted = ("PRJ-001", "PRJ.2026.01", "A", "PRJ 001", "PRJ/001", "A.ABC.26001", "/")
+    for each in (*accepted, mockproject.INVALID_CODE):
+        assert pattern.search(each), each
+    assert not pattern.search("   ")
     for name, project in _projects():
         assert project["code"] is None or pattern.search(project["code"]), name
     for schema in ("Project", "ProjectSummary", "ProjectCreate", "ProjectUpdate"):
         assert _schemas()[schema]["properties"]["code"]["anyOf"][0] == {"$ref": "#/ProjectCode"}
-    refused = fixture("project_code_invalid")
-    assert refused["fields"] == [
-        {
-            "pointer": "/code",
-            "code": "PROJECT_CODE_INVALID",
-            "params": {"forbidden_characters": ["/"]},
-        }
-    ]
-    # A code both blank and bearing a slash gets the slash first.
-    assert not pattern.search("/  ")
+    # The refusal of a slash is no longer given; its example leaves with the service that stops
+    # giving it (US-3270/L2).
     description = " ".join(_schemas()["ProjectCode"]["description"].split())
-    assert "both blank and containing a slash" in description
-    assert "`PROJECT_CODE_INVALID`, the slash first" in description
+    assert "`PROJECT_CODE_INVALID`, which refused a slash (D-07), is no longer given" in description
 
 
 @pytest.mark.requirement("WF-IHM-0090-A")

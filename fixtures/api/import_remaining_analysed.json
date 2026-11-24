@@ -50,6 +50,7 @@
       "date_mismatches": [],
       "signals": [],
       "requires_confirmation_reasons": [],
+      "unknown_wbs_elements": [],
       "unit_constants": null,
       "calendar_gap": null
     },

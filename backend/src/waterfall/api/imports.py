@@ -244,16 +244,23 @@ def _listed(view: ImportView) -> dict[str, Any]:
 
 
 def _report(view: ImportView) -> dict[str, Any] | None:
-    """Give the report of an import, its unit constants and its calendar gap nil without them.
+    """Give the report of an import, the keys an analysis may not have written nil or empty.
 
-    The analysis of a planning of MS Project writes both (US-2000/L2). A report analysed before
-    ``unit_constants`` (#2580) or ``calendar_gap`` (#2977), or by the code that precedes them during
-    an update (WF-DAT-0140), lacks a key the contract requires, as the reports of the other kinds
-    do: it is read as the constants and the calendars of the file not differing.
+    The analysis of a planning of MS Project writes its unit constants and its calendar gap
+    (US-2000/L2). A report analysed before ``unit_constants`` (#2580) or ``calendar_gap`` (#2977),
+    or by the code that precedes them during an update (WF-DAT-0140), lacks a key the contract
+    requires, as the reports of the other kinds do: it is read as the constants and the calendars
+    of the file not differing. No analysis writes ``unknown_wbs_elements`` yet (#3966): it is read
+    empty until the extraction names its unknown elements (US-3270/L2).
     """
     if view.report is None:
         return None
-    return {"unit_constants": None, "calendar_gap": None, **view.report}
+    return {
+        "unit_constants": None,
+        "calendar_gap": None,
+        "unknown_wbs_elements": [],
+        **view.report,
+    }
 
 
 def detailed(session: Session, view: ImportView) -> ImportDetail:

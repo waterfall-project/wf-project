@@ -390,27 +390,30 @@ Problem:
         WF-ADM-0160); `max_length`, in `fields[].params`, which accompanies every
         `VALUE_TOO_LONG`: the bound of the refused field, the largest number of characters a
         text allows (`maxLength`) or of elements a list allows (`maxItems`) — `50` for the code
-        of a project, `31` for that of a subproject (WF-PRJ-0010, WF-PRJ-0050; J-02, #1796) —,
-        and `forbidden_characters` or `reserved_name`, those of `SUBPROJECT_CODE_INVALID` — and
-        `forbidden_characters`, of `PROJECT_CODE_INVALID`, `["/"]` (`createProject`,
-        `updateProject`, WF-PRJ-0010; D-07, US-0701/L9) —: the forbidden characters the code
-        carries, as an array, each once in the order in which it carries them, or the reserved
-        name it equals, "Synthèse" or "Hors sous-projet", as Waterfall writes it
-        (`createSubproject`, `updateSubproject`, WF-PRJ-0050; EP-16/US-0610); `duplicate_of`, in
+        of a project, `100` for that of a subproject (WF-PRJ-0010, WF-PRJ-0050; J-02, #1796,
+        #3966) —, and `forbidden_characters` or `reserved_name`, which `SUBPROJECT_CODE_INVALID`
+        and `PROJECT_CODE_INVALID` carried, and no longer give, the code of a project and that of a
+        subproject being free (#3966): the forbidden characters the code carried, as an array,
+        each once in the order in which it carried them, or the reserved name it equalled,
+        "Synthèse" or "Hors sous-projet", as Waterfall writes it (`createProject`,
+        `updateProject`, `createSubproject`, `updateSubproject`; D-07, EP-16/US-0610);
+        `duplicate_of`, in
         `fields[].params`, the pointer of the label that a label of the mapping of the actual
         cost extraction duplicates (`DUPLICATE_COLUMN_LABEL`, `setActualCostMapping`,
         WF-REF-0190; EP-16/US-0620); `rows`, the row numbers, as an array of integers, of the
         other lines of the file that carry the same document and the same item as a rejected
         line of an actual cost extraction (`DUPLICATE_COST_LINE`, `ImportRejection.params`,
-        WF-INTF-0140; EP-16/US-0630); `lines`, the tab and the row number of the other lines of the
-        file that carry the same lineage as a rejected line of an estimate or of a remaining to
-        commit, as an array of objects (`sheet`, `row`), in the order of the file
-        (`DUPLICATE_LINEAGE`, `ImportRejection.params`, WF-INTF-0100, WF-INTF-0120; #2798);
-        `wbs_element`, the WBS element of a rejected line of an
-        actual cost extraction, as the file carries it, and `project_code`, the project code it
-        carries when it is that of another project, everything before the slash, dots included
-        (`WBS_ELEMENT_INVALID`,
-        `WBS_ELEMENT_OUTSIDE_PROJECT`, `ImportRejection.params`, WF-CRE-0020); `value`, the
+        WF-INTF-0140; EP-16/US-0630), compared among the lines whose WBS element is the code of
+        the project or that of one of its subprojects alone (BRC-04; #3966); `lines`, the tab and
+        the row number of the other lines of the file that carry the same lineage as a rejected
+        line of an estimate or of a remaining to commit, as an array of objects (`sheet`, `row`),
+        in the order of the file (`DUPLICATE_LINEAGE`, `ImportRejection.params`, WF-INTF-0100,
+        WF-INTF-0120; #2798); `wbs_element`, the WBS element of a rejected line of an actual cost
+        extraction, as the file carries it, empty for a line without one
+        (`WBS_ELEMENT_OUTSIDE_PROJECT`, `ImportRejection.params`, WF-CRE-0020) — and
+        `project_code`, the part before the slash of an element of another project, which
+        `WBS_ELEMENT_OUTSIDE_PROJECT` carried and no longer gives, the element being compared
+        whole (#3966); `value`, the
         value of the cell as the file carries it, of a line of an estimate or of a remaining to
         commit that cites an unknown task, role or subproject (`UNKNOWN_TASK`,
         `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `ImportRejection.params`, WF-INTF-0100),
@@ -424,8 +427,10 @@ Problem:
         `DATE_INVALID`, `ImportRejection.params`, WF-CRE-0020; #2722), where `minimum` and
         `maximum` are the bounds of the amount, `-999999999999.99` and `999999999999.99`, as
         strings (`VALUE_OUT_OF_RANGE`, `column` at `amount`), and `max_length` the largest number
-        of characters of the document number, `200`, or of the subproject code of the WBS
-        element, `50` (`VALUE_TOO_LONG`, `column` at `document_number` or `wbs_element`);
+        of characters of the document number, `200` (`VALUE_TOO_LONG`, `column` at
+        `document_number`) — a WBS element has no bound of its own: one longer than any code is no
+        code, and is rejected for it (`WBS_ELEMENT_OUTSIDE_PROJECT`; #3966); the bound of `50` at
+        `wbs_element` is no longer given, which the service still gives until US-3270/L2;
         `label`, the label of a task that several tasks carry, with `tasks` those that carry it
         (`AMBIGUOUS_TASK_LABEL`, `ImportRejection.params`, annex B); `start` and `finish`, the
         dates that an MS Project planning gives to a summary task in manual mode, imported in
@@ -775,11 +780,13 @@ ErrorCode:
     # `params.date` names the date, `params.next_working_day` the next working day.
     - NON_WORKING_DAY
     # A line of an actual cost extraction rejected for its WBS element (`ImportRejection`,
-    # WF-CRE-0020): an element that does not have the form of a project code optionally followed
-    # by a slash and a subproject code, `params.wbs_element` the element read; an element of
-    # another project, `params.wbs_element` and `params.project_code` the project code read. Only
-    # the slash separates the two codes, and the project code may contain dots
-    # (`A.ABC.26001/10001`, WF-PRJ-0010).
+    # WF-CRE-0020): `WBS_ELEMENT_OUTSIDE_PROJECT`, an element that is neither the code of the
+    # project nor that of one of its subprojects, compared whole — empty included —,
+    # `params.wbs_element` the element as the file carries it; the report names each such element
+    # and the number of its lines (`ImportReport.unknown_wbs_elements`; #3966). The element is not
+    # cut: `WBS_ELEMENT_INVALID`, an element that did not have the form of a project code
+    # optionally followed by a slash and a subproject code, and `params.project_code`, the part
+    # before the slash, are no longer given.
     - WBS_ELEMENT_INVALID
     - WBS_ELEMENT_OUTSIDE_PROJECT
     # A line of an estimate or of a remaining to commit that designates its task by a label that
@@ -793,19 +800,18 @@ ErrorCode:
     # of a remaining to commit imported into another subproject (`ImportRejection`, WF-INTF-0100,
     # WF-INTF-0120; C-359, #1152), `params.subproject` naming the subproject.
     - SUBPROJECT_HAS_ACTUAL_COSTS
-    # The code of a subproject that cannot name its sheet of the remaining-to-commit file
-    # (`/code`, `createSubproject`, `updateSubproject`; WF-PRJ-0050, D-7, EP-16/US-0610): it
-    # carries a forbidden character, `fields[].params.forbidden_characters` naming them, or
-    # equals a reserved name, regardless of case, `fields[].params.reserved_name` naming it. A
-    # code that is too long is `VALUE_TOO_LONG`, `fields[].params.max_length` at `31`, as every
-    # `VALUE_TOO_LONG` carries the bound of its field.
+    # The code of a subproject equal to the code of its project, compared whole (`/code`,
+    # `createSubproject`, `updateSubproject`), and the code of a project recoded to that of one
+    # of its subprojects (`/code`, `updateProject`): a subproject never bears the code of its
+    # project (WF-PRJ-0050; #3966). Without a parameter. A code that is too long is
+    # `VALUE_TOO_LONG`, `fields[].params.max_length` at `100`, as every `VALUE_TOO_LONG` carries
+    # the bound of its field. The code of a subproject no longer names its tab: the refusals of a
+    # character a tab refuses and of a reserved name, `fields[].params.forbidden_characters` and
+    # `fields[].params.reserved_name` (D-7, EP-16/US-0610), are no longer given.
     - SUBPROJECT_CODE_INVALID
-    # A project code that carries a slash, the only separator of the WBS element that carries it
-    # (`/code`, `createProject`, `updateProject`; `ProjectCode`, WF-PRJ-0010, WF-CRE-0020; D-07,
-    # US-0701/L9): `fields[].params.forbidden_characters` names the forbidden character,
-    # `["/"]`, as for `SUBPROJECT_CODE_INVALID`. A code that is both blank and carries a slash
-    # receives this refusal, the slash first. An empty code is `VALUE_REQUIRED`, one made only
-    # of whitespace `VALIDATION_FAILED`, like any label, one too long `VALUE_TOO_LONG`.
+    # A project code that carried a slash (D-07, US-0701/L9),
+    # `fields[].params.forbidden_characters` at `["/"]`: no longer given, a project code bearing
+    # slashes and dots alike (`ProjectCode`, WF-PRJ-0010, WF-CRE-0020; #3966).
     - PROJECT_CODE_INVALID
     # A label of the mapping of the actual cost extraction that duplicates another,
     # compared regardless of case, accents and trailing spaces — of the same column read,

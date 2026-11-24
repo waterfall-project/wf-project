@@ -134,6 +134,8 @@ DATA = {
     "ImportRejection.sheet": "a name of a sheet",
     "ImportReport.format_version": "a version of a format",
     "ImportSignal.label": "a label",
+    # An element of the WBS no code of the project bears, as the extraction carries it (#3966).
+    "ImportUnknownWbsElement.wbs_element": "an element of the extraction",
     "ImportWaterfallCalendar.label": "a label",
     # The time zone of the installation, by its name in the IANA database (US-2200).
     "Installation.time_zone": "a name of a time zone",
@@ -207,7 +209,11 @@ DATA = {
     "Project.label": "a label",
     "Project.description": "a text",
     "Project.client": "a name",
-    # The label of a subproject, as its project manager gave it (its code is a value pattern-bound).
+    # The code of a project and of a subproject, free since the specification 1.0.7 (#3966), as
+    # the person who entered them gave them.
+    "Project.code": "a code",
+    "Subproject.code": "a code",
+    # The label of a subproject, as its project manager gave it.
     "Subproject.label": "a label",
     # What a line of the actual costs holds as the ERP gave it, and the reason a person gave when
     # she excluded it: the document and its item, the code read in the WBS element, the label of the
