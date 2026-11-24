@@ -231,6 +231,33 @@ export function Differences({
 }
 
 /**
+ * The WBS elements of an extraction of actual costs that are neither the code of the project nor
+ * that of one of its subprojects, each as the file carries it and the number of its lines, in the
+ * order received (`unknown_wbs_elements`, WF-CRE-0020): the user declares the subprojects the
+ * file means, then imports again. A line without an element is named as such. The front counts
+ * nothing: the number of lines is the API's.
+ */
+function UnknownElements({ elements }: { readonly elements: Report["unknown_wbs_elements"] }) {
+  const t = useTranslations("exchanges.report");
+  const locale = useLocale();
+  return (
+    <div className="space-y-1">
+      <h3 className={HEADING}>{t("unknownElements", { count: elements.length })}</h3>
+      <ListTable label={t("unknownElementsTable")} columns={[t("wbsElement"), t("lineCount")]}>
+        {elements.map(({ wbs_element: element, line_count: count }, index) => (
+          <TableRow key={`${element}-${String(index)}`}>
+            <TableCell className={CELL}>{element === "" ? t("withoutElement") : element}</TableCell>
+            <TableCell className={`${CELL} tabular-nums`}>
+              {formatDecimal(String(count), locale)}
+            </TableCell>
+          </TableRow>
+        ))}
+      </ListTable>
+    </div>
+  );
+}
+
+/**
  * What the import ignores, each kind by its name, its count and the names of what it ignores when
  * the file gives them — for the columns of an extraction of actual costs, the labels as the file
  * carries them (WF-REF-0190), left as they are.
@@ -411,6 +438,9 @@ function Findings({ report }: { readonly report: Report }) {
       )}
       {report.refusals.length === 0 ? null : <Refusals refusals={report.refusals} />}
       <Rejections rejected={report.rejected} />
+      {report.unknown_wbs_elements.length === 0 ? null : (
+        <UnknownElements elements={report.unknown_wbs_elements} />
+      )}
       <Differences differences={report.differences} />
       {report.date_mismatches.length === 0 ? null : (
         <DateMismatches mismatches={report.date_mismatches} />

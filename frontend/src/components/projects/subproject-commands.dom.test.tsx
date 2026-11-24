@@ -179,7 +179,7 @@ describe("the creation and the modification of a sub-project", () => {
     expect(label).toHaveValue("Essais et mise en service");
     expect(within(form).getByRole("textbox", { name: "Code ERP" })).toHaveAttribute(
       "maxlength",
-      "31",
+      "100",
     );
     await userEvent.clear(label);
     await userEvent.type(label, "Essais, mise en service et réception");
@@ -374,7 +374,7 @@ describe("the creation and the modification of a sub-project", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it("bounds the code to thirty-one characters, and says at the code the refusal of the code of the project, the form kept to be corrected [WF-PRJ-0050-A]", async () => {
+  it("bounds the code to a hundred characters, and says at the code the refusal of the code of the project, the form kept to be corrected [WF-PRJ-0050-A]", async () => {
     // Un sous-projet ne porte jamais le code de son projet (« PRJ-001 ») : la création est refusée
     // sur le code, sans paramètre. Le service n'en refuse plus d'autre sur la forme du code.
     serve({
@@ -384,7 +384,7 @@ describe("the creation and the modification of a sub-project", () => {
     await userEvent.click(screen.getByRole("button", { name: "Nouveau sous-projet" }));
     const form = screen.getByRole("dialog", { name: "Nouveau sous-projet" });
     const code = within(form).getByRole("textbox", { name: "Code ERP" });
-    expect(code).toHaveAttribute("maxlength", "31");
+    expect(code).toHaveAttribute("maxlength", "100");
     await userEvent.type(code, "PRJ-001");
     await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Essais");
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
@@ -396,6 +396,33 @@ describe("the creation and the modification of a sub-project", () => {
       "Ce code est celui du projet ou de l’un de ses sous-projets\u00a0: un sous-projet ne porte jamais le code de son projet.",
     );
     expect(within(form).queryByRole("alert")).toBeNull();
+  });
+
+  it("creates a sub-project under the code its ERP gives it, a slash and a hundred characters included, sent as typed [WF-PRJ-0050-A] [US-3270]", async () => {
+    // Un sous-projet de code « A.ABC.26001/10001 » ou de cent caractères se crée.
+    const client = serve();
+    render(list());
+    const typed = `A.ABC.26001/${"1".repeat(88)}`;
+    await userEvent.click(screen.getByRole("button", { name: "Nouveau sous-projet" }));
+    const form = screen.getByRole("dialog", { name: "Nouveau sous-projet" });
+    const code = within(form).getByRole("textbox", { name: "Code ERP" });
+    await userEvent.type(code, typed);
+    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Essais");
+    expect(code).toHaveValue(typed);
+    expect(typed).toHaveLength(100);
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(writes(client)[0]?.body).toEqual({ code: typed, label: "Essais" });
+  });
+
+  it("says in its hint that the code is the WBS element of the lines, compared whole without its trailing blanks [US-3270]", async () => {
+    serve();
+    render(list());
+    await userEvent.click(screen.getByRole("button", { name: "Nouveau sous-projet" }));
+    const form = screen.getByRole("dialog", { name: "Nouveau sous-projet" });
+    expect(form).toHaveTextContent("comparé en entier sans ses blancs en bout");
   });
 
   it("says the version stale under the form, with the offer to read the page anew", async () => {
