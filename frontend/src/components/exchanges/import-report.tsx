@@ -22,102 +22,23 @@ import { useFormatter, useLocale, useMessages, useTranslations } from "next-intl
 
 import type { components } from "@/api/generated/schema";
 import { findOffer } from "@/components/commands/offer";
-import type { RowDifference } from "@/components/grid/columns";
-import { DiffMark } from "@/components/grid/diff-mark";
-import { NODE_COLUMNS, type NodeColumn } from "@/components/grid/nodes";
 import { LocalTime } from "@/components/local-time";
 import { CELL, ListTable } from "@/components/projects/project-tables";
 import { SectionCard } from "@/components/shell/section-card";
 import { TableCell, TableRow } from "@/components/ui/table";
-import type { Catalogue } from "@/i18n/catalogues";
 import { formatDecimal, formatPlanningDate } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
 import { CalendarGap } from "./calendar-gap";
 import { DurationRule } from "./duration-rule";
 import { ReportCommands } from "./report-commands";
+import { Differences, Rejections } from "./report-tables";
 
 type Import = components["schemas"]["ImportDetail"];
 type Report = components["schemas"]["ImportReport"];
-type Difference = Report["differences"][number];
-type DifferenceField = NonNullable<Difference["fields"]>[number];
-
-/**
- * The columns of a line of actual cost, every one of them, which its own catalogue names. The
- * generated type of `ActualCostColumn` is a mere string, the contract admitting the columns the
- * file kept (`passthrough.<column>`): the named ones are held by the catalogue instead, whose keys
- * `make catalogs` holds to the values the contract codes — one added fails the type check here.
- */
-const ACTUAL_COST_COLUMNS = {
-  document_date: true,
-  document_number: true,
-  document_item: true,
-  amount: true,
-  subproject: true,
-} as const satisfies Record<keyof Catalogue["enums"]["ActualCostColumn"], true>;
-
-/** A column of a line of actual cost that the catalogue names. */
-type ActualCostColumn = keyof typeof ACTUAL_COST_COLUMNS;
-
-/**
- * A column the file kept, `passthrough.<column>` (WF-CRE-0010, #365): named as the file names
- * it, which no catalogue translates.
- */
-const PASSTHROUGH = "passthrough.";
-
-/** Whether a field of a difference is a column of a line of actual cost. */
-function isActualCostColumn(field: DifferenceField): field is ActualCostColumn {
-  return Object.hasOwn(ACTUAL_COST_COLUMNS, field);
-}
-
-/** Whether a field of a difference is a column of the structure, which its catalogue names. */
-function isNodeColumn(field: DifferenceField): field is NodeColumn {
-  return (NODE_COLUMNS as readonly string[]).includes(field);
-}
-
-/** The mark of a grid each change of a report bears; a task kept bears none. */
-const MARKED: Readonly<Record<Difference["change"], RowDifference | undefined>> = {
-  added: "added",
-  removed: "removed",
-  updated: "modified",
-  kept: undefined,
-};
 
 const HEADING = "text-sm font-semibold";
 const MUTED = "text-sm text-muted-foreground";
-
-/**
- * The lines of the file rejected, each by its place — the tab that bears it, as the file names it,
- * when the file has tabs (ANNEXE B, WF-INTF-0180), and its row — and its motive, in the order
- * received. A file without tabs, a planning MS Project, shows no column of tabs.
- */
-function Rejections({ rejected }: { readonly rejected: Report["rejected"] }) {
-  const t = useTranslations("exchanges.report");
-  const locale = useLocale();
-  const messages = useMessages();
-  const tabbed = rejected.some(({ sheet }) => sheet != null);
-  return (
-    <div className="space-y-1">
-      <h3 className={HEADING}>{t("rejected", { count: rejected.length })}</h3>
-      {rejected.length === 0 ? null : (
-        <ListTable
-          label={t("rejectedTable")}
-          columns={tabbed ? [t("sheet"), t("row"), t("motive")] : [t("row"), t("motive")]}
-        >
-          {rejected.map((line, index) => (
-            <TableRow key={`${line.sheet ?? ""}-${String(line.row)}-${String(index)}`}>
-              {tabbed ? <TableCell className={CELL}>{line.sheet}</TableCell> : null}
-              <TableCell className={`${CELL} tabular-nums`}>
-                {formatDecimal(String(line.row), locale)}
-              </TableCell>
-              <TableCell className={CELL}>{problemMessage(line, { locale, messages })}</TableCell>
-            </TableRow>
-          ))}
-        </ListTable>
-      )}
-    </div>
-  );
-}
 
 /**
  * The reasons that reject the whole file (`refusals`, WF-INTF-0040, WF-PLA-0150, WF-PLA-0170), each
@@ -138,94 +59,6 @@ function Refusals({ refusals }: { readonly refusals: Report["refusals"] }) {
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-/**
- * The differences with the existing data, each by its change, its object, its label and the fields
- * it changes, named by the catalogue of their columns (WF-ARC-0110), in the order received.
- */
-export function Differences({
-  differences,
-  marks = false,
-}: {
-  readonly differences: Report["differences"];
-  /** Whether each change bears the mark of the diff of a grid, `+`, `-`, `M` (US-0510). */
-  readonly marks?: boolean;
-}) {
-  const t = useTranslations();
-  const format = useFormatter();
-  // A field is named by the catalogue of the columns of its object: a line of actual cost by its
-  // own, a task, a line of the estimate or a link by the columns of the structure — `subproject`
-  // is a column of both; the parent of a node, which no column holds, by its own key (#1194). A
-  // field the object does not have is left unnamed, never guessed.
-  const fieldName = (target: Difference["target"], field: DifferenceField) => {
-    if (target === "actual_cost_line") {
-      if (field.startsWith(PASSTHROUGH)) {
-        return field.slice(PASSTHROUGH.length);
-      }
-      return isActualCostColumn(field) ? t(`enums.ActualCostColumn.${field}`) : undefined;
-    }
-    if (field === "subproject") {
-      return t("enums.NodeColumn.subproject");
-    }
-    if (field === "parent" || field === "planning_start_on") {
-      return t(`enums.ImportDifferenceField.${field}`);
-    }
-    return isNodeColumn(field) ? t(`enums.NodeColumn.${field}`) : undefined;
-  };
-  const fieldsOf = (difference: Difference) =>
-    (difference.fields ?? []).flatMap((field) => fieldName(difference.target, field) ?? []);
-  return (
-    <div className="space-y-1">
-      <h3 className={HEADING}>
-        {t("exchanges.report.differences", { count: differences.length })}
-      </h3>
-      {differences.length === 0 ? null : (
-        <ListTable
-          label={t("exchanges.report.differencesTable")}
-          columns={[
-            t("exchanges.report.change"),
-            t("exchanges.report.target"),
-            t("exchanges.report.label"),
-            t("exchanges.report.fields"),
-          ]}
-        >
-          {differences.map((difference, index) => (
-            <TableRow key={`${difference.lineage_id ?? "new"}-${String(index)}`}>
-              <TableCell className={CELL}>
-                {marks ? (
-                  <span className="inline-flex gap-1.5">
-                    <DiffMark difference={MARKED[difference.change]} />
-                    <span aria-hidden="true">
-                      {t(`enums.ImportDifference.change.${difference.change}`)}
-                    </span>
-                  </span>
-                ) : (
-                  t(`enums.ImportDifference.change.${difference.change}`)
-                )}
-              </TableCell>
-              <TableCell className={CELL}>
-                {t(`enums.ImportDifference.target.${difference.target}`)}
-              </TableCell>
-              <TableCell className={CELL}>
-                {difference.label == null
-                  ? t("exchanges.report.unnamed")
-                  : difference.document_item == null
-                    ? difference.label
-                    : t("exchanges.report.labelItem", {
-                        label: difference.label,
-                        item: difference.document_item,
-                      })}
-              </TableCell>
-              <TableCell className={CELL}>
-                {format.list(fieldsOf(difference), { type: "conjunction" })}
-              </TableCell>
-            </TableRow>
-          ))}
-        </ListTable>
-      )}
     </div>
   );
 }
@@ -441,7 +274,7 @@ function Findings({ report }: { readonly report: Report }) {
       {report.unknown_wbs_elements.length === 0 ? null : (
         <UnknownElements elements={report.unknown_wbs_elements} />
       )}
-      <Differences differences={report.differences} />
+      <Differences differences={report.differences} limited />
       {report.date_mismatches.length === 0 ? null : (
         <DateMismatches mismatches={report.date_mismatches} />
       )}

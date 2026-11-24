@@ -11,8 +11,9 @@
  * screen, to be applied or abandoned; a refusal is told under the zone (`OutcomeNotice`). The zone
  * says that it is sending, says a file dropped meanwhile is not taken, and takes no other once one
  * is sent — unless the task that analyses it fails, which frees the zone for another file —, nor
- * while the analysis of a file of the project it finds, mounted anew, runs (#3404). The API judges
- * the content.
+ * while the analysis of a file of the project it finds, mounted anew, runs (#3404). Once the address
+ * has named the import sent and names it no more — abandoned, or another shown —, the zone takes a
+ * new file and no longer says the last one is sent (WF-INTF-0080, #4429). The API judges the content.
  *
  * The zone is lit while a file is dragged over it, over its children too: the entries and the exits
  * of the drag are counted, as `relatedTarget` of a leave is null in Firefox.
@@ -20,8 +21,9 @@
 "use client";
 
 import { FileUp, Upload } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type DragEvent, useCallback, useId, useRef, useState } from "react";
+import { type DragEvent, useCallback, useId, useMemo, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
 import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
@@ -29,7 +31,7 @@ import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
 import { useRunningTask, useTaskRunning, useWhenTaskFails } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
-import { IMPORT_MAX_BYTES, MEBIBYTE } from "./offers";
+import { IMPORT_MAX_BYTES, IMPORT_PARAMETER, MEBIBYTE } from "./offers";
 import { analysisAim, useOpenImport } from "./open-import";
 
 /** The extension of the file of an MS Project schedule. */
@@ -49,6 +51,33 @@ function fileProblem(file: File): FileProblem | undefined {
     return "notXml";
   }
   return file.size > IMPORT_MAX_BYTES ? "tooLarge" : undefined;
+}
+
+/**
+ * The import the file sent opened, followed by the address: once the address has named it and names
+ * it no more, `free` runs, in the render that sees it, so that the zone takes a new file.
+ */
+function useSentImport(free: () => void) {
+  const [sent, setSent] = useState<{ readonly id: string; readonly named: boolean }>();
+  const addressed = useSearchParams().get(IMPORT_PARAMETER);
+  if (sent !== undefined && !sent.named && addressed === sent.id) {
+    setSent({ id: sent.id, named: true });
+  } else if (sent?.named === true && addressed !== sent.id) {
+    setSent(undefined);
+    free();
+  }
+  // Stable between renders where nothing changes, for the callbacks that hold it.
+  return useMemo(
+    () => ({
+      opened: (id: string) => {
+        setSent({ id, named: false });
+      },
+      forget: () => {
+        setSent(undefined);
+      },
+    }),
+    [],
+  );
 }
 
 /**
@@ -76,6 +105,10 @@ export function FileDrop({
   const [sent, setSent] = useState<string>();
   // The task that analyses the file sent: its failure frees the zone.
   const [analysis, setAnalysis] = useState<string>();
+  const sentImport = useSentImport(() => {
+    setSent(undefined);
+    setAnalysis(undefined);
+  });
   // The button waits while the file is sent and while its analysis runs (WF-IHM-0080, #3279) —
   // mounted anew, while an analysis of the project runs (#3404).
   const found = useRunningTask(analysisAim(projectId));
@@ -91,8 +124,9 @@ export function FileDrop({
     analysis,
     useCallback(() => {
       setSent(undefined);
+      sentImport.forget();
       setAnalysis(undefined);
-    }, []),
+    }, [sentImport]),
   );
 
   const receive = (file: File | undefined) => {
@@ -117,6 +151,7 @@ export function FileDrop({
       setProblem(undefined);
       if (result.kind === "done") {
         setSent(file.name);
+        sentImport.opened(result.data.import_id);
         setAnalysis(result.data.task?.task_id);
       } else {
         setOutcome(result);

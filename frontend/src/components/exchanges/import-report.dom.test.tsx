@@ -298,3 +298,64 @@ describe("the report of an import, its commands and its refusal", () => {
     expect(screen.getByText(/^Refused at the application, the file is deleted/)).toBeVisible();
   });
 });
+
+/** The first of the items, which the test knows to be there. */
+function first<T>(items: readonly T[]): T {
+  const [item] = items;
+  if (item === undefined) {
+    throw new Error("no item to repeat");
+  }
+  return item;
+}
+
+describe("the tables of a long report [US-3280]", () => {
+  /** The report of the contract, with as many lines rejected and differences as asked. */
+  function long(count: number): Import {
+    const entry = example("import_analysed") as Import;
+    const report = entry.report;
+    if (report == null) {
+      throw new Error("the example of the import analysed has no report");
+    }
+    const rejected = Array.from({ length: count }, (_, index) => ({
+      ...first(report.rejected),
+      row: index + 1,
+    }));
+    const differences = Array.from({ length: count }, (_, index) => ({
+      ...first(report.differences),
+      label: `Ligne ${String(index + 1)}`,
+    }));
+    return { ...entry, report: { ...report, rejected, differences } };
+  }
+
+  it("draws the first 200 rows of each table, says how many are left, and draws them all on demand [WF-INTF-0080-A]", async () => {
+    open(long(250));
+    const rejected = screen.getByRole("table", { name: "Lignes rejetées" });
+    const differences = screen.getByRole("table", { name: "Écarts avec les données existantes" });
+    // A header row, and 200 rows of each.
+    expect(within(rejected).getAllByRole("row")).toHaveLength(201);
+    expect(within(differences).getAllByRole("row")).toHaveLength(201);
+    expect(screen.getAllByText("50 rangées de plus ne sont pas affichées.")).toHaveLength(2);
+    expect(within(differences).queryByText("Ligne 201")).toBeNull();
+    // The heading counts the report received, not the rows drawn.
+    expect(screen.getByText("250 lignes rejetées")).toBeVisible();
+    const all = first(screen.getAllByRole("button", { name: "Tout afficher" }));
+    await userEvent.click(all);
+    expect(within(rejected).getAllByRole("row")).toHaveLength(251);
+    expect(within(differences).getAllByRole("row")).toHaveLength(201);
+    expect(screen.getByText("Les 250 rangées sont affichées.")).toHaveFocus();
+    expect(screen.getAllByText("50 rangées de plus ne sont pas affichées.")).toHaveLength(1);
+  });
+
+  it("says nothing of rows left, and offers nothing, for a table within its window", () => {
+    open(long(200), "en");
+    expect(screen.queryByRole("button", { name: "Show all" })).toBeNull();
+    expect(screen.queryByText(/more rows? (is|are) not shown/)).toBeNull();
+    const rejected = screen.getByRole("table", { name: "Rejected lines" });
+    expect(within(rejected).getAllByRole("row")).toHaveLength(201);
+  });
+
+  it("says one row left in the singular, in English", () => {
+    open(long(201), "en");
+    expect(screen.getAllByText("1 more row is not shown.")).toHaveLength(2);
+  });
+});

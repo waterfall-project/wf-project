@@ -26,7 +26,7 @@ import { ConfirmedCommand } from "@/components/commands/confirmed-command";
 import { commandIcon, STRUCTURE_COMMAND_ICONS } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
-import { Differences } from "@/components/exchanges/import-report";
+import { Differences } from "@/components/exchanges/report-tables";
 import { problemMessage } from "@/i18n/problem";
 
 type Report = components["schemas"]["StructureRebaseReport"];

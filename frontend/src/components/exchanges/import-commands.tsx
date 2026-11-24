@@ -23,6 +23,7 @@ import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
+import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -53,7 +54,10 @@ export interface ImportCommandsProps {
 interface FileFormProps extends Omit<ImportCommandsProps, "offers" | "gap"> {
   readonly id: string;
   readonly kind: ExchangeKind;
+  /** Closes this opening of the form, and no other: the one that is open by then stays. */
   readonly onClose: () => void;
+  /** Tells whether the file is being sent, from the press to the answer, whether open or not. */
+  readonly onSending: (sending: boolean) => void;
 }
 
 /** The extraction of actual costs declares the period it covers (WF-INTF-0140, WF-CRE-0050). */
@@ -102,7 +106,7 @@ function PeriodFields({
 type FileProblem = "missing" | "tooLarge";
 
 /** Ask the file to import, deposit it, open its analysis, and show the report of the import. */
-function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
+function FileForm({ id, kind, projectId, start, onClose, onSending }: FileFormProps) {
   const t = useTranslations("exchanges.import");
   const open = useOpenImport(projectId, start);
   const field = useId();
@@ -140,8 +144,10 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
         ? { kind, period_from: from === "" ? null : from, period_to: to === "" ? null : to }
         : { kind };
     setBusy(true);
+    onSending(true);
     void open(asked, file).then((result) => {
       setBusy(false);
+      onSending(false);
       if (result.kind === "done") {
         onClose();
       } else {
@@ -185,8 +191,8 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
         <PeriodFields from={from} to={to} onFrom={setFrom} onTo={setTo} />
       ) : null}
       <div className="flex gap-2">
-        <Button type="submit" size="sm" aria-disabled={reading ? true : undefined}>
-          <FileSearch aria-hidden="true" />
+        <Button type="submit" size="sm" {...waitingAttributes(waiting)}>
+          <WaitingIcon waiting={waiting} icon={<FileSearch aria-hidden="true" />} />
           {t("analyse")}
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
@@ -227,18 +233,43 @@ function MappingNote({ gap }: { readonly gap: MappingGap }) {
   );
 }
 
+/** The form open: its kind, and which opening it is, which a late answer is compared to (n° 24). */
+interface Opened {
+  readonly kind: ExchangeKind;
+  readonly opening: number;
+}
+
 /** Offer the import of each kind of file, and open the choice of its file when pressed. */
 export function ImportCommands({ projectId, offers, start, gap }: ImportCommandsProps) {
   const t = useTranslations("exchanges.import.kinds");
   const helps = useTranslations("commands");
   const form = useId();
-  const [open, setOpen] = useState<ExchangeKind>();
+  const [open, setOpen] = useState<Opened>();
+  // A file is being sent: no command opens another form until the answer, as the commands of a form
+  // of the risks wait for its write (`OpensForm`, #4429).
+  const [sending, setSending] = useState(false);
   const buttons = useRef<Partial<Record<ExchangeKind, HTMLButtonElement | null>>>({});
-  const close = () => {
-    setOpen(undefined);
-    if (open !== undefined) {
-      buttons.current[open]?.focus();
+  // How many times a form was opened, and which opening is open — set as it opens and closes, never
+  // in an effect, which a late answer would pass before.
+  const openings = useRef(0);
+  const current = useRef<number>(undefined);
+  const closeOpening = (opened: Opened) => {
+    // The answer of a file closes the form that sent it, not the one opened since.
+    if (current.current !== opened.opening) {
+      return;
     }
+    current.current = undefined;
+    setOpen(undefined);
+    buttons.current[opened.kind]?.focus();
+  };
+  const toggle = (kind: ExchangeKind) => {
+    if (open?.kind === kind) {
+      closeOpening(open);
+      return;
+    }
+    openings.current += 1;
+    current.current = openings.current;
+    setOpen({ kind, opening: openings.current });
   };
   return (
     <div className="space-y-2">
@@ -250,11 +281,12 @@ export function ImportCommands({ projectId, offers, start, gap }: ImportCommands
             label={t(kind)}
             help={helps(`project.${IMPORT_COMMAND[kind]}.help`)}
             icon={commandIcon(PROJECT_COMMAND_ICONS[IMPORT_COMMAND[kind]])}
+            writing={sending}
             disclosure={{
-              expanded: open === kind,
+              expanded: open?.kind === kind,
               controls: form,
               toggle: () => {
-                setOpen(open === kind ? undefined : kind);
+                toggle(kind);
               },
               ref: (button) => {
                 buttons.current[kind] = button;
@@ -268,12 +300,15 @@ export function ImportCommands({ projectId, offers, start, gap }: ImportCommands
       )}
       {open === undefined ? null : (
         <FileForm
-          key={open}
+          key={open.opening}
           id={form}
-          kind={open}
+          kind={open.kind}
           projectId={projectId}
           start={start}
-          onClose={close}
+          onClose={() => {
+            closeOpening(open);
+          }}
+          onSending={setSending}
         />
       )}
     </div>

@@ -259,6 +259,18 @@ describe("the screen of a project that has a revision leads to it", () => {
     expect(await leadsTo({ revision_id: REFERENCE })).toBe(`${WITNESS}/revisions/${CURRENT}`);
   });
 
+  it("sends an import gone, which the address names, to the exchanges of the revision, whose list says it [US-3280]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/imports/{import_id}": {
+        problem: { code: "NOT_FOUND", status: 404 },
+      },
+    };
+    expect(await leadsTo({ import: IMPORT })).toBe(
+      `${WITNESS}/revisions/${CURRENT}/exchanges?import=${IMPORT}`,
+    );
+  });
+
   it("sends the report of an import its address names to the exchanges of the revision, which shows it [WF-IHM-0010-A]", async () => {
     expect(await leadsTo({ import: IMPORT })).toBe(
       `${WITNESS}/revisions/${CURRENT}/exchanges?import=${IMPORT}`,

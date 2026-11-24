@@ -87,7 +87,7 @@ describe("the refusals of the deposit of a file [US-3240]", () => {
     const told = within(form).getByRole("alert");
     expect(told).toHaveTextContent(CATALOGUES.fr.errors.STATE_FORBIDS_OPERATION);
     expect(told).toHaveTextContent("moins de vingt imports en attente pour le compte");
-    expect(told).toHaveTextContent("Valeur maximale : 20.");
+    expect(told).toHaveTextContent("Nombre maximal d’imports en attente : 20.");
     expect(client.calls.map((call) => call.route)).toEqual([UPLOAD]);
     expect(router.push).not.toHaveBeenCalled();
   });
@@ -99,7 +99,7 @@ describe("the refusals of the deposit of a file [US-3240]", () => {
     const form = await deposit("costs.xlsx", "en");
     const told = within(form).getByRole("alert");
     expect(told).toHaveTextContent("fewer than twenty pending imports for the account");
-    expect(told).toHaveTextContent("Maximum value: 20.");
+    expect(told).toHaveTextContent("Maximum number of pending imports: 20.");
   });
 
   it("tells a name that holds the NUL character as an invalid datum, under the form [US-3240]", async () => {

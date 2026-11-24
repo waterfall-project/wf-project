@@ -113,17 +113,28 @@ function Choice({
   const track = useTrackTask();
   const name = useId();
   const [busy, setBusy] = useState(false);
+  // The rule asked, which the radio shows from the press — the request under way, then until the
+  // screen read anew carries it: not the rule in force, which the buttons would go back to.
+  const [asked, setAsked] = useState<ImportDurationRule>();
+  const [seen, setSeen] = useState(rule);
+  if (seen !== rule) {
+    // The screen has been read anew under another rule: the one it says is the one shown.
+    setSeen(rule);
+    setAsked(undefined);
+  }
   const reread = () => {
     router.refresh();
   };
 
-  const choose = (asked: ImportDurationRule) => {
-    if (busy || reading || asked === rule) {
+  const shown = asked ?? rule;
+  const choose = (wanted: ImportDurationRule) => {
+    if (busy || reading || wanted === shown) {
       return;
     }
     setBusy(true);
+    setAsked(wanted);
     onOutcome(undefined);
-    void setFileImportDurationRule(projectId, importId, asked)
+    void setFileImportDurationRule(projectId, importId, wanted)
       .catch(rejectedWrite())
       .then((result) => {
         setBusy(false);
@@ -139,6 +150,8 @@ function Choice({
           reread();
           return;
         }
+        // Refused: the rule in force is the one the radio goes back to.
+        setAsked(undefined);
         onOutcome(result);
         if (result.kind === "conflict") {
           reread();
@@ -155,7 +168,7 @@ function Choice({
             type="radio"
             name={name}
             value={each}
-            checked={rule === each}
+            checked={shown === each}
             aria-disabled={reading ? true : undefined}
             onChange={() => {
               choose(each);

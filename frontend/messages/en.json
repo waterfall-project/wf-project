@@ -3248,6 +3248,7 @@
     "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
     "minimum": "Minimum value: {minimum}.",
     "maximum": "Maximum value: {maximum}.",
+    "pendingUploadsMaximum": "Maximum number of pending imports: {maximum}.",
     "component": "Unavailable component: {component}.",
     "expected_format": "Expected format: {format}.",
     "expected_version": "Expected version: {version}.",
@@ -4257,6 +4258,9 @@
       "rejected": "{count, plural, =0 {No line rejected} one {# line rejected} other {# lines rejected}}",
       "refusals": "{count, plural, one {# reason rejects the whole file: nothing is applied} other {# reasons reject the whole file: nothing is applied}}",
       "rejectedTable": "Rejected lines",
+      "rowsLeft": "{count, plural, one {# more row is not shown.} other {# more rows are not shown.}}",
+      "showAll": "Show all",
+      "allShown": "{count, plural, one {The row is shown.} other {All # rows are shown.}}",
       "unknownElements": "{count, plural, one {# WBS element is neither the code of the project nor that of a subproject: its lines are rejected; declare the subproject, then import again} other {# WBS elements are neither the code of the project nor that of a subproject: their lines are rejected; declare the subprojects, then import again}}",
       "unknownElementsTable": "WBS elements unknown to the project",
       "wbsElement": "WBS element",
@@ -4340,6 +4344,7 @@
       }
     },
     "list": {
+      "purged": "The import the address names no longer exists: it was deleted at the end of its retention or on its abandonment. The imports of the project are listed below.",
       "title": "Imports of the project",
       "none": "No import has been opened on this project yet.",
       "file": "File",

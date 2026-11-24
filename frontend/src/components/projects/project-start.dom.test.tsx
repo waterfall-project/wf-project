@@ -41,8 +41,10 @@ vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
   usePathname: () => `/projects/${PROJECT}`,
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => address.search,
 }));
+// The query of the address the browser shows, which a test changes as a navigation would.
+const address = vi.hoisted(() => ({ search: new URLSearchParams() }));
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000103";
@@ -62,17 +64,22 @@ function serve(answers: FakeAnswers, timing?: FakeTiming): FakeClient {
   return client;
 }
 
-/** Render a part of the page within the shell that follows the tasks, in French. */
-function open(part: ReactNode) {
-  return render(
+/** A part of the page within the shell that follows the tasks, in French. */
+function shell(part: ReactNode) {
+  return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <TaskTracker>
         <TasksButton />
         <TaskPanel />
         <main>{part}</main>
       </TaskTracker>
-    </NextIntlClientProvider>,
+    </NextIntlClientProvider>
   );
+}
+
+/** Render a part of the page within the shell that follows the tasks, in French. */
+function open(part: ReactNode) {
+  return render(shell(part));
 }
 
 /** What the encart offers for a revision and a project of the contract. */
@@ -97,6 +104,7 @@ function encart(revision = "revision_without_tasks", project = "project") {
 }
 
 beforeEach(() => {
+  address.search = new URLSearchParams();
   router.push.mockClear();
   router.refresh.mockClear();
   window.sessionStorage.clear();
@@ -397,6 +405,52 @@ describe("the drop zone", () => {
     fireEvent.dragLeave(group);
     expect(group.className).not.toContain("bg-accent");
   });
+
+  it.each([
+    ["abandoned, the address naming no import any more", ""],
+    ["another import shown", "import=01926f3a-7c00-7000-8000-000000000a99"],
+  ])(
+    "takes a new file once the address no longer names the import sent: %s [WF-INTF-0080-A]",
+    async (_name, search) => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        // The analysis ends — the import then awaits its application, abandoned or refused at will.
+        const { client, group, view } = await zone({
+          ...IMPORTED,
+          [TASK]: "task_import_succeeded",
+        });
+        fireEvent.drop(group, {
+          dataTransfer: { files: [new File(["<Project/>"], "planning.xml", { type: "text/xml" })] },
+        });
+        await waitFor(() => {
+          expect(within(group).getByRole("status")).toHaveTextContent(
+            "« planning.xml » est envoyé",
+          );
+        });
+        await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+        // The report of the import is shown: the address names it, and the zone takes no other.
+        address.search = new URLSearchParams("import=01926f3a-7c00-7000-8000-000000000a11");
+        view.rerender(shell(encart()));
+        const choose = within(group).getByRole("button", { name: "Choisir un fichier" });
+        expect(choose).toHaveAttribute("aria-disabled", "true");
+        expect(within(group).getByRole("status")).toHaveTextContent("est envoyé");
+        // The import is abandoned, or another is shown: the zone is free, and says no more it is sent.
+        address.search = new URLSearchParams(search);
+        view.rerender(shell(encart()));
+        expect(within(group).queryByRole("status")).toBeNull();
+        expect(choose).not.toHaveAttribute("aria-disabled");
+        const sent = client.calls.filter((call) => call.route === OPEN).length;
+        fireEvent.drop(group, {
+          dataTransfer: { files: [new File(["<Project/>"], "autre.xml", { type: "text/xml" })] },
+        });
+        await waitFor(() => {
+          expect(client.calls.filter((call) => call.route === OPEN)).toHaveLength(sent + 1);
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
 
   it("takes another file once the task that analyses the one sent has not succeeded", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });

@@ -406,12 +406,19 @@ describe("the screen of the imports and exports", () => {
     expect(text(page)).toContain("Estimate Remaining to commit");
   });
 
-  it("is not found when the import the address names is not", async () => {
+  it("says the import the address names is gone, and lists the others, without an error page [US-3280]", async () => {
     server.answers = {
       ...server.answers,
       [GET_IMPORT]: { problem: { code: "NOT_FOUND", status: 404 } },
     };
-    await expect(exchangesAt({ import: IMPORT })).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
+    const page = await exchangesAt({ import: IMPORT });
+    expect(text(page)).toContain("The import the address names no longer exists");
+    expect(text(page)).toContain("devis-avenant-2-reprise-des-essais.xlsx");
+    expect(page).not.toContain("Report of");
+  });
+
+  it("says nothing of a gone import when the address names none [US-3280]", async () => {
+    expect(text(await exchangesAt())).not.toContain("no longer exists");
   });
 
   it.each([

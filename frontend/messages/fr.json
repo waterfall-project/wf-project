@@ -3248,6 +3248,7 @@
     "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
     "minimum": "Valeur minimale : {minimum}.",
     "maximum": "Valeur maximale : {maximum}.",
+    "pendingUploadsMaximum": "Nombre maximal d’imports en attente : {maximum}.",
     "component": "Composant indisponible : {component}.",
     "expected_format": "Format attendu : {format}.",
     "expected_version": "Version attendue : {version}.",
@@ -4257,6 +4258,9 @@
       "rejected": "{count, plural, =0 {Aucune ligne rejetée} one {# ligne rejetée} other {# lignes rejetées}}",
       "refusals": "{count, plural, one {# motif rejette le fichier entier : rien ne s’applique} other {# motifs rejettent le fichier entier : rien ne s’applique}}",
       "rejectedTable": "Lignes rejetées",
+      "rowsLeft": "{count, plural, one {# rangée de plus n’est pas affichée.} other {# rangées de plus ne sont pas affichées.}}",
+      "showAll": "Tout afficher",
+      "allShown": "{count, plural, one {La rangée est affichée.} other {Les # rangées sont affichées.}}",
       "unknownElements": "{count, plural, one {# élément d’OTP n’est ni le code du projet ni celui d’un sous-projet : ses lignes sont rejetées ; déclarez le sous-projet, puis réimportez} other {# éléments d’OTP ne sont ni le code du projet ni celui d’un sous-projet : leurs lignes sont rejetées ; déclarez les sous-projets, puis réimportez}}",
       "unknownElementsTable": "Éléments d’OTP inconnus du projet",
       "wbsElement": "Élément d’OTP",
@@ -4340,6 +4344,7 @@
       }
     },
     "list": {
+      "purged": "L’import que l’adresse nomme n’existe plus : il a été supprimé à l’échéance de sa conservation ou à son abandon. Les imports du projet sont listés ci-dessous.",
       "title": "Imports du projet",
       "none": "Aucun import n’a encore été ouvert sur ce projet.",
       "file": "Fichier",
