@@ -28,6 +28,8 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 from waterfall.platform.database import Base, UtcDateTime
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from sqlalchemy import Select
 
 # The uses of a deposit, as the contract says them (``FileUploadPurpose``).
@@ -194,6 +196,22 @@ def pending_imports(session: Session, account: UUID, at: datetime, used: Select[
         FileUpload.id.not_in(used),
     )
     return session.scalar(pending) or 0
+
+
+def expire_uploads(session: Session, upload_ids: Sequence[UUID], at: datetime) -> None:
+    """Say the deposits `upload_ids` expired at `at`, those still alive: an import employed them.
+
+    A deposit an import employed never becomes free again (WF-DAT-0120): once that import is
+    abandoned or purged, no row names the deposit, and its expiry keeps it from being opened again
+    or counted by `pending_imports`. The deposit is then due: the purge pass deletes its row, the
+    one that follows an abandonment, or the next step of the pass that called this.
+    """
+    if upload_ids:
+        session.execute(
+            update(FileUpload)
+            .where(FileUpload.id.in_(upload_ids), FileUpload.expires_at > at)
+            .values(expires_at=at)
+        )
 
 
 def open_upload(session: Session, upload_id: UUID, at: datetime) -> FileUpload | None:
