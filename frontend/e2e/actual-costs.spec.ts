@@ -200,10 +200,11 @@ test("imports the actual costs of a project the run creates, then excludes a lin
     const seeded = await seedPlanning(page, browser, calls, manager, "Coûts importés");
     const code = await bringInProgress(page, calls, seeded);
     // A subproject of the project, so that one line is charged to it and the others to the project
-    // alone (WF-CRE-0020).
+    // alone (WF-CRE-0020). Its code is the whole WBS element of its lines: the service compares the
+    // element to the code of the project and to those of its subprojects, whole.
     const made = await calls.post(`${API}/projects/${seeded.ids.project}/subprojects`, {
       headers: seeded.headers,
-      data: { code: "10001", label: "Lot câblage" },
+      data: { code: `${code}/10001`, label: "Lot câblage" },
     });
     expect(made.status(), "POST subprojects").toBe(201);
     await importActualCosts(calls, seeded, [

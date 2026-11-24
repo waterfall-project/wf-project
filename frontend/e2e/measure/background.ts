@@ -110,11 +110,11 @@ export async function exportPlanning(api: Caller, project: string, revision: str
 
 /**
  * The lines of an extraction of a pass: its WBS elements on the subprojects of the project in
- * turn, its documents its own, its dates within a month, its amounts in cents of every size.
+ * turn (the code of a subproject is the whole element, the service compares it whole), its documents its own, its dates within a month, its amounts in cents of every size.
  */
-export function extraction(code: string, subprojects: readonly string[], pass: number) {
+export function extraction(subprojects: readonly string[], pass: number) {
   return Array.from({ length: IMPORTED_LINES }, (_, line) => [
-    `${code}/${subprojects[line % subprojects.length] ?? ""}`,
+    subprojects[line % subprojects.length] ?? "",
     `MV${String(pass)}-${String(line + 1).padStart(5, "0")}`,
     null,
     `2026-10-${String((line % 28) + 1).padStart(2, "0")}`,
@@ -132,7 +132,6 @@ export async function importCosts(api: Caller, project: string, pass: number) {
     throw new Error("PRJ-001 of the witness has a code and subprojects: the witness is not loaded");
   }
   const lines = extraction(
-    code,
     subprojects.map((subproject) => subproject.code),
     pass,
   );
