@@ -279,7 +279,8 @@ def unwritten_since_opening(
     node (``redate_copy``) — the source holding one —; any write of its tree since has advanced it
     again (WF-ARC-0100). An opening that counts the copy more than that — its lines priced again
     at a reference year changed, a provision a risk wrote again — leaves it judged written: the
-    import is refused and deposited again, never applied on what its report did not read.
+    import is refused and deposited again, never applied on what its report did not read: a false
+    refusal on the safe side, accepted rather than a column for the counter at the opening (#4791).
     To be called under the lock of the structure when its judgment decides a write.
     """
     facts = structure_facts(session, project_id, structure_id, lock=False)

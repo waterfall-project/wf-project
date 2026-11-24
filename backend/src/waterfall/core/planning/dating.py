@@ -153,6 +153,19 @@ def _planned(replay: Replay, node_id: UUID) -> Planned:
     )
 
 
+def roles_named(session: Session, project_id: UUID, task_id: UUID) -> list[dict[str, str]]:
+    """Name the roles of the labour lines under a task, as a refusal names them.
+
+    Each by its identifier, its code and its label (``params.resource_roles``), deactivated or not;
+    none for a task without a labour line (WF-PLA-0010, #4413).
+    """
+    held = named_roles(session, project_id, (task_id,))[task_id]
+    return [
+        {"resource_role_id": str(role.resource_role_id), "code": role.code, "label": role.label}
+        for role in read_roles(session, held, may_change=False)
+    ]
+
+
 def hourless(session: Session, replay: Replay, task_id: UUID) -> UnprocessableError:
     """Give the refusal of a task whose calendar grants no hour, the task and its roles named.
 
@@ -161,11 +174,7 @@ def hourless(session: Session, replay: Replay, task_id: UUID) -> UnprocessableEr
     a line, which falls on the default calendar (WF-PLA-0010, #4413).
     """
     project_id = replay.place[0]
-    held = named_roles(session, project_id, (task_id,))[task_id]
-    roles = [
-        {"resource_role_id": str(role.resource_role_id), "code": role.code, "label": role.label}
-        for role in read_roles(session, held, may_change=False)
-    ]
+    roles = roles_named(session, project_id, task_id)
     task = {
         "project_id": str(project_id),
         "node_id": str(task_id),
