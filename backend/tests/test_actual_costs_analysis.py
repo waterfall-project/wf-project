@@ -35,6 +35,7 @@ from support import ContractClient
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.costs.analysing import imputed, unknown_elements
 from waterfall.core.costs.extraction import Kept, Known, Reading, read_lines
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 
@@ -136,6 +137,57 @@ def test_a_project_without_a_code_knows_no_element_but_those_of_its_subprojects(
     read = read_lines([line(element=CODE), line(element=ELEMENT)], READING, Known(None, {}))
     assert [(each.row, each.code) for each in read.rejected] == [(2, OUTSIDE), (3, OUTSIDE)]
     assert read.lines == ()
+
+
+@pytest.mark.requirement("WF-CRE-0020-A")
+def test_a_code_that_bears_blanks_at_its_ends_receives_the_lines_of_its_element_without_them() -> (
+    None
+):
+    # « … une ligne d'élément A.ABC.26001/10001 est imputée à ce sous-projet » : le code saisi avec
+    # des blancs en bout, du projet comme du sous-projet, se compare sans eux, comme l'élément ; la
+    # ligne porte le code du sous-projet tel qu'il est stocké (#3966).
+    blanked = f"{ELEMENT} "
+    known = Known(f" {CODE} ", {blanked: UUID(int=10001), "SP-2": UUID(int=2)})
+    read = read_lines(
+        [line(element=ELEMENT, number="1"), line(element=CODE, number="2")], READING, known
+    )
+    assert read.rejected == ()
+    assert [(each.subproject_code, imputed(each, known)) for each in read.lines] == [
+        (blanked, UUID(int=10001)),
+        (None, None),
+    ]
+
+
+@pytest.mark.requirement("WF-CRE-0020-A")
+def test_of_two_codes_kept_from_before_that_are_one_element_the_one_without_blanks_is_it() -> None:
+    # Une base d'avant (#3966) peut garder dans un projet deux codes qui ne diffèrent que par un
+    # blanc en bout, ce que le service refuse désormais : l'élément est celui des deux qui n'en
+    # porte pas, comme il l'était.
+    known = Known(CODE, {f"{ELEMENT} ": UUID(int=1), ELEMENT: UUID(int=2)})
+    [read] = read_lines([line(element=f" {ELEMENT}")], READING, known).lines
+    assert (read.subproject_code, imputed(read, known)) == (ELEMENT, UUID(int=2))
+
+
+@pytest.mark.requirement("WF-CRE-0020-A")
+def test_the_unknown_elements_that_differ_by_their_blanks_alone_are_named_once() -> None:
+    # « … le compte rendu nomme chacun de ces éléments et le nombre de ses lignes » : deux éléments
+    # qui ne diffèrent que par leurs blancs en bout sont un seul sous-projet à déclarer, nommé comme
+    # le fichier le porte la première fois.
+    other = f"{CODE}/10002"
+    read = read_lines(
+        [
+            line(element=f"{other} ", number="1"),
+            line(element=None, number="2"),
+            line(element=other, number="3"),
+            line(element="  ", number="4"),
+        ],
+        READING,
+        KNOWN,
+    )
+    assert unknown_elements(read.rejected) == [
+        {"wbs_element": f"{other} ", "line_count": 2},
+        {"wbs_element": "", "line_count": 2},
+    ]
 
 
 @pytest.mark.requirement("WF-INTF-0140-A")

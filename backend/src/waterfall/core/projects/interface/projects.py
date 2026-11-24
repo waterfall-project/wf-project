@@ -666,11 +666,23 @@ def load_project(session: Session, load: ProjectLoad, act: Act) -> None:
     _create(session, load.draft, act, load.project_id, partitioned=True)
 
 
+def compared_code(code: str) -> str:
+    """Give a code as the WBS element of a line of cost is compared to it: without its blanks.
+
+    The element of a file is read without the blanks at its ends; a code is compared to it, and to
+    the other codes of its project, so too, so that a code that bears some is reached by the
+    element written without them, and two codes that differ by them alone never name one element
+    (WF-CRE-0020, WF-PRJ-0050; #3966). The code stored is the one sent.
+    """
+    return code.strip()
+
+
 def code_of_project_refused() -> UnprocessableError:
     """Give the refusal of a subproject and its project that would share a code (422, ``/code``).
 
     Without a parameter, whichever of the two is written: the WBS element of a line of cost is
-    compared whole to both, and would name the two (WF-PRJ-0050, WF-CRE-0020; #3966).
+    compared whole to both, without their blanks at the ends, and would name the two (WF-PRJ-0050,
+    WF-CRE-0020; #3966).
     """
     return UnprocessableError(
         VALIDATION_FAILED, fields=(FieldError("/code", SUBPROJECT_CODE_INVALID),)
@@ -680,14 +692,13 @@ def code_of_project_refused() -> UnprocessableError:
 def _refuse_code_of_subproject(session: Session, project_id: UUID, code: str | None) -> None:
     """Refuse to a project the code one of its subprojects bears, compared whole (422).
 
-    Read under the lock of the project, which every write of a subproject holds.
+    Without their blanks at the ends (``compared_code``); read under the lock of the project, which
+    every write of a subproject holds.
     """
     if code is None:
         return
-    found = select(Subproject.id).where(
-        Subproject.project_id == project_id, Subproject.code == code
-    )
-    if session.scalars(found.limit(1)).first() is not None:
+    held = session.scalars(select(Subproject.code).where(Subproject.project_id == project_id))
+    if compared_code(code) in {compared_code(each) for each in held}:
         raise code_of_project_refused()
 
 

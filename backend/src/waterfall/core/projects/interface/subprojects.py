@@ -4,15 +4,18 @@
 
 Listed, created, changed and deleted for good while nothing cites them, each with its commands;
 their code free — the element of the ERP whole, ``A.ABC.26001/10001`` —, unique in the project and
-never the code of the project, compared whole (WF-PRJ-0050, WF-CRE-0020; #3966).
+never the code of the project, compared whole, without its blanks at the ends, as the WBS element
+of a line of cost is compared to it (``compared_code``; WF-PRJ-0050, WF-CRE-0020; #3966).
 
 A subproject is written like the project is changed (the command ``update`` of the project): by
 a project manager, while the project is not terminal, under the lock of the project, which the
-state is read under. The code is unique in its project, whichever of two writers came first: the
-unique index decides, and the writer it refuses is told the subproject that holds the code. The
-code of the project is read under its lock, which a recoding of the project holds too: a
-subproject never takes it, as the project never takes the code of one of its subprojects
-(``SUBPROJECT_CODE_INVALID``). The code stored is the one sent.
+state is read under. The code is unique in its project: the codes of the project are read under
+that lock, which every writer of a subproject holds, and a code equal to another once both are
+without their blanks at the ends is refused, the writer told the subproject that holds it — the
+unique index of the table, on the code as stored, is only a backstop. The code of the project is
+read under the same lock, which a recoding of the project holds too: a subproject never takes it,
+as the project never takes the code of one of its subprojects (``SUBPROJECT_CODE_INVALID``). The
+code stored is the one sent.
 
 The three conditions of the deletion — no marked revision that cites it, no actual cost, no line
 of the current revision that bears it — are asked of the later modules: the estimate answers the
@@ -32,12 +35,10 @@ at its import, and only the reimport of the extraction imputes it (WF-CRE-0020; 
 its code imputes nothing either, and leaves every line where it is (EP-09, D-10).
 """
 
-from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import ColumnElement, SQLColumnExpression, select
-from sqlalchemy.exc import IntegrityError
 
 from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
@@ -60,6 +61,7 @@ from waterfall.core.projects.interface.projects import (
     ALREADY_EXISTS,
     Viewer,
     code_of_project_refused,
+    compared_code,
     lock_project,
 )
 from waterfall.core.projects.interface.risk_designations import (
@@ -67,7 +69,7 @@ from waterfall.core.projects.interface.risk_designations import (
     undesignate_subproject,
 )
 from waterfall.core.projects.tables import Project, Subproject
-from waterfall.platform.database import contains, unique_violated
+from waterfall.platform.database import contains
 from waterfall.platform.errors import (
     NOT_FOUND,
     STALE_LOCK_VERSION,
@@ -83,7 +85,7 @@ from waterfall.platform.identifiers import new_id
 from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Generator
+    from collections.abc import Callable, Collection
     from datetime import datetime
     from uuid import UUID
 
@@ -93,8 +95,6 @@ if TYPE_CHECKING:
     from waterfall.platform.audit import Act
 
 VALUE_REQUIRED = "VALUE_REQUIRED"
-# The unique index of the code of a subproject in its project (the tables of the projects).
-CODE_INDEX = "uq_subproject_project_id"
 # The conditions of the deletion, in the order of the contract: the citation, by a line or by the
 # designation of a risk, which no write lifts (a marked revision is immutable), the actual costs,
 # then the lines of the current revision.
@@ -200,8 +200,11 @@ def _refuse_code(write: SubprojectWrite) -> None:
 
 
 def _refuse_code_of_project(project: Project, code: str) -> None:
-    """Refuse the code of the project to one of its subprojects, the project read under its lock."""
-    if project.code is not None and project.code == code:
+    """Refuse the code of the project to one of its subprojects, the project read under its lock.
+
+    Compared without their blanks at the ends (``compared_code``).
+    """
+    if project.code is not None and compared_code(project.code) == compared_code(code):
         raise code_of_project_refused()
 
 
@@ -411,34 +414,24 @@ def _writable(session: Session, project_id: UUID, viewer: Viewer) -> Project:
     return _unterminated(session, project_id)
 
 
-def _code_taken(session: Session, project_id: UUID, code: str, own: UUID) -> ConflictError:
-    """Refuse a code another subproject of the project bears, naming it (409, WF-PRJ-0050)."""
-    holder = session.execute(
-        select(Subproject.id, Subproject.label).where(
-            Subproject.project_id == project_id, Subproject.code == code, Subproject.id != own
-        )
-    ).first()
-    params: dict[str, str] = {}
-    if holder is not None:
-        params = {"conflicting_object_id": str(holder[0]), "conflicting_object_label": holder[1]}
-    return ConflictError(ALREADY_EXISTS, fields=(FieldError("/code", ALREADY_EXISTS, params),))
+def _refuse_code_taken(session: Session, project_id: UUID, code: str, own: UUID) -> None:
+    """Refuse a code another subproject of the project bears, naming it (409, WF-PRJ-0050).
 
-
-@contextmanager
-def _unique_code(session: Session, project_id: UUID, code: str, own: UUID) -> Generator[None]:
-    """Run a write that gives a subproject its code, refused if another bears it (409).
-
-    The unique index decides: a write that breaks it is undone alone, in a savepoint, and refused
-    with the subproject that holds the code.
+    Compared without their blanks at the ends (``compared_code``): ``X`` and ``X `` would name one
+    WBS element. Read under the lock of the project, which every writer of a subproject holds.
     """
-    try:
-        with session.begin_nested():
-            yield
-            session.flush()
-    except IntegrityError as error:
-        if unique_violated(error) != CODE_INDEX:
-            raise
-        raise _code_taken(session, project_id, code, own) from None
+    held = session.execute(
+        select(Subproject.id, Subproject.label, Subproject.code)
+        .where(Subproject.project_id == project_id, Subproject.id != own)
+        .order_by(Subproject.code, Subproject.id)
+    )
+    compared = compared_code(code)
+    for holder_id, label, held_code in held:
+        if compared_code(held_code) == compared:
+            params = {"conflicting_object_id": str(holder_id), "conflicting_object_label": label}
+            raise ConflictError(
+                ALREADY_EXISTS, fields=(FieldError("/code", ALREADY_EXISTS, params),)
+            )
 
 
 def create_subproject(
@@ -450,8 +443,8 @@ def create_subproject(
     unknown (404), if the writer is no project manager of it any more (403), if terminal (409
     ``project_not_terminal``), or if the code is borne by another subproject of the project (409
     ``ALREADY_EXISTS`` on ``/code``) — or if it is the code of the project (422
-    ``SUBPROJECT_CODE_INVALID`` on ``/code``), read under that lock. Created, it imputes no line of
-    cost (WF-CRE-0020; #3966).
+    ``SUBPROJECT_CODE_INVALID`` on ``/code``), read under that lock — both compared without their
+    blanks at the ends. Created, it imputes no line of cost (WF-CRE-0020; #3966).
     """
     _refuse_code(write)
     project = _writable(session, project_id, viewer)
@@ -474,8 +467,9 @@ def _insert(
         updated_by=act.author,
         lock_version=0,
     )
-    with _unique_code(session, project_id, write.code, subproject_id):
-        session.add(row)
+    _refuse_code_taken(session, project_id, write.code, subproject_id)
+    session.add(row)
+    session.flush()
     return row
 
 
@@ -507,21 +501,24 @@ def update_subproject(
     The code is judged first (422). Then the project is locked and the subproject read under the
     lock: refused if unknown (404), at another version (412), if the project is terminal (409), if
     the new code is the code of the project (422 ``SUBPROJECT_CODE_INVALID``), or if it is borne by
-    another subproject (409). A change that changes nothing writes
-    nothing. A new code imputes no line of cost, and takes none from the subproject: a line moves
-    at its next import alone (EP-09, D-10; WF-DAT-0060).
+    another subproject (409), both compared without their blanks at the ends; a code unchanged is
+    not judged again. A change that changes nothing writes nothing. A new code imputes no line of
+    cost, and takes none from the subproject: a line moves at its next import alone (EP-09, D-10;
+    WF-DAT-0060).
     """
     write = change.write
     _refuse_code(write)
     project, row = _locked(session, project_id, change.subproject_id, change.lock_version, viewer)
     _refuse_code_of_project(project, write.code)
+    if row.code != write.code:
+        _refuse_code_taken(session, project_id, write.code, row.id)
     if (row.code, row.label) != (write.code, write.label):
-        with _unique_code(session, project_id, write.code, row.id):
-            row.code = write.code
-            row.label = write.label
-            row.updated_at = act.at
-            row.updated_by = act.author
-            row.lock_version += 1
+        row.code = write.code
+        row.label = write.label
+        row.updated_at = act.at
+        row.updated_by = act.author
+        row.lock_version += 1
+        session.flush()
     return _views(session, project, [row], viewer)[0]
 
 

@@ -244,13 +244,47 @@ def test_the_code_of_the_project_is_refused_to_a_subproject_created_or_recoded(
         422,
         [("/code", "SUBPROJECT_CODE_INVALID", {})],
     )
-    # Compared whole: a code that begins as the project's, or differs by a blank, is free.
-    assert made(api, stage, "A.ABC.26001 ")["code"] == "A.ABC.26001 "
+    # Compared whole, without the blanks at the ends, as the WBS element of a line is compared to
+    # both: a code that differs from the project's by such blanks alone is the project's.
+    for blanked in ("A.ABC.26001 ", " A.ABC.26001"):
+        assert faults(add(api, stage, blanked)) == [("/code", "SUBPROJECT_CODE_INVALID", {})]
+    # A code that begins as the project's is free.
     listed = api.get(path(stage), headers=stage.manager.headers).json()
     assert [(item["code"], item["lock_version"]) for item in listed] == [
-        ("A.ABC.26001 ", 0),
         ("A.ABC.26001/10001", 0),
     ]
+
+
+@pytest.mark.requirement("WF-PRJ-0050-A")
+def test_two_codes_that_differ_by_their_blanks_at_the_ends_alone_do_not_share_a_project(
+    api: ContractClient, stage: Scene
+) -> None:
+    # « La création de deux sous-projets de même code dans un même projet est refusée. » : « X » et
+    # « X  » seraient un même élément d'OTP (#3966) ; refusés à la création comme au recodage, le
+    # premier nommé ; un code stocké garde ses blancs, et se recode vers lui-même sans eux.
+    first = made(api, stage, " SP-CMD ")
+    assert first["code"] == " SP-CMD "
+    taken = {
+        "conflicting_object_id": first["subproject_id"],
+        "conflicting_object_label": "Poste de commande",
+    }
+    refused = add(api, stage, "SP-CMD", "Essais")
+    assert (refused.status_code, faults(refused)) == (409, [("/code", "ALREADY_EXISTS", taken)])
+    other = made(api, stage, "SP-2", "Deux")
+    recoded = api.patch(
+        path(stage, other["subproject_id"]),
+        headers=stage.manager.headers,
+        json={"code": "SP-CMD\t", "label": "Deux", "lock_version": 0},
+    )
+    assert (recoded.status_code, faults(recoded)) == (409, [("/code", "ALREADY_EXISTS", taken)])
+    trimmed = api.patch(
+        path(stage, first["subproject_id"]),
+        headers=stage.manager.headers,
+        json={"code": "SP-CMD", "label": "Poste", "lock_version": 0},
+    )
+    assert trimmed.status_code == 200, trimmed.text
+    assert (trimmed.json()["code"], trimmed.json()["lock_version"]) == ("SP-CMD", 1)
+    assert stored(stage) == 2
 
 
 @pytest.mark.requirement("WF-PRJ-0050-A")
@@ -275,6 +309,16 @@ def test_a_project_recoded_to_the_code_of_one_of_its_subprojects_is_refused(
     assert (again.json()["code"], again.json()["lock_version"]) == (
         project.json()["code"],
         project.json()["lock_version"],
+    )
+    # Compared without the blanks at the ends, as the WBS element of a line is compared to both.
+    blanked = api.patch(
+        f"{PROJECTS}/{stage.project['project_id']}",
+        headers=stage.manager.headers,
+        json={"code": " SP-CMD", "lock_version": project.json()["lock_version"]},
+    )
+    assert (blanked.status_code, faults(blanked)) == (
+        422,
+        [("/code", "SUBPROJECT_CODE_INVALID", {})],
     )
     assert coded_project(api, stage, "SP-CMD/1")["code"] == "SP-CMD/1"
 

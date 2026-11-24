@@ -17,9 +17,9 @@ of each column kept, and the label a kept column bears in the file, which names 
 
 Each row below is then read (``read_lines``): an empty row is skipped; the WBS element is a text,
 compared whole, without its spaces at the ends, with the code of the project and those of its
-subprojects (``Known``): the code of the project imputes the line to the project alone, that of a
-subproject to that subproject; any other element — empty, of another project, a code of
-subproject without that of the project, a subproject not declared — is
+subprojects, without theirs (``Known``): the code of the project imputes the line to the project
+alone, that of a subproject to that subproject; any other element — empty, of another project, a
+code of subproject without that of the project, a subproject not declared — is
 ``WBS_ELEMENT_OUTSIDE_PROJECT``, the element as the file carries it (WF-CRE-0020; #3966). Such a
 line has no key: it is never compared with the lines of the project for a double (BRC-04). The
 document is a
@@ -192,16 +192,45 @@ def read_header(session: Session, row: Sequence[object]) -> Reading:
     return Reading(columns, tuple(kept), tuple(ignored))
 
 
+def _element_of(code: str) -> str:
+    """Give a code as an element is compared to it: without its blanks at the ends, as read.
+
+    ``compared_code`` of the projects, which judges the codes unique so.
+    """
+    return code.strip()
+
+
 @dataclass(frozen=True, slots=True)
 class Known:
     """The WBS elements a project knows, compared whole: its code, and those of its subprojects.
 
     ``subprojects`` the subproject of each code, as stored; ``project_code`` none for a project
-    without a code, whose every element is unknown.
+    without a code, whose every element is unknown. Each code is compared to the element without
+    its blanks at the ends, as the element is read: a code that bears some is reached by the element
+    written without them (``elements``, the code stored of each element). The projects keep two
+    codes of a project from being one element so (``compared_code``); of two a base kept from before
+    (#3966), the one without blanks is the element's.
     """
 
     project_code: str | None
     subprojects: Mapping[str, UUID]
+    elements: Mapping[str, str] = field(init=False)
+
+    def __post_init__(self) -> None:
+        elements: dict[str, str] = {}
+        for code in sorted(self.subprojects):
+            element = _element_of(code)
+            if element not in elements or code == element:
+                elements[element] = code
+        object.__setattr__(self, "elements", elements)
+
+    def subproject_code(self, element: str) -> str | None:
+        """Give the code, as stored, of the subproject an element read is; none if it is none."""
+        return self.elements.get(element)
+
+    def is_project(self, element: str) -> bool:
+        """Tell whether an element read is the code of the project."""
+        return self.project_code is not None and element == _element_of(self.project_code)
 
 
 @dataclass(frozen=True, slots=True)
@@ -283,13 +312,15 @@ def _raw(value: object) -> str:
 def _subproject_code(value: object, known: Known) -> str | None:
     """Read the WBS element: the code of the subproject it is, or none for that of the project.
 
-    The element is compared whole, without its spaces at the ends, and reported as the file carries
-    it; no form is supposed of it (WF-CRE-0020; #3966).
+    The element is compared whole, without its spaces at the ends, to the codes without theirs
+    (``Known``), and reported as the file carries it; no form is supposed of it (WF-CRE-0020;
+    #3966). The code given is the subproject's, as stored.
     """
     element = text_of(value)
-    if element is not None and element in known.subprojects:
-        return element
-    if element is None or element != known.project_code:
+    code = None if element is None else known.subproject_code(element)
+    if code is not None:
+        return code
+    if element is None or not known.is_project(element):
         raise _LineRejectedError(WBS_ELEMENT_OUTSIDE_PROJECT, {"wbs_element": _raw(value)})
     return None
 

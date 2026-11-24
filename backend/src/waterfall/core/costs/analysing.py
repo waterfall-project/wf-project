@@ -165,14 +165,21 @@ def unknown_elements(read: Iterable[Rejection]) -> list[dict[str, Any]]:
     """Name each WBS element a line is rejected for, once, with its lines, as the file first has it.
 
     ``ImportReport.unknown_wbs_elements``: the subprojects to declare before importing again
-    (WF-CRE-0020; #3966). The rejections are in the order of the file.
+    (WF-CRE-0020; #3966). Two elements that differ by their blanks at the ends alone are one, as
+    they are compared to the codes: one subproject to declare. The rejections are in the order of
+    the file.
     """
+    shown: dict[str, str] = {}
     counted: dict[str, int] = {}
     for each in read:
         element = each.unknown_element
         if element is not None:
-            counted[element] = counted.get(element, 0) + 1
-    return [{"wbs_element": element, "line_count": count} for element, count in counted.items()]
+            compared = element.strip()
+            shown.setdefault(compared, element)
+            counted[compared] = counted.get(compared, 0) + 1
+    return [
+        {"wbs_element": shown[compared], "line_count": count} for compared, count in counted.items()
+    ]
 
 
 def analyse(session: Session, project_id: UUID, content: bytes) -> dict[str, Any]:
