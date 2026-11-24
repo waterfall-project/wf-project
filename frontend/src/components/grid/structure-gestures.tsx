@@ -487,7 +487,7 @@ export function useStructureGestures<Row extends GridNode>(
     // the envelope saying only that the entry is invalid.
     // An entry the guard can write again once the own estimate is updated is passed as an `Entry`;
     // a write that cannot — the timelines, which may create one first — is withheld instead.
-    const sent = (typeof call === "function" ? guard(call) : guard(call)).then(byField);
+    const sent = guard(call).then(byField);
     account.writing(sent);
     void held(sent).then((outcome) => {
       setWriting(false);
@@ -567,7 +567,12 @@ export function useStructureGestures<Row extends GridNode>(
     const label = labelOf(first);
     send(
       {
-        nodes: body.node_ids,
+        // The nodes moved, and those they rest on, which the update may have removed: only their
+        // existence is checked, nothing is written on the anchors.
+        nodes: [
+          ...body.node_ids,
+          ...[body.parent_id, body.after_node_id].filter((id) => typeof id === "string"),
+        ],
         fields: [],
         // The version of the structure the update moved on to, not the one the grid read.
         send: (fresh) =>

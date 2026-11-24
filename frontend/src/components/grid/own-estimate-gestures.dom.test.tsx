@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { OwnEstimateEntry } from "@/components/revisions/own-estimate-entry";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { example, fakeClient } from "@/test/fixtures";
+import { example, fakeClient, held } from "@/test/fixtures";
 import { SHOWN } from "@/test/grid-preferences";
 import { estimateReference } from "@/test/reference";
 
@@ -111,12 +111,12 @@ function estimateGrid() {
 }
 
 /** The cell of the label of a row, by its index among the rows of the answer. */
-function cell(row: number): HTMLElement {
+function cell(row: number, column = "label"): HTMLElement {
   const found = screen
     .getByRole("treegrid")
-    .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="label"]`);
+    .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="${column}"]`);
   if (found === null) {
-    throw new Error(`no cell in the row ${row.toString()}`);
+    throw new Error(`no cell ${column} in the row ${row.toString()}`);
   }
   return found;
 }
@@ -147,6 +147,14 @@ function counterOf(row: number): number {
     throw new Error("no such row");
   }
   return node.lock_version;
+}
+
+/** Enter another role into the labour line: the cell is edited, and left. */
+async function enterRole(): Promise<void> {
+  cell(LABOUR, "resource_role").focus();
+  await userEvent.keyboard("{Enter}");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "Rôle" }), "Monteur câbleur");
+  await userEvent.keyboard("{Tab}");
 }
 
 describe("the gestures on an own estimate in arrears whose update signals nothing", () => {
@@ -241,4 +249,111 @@ describe("the gestures on an own estimate in arrears whose update signals nothin
     expect(await screen.findByText(/est à jour\. Saisissez de nouveau\./)).toBeVisible();
     expect(client.calls.some((call) => call.route === TRACKING)).toBe(false);
   });
+
+  it("refuses a gesture as busy while a cell entry held for the update is written, so none goes from the counters of the grid [US-3140] [WF-RIS-0070-A]", async () => {
+    const answers = {
+      ...UPDATE,
+      [LINE]: "estimate_line_updated",
+      [DELETE]: "node_deleted",
+    } as const;
+    const wait = held();
+    const client = fakeClient(answers, {
+      hold: (route) => (route === LINE ? wait.until : undefined),
+    });
+    server.client = client;
+    render(estimateGrid());
+    await enterRole();
+    await waitFor(() => {
+      expect(client.calls.map((call) => call.route)).toContain(LINE);
+    });
+    // The entry is on its way, unanswered: the grid is busy, and the gesture is not offered.
+    const menu = await openMenu(REWORK);
+    const deletion = within(menu).getByRole("menuitem", { name: "Supprimer" });
+    expect(deletion).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(deletion);
+    await userEvent.keyboard("{Escape}");
+    wait.release();
+    await waitFor(() => {
+      expect(screen.getByRole("treegrid")).toHaveAttribute("aria-busy", "false");
+    });
+    expect(client.calls.some((call) => call.route === DELETE)).toBe(false);
+  });
+
+  it("writes the sub-project of each line selected from the counter of that line read again [US-3140] [WF-RIS-0070-A]", async () => {
+    // The own estimate of a risk occurred, whose two lines accept their sub-project: the page read
+    // them at a counter the update moved.
+    const occurred = example("nodes_risk_estimate_occurred") as NodeList;
+    const lines = occurred.items.filter((node) =>
+      node.editable_fields.includes("estimate_line.subproject_id"),
+    );
+    const [first, second] = lines;
+    expect(lines).toHaveLength(2);
+    const before: NodeList = {
+      ...occurred,
+      items: occurred.items.map((node) =>
+        lines.includes(node) ? { ...node, lock_version: BEFORE } : node,
+      ),
+    };
+    const client = fakeClient({
+      ...UPDATE,
+      [NODES]: "nodes_risk_estimate_occurred",
+      [LINE]: "estimate_line_subproject_changed",
+    });
+    server.client = client;
+    render(
+      guarded(
+        <EstimateGrid
+          nodes={before}
+          structure={STRUCTURE}
+          structureVersion={5}
+          reference={estimateReference()}
+          editable
+          tasksEditable
+          differential
+          query={NO_QUERY}
+          filters={{}}
+          preferences={SHOWN}
+        />,
+      ),
+    );
+    const rows = lines.map((line) => occurred.items.indexOf(line));
+    fireEvent.click(cell(rows[0] ?? 0, "row_number"));
+    fireEvent.click(cell(rows[1] ?? 0, "row_number"), { shiftKey: true });
+    await choose(rows[0] ?? 0, "Sous-projet");
+    const submenu = await screen.findByRole("menu", { name: "Sous-projet" });
+    await userEvent.click(lastOf(within(submenu).getAllByRole("menuitemradio")));
+    await waitFor(() => {
+      expect(client.calls.filter((call) => call.route === LINE)).toHaveLength(2);
+    });
+    const written = client.calls.filter((call) => call.route === LINE);
+    // Each line goes to its own node, with the counter read again for it, never the grid's.
+    expect(written[0]?.path).toContain(first?.node_id);
+    expect(written[1]?.path).toContain(second?.node_id);
+    expect(written.map((call) => call.body)).toMatchObject([
+      { lock_version: first?.lock_version },
+      { lock_version: second?.lock_version },
+    ]);
+    expect(first?.lock_version).not.toBe(BEFORE);
+  });
+
+  it.each([
+    ["Supprimer", REWORK],
+    ["Monter", REWORK],
+    ["Indenter", REWORK],
+  ])(
+    "writes nothing and tells the node gone when the update removed it: %s [US-3140] [WF-RIS-0070-A]",
+    async (gesture, row) => {
+      const client = fakeClient({
+        ...UPDATE,
+        [NODES]: "nodes_empty",
+        [DELETE]: "node_deleted",
+        [MOVE]: "nodes_moved",
+      });
+      server.client = client;
+      render(estimateGrid());
+      await choose(row, gesture);
+      expect(await screen.findByText(/cet élément n’existe pas/)).toBeVisible();
+      expect(client.calls.map((call) => call.route)).toEqual([REPORT, REBASE, NODES]);
+    },
+  );
 });

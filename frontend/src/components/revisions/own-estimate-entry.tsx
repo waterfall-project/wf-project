@@ -237,6 +237,14 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
     [reread],
   );
 
+  /** Hold back a write that cannot go again from the counters read, and say to enter it again. */
+  const holdBack = useCallback((): Outcome<never> => {
+    if (alive.current) {
+      setDone({ title: t("done", { label }) });
+    }
+    return withheld();
+  }, [t, label]);
+
   const guard = useCallback(
     async (
       entry: (() => Promise<Outcome<NodesWritten>>) | Entry<NodesWritten>,
@@ -245,9 +253,10 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
       const now = live.current;
       if (!now.late || now.updated) {
         const replaying = replay.current;
-        if (typeof entry !== "function" && replaying !== undefined && replaying.pending > 0) {
-          // Entries held back for the update are still being written: this one follows them.
-          return write(entry, replaying.settled);
+        if (replaying !== undefined && replaying.pending > 0) {
+          // Entries held back for the update are still being written: this one follows them — a
+          // function, which cannot be written again from the counters read, is held back instead.
+          return typeof entry === "function" ? holdBack() : write(entry, replaying.settled);
         }
         const outcome = await send();
         if (refusedAsLate(outcome)) {
@@ -271,7 +280,7 @@ export function OwnEstimateEntry({ estimate, late, recompose, children }: OwnEst
       }
       return rewrites ? write(entry, settled) : withheld();
     },
-    [settleOnce, write, t, label],
+    [settleOnce, write, holdBack, t, label],
   ) as EntryGuard;
 
   const opened = useRef(false);

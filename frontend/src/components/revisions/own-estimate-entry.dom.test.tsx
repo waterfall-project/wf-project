@@ -131,7 +131,14 @@ function toldOf(outcome: Outcome<NodesWritten>): string {
 }
 
 /** Entries made one after the other, with no wait between them, each through the guard. */
-function Entered({ entries }: { readonly entries: readonly Entry<NodesWritten>[] }) {
+function Entered({
+  entries,
+  later,
+}: {
+  readonly entries: readonly Entry<NodesWritten>[];
+  /** A write of a function — the timelines —, made by a second button once the first are under way. */
+  readonly later?: (() => Promise<Outcome<NodesWritten>>) | undefined;
+}) {
   const guard = useEntryGuard();
   const [told, setTold] = useState<string[]>([]);
   return (
@@ -148,6 +155,18 @@ function Entered({ entries }: { readonly entries: readonly Entry<NodesWritten>[]
       >
         Saisir la quantité
       </button>
+      {later === undefined ? null : (
+        <button
+          type="button"
+          onClick={() => {
+            void guard(later).then((outcome) => {
+              setTold((before) => [...before, toldOf(outcome)]);
+            });
+          }}
+        >
+          Inscrire
+        </button>
+      )}
       <output aria-label="Saisies">{told.join(",")}</output>
     </div>
   );
@@ -161,6 +180,7 @@ function entry(
     readonly recompose?: boolean;
     readonly write?: () => Promise<Outcome<string>>;
     readonly entries?: readonly Entry<NodesWritten>[];
+    readonly later?: (() => Promise<Outcome<NodesWritten>>) | undefined;
   } = {},
 ) {
   const write =
@@ -180,7 +200,7 @@ function entry(
         >
           <Cell write={write} />
           <Twice write={write} />
-          <Entered entries={options.entries ?? []} />
+          <Entered entries={options.entries ?? []} later={options.later} />
         </OwnEstimateEntry>
       </main>
     </NextIntlClientProvider>,
@@ -343,6 +363,42 @@ describe("the first entry into an own estimate in arrears", () => {
     });
     expect(sent[1]?.nodes.get(LINE)?.lock_version).toBe(4);
     expect(sent[1]?.structureLockVersion).toBe(7);
+  });
+
+  it("holds back a write of a function made while entries are still being written, which would go from the counters of the grid [US-3140] [WF-RIS-0070-A]", async () => {
+    serve({
+      [REPORT]: "structure_rebase_report_risk_clean",
+      [REBASE]: "structure_rebased_risk",
+      [NODES]: "nodes_risk_estimate",
+    });
+    const sent: (Fresh | undefined)[] = [];
+    const answered = quantity(sent, { moved: 4 });
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const first: Entry<NodesWritten> = {
+      ...answered,
+      send: async (fresh) => {
+        const outcome = answered.send(fresh);
+        await held;
+        return outcome;
+      },
+    };
+    const later = vi.fn(() => Promise.resolve({ kind: "done" as const, data: written(1, 1) }));
+    entry({ entries: [first], later });
+    await userEvent.click(screen.getByRole("button", { name: "Saisir la quantité" }));
+    await waitFor(() => {
+      expect(sent).toHaveLength(1);
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Inscrire" }));
+    release();
+    await waitFor(() => {
+      expect(screen.getByRole("status", { name: "Saisies" })).toHaveTextContent("done");
+    });
+    // Not called with a stale counter: held back, and the entering again is asked.
+    expect(later).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Saisissez de nouveau/)).toBeVisible();
   });
 
   it("writes the entries made while the update is under way one after the other, each from the counters the one before answered [US-3140] [WF-RIS-0070-A]", async () => {

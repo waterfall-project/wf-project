@@ -282,8 +282,8 @@ export interface ChangeWritten<Row> {
 /**
  * Write a change on each row in turn, one write per row with the version of that row (`lock_version`),
  * each answer told as it comes, from the counters read again once an own estimate in arrears is
- * updated (`fresh`, US-3140) rather than from the rows'. The writes stop at the first refusal, which is told for its row: those
- * made stay made, and the rows after it are not written.
+ * updated (`fresh`, US-3140) rather than from the rows'. The writes stop at the first refusal, which
+ * is told for its row: those made stay made, and the rows after it are not written.
  */
 export async function writeChange<Row extends GridNode>(
   structure: StructurePath,
