@@ -38,6 +38,8 @@ START_SECONDS = 60.0
 STOP_SECONDS = 30.0
 # How many requests may go to the first process before the other serves one.
 ATTEMPTS = 500
+# How many processes serve the API.
+PROCESSES = 2
 
 
 def free_port() -> int:
@@ -97,7 +99,7 @@ def served(
         **service_environment,
         "WATERFALL_KEYCLOAK_ADDRESS": realm.address,
         "WATERFALL_PORT": str(port),
-        "WATERFALL_API_PROCESSES": "2",
+        "WATERFALL_API_PROCESSES": str(PROCESSES),
     }
     logs = tmp_path / "api.log"
     with logs.open("wb") as written:
@@ -118,6 +120,13 @@ def served(
             except httpx2.TransportError:
                 pass
             assert time.monotonic() < deadline, logs.read_text(encoding="utf-8")
+            time.sleep(0.1)
+        # A first 200 proves one process ready, not both: wait until each has opened its services.
+        while (opened := started.events().count("service.started")) < PROCESSES:
+            assert process.poll() is None, logs.read_text(encoding="utf-8")
+            assert time.monotonic() < deadline, (
+                f"{opened} of {PROCESSES} processes started:\n{logs.read_text(encoding='utf-8')}"
+            )
             time.sleep(0.1)
         yield started
     finally:
@@ -152,4 +161,4 @@ def test_each_process_closes_its_services_when_the_api_stops(served: Served) -> 
     # Proper to US-2230: each process opens its services and closes them when it stops.
     served.process.send_signal(signal.SIGTERM)
     assert served.process.wait(STOP_SECONDS) == 0
-    assert served.events().count("service.stopped") == 2
+    assert served.events().count("service.stopped") == PROCESSES

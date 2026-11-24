@@ -107,6 +107,7 @@ def application() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
+        logger.info("service.started")
         try:
             yield
         finally:
