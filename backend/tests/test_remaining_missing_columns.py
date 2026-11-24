@@ -101,6 +101,8 @@ def exported(scene: Rows) -> bytes:
 @pytest.mark.parametrize(
     ("header", "new"),
     [
+        pytest.param("Tâche", "Tâche (x)", id="task-renamed"),
+        pytest.param("Rôle ou catégorie", None, id="role-without"),
         pytest.param("ID ligne", None, id="without-lineage"),
         pytest.param("Jours restants", None, id="without-days"),
         pytest.param("Débours restant", None, id="without-amount"),

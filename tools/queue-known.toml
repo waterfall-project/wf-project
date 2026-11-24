@@ -577,15 +577,3 @@ message = 'Exception ignored while finalizing socket <ssl\.SSLSocket'
 runs = [45100723995]
 frequency = "1 passage, le 2026-11-23 (45100723995, #4776)"
 cause = "hypothèse : une connexion TLS vers Keycloak laissée ouverte par un test précédent est finalisée pendant celui-ci"
-
-# Le second service de l'API arrêtée n'a pas écrit son `service.stopped` à temps (#4846).
-[[known]]
-class = "known flakiness"
-family = "arrêt des processus de l'API"
-issue = "#4846"
-job = "^back / tests"
-test = 'tests/test_api_processes\.py:155\b'
-message = 'assert 1 == 2'
-runs = [45179683507, 45296835040, 45312303290]
-frequency = "3 passages : le 2026-11-23 (#4844), le 2026-11-24 (#4869 ; #4871, à la pull request)"
-cause = "hypothèse : le second processus n'avait pas fini de démarrer ou d'écrire son journal au SIGTERM, ou son `service.stopped` est écrit après la lecture des événements"
