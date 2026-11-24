@@ -44,7 +44,7 @@ from waterfall.platform.errors import UnavailableError
 from waterfall.platform.logs import get_logger
 from waterfall.platform.storage import MissingObjectError
 from waterfall.platform.tasks import BackgroundTask
-from waterfall.platform.uploads import LIFETIME, FileUpload
+from waterfall.platform.uploads import LIFETIME, FileUpload, expire_uploads
 from waterfall.platform.uploads import PREFIX as UPLOADS_PREFIX
 
 if TYPE_CHECKING:
@@ -148,14 +148,17 @@ def _imports_ended(session: Session, now: datetime) -> list[str]:
     the rows it writes, and re-reads them under the lock: an import applied in the meantime is not
     touched.
     """
-    expired = session.scalars(
+    expired = session.execute(
         delete(ImportReport)
         .where(
             (ImportReport.status == "analysed") & (ImportReport.expires_at <= now)
             | ImportReport.status.in_(("abandoned", "expired"))
         )
-        .returning(ImportReport.object_key)
+        .returning(ImportReport.object_key, ImportReport.upload_id)
     ).all()
+    # The deposits these imports employed expire with them, never free again (WF-DAT-0120): the
+    # pass deletes their rows next, in the same transaction.
+    expire_uploads(session, [each.upload_id for each in expired], now)
     failed_tasks = select(BackgroundTask.id).where(BackgroundTask.status == "failed")
     failed = session.scalars(
         update(ImportReport)
@@ -163,7 +166,7 @@ def _imports_ended(session: Session, now: datetime) -> list[str]:
         .values(status="failed", expires_at=None)
         .returning(ImportReport.object_key)
     ).all()
-    return [*expired, *failed]
+    return [*(each.object_key for each in expired), *failed]
 
 
 def _not_consumed(consumed: ColumnElement[str]) -> ColumnElement[bool]:
