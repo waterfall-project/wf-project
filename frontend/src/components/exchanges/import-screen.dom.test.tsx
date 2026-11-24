@@ -238,7 +238,12 @@ describe("the commands of import while a file is sent", () => {
     expect(screen.getByRole("form", { name: "Importer un reste à engager" })).toBeVisible();
   });
 
-  it("leaves open the form opened since the file was sent, when the answer of the deposit comes [US-3280]", async () => {
+  it("closes no form, and takes no focus, when the answer of a deposit comes to a form cancelled since [US-3280] [FCO-03]", async () => {
+    // FCO-03 is held in two parts. While the file goes every command is inactive (`writing`), so no
+    // other form opens before the answer: the case of a form opened since cannot be reached. What
+    // is left to hold is the answer itself, which comes to a form cancelled: it must not close
+    // what is open (nothing) nor give the focus back to the command that was pressed, as the
+    // user has gone elsewhere. Without the guard of the opening, the focus would jump back.
     const hold = held();
     serve(
       {
@@ -256,19 +261,25 @@ describe("the commands of import while a file is sent", () => {
       new File(["devis"], "devis.xlsx"),
     );
     await userEvent.click(within(form).getByRole("button", { name: "Analyser le fichier" }));
-    // The form is cancelled while the file goes: its answer closes no other.
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
     expect(screen.queryByRole("form")).toBeNull();
+    // Another command stays inactive until the answer, so no form is opened meanwhile.
+    const other = screen.getByRole("button", { name: "Importer un reste à engager" });
+    expect(other).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(other);
+    expect(screen.queryByRole("form")).toBeNull();
+    // The user moves on; the answer comes.
+    other.focus();
     hold.release();
     await waitFor(() => {
       expect(router.push).toHaveBeenCalled();
     });
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Importer un reste à engager" }),
-      ).not.toHaveAttribute("aria-disabled");
+      expect(other).not.toHaveAttribute("aria-disabled");
     });
-    await userEvent.click(screen.getByRole("button", { name: "Importer un reste à engager" }));
+    expect(screen.queryByRole("form")).toBeNull();
+    expect(other).toHaveFocus();
+    await userEvent.click(other);
     expect(screen.getByRole("form", { name: "Importer un reste à engager" })).toBeVisible();
   });
 });

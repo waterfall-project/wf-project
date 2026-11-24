@@ -254,7 +254,8 @@ export function ImportCommands({ projectId, offers, start, gap }: ImportCommands
   const openings = useRef(0);
   const current = useRef<number>(undefined);
   const closeOpening = (opened: Opened) => {
-    // The answer of a file closes the form that sent it, not the one opened since.
+    // The answer of a file closes the form that sent it, if it is still the one open: a form
+    // cancelled meanwhile leaves nothing to close, and the focus is not taken from where the user is.
     if (current.current !== opened.opening) {
       return;
     }
