@@ -22,8 +22,9 @@
  * is told above the list.
  *
  * The creation and the modification open the form of the reference data (`ReferenceForm`): the code
- * and the label, required, no longer than the contract takes, a hundred characters for the code, free otherwise; the code of the project
- * is refused at its field by the server (`SUBPROJECT_CODE_INVALID`); a code another sub-project bears (409
+ * and the label, required, no longer than the contract takes, a hundred characters for the code,
+ * free otherwise; the code of the project is refused at its field by the server
+ * (`SUBPROJECT_CODE_INVALID`); a code another sub-project bears (409
  * `ALREADY_EXISTS`) is said at its field, its holder named by the label the refusal gives it
  * (`conflicting_object_label`), the form not knowing the rows the list shows — generically, «
  * another sub-project », without it (EP-02/L42g). A modification answered takes the place of its

@@ -74,19 +74,14 @@ describe("the report of an import, the WBS elements unknown to the project", () 
     expect(entry.report?.unknown_wbs_elements).toHaveLength(4);
     open(entry);
     const table = screen.getByRole("table", { name: "Éléments d’OTP inconnus du projet" });
-    expect(
-      within(table)
-        .getAllByRole("row")
-        .map((row) => row.textContent),
-    ).toEqual(
-      [
-        "Élément d’OTPLignes",
-        "A.ABC.26001/100022",
-        "100011",
-        "A.ABC.26002",
-        "Sans élément d’OTP1",
-      ].map((text, index) => (index === 3 ? "A.ABC.260021" : text)),
-    );
+    const rows = within(table).getAllByRole("row");
+    expect(rows.map((row) => Array.from(row.children, (cell) => cell.textContent))).toEqual([
+      ["Élément d’OTP", "Lignes"],
+      ["A.ABC.26001/10002", "2"],
+      ["10001", "1"],
+      ["A.ABC.26002", "1"],
+      ["Sans élément d’OTP", "1"],
+    ]);
     expect(screen.getByText(/^4 éléments d’OTP ne sont ni le code du projet/)).toBeVisible();
     expect(screen.getByText("Lignes hors du projet")).toBeVisible();
     expect(screen.queryByText(/sous-projet inconnu/i)).toBeNull();

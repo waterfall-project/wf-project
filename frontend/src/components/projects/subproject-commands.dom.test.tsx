@@ -399,7 +399,7 @@ describe("the creation and the modification of a sub-project", () => {
   });
 
   it("creates a sub-project under the code its ERP gives it, a slash and a hundred characters included, sent as typed [WF-PRJ-0050-A] [US-3270]", async () => {
-    // Un sous-projet de code « A.ABC.26001/10001 » ou de quarante caractères se crée.
+    // Un sous-projet de code « A.ABC.26001/10001 » ou de cent caractères se crée.
     const client = serve();
     render(list());
     const typed = `A.ABC.26001/${"1".repeat(88)}`;
