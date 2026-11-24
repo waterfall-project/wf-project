@@ -338,7 +338,13 @@ describe("the tables of a long report [US-3280]", () => {
     expect(within(differences).queryByText("Ligne 201")).toBeNull();
     // The heading counts the report received, not the rows drawn.
     expect(screen.getByText("250 lignes rejetées")).toBeVisible();
-    const all = first(screen.getAllByRole("button", { name: "Tout afficher" }));
+    const buttons = screen.getAllByRole("button", { name: "Tout afficher" });
+    // The two buttons bear one name: each is told apart by the title of its table.
+    expect(buttons.map((button) => button.getAttribute("aria-describedby"))).toEqual([
+      screen.getByText("250 lignes rejetées").id,
+      screen.getByText("250 écarts avec les données existantes").id,
+    ]);
+    const all = first(buttons);
     await userEvent.click(all);
     expect(within(rejected).getAllByRole("row")).toHaveLength(251);
     expect(within(differences).getAllByRole("row")).toHaveLength(201);

@@ -5,13 +5,13 @@
  * differences with the existing data (WF-INTF-0080) —, each rendered by windows: its first 200
  * rows, the number of those left said under it, and the offer to show them all (US-3280, FCO-06
  * of #4425). The count is that of the report received, in the order received: the front counts and
- * sorts nothing else. Client components, which the data they are given, plain objects, reaches
- * without the rows being drawn on the server.
+ * sorts nothing else. Client components, which the server renders too, and the rows go whole in
+ * the RSC payload: the window bounds the DOM, not the payload.
  */
 "use client";
 
 import { useFormatter, useLocale, useMessages, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import type { components } from "@/api/generated/schema";
 import type { RowDifference } from "@/components/grid/columns";
@@ -32,14 +32,17 @@ type DifferenceField = NonNullable<Difference["fields"]>[number];
 const HEADING = "text-sm font-semibold";
 
 /** How many rows of a table of a report are drawn before the user asks for the others. */
-export const WINDOW = 200;
+const WINDOW = 200;
 
-/** The rows of a table that are drawn, and what is left to say or to offer. */
+/**
+ * The rows of a table that are drawn, and what is left to say or to offer. A table not limited
+ * draws them all and says nothing of it: `all` is only the answer to the button pressed.
+ */
 function useWindowed<Row>(rows: readonly Row[], limited: boolean) {
-  const [all, setAll] = useState(!limited);
+  const [all, setAll] = useState(false);
   return {
-    drawn: all ? rows : rows.slice(0, WINDOW),
-    left: all ? 0 : Math.max(0, rows.length - WINDOW),
+    drawn: all || !limited ? rows : rows.slice(0, WINDOW),
+    left: limited && !all ? Math.max(0, rows.length - WINDOW) : 0,
     all,
     showAll: () => {
       setAll(true);
@@ -57,7 +60,9 @@ function RowsLeft({
   left,
   all,
   onAll,
+  titleId,
 }: {
+  readonly titleId: string;
   readonly total: number;
   readonly left: number;
   readonly all: boolean;
@@ -83,7 +88,7 @@ function RowsLeft({
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
       <p>{t("rowsLeft", { count: left })}</p>
-      <Button type="button" variant="outline" size="sm" onClick={onAll}>
+      <Button type="button" variant="outline" size="sm" onClick={onAll} aria-describedby={titleId}>
         {t("showAll")}
       </Button>
     </div>
@@ -141,10 +146,13 @@ export function Rejections({ rejected }: { readonly rejected: Report["rejected"]
   const locale = useLocale();
   const messages = useMessages();
   const rows = useWindowed(rejected, true);
+  const titleId = useId();
   const tabbed = rejected.some(({ sheet }) => sheet != null);
   return (
     <div className="space-y-1">
-      <h3 className={HEADING}>{t("rejected", { count: rejected.length })}</h3>
+      <h3 id={titleId} className={HEADING}>
+        {t("rejected", { count: rejected.length })}
+      </h3>
       {rejected.length === 0 ? null : (
         <ListTable
           label={t("rejectedTable")}
@@ -161,7 +169,13 @@ export function Rejections({ rejected }: { readonly rejected: Report["rejected"]
           ))}
         </ListTable>
       )}
-      <RowsLeft total={rejected.length} left={rows.left} all={rows.all} onAll={rows.showAll} />
+      <RowsLeft
+        titleId={titleId}
+        total={rejected.length}
+        left={rows.left}
+        all={rows.all}
+        onAll={rows.showAll}
+      />
     </div>
   );
 }
@@ -188,6 +202,7 @@ export function Differences({
   const t = useTranslations();
   const format = useFormatter();
   const rows = useWindowed(differences, limited);
+  const titleId = useId();
   // A field is named by the catalogue of the columns of its object: a line of actual cost by its
   // own, a task, a line of the estimate or a link by the columns of the structure — `subproject`
   // is a column of both; the parent of a node, which no column holds, by its own key (#1194). A
@@ -211,7 +226,7 @@ export function Differences({
     (difference.fields ?? []).flatMap((field) => fieldName(difference.target, field) ?? []);
   return (
     <div className="space-y-1">
-      <h3 className={HEADING}>
+      <h3 id={titleId} className={HEADING}>
         {t("exchanges.report.differences", { count: differences.length })}
       </h3>
       {differences.length === 0 ? null : (
@@ -258,7 +273,13 @@ export function Differences({
           ))}
         </ListTable>
       )}
-      <RowsLeft total={differences.length} left={rows.left} all={rows.all} onAll={rows.showAll} />
+      <RowsLeft
+        titleId={titleId}
+        total={differences.length}
+        left={rows.left}
+        all={rows.all}
+        onAll={rows.showAll}
+      />
     </div>
   );
 }
