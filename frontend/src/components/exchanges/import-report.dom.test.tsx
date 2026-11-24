@@ -65,6 +65,46 @@ describe("the report of an import, what the file dates otherwise", () => {
   });
 });
 
+describe("the report of an import, the WBS elements unknown to the project", () => {
+  it("names each element the file carries and the number of its lines, the empty one too, and no longer asks a confirmation for an unknown subproject [WF-CRE-0020-A] [US-3270]", () => {
+    // Une ligne d'élément A.ABC.26001/10002, une ligne d'élément 10001, une ligne d'élément
+    // A.ABC.26002 et une ligne d'élément vide sont rejetées, et le compte rendu nomme chacun de ces
+    // éléments et le nombre de ses lignes.
+    const entry = example("import_actual_costs_unknown_elements") as Import;
+    expect(entry.report?.unknown_wbs_elements).toHaveLength(4);
+    open(entry);
+    const table = screen.getByRole("table", { name: "Éléments d’OTP inconnus du projet" });
+    expect(
+      within(table)
+        .getAllByRole("row")
+        .map((row) => row.textContent),
+    ).toEqual(
+      [
+        "Élément d’OTPLignes",
+        "A.ABC.26001/100022",
+        "100011",
+        "A.ABC.26002",
+        "Sans élément d’OTP1",
+      ].map((text, index) => (index === 3 ? "A.ABC.260021" : text)),
+    );
+    expect(screen.getByText(/^4 éléments d’OTP ne sont ni le code du projet/)).toBeVisible();
+    expect(screen.getByText("Lignes hors du projet")).toBeVisible();
+    expect(screen.queryByText(/sous-projet inconnu/i)).toBeNull();
+  });
+
+  it("names them in English [WF-CRE-0020-A] [US-3270]", () => {
+    open(example("import_actual_costs_unknown_elements") as Import, "en");
+    const table = screen.getByRole("table", { name: "WBS elements unknown to the project" });
+    expect(within(table).getByText("No WBS element")).toBeVisible();
+    expect(screen.getByText(/^4 WBS elements are neither the code of the project/)).toBeVisible();
+  });
+
+  it("names none for an extraction whose elements are all known [US-3270]", () => {
+    open(example("import_actual_costs_analysed") as Import);
+    expect(screen.queryByRole("table", { name: "Éléments d’OTP inconnus du projet" })).toBeNull();
+  });
+});
+
 describe("the report of an import without a task", () => {
   it("reads an import whose task was deleted, and follows none [US-3250]", () => {
     const purged = example("import_actual_costs_task_purged") as Import;
