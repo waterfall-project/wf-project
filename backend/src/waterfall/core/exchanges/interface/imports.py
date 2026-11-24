@@ -100,6 +100,7 @@ from waterfall.platform.uploads import (
     MOST_PENDING,
     FileUpload,
     Whole,
+    expire_uploads,
     pending_imports,
     record_whole,
 )
@@ -760,6 +761,8 @@ def abandon_import(
     row.status = "abandoned"
     # An abandoned import keeps an expiry: that of its report, or the instant of its abandonment.
     row.expires_at = row.expires_at or act.at
+    # The deposit it employed never becomes free again, whatever the purge does of the import.
+    expire_uploads(session, [row.upload_id], act.at)
     session.flush()
     remove_once_committed(session, files, row.object_key)
 
