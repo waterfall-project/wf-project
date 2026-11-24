@@ -246,7 +246,8 @@ Problem:
         by its identifier (`ActualCostSourceColumn`), in the order of the mapping;
         `resource_roles` for any refusal that would leave a task without a working hour
         (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) — a write to the reference data or to a
-        revision, a pasted or imported line, a merge —: the roles whose calendars never overlap
+        revision, a pasted or imported line, a merge, the report of an MS Project import
+        (`ImportReport.refusals`) —: the roles whose calendars never overlap
         — that role alone when, on a task of which that role is the only one, it has no hour in
         the week (EP-14/L42s); none when it is the default calendar of a task without a labour
         line that has no hour left —, active or deactivated, each by its identifier, its code
@@ -894,7 +895,8 @@ ProblemParams:
         EP-14/L42r); and those of any refusal that would leave a task without a working hour
         (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) — a write to the reference data or to a
         revision, a pasted (`PasteRejection.params`) or imported line
-        (`ImportRejection.params`), a merge —, empty when only tasks without a labour
+        (`ImportRejection.params`), a merge, the report of an MS Project import
+        (`ImportReport.refusals`) —, empty when only tasks without a labour
         line lose their hours (#768; #1684).
       items: { $ref: '#/ProblemResourceRole' }
     cost_categories:
@@ -923,9 +925,11 @@ ProblemParams:
         merge or an opening — the node of the copy, for an opening (`createRevision`, #4413); by their
         lineage and their label in the report of an import, which names its objects this way
         (`ImportDifference`) and may concern a project without a current revision, of which no
-        node exists yet (WF-INTF-0090; #768, point 2); by its lineage and its label also, for a
-        merge or the update of a differential, a task that the structure written does not hold
-        yet, which the differential or the main structure adds (`ReportRefusal`; #4245).
+        node exists yet (WF-INTF-0090; #768, point 2) — the lineage null for a task that an
+        MS Project schedule creates, which has none yet (`ReportRefusal`; #4799); by its lineage
+        and its label also, for a merge or the update of a differential, a task that the
+        structure written does not hold yet, which the differential or the main structure adds
+        (`ReportRefusal`; #4245).
         Likewise, by their lineage and their label,
         the tasks that carry the ambiguous label an imported line cites
         (`AMBIGUOUS_TASK_LABEL`, annex B). Each task follows one form only: both are closed,
@@ -1029,11 +1033,18 @@ ProblemImportedTask:
     A task named by the reason for an imported line (`ImportRejection.params.tasks`), by its
     lineage, as `ImportDifference` names the objects of an import (#768, point 2); or, by a
     merge or the update of a differential, a task that the structure written does not hold yet
-    (`ProblemParams.tasks`, #4245). Closed: no
-    project nor node beside its lineage, which would make it a task of an entry as well
+    (`ProblemParams.tasks`, #4245); or, by the report of an MS Project schedule, a task left
+    without a working hour, by its lineage — null for a task that the file creates, which has
+    neither node nor lineage yet, and that its label names (`TASK_WITHOUT_WORKING_HOURS`,
+    `ImportReport.refusals`; #4799). Closed:
+    no project nor node beside its lineage, which would make it a task of an entry as well
     (`ProblemTask`, #2635).
   properties:
-    lineage_id: { $ref: '#/Uuid' }
+    lineage_id:
+      anyOf: [{ $ref: '#/Uuid' }, { type: 'null' }]
+      description: >-
+        The lineage of the task; null for a task that an MS Project schedule creates, which
+        has none yet, as `ImportDifference.lineage_id` is for an addition (#4799).
     label: { type: string }
 
 ProblemEstimateLine:

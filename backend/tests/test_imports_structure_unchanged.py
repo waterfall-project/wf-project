@@ -366,11 +366,13 @@ def test_a_copy_whose_opening_advanced_the_counter_further_refuses_the_import_th
     costs: Costing,
     backups_bucket: Bucket,
 ) -> None:
-    # Fixes a behavior that is a limit, not a wish (#4791, a decision for the author):
-    # ``unwritten_since_opening`` expects the opening to leave the counter of the copy at its first
+    # [US-3210b] A false refusal, rare and on the safe side, accepted by the author on 2026-11-23
+    # (#4791; the design of EP-33, « La comparaison se fait deux fois »): no column keeps the
+    # counter of the copy at its opening, so ``unwritten_since_opening`` expects it at its first
     # value, or one more after the redating. An opening in a later reference year prices the lines
     # again and advances it further; the copy, written by no one, is judged written and the import
-    # refused. The rule is not changed here: this test says what it does today.
+    # refused in 409 ``import_structure_unchanged``, to be deposited again — never applied on what
+    # its report did not read.
     tree = planned(api, stage, worker)
     first = next(item for item in tree.items() if item["kind"] == "task")
     Lines(tree).made(first, quantity="1", resource_role_id=str(costs.role), hours="10")

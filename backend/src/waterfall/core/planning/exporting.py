@@ -9,7 +9,8 @@ back to the same plan (WF-INTF-0060):
 - **The project.** Its label, its start the day of ``planning_start_on`` at the opening hour, the
   constants of the units of the installation, and the calendars. The schema writes the constants
   as integers, so ``days_per_month`` (a free number in the installation: 21.67) is rounded in the
-  file (22): a limit of the schema, not of the export. The durations and the lags travel in
+  file (22), and a constant below half a unit written 1, which the reader accepts (#4826): a limit
+  of the schema, not of the export. The durations and the lags travel in
   hours, so they are read back unchanged on the same installation, whose constants the file
   carries as the schema writes them: the import sees no calendar gap there (``carried``, US-2000).
 - **The calendars.** The default calendar is the calendar of the project (unique identifier 1);
@@ -41,6 +42,7 @@ from waterfall.core.planning.msproject import (
     MsTask,
     PredecessorLink,
     WorkingDay,
+    written_constants,
 )
 from waterfall.core.planning.scheduling import Duration, WorkInstant
 from waterfall.core.planning.tree import read_links, read_tree
@@ -204,14 +206,15 @@ def project_of(session: Session, project_id: UUID, structure_id: UUID) -> MsProj
             tree, node_id, uids[node_id], (calendar_uid, calendars.periods[calendar_uid]), constants
         )
         tasks.append(replace(placed, predecessors=tuple(links.get(node_id, ()))))
+    per_day, per_week, per_month = written_constants(constants)
     return MsProject(
         start=datetime.combine(facts.planning_start_on, OPENING),
         name=project_label(session, project_id),
         currency_code=read_reference_settings(session).currency_code,
         calendar_uid=PROJECT_CALENDAR,
-        minutes_per_day=round(constants.hours_per_day * MINUTES_PER_HOUR),
-        minutes_per_week=round(constants.hours_per_week * MINUTES_PER_HOUR),
-        days_per_month=round(constants.days_per_month),
+        minutes_per_day=per_day,
+        minutes_per_week=per_week,
+        days_per_month=per_month,
         calendars=tuple(_ms_calendar(uid, week) for uid, week in sorted(calendars.periods.items())),
         tasks=tuple(tasks),
         lineage_declared=bool(tasks),
