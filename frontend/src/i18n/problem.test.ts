@@ -570,15 +570,15 @@ describe("the sentence of a refusal", () => {
       report: { rejected: [unknown, unknown] },
     });
     expect(say(unknown, "fr")).toBe(
-      "Sous-projet inconnu. Code lu en tête de l’onglet « Essais sur site » : " +
-        "« PRJ-001/SP-MES », qu’aucun sous-projet du projet ne porte.",
+      "Sous-projet inconnu. Code lu en tête de l’onglet «\u00A0Essais sur site\u00A0»\u00A0: " +
+        "«\u00A0PRJ-001/SP-MES\u00A0», qu’aucun sous-projet du projet ne porte.",
     );
     expect(say(unknown, "en")).toContain(
       "Code read at the head of the sheet “Essais sur site”: “PRJ-001/SP-MES”, which no subproject of the project bears.",
     );
     // A head without a code names the value read, as before: the sheet.
     expect(say({ code: "UNKNOWN_SUBPROJECT", params: { value: "Essais sur site" } }, "fr")).toBe(
-      "Sous-projet inconnu. Valeur lue dans le fichier : « Essais sur site ».",
+      "Sous-projet inconnu. Valeur lue dans le fichier\u00A0: «\u00A0Essais sur site\u00A0».",
     );
   });
 
