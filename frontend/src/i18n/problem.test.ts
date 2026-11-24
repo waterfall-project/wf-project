@@ -537,7 +537,7 @@ describe("the sentence of a refusal", () => {
     expect(say(rejection("import_actual_costs_duplicate_line", 1), "en")).toContain(
       "Other line of the file with the same document and item: 4.",
     );
-    // Several other lines.
+    // A document and item found on several other lines names all their ranks, joined by "et".
     expect(say({ code: "DUPLICATE_COST_LINE", params: { rows: [4, 6, 7] } }, "fr")).toContain(
       "Autres lignes du fichier de même pièce et de même poste\u00A0: 4, 6 et 7.",
     );
