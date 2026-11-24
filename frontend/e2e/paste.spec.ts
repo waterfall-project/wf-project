@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page, type Request } from "@playwright/test";
 
-import { WORKING } from "./bounds";
+import { PASTE_PATH_IN_SERVICE, WORKING } from "./bounds";
 import { axeViolations } from "./axe";
 import { columnsOf } from "./columns";
 import { seedEstimate } from "./estimate-seed";
@@ -441,7 +441,8 @@ test("a block pasted in the own estimate of a risk the run identifies is refused
   manager,
 }) => {
   test.skip(!inService, "the fake back keeps no risk and creates no line by a paste");
-  test.slow();
+  // In place of `test.slow`: the budget measured against the service (`PASTE_PATH_IN_SERVICE`, #4911).
+  test.setTimeout(PASTE_PATH_IN_SERVICE);
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
     const { own } = await identifyRisk(

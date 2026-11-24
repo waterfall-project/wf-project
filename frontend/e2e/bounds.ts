@@ -76,11 +76,91 @@ export const LOADED = 40_000;
  * runner under load, which the queue gave to the reads of `LOADED` the same way, and under what
  * `test.slow` leaves of the budget of the path.
  *
- * A temporary bound: #4874, corrected by US-3070/L4 (#4587), prunes the own estimate consumed at
- * the occurrence and the marking; L4 then removes this bound, and the two writes come back under
- * `WORKING`.
+ * A temporary bound, of the family below: #4874 (the own estimate kept whole in revision 102), its
+ * paths listed with the others by #4911 and #4883, all corrected by US-3070/L3b (#4912), which
+ * measures where the time goes and removes the family; US-3070/L4 (#4587) alone would leave
+ * about seven structures in revision 102.
  */
 export const REDATING = 40_000;
+
+/*
+ * The bounds of the paths that read or write revision 102 of PRJ-001 against the service, one
+ * family with `REDATING`: temporary, each of them played against the service alone (the fake back
+ * keeps its own bounds), and removed together by US-3070/L3b (#4912), which measures where the time
+ * goes and corrects it. Revision 102 holds nine structures and about 54 000 nodes, every own
+ * estimate kept whole with its base (#4874); after the switch of US-3070/L3 the paths below overran
+ * their bounds in the queue, where the previous run of `epic/EP-30` (45325985235, without L3) had
+ * them under (#4911). Each is measured on the workstation by `make e2e-service` (2026-11-24 and
+ * 25, a platform on its own slot, four other slots busy), with the margin the queue asks for, which
+ * takes two to three times the workstation. `WORKING` and `LOADED` themselves are never raised.
+ */
+
+/**
+ * How long the screen of costs settings is waited for after a click of the navigation, from a
+ * screen of the risks of revision 102 (`navigation.spec.ts`), in milliseconds. Measured on
+ * 2026-11-25 (`make e2e-service TESTS="e2e/navigation.spec.ts --grep 'way back' --repeat-each=4"`):
+ * 4.4, 4.9, 5.5 and 5.9 s, past the 5 s of an assertion twice in three on a first read. Twenty
+ * seconds, three times the worst. Constat #4911.
+ */
+export const LEAVING_REVISION_102 = 20_000;
+
+/**
+ * What the whole path of the way back to a project is given (`navigation.spec.ts:94`), in
+ * milliseconds, against the service alone, where its wait of `LEAVING_REVISION_102` may be taken
+ * whole: the path took 16 s with a wait of 5 s (2026-11-24), about 11 s besides it. Sixty seconds.
+ * Constat #4911.
+ */
+export const WAY_BACK_PATH_IN_SERVICE = 60_000;
+
+/**
+ * How long the address of the comparison of PRJ-001 to its reference is waited for after the click
+ * of the base (`revisions.spec.ts`), in milliseconds. Measured on 2026-11-25
+ * (`make e2e-service TESTS="e2e/revisions.spec.ts --grep 'the estimate, the cell marked' --repeat-each=3"`,
+ * three at once): 14.0, 15.0 and 16.6 s, past `WORKING`; in the queue the same wait overran it
+ * without L3 at 42.7 s for the whole path. Fifty seconds, three times the worst. Constat #4911.
+ */
+export const COMPARING_REVISION_102 = 50_000;
+
+/**
+ * What a whole path is given, in milliseconds, against the service alone: the path that enters an
+ * hourly rate (`reference-costs.spec.ts:88`). Measured on 2026-11-24 and 25 by `make e2e-service`:
+ * 8.4 to 12.8 s; the queue without L3 took it 12.4 s and with L3 past the 30 s of a test.
+ * Forty-five seconds, three and a half times the worst. Constat #4911.
+ */
+export const RATE_PATH_IN_SERVICE = 45_000;
+
+/**
+ * The same for the path that names the project and the revision on each screen
+ * (`context.spec.ts:34`). Measured on 2026-11-24 and 25: 12.2 to 15.5 s; the queue without L3 took it
+ * 22.3 s and with L3 past 30 s. Sixty seconds, four times the worst. Constat #4911.
+ */
+export const CONTEXT_PATH_IN_SERVICE = 60_000;
+
+/**
+ * The same for the path that pastes a block in the own estimate of a risk
+ * (`paste.spec.ts:437`), in place of the `test.slow` of the fake back, which never plays it.
+ * Measured on 2026-11-24 and 25: 29.3 to 30.7 s; the queue without L3 took it 44.7 s and with L3
+ * past the ninety seconds of `test.slow`. Two minutes, four times the worst. Constat #4911.
+ */
+export const PASTE_PATH_IN_SERVICE = 120_000;
+
+/**
+ * The same for the path that compares the estimate of PRJ-001 to its reference
+ * (`revisions.spec.ts:204`), in place of its `test.slow` there. Measured on 2026-11-25, three at
+ * once: 37.6 to 45.9 s; the queue without L3 took 42.7 s. Two and a half minutes, more than three
+ * times the worst. Constat #4911.
+ */
+export const COMPARISON_PATH_IN_SERVICE = 150_000;
+
+/**
+ * The same for the two paths of the reference of the resources that redate the schedules
+ * (`reference-resources.spec.ts:126` and `:300`), in place of their `test.slow` there. Measured on
+ * 2026-11-25 (`--project=shared-serial`): 59.1 and 58.9 s, two writes of `REDATING` each. At worst
+ * the two waits of 40 s add up, 80 s, over the ninety seconds of `test.slow` with the rest of the
+ * path (about 20 s): 100 s and over, which `REDATING` alone did not budget (#4883). Two and a half
+ * minutes, covers that worst case. Constat #4883, corrected by US-3070/L3b (#4912).
+ */
+export const REDATING_PATH_IN_SERVICE = 150_000;
 
 /**
  * How long the worker is given to mark a revision: a task taken from the queue, one transaction.

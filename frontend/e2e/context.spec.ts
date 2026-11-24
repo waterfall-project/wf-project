@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page } from "@playwright/test";
 
-import { WORKING } from "./bounds";
+import { CONTEXT_PATH_IN_SERVICE, WORKING } from "./bounds";
 import { compile } from "./compile";
 import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
@@ -34,6 +34,8 @@ function banner(page: Page) {
 test("each screen of the data of a project names the project and the revision shown @shared [WF-IHM-0020-A]", async ({
   page,
 }) => {
+  // Against the service, the screens of revision 102 read in it (`CONTEXT_PATH_IN_SERVICE`, #4911).
+  if (inService) test.setTimeout(CONTEXT_PATH_IN_SERVICE);
   // The risks, a screen of its own reached by a click, and the planning the page of the project
   // leads to, compiled first (`e2e/compile.ts`).
   await compile(page.request, `${IN_REVISION}/risks`, `${IN_REVISION}/planning`);

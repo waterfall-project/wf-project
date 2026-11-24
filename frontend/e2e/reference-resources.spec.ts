@@ -14,7 +14,7 @@
  */
 import { expect, type Locator, type Request } from "@playwright/test";
 
-import { REDATING, WORKING } from "./bounds";
+import { REDATING, REDATING_PATH_IN_SERVICE, WORKING } from "./bounds";
 import { sortUntilAddress } from "./hydration";
 import { inService, test } from "./mode";
 import { answerOf, isDeactivation, isReactivation, pressOnce } from "./server-action";
@@ -126,7 +126,9 @@ test("sorts and searches each list of the settings of the resources by the serve
 test("creates a role in its form, moves a node under an active one, and designates the default calendar as its row lists it, with no mock-up notice @shared @serial [WF-REF-0090-A] [WF-REF-0080-A] [WF-REF-0120-A]", async ({
   page,
 }) => {
-  test.slow();
+  // Two writes of `REDATING` at worst, which `test.slow` does not budget (`REDATING_PATH_IN_SERVICE`, #4883).
+  if (inService) test.setTimeout(REDATING_PATH_IN_SERVICE);
+  else test.slow();
   await page.goto("/reference/resources");
   await expect(page.getByRole("note")).toHaveCount(0);
   // The fake back answers its example whatever is written; the service, what was written.
@@ -300,7 +302,9 @@ test("creates a role in its form, moves a node under an active one, and designat
 test("modifies the units of duration from the settings of the resources, and says what the change does to the schedules (US-0570) @shared @serial", async ({
   page,
 }) => {
-  test.slow();
+  // Two writes of `REDATING` at worst, which `test.slow` does not budget (`REDATING_PATH_IN_SERVICE`, #4883).
+  if (inService) test.setTimeout(REDATING_PATH_IN_SERVICE);
+  else test.slow();
   await page.goto("/reference/resources");
   const section = page.getByRole("region", { name: "Unités de durée" });
   const value = (name: string) =>
