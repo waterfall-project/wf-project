@@ -131,6 +131,8 @@ paths = [
     # (US-2450, PLC-06).
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
+    # The command of Docker tried again when ghcr.io does not answer, which build-keycloak plays.
+    "tools/src/wftools/retried.py",
     "tools/src/wftools/heavyturns.py",
     "tools/src/wftools/marks.py",
 ]

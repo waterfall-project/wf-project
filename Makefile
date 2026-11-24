@@ -337,13 +337,13 @@ service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, th
 # which would mix the logs in —, and nothing on an installation whose administrator has set a
 # password.
 service-install: ## Bootstrap the installation of the service platform, started, and print the link of its first administrator (WATERFALL_ADMIN_EMAIL, WATERFALL_DEFAULT_LANGUAGE, WATERFALL_CURRENCY, WATERFALL_COMPANY_NAME, WATERFALL_TIME_ZONE)
-	@$(COMPOSE_SERVICE) build --quiet install
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet install
 	@$(COMPOSE_SERVICE) run --rm --no-TTY install
 
 # The witness (EP-05), once the platform is bootstrapped: the examples of the contract written on it
 # by `waterfall-api load-witness`, as the role of the service; run again, it writes nothing.
 service-witness: ## Load the witness, the examples of the contract (fixtures/api and fixtures/witness), on the service platform, started and bootstrapped
-	@$(COMPOSE_SERVICE) build --quiet witness
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet witness
 	@$(COMPOSE_SERVICE) run --rm --no-TTY witness
 
 # The purge of what expired (EP-06, "La purge"), by hand: the verb the scheduler calls at each
@@ -397,7 +397,7 @@ measure-fresh-witness:
 	@echo 'The data of the service platform of this slot are dropped (service-down WATERFALL_RESET_DATA=yes).'
 	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
 	@$(MAKE) --no-print-directory service-up
-	@$(COMPOSE_SERVICE) build --quiet install witness
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet install witness
 	@$(COMPOSE_SERVICE) run --rm --no-TTY install > /dev/null
 	@$(COMPOSE_SERVICE) run --rm --no-TTY witness
 
@@ -453,9 +453,9 @@ build-cache-from = --cache-from type=gha,scope=$(1)
 build-cache-to = --output type=cacheonly --cache-to type=gha,mode=max,scope=$(1) $(call build-cache-from,$(1))
 
 build-cache: ## Write the builds of the images front, waterfall and keycloak into the cache of GitHub Actions (images.yml)
-	@docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,front) frontend
-	@docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,waterfall) backend
-	@docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,keycloak) deploy/keycloak
+	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,front) frontend
+	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,waterfall) backend
+	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,keycloak) deploy/keycloak
 
 # The images the chain publishes (US-0430): front, waterfall and keycloak, under
 # ghcr.io/waterfall-project, tagged by the commit and the branch they are built from, and by the
@@ -835,7 +835,7 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
-	@$(COMPOSE_SERVICE) build --quiet install witness
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet install witness
 	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
 		$(COMPOSE_SERVICE) run --rm --no-TTY witness && \
 		E2E_CONTRACT_PROXY=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
@@ -878,7 +878,7 @@ measure-run:
 	@echo 'The data of the service platform of this slot are dropped (service-down WATERFALL_RESET_DATA=yes).'
 	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
 	@$(MAKE) --no-print-directory service-up
-	@$(COMPOSE_SERVICE) build --quiet install witness
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet install witness
 	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
 		$(COMPOSE_SERVICE) run --rm --no-TTY witness && \
 		E2E_SERVICE_API=$$($(COMPOSE_SERVICE) ps --quiet api) && \
@@ -932,7 +932,7 @@ measure-version: export PRISM_VERSION := $(PRISM_VERSION)
 measure-version: measure-cache-present measure-secrets install-front $(call e2e-build) ## The report of the measures of a version (US-2300): on the witness loaded afresh, each operation of table 15 the service serves, measured by a browser under the load of fifty users played by k6, then the export, the import of 18,000 lines of actual costs and the marking, read at their tasks; takes the workstation alone; MEASURE_VERSION (that of frontend/package.json), MEASURE_PASSES=5, MEASURE_TASK_PASSES=3, MEASURE_VERSION_REPORT=<file> (frontend/.e2e/measures/<version>.json); the cost of the entry of the cache of the indicators is read in MEASURE_CACHE (frontend/.e2e/measure-core-indicators.json), which make measure-core ONLY=indicators JSON=<that file> writes first; needs the secrets of service-up and a browser
 	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
 	@$(MAKE) --no-print-directory service-up
-	@$(COMPOSE_SERVICE) build --quiet install witness
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet install witness
 	@$(COMPOSE_SERVICE) --profile load pull --quiet load
 	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
 		$(COMPOSE_SERVICE) run --rm --no-TTY witness && \
