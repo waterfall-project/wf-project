@@ -19,15 +19,18 @@ from typing import TYPE_CHECKING, Any
 import xlsxwriter
 from xlsxwriter.utility import xl_col_to_name, xl_rowcol_to_cell
 
-from waterfall.core.estimate.excel.writer import (
-    KIND_NAMES,
-    KIND_ORDER,
-    LABOUR,
-    LOGO,
-    PACKAGE,
-    PROVISION,
-)
+from waterfall.core.estimate.excel.figures import reference_index, role_codes
+from waterfall.core.estimate.excel.model import KIND_NAMES, KIND_ORDER, LABOUR, PROVISION
+from waterfall.core.estimate.excel.writer import LOGO, PACKAGE
 from waterfall.core.estimate.remaining.excel import layout
+from waterfall.core.estimate.remaining.excel.figures import (
+    EMPTY,
+    Indicators,
+    TabFigures,
+    indicators,
+    tab_figures,
+    task_facts,
+)
 from waterfall.core.estimate.remaining.excel.layout import (
     COLUMNS,
     HEADERS,
@@ -76,7 +79,8 @@ class _Context:
     tables: tuple[str, ...]
     fmt: dict[str, Format]
     labels: _Labels
-    labour_codes: tuple[str, ...]  # the accounting codes of labour, which the summary sums in days
+    role_codes: tuple[str, ...]  # the accounting codes of the roles, which the summary sums in days
+    figures: tuple[TabFigures, ...]  # the value of each formula of a tab, in the order of the tabs
 
 
 @dataclass(frozen=True)
@@ -91,6 +95,7 @@ class _Cells:
     progress: str
     by_nature: tuple[str, ...]
     days: tuple[str, ...]
+    values: tuple[float | str, ...]  # what the formulas of the row give, from « Budget » on
 
 
 def _title(tab: RemainingTab) -> str:
@@ -227,14 +232,40 @@ def _write_tasks(sheet: Worksheet, ctx: _Context) -> tuple[str, ...]:
     return tuple(ranges)
 
 
+def _line_entry(labels: _Labels, line: RemainingLine) -> str:
+    """Give the text of the list of choice that designates the role or the category of a line."""
+    if line.role is not None:
+        return entry(labels.roles[line.role], line.role)
+    code = line.category or ""
+    return entry(labels.categories[code], code)
+
+
+def _tab_figures(book: RemainingWorkbook, labels: _Labels) -> tuple[TabFigures, ...]:
+    """Give the value of each formula of each tab: the lookups read the reference, not the sheet."""
+    reference = reference_index(_reference_rows(book))
+    facts = task_facts(book.tasks, _task_entry)
+    tabs = (*book.subprojects, *((book.outside,) if book.outside is not None else ()))
+    return tuple(
+        tab_figures(
+            reference,
+            facts,
+            (
+                (_task_entry(task), _line_entry(labels, line), line)
+                for task in tab.tasks
+                for line in task.lines
+            ),
+            book.hours_per_day,
+        )
+        for tab in tabs
+    )
+
+
 def _line_row(ctx: _Context, task: RemainingTask, line: RemainingLine) -> list[Any]:
     """Give the cells a line writes; the calculated columns stay empty."""
     labour = line.role is not None
-    code = line.role if line.role is not None else line.category or ""
-    label = ctx.labels.roles[code] if labour else ctx.labels.categories[code]
     values: dict[str, Any] = {
         "Tâche": _task_entry(task),
-        "Rôle ou catégorie": entry(label, code),
+        "Rôle ou catégorie": _line_entry(ctx.labels, line),
         "Désignation": line.label or None,
         "Budget": line.budget,
         "Reste précédent": line.previous,
@@ -247,10 +278,11 @@ def _line_row(ctx: _Context, task: RemainingTask, line: RemainingLine) -> list[A
     return [values.get(header) for header in HEADERS]
 
 
-def _column_specs(ctx: _Context, table: str) -> list[dict[str, Any]]:
+def _column_specs(
+    ctx: _Context, table: str, figures: TabFigures, formulas: dict[str, str]
+) -> list[dict[str, Any]]:
     """Give the columns of the table of lines: formats, formulas, declared totals."""
     fmt = ctx.fmt
-    formulas = layout.line_formulas(table)
     columns: list[dict[str, Any]] = []
     for header in HEADERS:
         spec: dict[str, Any] = {"header": header, "header_format": fmt["head"]}
@@ -271,6 +303,7 @@ def _column_specs(ctx: _Context, table: str) -> list[dict[str, Any]]:
             # Declared in the table (Excel repairs a total it does not find), and naming the table:
             # LibreOffice does not read the short form « [Column] » that "sum" would write.
             spec["total_function"] = f"=SUBTOTAL(109,{table}[[{header}]])"
+            spec["total_value"] = figures.totals[header]
         columns.append(spec)
     columns[0]["total_string"] = "Total"
     return columns
@@ -287,9 +320,11 @@ def _write_band(
         sheet.write(row, first, text, style)
 
 
-def _write_header(sheet: Worksheet, ctx: _Context, tab: RemainingTab, table: str) -> dict[str, str]:
+def _write_header(
+    sheet: Worksheet, ctx: _Context, tab: RemainingTab, table: str, shown: Indicators
+) -> dict[str, str]:
     """Write the header of a tab: its amounts and its indicators; give their cells."""
-    fmt = ctx.fmt
+    fmt, values = ctx.fmt, shown.values
     sheet.write("A1", _title(tab), fmt["title"])
     sheet.write(
         "A2",
@@ -308,7 +343,7 @@ def _write_header(sheet: Worksheet, ctx: _Context, tab: RemainingTab, table: str
     for offset, (label, value, key) in enumerate(amounts):
         sheet.write(3 + offset, 0, label)
         if isinstance(value, str):
-            sheet.write_formula(3 + offset, 1, value, fmt["money"])
+            sheet.write_formula(3 + offset, 1, value, fmt["money"], values[key])
         else:
             sheet.write_number(3 + offset, 1, float(value), fmt["money"])
         cells[key] = xl_rowcol_to_cell(3 + offset, 1, row_abs=True, col_abs=True)
@@ -326,7 +361,7 @@ def _write_header(sheet: Worksheet, ctx: _Context, tab: RemainingTab, table: str
     for offset, (label, formula, style, key) in enumerate(indicators):
         row = 4 + len(amounts) + offset
         sheet.write(row, 0, label, fmt["bold"])
-        sheet.write_formula(row, 1, formula.format(**cells), fmt[style])
+        sheet.write_formula(row, 1, formula.format(**cells), fmt[style], values[key])
         cells[key] = xl_rowcol_to_cell(row, 1, row_abs=True, col_abs=True)
     return cells
 
@@ -336,8 +371,9 @@ def _write_tab(
 ) -> _Cells:
     """Write a tab of lines: its header, its table with the total row, its lists."""
     tab, table, name = ctx.tabs[position], ctx.tables[position], ctx.sheets[position]
-    fmt, top = ctx.fmt, layout.TABLE_ROW
-    cells = _write_header(sheet, ctx, tab, table)
+    fmt, top, figures = ctx.fmt, layout.TABLE_ROW, ctx.figures[position]
+    shown = indicators(tab, figures)
+    cells = _write_header(sheet, ctx, tab, table, shown)
     _write_band(
         sheet,
         top - 1,
@@ -347,6 +383,8 @@ def _write_tab(
     )
     data = [_line_row(ctx, task, line) for task in tab.tasks for line in task.lines]
     data += [[None] * len(HEADERS) for _ in range(layout.PREPARED)]
+    formulas = layout.line_formulas(table)
+    columns = _column_specs(ctx, table, figures, formulas)
     sheet.add_table(
         top,
         0,
@@ -355,11 +393,17 @@ def _write_tab(
         {
             "name": table,
             "data": data,
-            "columns": _column_specs(ctx, table),
+            "columns": columns,
             "total_row": True,
             "style": layout.LINES_STYLE,
         },
     )
+    # The formulas stay, each with the value it gives: a spreadsheet that does not recalculate
+    # shows them (#4317). The prepared rows give the empty text, not 0.
+    formats = {column["header"]: column["format"] for column in columns}
+    for row, values in enumerate((*figures.lines, *([EMPTY] * layout.PREPARED)), start=top + 1):
+        for header, formula in formulas.items():
+            sheet.write_formula(row, INDEX[header], formula, formats[header], values[header])
     for header, source, message in (
         ("Tâche", tasks_list, "Choisis une tâche non terminée (onglet Tâches)."),
         ("Rôle ou catégorie", roles_list, "Choisis un rôle ou une catégorie du référentiel."),
@@ -400,11 +444,18 @@ def _write_tab(
         "est terminée à la date de la revue.",
         fmt["note"],
     )
-    return _cells_of(ctx, name, table, cells)
+    return _cells_of(ctx, (name, table), cells, (shown, figures))
 
 
-def _cells_of(ctx: _Context, sheet: str, table: str, cells: dict[str, str]) -> _Cells:
+def _cells_of(
+    ctx: _Context,
+    tab: tuple[str, str],
+    cells: dict[str, str],
+    shown: tuple[Indicators, TabFigures],
+) -> _Cells:
     """Give what the summary reads of a tab: its indicators and its breakdown."""
+    sheet, table = tab
+    indicator, figures = shown
 
     def read(key: str) -> str:
         return f"{sheet_ref(sheet)}!{cells[key]}"
@@ -417,7 +468,18 @@ def _cells_of(ctx: _Context, sheet: str, table: str, cells: dict[str, str]) -> _
     )
     days = tuple(
         f"SUMIFS({table}[[Jours restants]],{table}[[Code comptable]],{quote(code)})"
-        for code in ctx.labour_codes
+        for code in ctx.role_codes
+    )
+    keys = ("budget", "actual", "remaining", "projection", "gap", "progress")
+    values = (
+        *(indicator.values[key] for key in keys),
+        *(
+            indicator.values["provisions"]
+            if nature.kind == "provision"
+            else figures.remaining_of(nature.name)
+            for nature in ctx.book.natures
+        ),
+        *(figures.days_of(code) for code in ctx.role_codes),
     )
     return _Cells(
         read("budget"),
@@ -428,6 +490,7 @@ def _cells_of(ctx: _Context, sheet: str, table: str, cells: dict[str, str]) -> _
         read("progress"),
         by_nature,
         days,
+        values,
     )
 
 
@@ -477,7 +540,7 @@ def _write_summary(sheet: Worksheet, ctx: _Context, cells: list[_Cells], mention
         "Écart au budget",
         "Avancement financier",
         *(f"Reste — {name}" for name in natures),
-        *(f"Jours {code}" for code in ctx.labour_codes),
+        *(f"Jours {code}" for code in ctx.role_codes),
     ]
     last = len(headers) - 1
     _write_band(
@@ -495,18 +558,31 @@ def _write_summary(sheet: Worksheet, ctx: _Context, cells: list[_Cells], mention
         for column, source in enumerate(
             (read.budget, read.actual, read.remaining, read.projection, read.gap), 1
         ):
-            sheet.write_formula(row, column, f"={source}", fmt["money"])
-        sheet.write_formula(row, layout.PROGRESS_COLUMN, f"={read.progress}", fmt["percent"])
+            sheet.write_formula(row, column, f"={source}", fmt["money"], read.values[column - 1])
+        sheet.write_formula(
+            row,
+            layout.PROGRESS_COLUMN,
+            f"={read.progress}",
+            fmt["percent"],
+            read.values[layout.PROGRESS_COLUMN - 1],
+        )
         for column, source in enumerate(read.by_nature, layout.BREAKDOWN_COLUMN):
-            sheet.write_formula(row, column, f"={source}", fmt["money"])
+            sheet.write_formula(row, column, f"={source}", fmt["money"], read.values[column - 1])
         for column, source in enumerate(read.days, layout.BREAKDOWN_COLUMN + len(natures)):
-            sheet.write_formula(row, column, f"={source}", fmt["days"])
+            sheet.write_formula(row, column, f"={source}", fmt["days"], read.values[column - 1])
     total = top + 1 + len(ctx.tabs)
+    sums = [0.0] + [
+        0.0
+        if column == layout.PROGRESS_COLUMN
+        else sum(float(read.values[column - 1]) for read in cells)
+        for column in range(1, last + 1)
+    ]
     sheet.write(total, 0, "Projet", fmt["bold"])
     for column in range(1, last + 1):
         if column == layout.PROGRESS_COLUMN:
             progress = f'=IF(E{total + 1}=0,"non calculable",C{total + 1}/E{total + 1})'
-            sheet.write_formula(total, column, progress, fmt["percent_bold"])
+            shown = "non calculable" if sums[4] == 0 else sums[2] / sums[4]
+            sheet.write_formula(total, column, progress, fmt["percent_bold"], shown)
             continue
         letter = xl_col_to_name(column)
         style = (
@@ -514,7 +590,9 @@ def _write_summary(sheet: Worksheet, ctx: _Context, cells: list[_Cells], mention
             if column >= layout.BREAKDOWN_COLUMN + len(natures)
             else fmt["money_bold"]
         )
-        sheet.write_formula(total, column, f"=SUM({letter}{top + 2}:{letter}{total})", style)
+        sheet.write_formula(
+            total, column, f"=SUM({letter}{top + 2}:{letter}{total})", style, sums[column]
+        )
     sheet.write(
         total + 2,
         0,
@@ -534,10 +612,6 @@ def _context(book: RemainingWorkbook, workbook: xlsxwriter.Workbook) -> _Context
     tabs = (*book.subprojects, *((book.outside,) if book.outside is not None else ()))
     names = layout.tab_names(tab.code for tab in book.subprojects)
     sheets = tuple(names[tab.code] for tab in tabs)
-    kinds = {nature.name: nature.kind for nature in book.natures}
-    labour_codes = tuple(
-        dict.fromkeys(c.code for c in book.categories if kinds[c.nature] == "labour")
-    )
     labels = _Labels(
         {role.code: role.label for role in book.roles},
         {category.code: category.label for category in book.categories},
@@ -549,7 +623,8 @@ def _context(book: RemainingWorkbook, workbook: xlsxwriter.Workbook) -> _Context
         _table_names(tabs),
         layout.text_formats(workbook, book.currency),
         labels,
-        labour_codes,
+        role_codes(book.roles),
+        _tab_figures(book, labels),
     )
 
 

@@ -18,6 +18,12 @@ if TYPE_CHECKING:
 # What a nature of cost is: the labour is priced by an hourly rate, the others by a disbursement,
 # a provision (for a risk) is one of them that the workbook does not let the user choose.
 NatureKind = Literal["labour", "disbursement", "provision"]
+# What the column « Type » of the workbooks says of a nature, and the order of the reference.
+LABOUR = "Main-d’œuvre"
+DISBURSEMENT = "Hors main-d’œuvre"
+PROVISION = "Provision"
+KIND_NAMES = {"labour": LABOUR, "disbursement": DISBURSEMENT, "provision": PROVISION}
+KIND_ORDER = {LABOUR: 0, DISBURSEMENT: 1, PROVISION: 2}
 
 
 @dataclass(frozen=True)

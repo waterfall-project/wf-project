@@ -1084,7 +1084,7 @@ vont dans `exchanges.dom.test.tsx` et `project-start.dom.test.tsx`.
 
 ## US-3640 — Le devis et le reste à engager exportés s'affichent justes sans recalcul, et le devis ne porte de colonne d'heures que pour les codes de ses rôles
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0110-A`, `WF-INTF-0130-A`
 - **opérations** : `requestExport`
 - **issue** : #4730
