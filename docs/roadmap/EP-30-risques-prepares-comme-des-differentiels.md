@@ -249,12 +249,26 @@ Constats relevés à la livraison d'US-3070/L3 et d'US-3140/L1, tranchés par l'
 - #4874 — e2e : le PUT du calendrier par défaut et celui des unités de durée redatent toutes les
   structures de la révision en cours ; tant que le devis propre consommé n'est pas élagué, la 102
   de PRJ-001 en porte 9 (≈ 54 000 nœuds) et ces écritures dépassent `WORKING` (14 à 19,5 s).
-  US-3070/L3 leur pose une borne à part, sur la mesure, sans relever `WORKING` ; corrigé par
-  US-3070/L4, qui la retire une fois l'élagage en place ;
+  US-3070/L3 leur pose une borne à part, `REDATING`, sur la mesure, sans relever `WORKING` →
+  US-3070/L3b (au second rejet de L3 ; d'abord rattaché à L4, dont l'élagage ne suffit pas) ;
+- #4911 — e2e : après la bascule, d'autres parcours contre le service dépassent leurs bornes. Une
+  écriture qui recalcule les structures en cours (un taux horaire : 12,4 s → plus de 30 s), le
+  collage dans le devis propre, le contexte, la comparaison à la référence. La cause est celle de
+  #4874. L3 leur pose des bornes mesurées dans la famille de `REDATING` → US-3070/L3b. Une part de
+  `context.spec.ts:34` précède L3 : si ce parcours échoue encore une fois la cause corrigée, il
+  reçoit son propre lot ;
+- #4883 — e2e : le pire cas d'un parcours qui cumule deux bornes `REDATING` n'est pas chiffré →
+  un `test.setTimeout` mesuré au 7ᵉ tour de L3, puis la famille retirée par US-3070/L3b ;
 - #4818 — front : un geste de structure, le sous-projet d'une ligne ou l'inscription aux
   chronologies, fait sur un devis propre en retard, est retenu après la mise à jour, à refaire →
   US-3140/L1b : le sous-projet et les gestes de structure se rejouent sur les compteurs relus ;
-  l'inscription aux chronologies reste retenue, parce qu'elle ne se rejoue pas sans doublon.
+  l'inscription aux chronologies reste retenue, parce qu'elle ne se rejoue pas sans doublon ;
+- #4884 — e2e : le parcours de la survenance contre le service n'asserte plus le tableau des écarts
+  → US-3100/L2, dont le parcours écrit un écart avant la survenance ;
+- #4877, #4879 — front : un test qui retire seulement une ancre d'un déplacement ; l'hypothèse du
+  rafraîchissement de la grille après un rejeu, à nommer → US-3140/L3 ;
+- #4878 — front : l'occupation partagée entre deux grilles d'un devis propre — clos sans suite, un
+  écran n'en montre qu'une.
 
 ## Conception
 
@@ -861,6 +875,17 @@ Bascule (US-3070/L3, décision de l'auteur du 2026-11-24) : entre elle et US-315
 porte une entrée « EP-30 / US-3150 » dans la liste des entrées non rejouées ; US-3150/L1 lève les
 gardes et retire l'entrée. Le lot a dépassé son estimation (3 191 lignes pour ≈ 1 500), ce que
 l'auteur a accepté.
+
+Second rejet de la bascule (décision de l'auteur du 2026-11-24) : un devis propre entier, avec sa
+base, dans la révision en cours, coûte à toute écriture qui recalcule les structures en cours et à
+des lectures de la révision. La 102 du témoin porte 9 structures et ≈ 54 000 nœuds. L'élagage
+d'US-3070/L4 ne touche que les devis propres survenus ou marqués, et ne suffit pas. L3 se fusionne
+avec une famille de bornes e2e mesurées, contre le service seulement (#4874, #4911).
+US-3070/L3b, après L4, mesure où passe le temps, corrige la cause et retire la famille. Piste à
+confirmer : une écriture qui recalcule les structures en cours laisse les devis propres entiers et
+leurs bases en retard, recomposés à leur mise à jour. Si la mesure montre autre chose, ou si la
+correction change une règle de cette conception, L3b pose la question avant d'écrire. Les mesures
+de la définition de fini (WF-QUA-0060) se rejouent après L3b.
 
 **Hors périmètre.** La gravité et la provision (US-3080) ; la mise à jour et ses refus (US-3090) ;
 la survenance (US-3100) ; les écrans (US-3140) ; le témoin (US-3150).
