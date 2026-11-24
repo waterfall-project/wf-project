@@ -14,6 +14,14 @@ A workbook deposited is opened by ``opened_workbook`` alone, its tabs read by th
 ``bounded_rows`` of the ``OpenedWorkbook`` it gives.
 """
 
+# ``abandoning`` (US-3250/L2b): the deposits of the imports a cascade takes away, expired first.
+from waterfall.core.exchanges.interface.abandoning import (
+    expire_revision_deposits as expire_revision_deposits,
+)
+from waterfall.core.exchanges.interface.abandoning import (
+    expire_structure_deposits as expire_structure_deposits,
+)
+
 # ``damages`` (US-1940): what a damaged workbook raises, one list for every reader of a workbook.
 from waterfall.core.exchanges.interface.damages import (
     DAMAGES as DAMAGES,

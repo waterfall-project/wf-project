@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import delete, select
 
+from waterfall.core.exchanges.interface import expire_structure_deposits
 from waterfall.core.history.interface import forget_structure
 from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.tables import Node
@@ -88,6 +89,9 @@ def abandon_differential(session: Session, place: Place, lock_version: int, writ
     base_id = differential_base(session, place.project_id, place.structure_id)
     if base_id is not None:
         structure_facts(session, place.project_id, base_id, lock=True, base=True)
+    # The imports aimed at either structure go with it by the key: their deposits stay used.
+    held = [place.structure_id] if base_id is None else [place.structure_id, base_id]
+    expire_structure_deposits(session, place.project_id, held, writer.act.at)
     forget_structure(session, place.revision_id, place.structure_id, node_ids)
     delete_structure_nodes(session, place)
     if base_id is not None:
