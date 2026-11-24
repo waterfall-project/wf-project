@@ -3,11 +3,11 @@
 """The imputation of the lines of cost to the subprojects of their project.
 
 Laid by US-1580/L1, the socle of EP-09, so that no two stories create the same file;
-US-1610/L3 writes its tests here ("Les tests du back"): the lines that waited for a code imputed by
-the creation of its subproject (``createSubproject``), none by its recoding (``updateSubproject``,
-D-10), and a line loaded again with another code imputed again (``load_cost_lines``), on a project
-its manager made, its lines loaded through the interface of the actual costs (``costs_support``).
-Every answer of the service is checked against the contract.
+US-1610/L3 writes its tests here ("Les tests du back"): no line imputed by the creation of a
+subproject (``createSubproject``, #3966) nor by its recoding (``updateSubproject``, D-10), and a
+line loaded again with another code imputed again (``load_cost_lines``), on a project its manager
+made, its lines loaded through the interface of the actual costs (``costs_support``). Every answer
+of the service is checked against the contract.
 """
 
 from datetime import timedelta
@@ -18,7 +18,7 @@ from uuid import UUID
 import pytest
 from costs_support import cost, load_import
 from project_rows import AT
-from projects_support import PROJECTS, Scene, create
+from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from sqlalchemy import select, update
 
@@ -31,9 +31,9 @@ if TYPE_CHECKING:
 
     from waterfall.platform.database import Database
 
-# The code of the subproject ten lines wait for, and that of another.
-WAITED = "SP-CAB"
-OTHER = "SP-AUT"
+# The codes of two subprojects.
+WAITED = "PRJ-001/SP-CAB"
+OTHER = "PRJ-001/SP-AUT"
 
 
 @pytest.fixture
@@ -80,94 +80,40 @@ def unassigned(stage: Scene) -> tuple[int, Decimal]:
 
 
 @pytest.mark.requirement("WF-CRE-0020-A")
-def test_the_ten_lines_that_bore_its_code_are_imputed_to_a_subproject_at_its_creation(
-    api: ContractClient, stage: Scene
-) -> None:
-    # « Après création du sous-projet dont dix lignes portaient le code, ces dix lignes lui sont
-    # imputées sans réimport, et l'ensemble hors sous-projet diminue d'autant. »
-    waiting = [cost(f"FA-2026-{n:04}", WAITED, f"{100 + n}.00") for n in range(10)]
-    others = [cost("FA-2026-0900", OTHER, "40.00"), cost("FA-2026-0901", None, "60.00")]
-    # Imported by an account that is not the one that creates the subproject.
-    importer = stage.reader.user_id
-    load_import(stage, project_of(stage), waiting, author=importer)
-    load_import(stage, project_of(stage), others, author=importer)
-    assert unassigned(stage) == (12, Decimal("1145.00"))
+def test_the_creation_of_a_subproject_imputes_no_line(api: ContractClient, stage: Scene) -> None:
+    # « Après création du sous-projet de code A.ABC.26001/10002, le réimport du même fichier lui
+    # impute ses lignes. » : the creation imputes nothing of itself, only the reimport does
+    # (#3966); the subproject is born without actual costs, its deletion lacking none of them.
+    other = made(api, stage, OTHER)
+    load_import(
+        stage,
+        project_of(stage),
+        [cost("FA-2026-0900", OTHER, "40.00"), cost("FA-2026-0901", None, "60.00")],
+        author=stage.reader.user_id,
+    )
+    before = {row.document_number: (row.subproject_id, row.updated_at) for row in rows(stage)}
+    assert before["FA-2026-0900"][0] == UUID(other["subproject_id"])
 
     created = made(api, stage, WAITED)
 
-    # The creation answers what it made: the subproject bears costs, its deletion lacks them.
-    assert created["has_actual_costs"] is True
-    assert created["available_commands"][1]["missing_conditions"] == [
-        "subproject_without_actual_costs"
-    ]
-    imputed = [row for row in rows(stage) if row.subproject_code == WAITED]
-    assert len(imputed) == 10
-    assert {row.subproject_id for row in imputed} == {UUID(created["subproject_id"])}
-    # The author of the creation is that of the imputation, at its instant; nothing else changes.
-    assert {row.updated_by for row in imputed} == {stage.manager.user_id}
-    assert all(row.updated_at > AT for row in imputed)
-    assert {(row.created_by, row.created_at) for row in imputed} == {(importer, AT)}
-    assert unassigned(stage) == (2, Decimal("100.00"))
-    untouched = {row.document_number: row for row in rows(stage)}
-    assert untouched["FA-2026-0900"].subproject_code == OTHER
-    assert (untouched["FA-2026-0901"].subproject_code, untouched["FA-2026-0901"].updated_at) == (
-        None,
-        AT,
-    )
-
-
-@pytest.mark.requirement("WF-CRE-0020-A")
-def test_a_creation_imputes_an_excluded_line_of_its_project_and_none_of_another_project(
-    api: ContractClient, stage: Scene
-) -> None:
-    # The lines of another project that bear the same code wait for its own subproject; an
-    # excluded line is imputed as a tracked one, and stays excluded (WF-CRE-0030).
-    elsewhere = UUID(create(api, stage.manager, label="Autre projet")["project_id"])
-    load_import(stage, elsewhere, [cost("X-1", WAITED)])
-    load_import(stage, project_of(stage), [cost("X-1", WAITED)])
-    with stage.owner.begin() as connection:
-        connection.execute(
-            update(CostLine)
-            .where(CostLine.project_id == project_of(stage))
-            .values(is_in_tracked_scope=False, excluded_reason="Hors contrat")
-        )
-
-    created = made(api, stage, WAITED)
-
-    [own] = rows(stage)
-    assert (own.subproject_id, own.is_in_tracked_scope, own.excluded_reason) == (
-        UUID(created["subproject_id"]),
-        False,
-        "Hors contrat",
-    )
-    [other] = rows(stage, elsewhere)
-    assert (other.subproject_id, other.subproject_code) == (None, WAITED)
-
-
-@pytest.mark.requirement("WF-CRE-0020-A")
-def test_a_creation_does_not_impute_a_line_whose_code_differs_only_by_its_case(
-    api: ContractClient, stage: Scene
-) -> None:
-    # The code of a line is compared as stored, to that of the subproject: no folding of the case.
-    load_import(stage, project_of(stage), [cost("FA-1", WAITED.lower())])
-
-    made(api, stage, WAITED)
-
-    [held] = rows(stage)
-    assert (held.subproject_id, held.subproject_code) == (None, WAITED.lower())
+    assert created["has_actual_costs"] is False
+    assert created["available_commands"][1]["missing_conditions"] == []
+    after = {row.document_number: (row.subproject_id, row.updated_at) for row in rows(stage)}
+    assert after == before
+    assert unassigned(stage) == (1, Decimal("60.00"))
 
 
 @pytest.mark.requirement("WF-CRE-0020-A")
 def test_the_recoding_of_a_subproject_changes_the_imputation_of_no_line(
     api: ContractClient, stage: Scene
 ) -> None:
-    # D-10: the lines imputed stay so by the identifier of their subproject (WF-DAT-0060); those
-    # that waited for the new code wait still, until their next import.
+    # D-10: the lines imputed stay so by the identifier of their subproject (WF-DAT-0060), and
+    # a line of the project alone stays so, until their next import.
     created = made(api, stage, WAITED)
     load_import(
         stage,
         project_of(stage),
-        [cost("FA-1", WAITED), cost("FA-2", OTHER)],
+        [cost("FA-1", WAITED), cost("FA-2", None)],
     )
     before = {row.document_number: (row.subproject_id, row.updated_at) for row in rows(stage)}
     assert before["FA-1"][0] == UUID(created["subproject_id"])
@@ -191,7 +137,7 @@ def test_a_line_imported_again_with_another_wbs_element_changes_its_imputation(
 ) -> None:
     # « Une ligne réimportée avec un autre élément d'OTP change d'imputation. » The line is found by
     # its document and its item: it keeps its identifier and its exclusion, its imputation is
-    # computed again from its code — another subproject, a code no subproject bears, none.
+    # computed again from its code — another subproject, none.
     # The loader of the witness (`load_cost_lines`) is tried here; the application of an extraction,
     # which writes its lines by the same function, in `test_actual_costs_apply.py`.
     cabling, automation = made(api, stage, WAITED), made(api, stage, OTHER)
@@ -206,7 +152,7 @@ def test_a_line_imported_again_with_another_wbs_element_changes_its_imputation(
         )
 
     imputations: list[tuple[UUID | None, str | None]] = []
-    for code in (OTHER, "SP-INCONNU", None):
+    for code in (OTHER, None):
         later = AT + timedelta(days=len(imputations) + 1)
         again = cost("FA-2026-0412", code, "1750.00", item="10")
         entry = load_import(stage, project, [again], at=later)
@@ -217,7 +163,6 @@ def test_a_line_imported_again_with_another_wbs_element_changes_its_imputation(
 
     assert imputations == [
         (UUID(automation["subproject_id"]), OTHER),
-        (None, "SP-INCONNU"),
         (None, None),
     ]
 

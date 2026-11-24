@@ -85,12 +85,14 @@ def test_an_invoice_spread_over_two_wbs_elements_gives_two_lines_two_items_of_on
     None
 ):
     # « Une facture ventilée sur deux éléments d'OTP, en deux postes de la même pièce, donne deux
-    # lignes de coût. »
+    # lignes de coût. » The witness keeps the two items of one document; its two lines bear the
+    # element of the project since the reprise of the codes (#3966), the line of a code no
+    # subproject bore having none any more: the two elements are tried by the service
+    # (``test_actual_costs_analysis.py``).
     spread = mockcosts.spread()
     assert len(spread) == 2
     assert len({line.document for line in spread}) == 1
     assert len({line.item for line in spread}) == 2
-    assert len({mockcosts.wbs_element(line) for line in spread}) == 2
     assert None not in {line.item for line in spread}
     assert _witness_items()[spread[0].document] == [line.item for line in spread]
     # No other document of the consultation holds two lines; none twice the same item.

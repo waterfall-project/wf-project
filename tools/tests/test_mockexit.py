@@ -397,10 +397,11 @@ def test_the_project_code_is_never_blank_and_may_bear_a_slash() -> None:
         assert project["code"] is None or pattern.search(project["code"]), name
     for schema in ("Project", "ProjectSummary", "ProjectCreate", "ProjectUpdate"):
         assert _schemas()[schema]["properties"]["code"]["anyOf"][0] == {"$ref": "#/ProjectCode"}
-    # The refusal of a slash is no longer given; its example leaves with the service that stops
-    # giving it (US-3270/L2).
+    # The refusal of a slash left the contract with the service that stopped giving it, its
+    # example with it (US-3270/L2).
     description = " ".join(_schemas()["ProjectCode"]["description"].split())
-    assert "`PROJECT_CODE_INVALID`, which refused a slash (D-07), is no longer given" in description
+    assert "`PROJECT_CODE_INVALID`" not in description
+    assert not (FIXTURES / "project_code_invalid.json").exists()
 
 
 @pytest.mark.requirement("WF-IHM-0090-A")

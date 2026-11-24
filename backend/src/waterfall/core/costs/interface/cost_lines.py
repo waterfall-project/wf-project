@@ -10,7 +10,7 @@ without a counter (``setActualCostTrackedScope``, WF-CRE-0030) — both US-1620/
 lines an import of the witness creates or updates, at the identifiers and the instant it imposes
 (US-1610/L3): as the application writes them, on their document and item — a line held updated,
 its exclusion kept, another inserted —, each imputed by its code to the subproject of the project
-that bears it, or to the project alone (WF-CRE-0020, WF-INTF-0140).
+that bears it, or, without a code, to the project alone (WF-CRE-0020, WF-INTF-0140).
 
 Declared by US-1580/L1; filled by US-1620/L1 and US-1610/L3.
 """
@@ -46,7 +46,7 @@ class CostLineLoad:
     """A line an import of the witness writes: the identifier it takes if it is created.
 
     Its document and its item, which identify it in its project (WF-DAT-0110); its date, its signed
-    amount, the code of subproject its WBS element bears, none without a subproject part; its
+    amount, the code of the subproject its WBS element is, none for the code of the project; its
     columns kept, texts by their label.
     """
 

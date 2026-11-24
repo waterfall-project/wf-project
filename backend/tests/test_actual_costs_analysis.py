@@ -35,7 +35,7 @@ from support import ContractClient
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.costs.extraction import Kept, Reading, read_lines
+from waterfall.core.costs.extraction import Kept, Known, Reading, read_lines
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 
 if TYPE_CHECKING:
@@ -58,12 +58,15 @@ READING = Reading(
     (Kept(5, "Fournisseur"),),
     ("Nom Matricule",),
 )
-ELEMENT = f"{CODE}/{SUBPROJECT}"
+ELEMENT = SUBPROJECT
+# The elements the project of the examples knows: its code, and that of its subproject.
+KNOWN = Known(CODE, {SUBPROJECT: UUID(int=10001)})
+OUTSIDE = "WBS_ELEMENT_OUTSIDE_PROJECT"
 
 
 def lines_of(*rows: Sequence[Any]) -> list[tuple[Any, ...]]:
     """Read rows below the headers; give each line accepted or rejected, by its row, in order."""
-    read = read_lines(rows, READING, CODE)
+    read = read_lines(rows, READING, KNOWN)
     accepted: list[tuple[Any, ...]] = [
         (
             each.row,
@@ -91,56 +94,48 @@ def rejection(**named: Any) -> tuple[str, dict[str, Any]]:
 
 @pytest.mark.requirement("WF-CRE-0020-A")
 @pytest.mark.parametrize(
-    ("element", "expected"),
+    "element",
     [
-        pytest.param(None, ("WBS_ELEMENT_INVALID", {"wbs_element": ""}), id="empty"),
-        pytest.param("   ", ("WBS_ELEMENT_INVALID", {"wbs_element": "   "}), id="blank"),
-        pytest.param("/10001", ("WBS_ELEMENT_INVALID", {"wbs_element": "/10001"}), id="slash"),
-        pytest.param(f"{CODE}/", ("WBS_ELEMENT_INVALID", {"wbs_element": f"{CODE}/"}), id="no-sub"),
-        pytest.param(
-            "A.ABC.26002/10001",
-            (
-                "WBS_ELEMENT_OUTSIDE_PROJECT",
-                {"wbs_element": "A.ABC.26002/10001", "project_code": "A.ABC.26002"},
-            ),
-            id="other-project",
-        ),
-        pytest.param(
-            "A.ABC/26001",
-            (
-                "WBS_ELEMENT_OUTSIDE_PROJECT",
-                {"wbs_element": "A.ABC/26001", "project_code": "A.ABC"},
-            ),
-            id="slash-inside-the-code",
-        ),
-        pytest.param(
-            f"{CODE}/{'9' * 51}",
-            ("VALUE_TOO_LONG", {"column": "wbs_element", "max_length": 50}),
-            id="subproject-too-long",
-        ),
+        pytest.param(None, id="empty"),
+        pytest.param("   ", id="blank"),
+        pytest.param("/10001", id="slash"),
+        pytest.param(f"{CODE}/", id="slash-without-subproject"),
+        pytest.param("A.ABC.26002/10001", id="other-project"),
+        pytest.param("A.ABC.26002", id="other-project-alone"),
+        pytest.param("A.ABC/26001", id="slash-inside-the-code"),
+        pytest.param("10001", id="subproject-without-project"),
+        pytest.param(f"{CODE}/10002", id="subproject-not-declared"),
+        pytest.param(f"{CODE}/10001/2", id="beyond-the-subproject"),
+        pytest.param(f"{CODE}/{'9' * 120}", id="longer-than-any-code"),
     ],
 )
-def test_a_wbs_element_without_the_expected_form_or_of_another_project_is_rejected(
-    element: str | None, expected: tuple[str, dict[str, Any]]
+def test_an_element_that_is_no_code_of_the_project_is_rejected_for_itself(
+    element: str | None,
 ) -> None:
-    # « Une ligne dont l'élément d'OTP ne respecte pas la forme attendue — vide, ou sans rien avant
-    # la barre oblique — est signalée au compte rendu et n'est pas importée » ; « Une ligne d'un
-    # autre projet est rejetée et signalée. » ; « une ligne d'élément A.ABC.26002/10001 est rejetée
-    # comme d'un autre projet. »
-    assert rejection(element=element) == expected
+    # « Une ligne d'élément A.ABC.26001/10002, une ligne d'élément 10001, une ligne d'élément
+    # A.ABC.26002 et une ligne d'élément vide sont rejetées » : compared whole, no form supposed;
+    # ``params.wbs_element`` the element as the file carries it, alone (#3966).
+    assert rejection(element=element) == (OUTSIDE, {"wbs_element": element or ""})
 
 
 @pytest.mark.requirement("WF-CRE-0020-A")
-def test_the_code_of_the_project_holds_dots_and_only_the_slash_separates_the_subproject() -> None:
-    # « Sur le projet de code A.ABC.26001, une ligne d'élément A.ABC.26001/10001 est imputée au
-    # sous-projet 10001 » ; « une ligne qui ne porte que le code projet, sans sous-projet, est
-    # importée et imputée au seul projet. » ; the part after the first slash is the subproject's.
+def test_the_element_is_compared_whole_with_the_code_of_the_project_and_of_its_subproject() -> None:
+    # « … une ligne d'élément A.ABC.26001 est importée et imputée au seul projet, et une ligne
+    # d'élément A.ABC.26001/10001 est imputée à ce sous-projet. » : its spaces at the ends aside.
     read = lines_of(
         line(element=ELEMENT, number="1"),
         line(element=f" {CODE} ", number="2"),
-        line(element=f"{CODE}/10/01", number="3"),
+        line(element=f"{ELEMENT} ", number="3"),
     )
-    assert [(each[0], each[1]) for each in read] == [(2, "10001"), (3, None), (4, "10/01")]
+    assert [(each[0], each[1]) for each in read] == [(2, ELEMENT), (3, None), (4, ELEMENT)]
+
+
+@pytest.mark.requirement("WF-CRE-0020-A")
+def test_a_project_without_a_code_knows_no_element_but_those_of_its_subprojects() -> None:
+    # The element is compared to codes alone: a project without a code imputes nothing to itself.
+    read = read_lines([line(element=CODE), line(element=ELEMENT)], READING, Known(None, {}))
+    assert [(each.row, each.code) for each in read.rejected] == [(2, OUTSIDE), (3, OUTSIDE)]
+    assert read.lines == ()
 
 
 @pytest.mark.requirement("WF-INTF-0140-A")
@@ -155,7 +150,7 @@ def test_the_document_its_item_and_the_columns_kept_are_read_as_texts() -> None:
             line(number=5100001235.0, item=None, supplier=" Atelier Durand "),
         ],
         READING,
-        CODE,
+        KNOWN,
     )
     assert read.read_count == 3
     assert [(each.row, each.key, dict(each.passthrough)) for each in read.lines] == [
@@ -258,12 +253,11 @@ def test_an_amount_far_beyond_the_column_is_rejected_out_of_range(amount: float)
 
 @pytest.mark.requirement("WF-CRE-0020-A")
 def test_the_wbs_element_is_reported_as_the_file_carries_it() -> None:
-    # « tel que le fichier le porte » : spaces at its ends kept; a slash with nothing after it is
-    # rejected as invalid (#2721).
+    # « tel que le fichier le porte » : spaces at its ends kept, a number as the cell holds it.
     carried = f"  {CODE}/ "
-    assert rejection(element=carried) == ("WBS_ELEMENT_INVALID", {"wbs_element": carried})
-    code, params = rejection(element=" A.ABC.26002/1 ")
-    assert (code, params["wbs_element"]) == ("WBS_ELEMENT_OUTSIDE_PROJECT", " A.ABC.26002/1 ")
+    assert rejection(element=carried) == (OUTSIDE, {"wbs_element": carried})
+    assert rejection(element=" A.ABC.26002/1 ") == (OUTSIDE, {"wbs_element": " A.ABC.26002/1 "})
+    assert rejection(element=10001) == (OUTSIDE, {"wbs_element": "10001"})
 
 
 @pytest.mark.requirement("WF-CRE-0010-A")
@@ -340,12 +334,12 @@ def updated(number: str, *fields: str, item: str | None = None) -> dict[str, Any
 
 @pytest.mark.requirement("WF-CRE-0020-A")
 @pytest.mark.usefixtures("lot")
-def test_the_report_rejects_the_lines_of_another_project_and_keeps_an_unknown_subproject(
+def test_the_report_rejects_every_unknown_element_and_names_each_with_its_lines(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
-    # « Une ligne d'un autre projet est rejetée et signalée. » : `lines_outside_project` among the
-    # reasons to confirm. « Une ligne dont le sous-projet est inconnu est importée, imputée au
-    # projet » : accepted, `unknown_subproject`.
+    # « … sont rejetées, et le compte rendu nomme chacun de ces éléments et le nombre de ses
+    # lignes. » : `lines_outside_project` among the reasons to confirm, `unknown_subproject` no
+    # longer given — a subproject not declared is an unknown element (#3966).
     content = extraction(
         [
             line(element=None, number="1"),
@@ -357,13 +351,16 @@ def test_the_report_rejects_the_lines_of_another_project_and_keeps_an_unknown_su
     )
     report = analysed(api, stage, worker, content)["report"]
     assert [(each["row"], each["code"]) for each in report["rejected"]] == [
-        (2, "WBS_ELEMENT_INVALID"),
-        (5, "WBS_ELEMENT_OUTSIDE_PROJECT"),
+        (2, OUTSIDE),
+        (5, OUTSIDE),
+        (6, OUTSIDE),
     ]
-    assert report["differences"] == [added("2"), added("3"), added("5")]
-    assert report["requires_confirmation_reasons"] == [
-        "lines_outside_project",
-        "unknown_subproject",
+    assert report["differences"] == [added("2"), added("3")]
+    assert report["requires_confirmation_reasons"] == ["lines_outside_project"]
+    assert report["unknown_wbs_elements"] == [
+        {"wbs_element": "", "line_count": 1},
+        {"wbs_element": "A.ABC.26002/10001", "line_count": 1},
+        {"wbs_element": f"{CODE}/99999", "line_count": 1},
     ]
     assert (report["read_count"], report["unchanged_count"], report["format_version"]) == (
         5,
@@ -378,15 +375,13 @@ def test_two_lines_of_the_same_document_and_item_are_doubled_whatever_else_they_
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
     # « … une ligne pour laquelle une autre ligne du fichier porte la même pièce et le même poste »
-    # (ImportRejection), without condition: the amount of one in text, both are rejected doubled; a
-    # line of another project doubled likewise, which asks for confirmation all the same; a
-    # document unreadable doubles nothing.
+    # (ImportRejection), among the lines of the project: the amount of one in text, both are
+    # rejected doubled; a document unreadable doubles nothing. A line of another project is not
+    # compared (BRC-04, below).
     content = extraction(
         [
             line(number="9100", amount="12,50"),
             line(number="9100"),
-            line(number="9200", element="A.ABC.26002/1"),
-            line(number="9200"),
             line(number=None),
             line(number=None),
         ]
@@ -397,29 +392,44 @@ def test_two_lines_of_the_same_document_and_item_are_doubled_whatever_else_they_
     assert report["rejected"] == [
         {"sheet": None, "row": 2, "code": "DUPLICATE_COST_LINE", "params": {"rows": [3]}},
         {"sheet": None, "row": 3, "code": "DUPLICATE_COST_LINE", "params": {"rows": [2]}},
-        {"sheet": None, "row": 4, "code": "DUPLICATE_COST_LINE", "params": {"rows": [5]}},
-        {"sheet": None, "row": 5, "code": "DUPLICATE_COST_LINE", "params": {"rows": [4]}},
-        {"sheet": None, "row": 6, "code": "VALUE_REQUIRED", "params": required},
-        {"sheet": None, "row": 7, "code": "VALUE_REQUIRED", "params": required},
+        {"sheet": None, "row": 4, "code": "VALUE_REQUIRED", "params": required},
+        {"sheet": None, "row": 5, "code": "VALUE_REQUIRED", "params": required},
     ]
-    assert report["requires_confirmation_reasons"] == ["lines_outside_project"]
+    assert report["requires_confirmation_reasons"] == []
 
 
 @pytest.mark.requirement("WF-CRE-0020-A")
 @pytest.mark.usefixtures("lot")
-def test_lines_of_another_project_ask_for_confirmation_even_when_they_are_doubled(
+@pytest.mark.story("US-3270")
+def test_the_doubles_are_compared_among_the_lines_of_the_project_alone(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
-    # « Une ligne d'un autre projet est rejetée et signalée. » : `lines_outside_project` among the
-    # reasons to confirm, as its fault was read, though the double replaces it in the report — a
-    # file of the wrong project, two lines of one document, asks for confirmation.
+    # Propre à l'US (BRC-04) : « dans une extraction, seules les lignes dont l'élément d'OTP est le
+    # code du projet importé ou de l'un de ses sous-projets se comparent entre elles pour
+    # DUPLICATE_COST_LINE ; une ligne d'un autre élément est rejetée pour son élément et ne fait
+    # rejeter aucune ligne du projet. Le motif de confirmation de la décision #2724 reste. » — two
+    # lines of another project on one document are rejected each for their element, not doubled.
     other = "A.ABC.26002/10001"
-    content = extraction([line(element=other, number="9200"), line(element=other, number="9200")])
+    content = extraction(
+        [
+            line(element=other, number="9200"),
+            line(element=CODE, number="9200"),
+            line(element=other, number="9300"),
+            line(element=other, number="9300"),
+            line(element=ELEMENT, number="9400"),
+            line(element=CODE, number="9400"),
+        ]
+    )
     report = analysed(api, stage, worker, content)["report"]
     assert [(each["row"], each["code"]) for each in report["rejected"]] == [
-        (2, "DUPLICATE_COST_LINE"),
-        (3, "DUPLICATE_COST_LINE"),
+        (2, OUTSIDE),
+        (4, OUTSIDE),
+        (5, OUTSIDE),
+        (6, "DUPLICATE_COST_LINE"),
+        (7, "DUPLICATE_COST_LINE"),
     ]
+    assert report["differences"] == [added("9200")]
+    assert report["unknown_wbs_elements"] == [{"wbs_element": other, "line_count": 3}]
     assert report["requires_confirmation_reasons"] == ["lines_outside_project"]
 
 
@@ -454,8 +464,8 @@ def test_an_invoice_split_in_two_items_gives_two_lines_and_doubled_lines_are_rej
         {
             "sheet": None,
             "row": 10,
-            "code": "WBS_ELEMENT_OUTSIDE_PROJECT",
-            "params": {"wbs_element": "A.ABC.26002/1", "project_code": "A.ABC.26002"},
+            "code": OUTSIDE,
+            "params": {"wbs_element": "A.ABC.26002/1"},
         }
     ]
     assert (report["read_count"], report["unchanged_count"]) == (9, 0)
@@ -486,7 +496,7 @@ def _held(stage: Scene, subproject_id: str) -> None:
             imported,
             document_number="3",
             document_date=date(2026, 4, 3),
-            subproject_code="99999",
+            subproject_code=None,
             passthrough={**supplier, "Libellé": "Usinage"},
         )
 

@@ -15,10 +15,14 @@ as the analysis read it, even if the mapping changes in between: the rank of eac
 of each column kept, and the label a kept column bears in the file, which names it in the lines
 (``ActualCostLine.passthrough``).
 
-Each row below is then read (``read_lines``): an empty row is skipped; the WBS element is a text —
-empty or beginning with a slash, ``WBS_ELEMENT_INVALID`` —, whose part before the first slash is the
-code of the project, dots included, and the part after it the code of a subproject (C-373); a code
-of project that is not that of the project is ``WBS_ELEMENT_OUTSIDE_PROJECT``. The document is a
+Each row below is then read (``read_lines``): an empty row is skipped; the WBS element is a text,
+compared whole, without its spaces at the ends, with the code of the project and those of its
+subprojects (``Known``): the code of the project imputes the line to the project alone, that of a
+subproject to that subproject; any other element — empty, of another project, a code of
+subproject without that of the project, a subproject not declared — is
+``WBS_ELEMENT_OUTSIDE_PROJECT``, the element as the file carries it (WF-CRE-0020; #3966). Such a
+line has no key: it is never compared with the lines of the project for a double (BRC-04). The
+document is a
 text or a whole number read as text; its item a text, or none; the date a cell of date or a text
 ``AAAA-MM-JJ`` (``DATE_INVALID``); the amount a number, signed, rounded to the cent — half a cent
 away from zero, ``ROUND_HALF_UP`` of ``decimal`` (0.005 gives 0.01 and -0.005 gives -0.01), a
@@ -42,18 +46,18 @@ from waterfall.core.cost_settings.interface import (
     read_actual_cost_mapping,
     read_folded_labels,
 )
-from waterfall.core.costs.tables import DOCUMENT_NUMBER_LENGTH, SUBPROJECT_CODE_LENGTH
+from waterfall.core.costs.tables import DOCUMENT_NUMBER_LENGTH
 from waterfall.core.exchanges.interface import DAMAGES, opened_workbook
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+    from uuid import UUID
 
     from sqlalchemy.orm import Session
 
 FORMAT_KIND = "actual_costs"
 FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
-WBS_ELEMENT_INVALID = "WBS_ELEMENT_INVALID"
 WBS_ELEMENT_OUTSIDE_PROJECT = "WBS_ELEMENT_OUTSIDE_PROJECT"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 VALUE_TOO_LONG = "VALUE_TOO_LONG"
@@ -66,8 +70,6 @@ DOCUMENT_NUMBER = "document_number"
 DOCUMENT_ITEM = "document_item"
 DOCUMENT_DATE = "document_date"
 AMOUNT = "amount"
-# What separates the code of the project from that of the subproject in a WBS element (C-373).
-SLASH = "/"
 # The row of the headers, the first of the first tab; the lines follow it.
 HEADER_ROW = 1
 # An amount is kept to the cent, below the bound of its column (``numeric(14,2)``).
@@ -191,8 +193,23 @@ def read_header(session: Session, row: Sequence[object]) -> Reading:
 
 
 @dataclass(frozen=True, slots=True)
+class Known:
+    """The WBS elements a project knows, compared whole: its code, and those of its subprojects.
+
+    ``subprojects`` the subproject of each code, as stored; ``project_code`` none for a project
+    without a code, whose every element is unknown.
+    """
+
+    project_code: str | None
+    subprojects: Mapping[str, UUID]
+
+
+@dataclass(frozen=True, slots=True)
 class Line:
-    """A line of an extraction read and accepted, by its row; its subproject by its code alone."""
+    """A line of an extraction read and accepted, by its row; its subproject by its code alone.
+
+    ``subproject_code`` the code of the subproject its element is, none for the code of the project.
+    """
 
     row: int
     subproject_code: str | None
@@ -220,6 +237,11 @@ class Rejection:
     code: str
     params: Mapping[str, Any] = field(default_factory=dict[str, Any])
     key: tuple[str, str | None] | None = None
+
+    @property
+    def unknown_element(self) -> str | None:
+        """The WBS element the line is rejected for, as the file carries it; none for another."""
+        return str(self.params["wbs_element"]) if self.code == WBS_ELEMENT_OUTSIDE_PROJECT else None
 
     def reported(self) -> dict[str, Any]:
         """Give the rejection as the report gives it (``ImportRejection``): one tab, no sheet."""
@@ -258,27 +280,18 @@ def _raw(value: object) -> str:
     return "" if value is None else str(value)
 
 
-def _subproject_code(value: object, project_code: str | None) -> str | None:
-    """Read the WBS element: the code of the subproject it names after the slash, or none.
+def _subproject_code(value: object, known: Known) -> str | None:
+    """Read the WBS element: the code of the subproject it is, or none for that of the project.
 
-    The element is read without its spaces at the ends, and reported as the file carries it. A
-    slash with nothing after it (``A.ABC.26001/``) is ``WBS_ELEMENT_INVALID`` (#2721).
+    The element is compared whole, without its spaces at the ends, and reported as the file carries
+    it; no form is supposed of it (WF-CRE-0020; #3966).
     """
-    element = text_of(value) or ""
-    carried = _raw(value)
-    if not element or element.startswith(SLASH):
-        raise _LineRejectedError(WBS_ELEMENT_INVALID, {"wbs_element": carried})
-    code, slash, subproject = element.partition(SLASH)
-    if slash and not subproject:
-        raise _LineRejectedError(WBS_ELEMENT_INVALID, {"wbs_element": carried})
-    if code != project_code:
-        raise _LineRejectedError(
-            WBS_ELEMENT_OUTSIDE_PROJECT, {"wbs_element": carried, "project_code": code}
-        )
-    if len(subproject) > SUBPROJECT_CODE_LENGTH:
-        too_long = {"column": WBS_ELEMENT, "max_length": SUBPROJECT_CODE_LENGTH}
-        raise _LineRejectedError(VALUE_TOO_LONG, too_long)
-    return subproject or None
+    element = text_of(value)
+    if element is not None and element in known.subprojects:
+        return element
+    if element is None or element != known.project_code:
+        raise _LineRejectedError(WBS_ELEMENT_OUTSIDE_PROJECT, {"wbs_element": _raw(value)})
+    return None
 
 
 def _document_number(value: object) -> str:
@@ -327,10 +340,10 @@ def _amount(value: object) -> Decimal:
     return amount
 
 
-def _line(row: Sequence[object], number: int, reading: Reading, project_code: str | None) -> Line:
+def _line(row: Sequence[object], number: int, reading: Reading, known: Known) -> Line:
     """Read a row of the file as a line, or raise the first fault of its cells."""
     columns = reading.columns
-    subproject_code = _subproject_code(_cell(row, columns.get(WBS_ELEMENT)), project_code)
+    subproject_code = _subproject_code(_cell(row, columns.get(WBS_ELEMENT)), known)
     document_number = _document_number(_cell(row, columns.get(DOCUMENT_NUMBER)))
     document_item = text_of(_cell(row, columns.get(DOCUMENT_ITEM)))
     document_date = _document_date(_cell(row, columns.get(DOCUMENT_DATE)))
@@ -355,12 +368,11 @@ def _key(row: Sequence[object], reading: Reading) -> tuple[str, str | None] | No
     return number, text_of(_cell(row, columns.get(DOCUMENT_ITEM)))
 
 
-def read_lines(
-    rows: Sequence[Sequence[object]], reading: Reading, project_code: str | None
-) -> LinesRead:
-    """Read the rows below the headers as lines of the project of ``project_code``.
+def read_lines(rows: Sequence[Sequence[object]], reading: Reading, known: Known) -> LinesRead:
+    """Read the rows below the headers as lines of the project whose elements are ``known``.
 
-    ``rows`` are those of the tab after the row of the headers; an empty row is not read.
+    ``rows`` are those of the tab after the row of the headers; an empty row is not read. A line
+    rejected for its element has no key: it is compared with no other for a double (BRC-04).
     """
     lines: list[Line] = []
     rejected: list[Rejection] = []
@@ -370,7 +382,8 @@ def read_lines(
             continue
         read_count += 1
         try:
-            lines.append(_line(row, number, reading, project_code))
+            lines.append(_line(row, number, reading, known))
         except _LineRejectedError as fault:
-            rejected.append(Rejection(number, fault.code, fault.params, _key(row, reading)))
+            key = None if fault.code == WBS_ELEMENT_OUTSIDE_PROJECT else _key(row, reading)
+            rejected.append(Rejection(number, fault.code, fault.params, key))
     return LinesRead(tuple(lines), tuple(rejected), read_count)

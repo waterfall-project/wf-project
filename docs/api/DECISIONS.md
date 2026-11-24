@@ -13182,7 +13182,8 @@ reste `1.0.0` (« La règle d'après le gel ») : le lot ajoute et assouplit. Ex
   qu'Excel refuse remplacés, coupé à 31 caractères, numéroté en cas de collision — et le code en
   tête ; l'import désigne le sous-projet par ce code, jamais par le nom de l'onglet
   (`requestExport`, `openImport`, `ImportRejection.sheet` ; WF-INTF-0120, WF-INTF-0130).
-- **Ce qui attend le service** (US-3270/L2). `PROJECT_CODE_INVALID`, `WBS_ELEMENT_INVALID`,
+- **Ce qui attend le service** (US-3270/L2 ; fait, voir l'entrée qui suit). `PROJECT_CODE_INVALID`,
+  `WBS_ELEMENT_INVALID`,
   `unknown_subproject` et les paramètres `forbidden_characters`, `reserved_name` et `project_code`
   restent au contrat, dits « no longer given » : le service les émet encore, et les tests du
   service valident chaque réponse contre le contrat ; ils sortent avec le lot qui cesse de les
@@ -13202,6 +13203,48 @@ reste `1.0.0` (« La règle d'après le gel ») : le lot ajoute et assouplit. Ex
 - **Le catalogue du front** ne reçoit aucune clé : aucun code ni paramètre nouveau. Les phrases de
   `errors.SUBPROJECT_CODE_INVALID` et `errors.WBS_ELEMENT_OUTSIDE_PROJECT`, qui disent l'ancienne
   règle comme le service la tient encore, se réécrivent avec le front (US-3270/L3).
+
+### Le service de l'élément comparé en entier, la reprise des codes et le témoin (US-3270/L2, #4540)
+
+Le service de #3966, que le contrat d'US-3270/L1 précédait. Le contrat perd ce que le service
+n'émet plus, `info.version` restant `1.0.0` : `PROJECT_CODE_INVALID` et `WBS_ELEMENT_INVALID`
+sortent de `ErrorCode`, `unknown_subproject` de `requires_confirmation_reasons`, et les
+paramètres `forbidden_characters`, `reserved_name` et `project_code` (ce dernier pour un élément
+d'OTP : il reste celui d'un projet nommé, `projects`) de la description de `Problem.params`, avec
+la borne de 50 sur `wbs_element`. Leurs exemples sortent avec eux : `project_code_invalid`,
+`subproject_code_invalid`, `subproject_code_reserved` et `import_actual_costs_wbs_invalid` ;
+`import_actual_costs_dotted_code` est réécrit sous la règle nouvelle, son sous-projet de code
+`A.ABC.26001/10001`, sans `project_code`. Les clés du catalogue du front qui les disaient sortent
+aussi (`errors.PROJECT_CODE_INVALID`, `errors.WBS_ELEMENT_INVALID`, `params.forbidden_characters`,
+`params.reserved_name`, `params.project_code`, et `unknown_subproject` des motifs de
+confirmation) ; les phrases de `SUBPROJECT_CODE_INVALID` et de
+`WBS_ELEMENT_OUTSIDE_PROJECT` se réécrivent avec le front (US-3270/L4).
+
+- **Le service.** L'élément d'OTP, sans ses blancs en bout, se compare en entier au code du projet
+  et à ceux de ses sous-projets lus sous le verrou du projet, à l'analyse comme à l'application ;
+  toute autre ligne est `WBS_ELEMENT_OUTSIDE_PROJECT`, `params.wbs_element` seul, et n'a pas de
+  clé pour les doubles (BRC-04). Le compte rendu écrit `unknown_wbs_elements` ; un compte rendu
+  d'une autre nature, ou analysé avant, se lit sans élément inconnu. La création d'un sous-projet
+  n'impute plus rien. Un sous-projet au code du projet, et un projet recodé au code de l'un de ses
+  sous-projets, sont refusés sous le verrou du projet, après les refus de l'écrivain et de l'état.
+- **La reprise** (migrations 0046, le schéma, et 0047, les données, séparées selon
+  `docs/dev/sql.md`) : les lignes de coût en attente d'un sous-projet supprimées, leur nombre
+  journalisé par projet ; les codes des sous-projets d'un projet codé préfixés du code du projet
+  et d'une barre oblique, leur compteur avancé pour qu'un formulaire lu avant ne réécrive pas
+  l'ancien code ; le code des lignes imputées préfixé de même ; `unknown_subproject` retiré des
+  comptes rendus gardés. Le cache des indicateurs n'est pas vidé : la clé du jour lit le nombre des
+  lignes de coût du projet, qui tombe sous tout nombre que le projet a eu depuis son dernier
+  import — seuls les imports ajoutent des lignes, et leur nombre ne recule jamais —, si bien
+  qu'aucune entrée gardée avant la migration n'est servie après.
+- **Le témoin.** Ses sous-projets sont recodés comme la reprise les écrit (`PRJ-001/SP-CMD`,
+  `PRJ-001/SP-ESS`, la réception créée `PRJ-001/SP-REC`). Ses lignes qui attendaient un code
+  qu'aucun sous-projet ne porte (les câbles, l'avoir, l'automate et la réception) portent
+  désormais pour élément le code du projet : imputées au seul projet comme avant, elles gardent
+  les montants de tous les indicateurs. La réception créée aujourd'hui (`subproject_created`)
+  n'est plus chargée et se supprime ; le refus `subproject_delete_refused` devient une variante
+  contrefactuelle où un réimport lui a imputé la facture de la réception. Le faux back nomme
+  l'onglet d'un sous-projet comme le service (`sheet_name`) : `PRJ-001_SP-ESS`, la barre oblique
+  remplacée.
 
 ## Collage et annulation
 

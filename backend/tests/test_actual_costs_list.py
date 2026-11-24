@@ -303,13 +303,13 @@ def test_a_project_without_a_line_reads_empty_totals_and_no_last_import(
 
 
 @pytest.mark.requirement("WF-CRE-0020-A")
-def test_a_line_names_its_subproject_by_its_code_and_its_label_unknown_code_included(
+def test_a_line_names_its_subproject_by_its_code_and_its_label(
     api: ContractClient, stage: Scene
 ) -> None:
-    # The code is kept as read; the label is resolved at the reading, none for a line charged to
-    # the project alone, whether it bears no code or one no subproject bears.
+    # The code is that of the subproject of imputation, as read; the label is resolved at the
+    # reading; both none for a line charged to the project alone (#3966).
     cabling = made(api, stage, "SP-CAB", "Câblage")
-    bring(stage, [line("FA-1", "SP-CAB"), line("FA-2", "SP-AUT"), line("FA-3", None)])
+    bring(stage, [line("FA-1", "SP-CAB"), line("FA-3", None)])
     items = {item["document_number"]: item for item in read(api, stage)["items"]}
     held = items["FA-1"]
     assert (held["subproject_id"], held["subproject_code"], held["subproject_label"]) == (
@@ -317,13 +317,12 @@ def test_a_line_names_its_subproject_by_its_code_and_its_label_unknown_code_incl
         "SP-CAB",
         "Câblage",
     )
-    waiting = items["FA-2"]
-    assert (waiting["subproject_id"], waiting["subproject_code"], waiting["subproject_label"]) == (
+    alone = items["FA-3"]
+    assert (alone["subproject_id"], alone["subproject_code"], alone["subproject_label"]) == (
         None,
-        "SP-AUT",
+        None,
         None,
     )
-    assert items["FA-3"]["subproject_code"] is None
     assert held["audit"]["created_by"]["user_id"] == str(stage.manager.user_id)
 
 

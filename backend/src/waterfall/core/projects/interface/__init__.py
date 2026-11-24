@@ -167,6 +167,7 @@ from waterfall.core.projects.interface.subprojects import (
     subproject_has_actual_costs,
     subproject_ids,
     subproject_labels,
+    subprojects_by_code,
     subprojects_coded,
     subprojects_named,
     subprojects_present,
@@ -195,6 +196,10 @@ from waterfall.core.projects.interface.work_breakdown import (
     work_breakdown_present,
 )
 
+# ``tables`` (US-3270/L2, BPR-09): the bound of the code of a subproject, which the API reads here
+# rather than in the private tables.
+from waterfall.core.projects.tables import SUBPROJECT_CODE_LENGTH
+
 __all__ = [
     "ACTIVE_PROVISION_CATEGORY",
     "AT_LEAST_ONE_TASK",
@@ -205,6 +210,7 @@ __all__ = [
     "PROJECT_BEFORE_IN_PROGRESS",
     "PROJECT_NOT_TERMINAL",
     "RISK_ENTRIES",
+    "SUBPROJECT_CODE_LENGTH",
     "TERMINAL",
     "Attachments",
     "ClosedOffer",
@@ -321,6 +327,7 @@ __all__ = [
     "subproject_has_actual_costs",
     "subproject_ids",
     "subproject_labels",
+    "subprojects_by_code",
     "subprojects_coded",
     "subprojects_named",
     "subprojects_present",

@@ -34,9 +34,10 @@ if TYPE_CHECKING:
     from waterfall.platform.database import Database
     from waterfall.worker.runner import Worker
 
-# The project of the examples of WF-CRE-0020: its code holds dots, its subproject is 10001.
+# The project of the examples of WF-CRE-0020: its code holds dots, its subproject's code is the WBS
+# element of its lines, whole (#3966).
 CODE = "A.ABC.26001"
-SUBPROJECT = "10001"
+SUBPROJECT = "A.ABC.26001/10001"
 # The labels of the four required columns, as WF-REF-0190-A declares them, and of the item.
 DECLARED = {
     "wbs_element": ["Elément d'OTP"],
@@ -92,7 +93,7 @@ def extraction(rows: Iterable[Sequence[Any]], headers: Sequence[Any] = HEADERS) 
 
 # A valid line of an extraction under ``HEADERS``, by the name of each cell.
 VALID: dict[str, Any] = {
-    "element": f"{CODE}/{SUBPROJECT}",
+    "element": SUBPROJECT,
     "number": "5100001234",
     "item": None,
     "on": "2026-04-02",

@@ -124,7 +124,7 @@ REFUSALS: list[Refusal] = [
     (CostLine, {"document_number": ""}, "ck_cost_line_document_number_length"),
     (CostLine, {"document_number": "9" * 201}, "ck_cost_line_document_number_length"),
     (CostLine, {"document_number": " \t"}, "ck_cost_line_document_number_not_blank"),
-    (CostLine, {"subproject_code": "S" * 51}, "ck_cost_line_subproject_code_length"),
+    (CostLine, {"subproject_code": "S" * 101}, "ck_cost_line_subproject_code_length"),
     (
         CostLine,
         {"excluded_reason": "Réception du client"},

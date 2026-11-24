@@ -177,13 +177,16 @@ def test_a_line_in_the_tab_of_another_subproject_moves_unless_held(
     ]
     # The labour of the wiring, second line of the tab, its third row: rejected, the subproject
     # it may not leave named, the line by its tab, named as the file names it (#1162): by the code
-    # of its subproject, not by its label (ANNEXE B; EP-16/US-0610).
-    [(tab, label)] = [
+    # of its subproject, not by its label (ANNEXE B; EP-16/US-0610) — the slash a tab refuses
+    # replaced (#3966).
+    [(code, label)] = [
         (entry["code"], entry["label"])
         for entry in mockwitness.fixture("subprojects")
         if entry["subproject_id"] == mockexchanges.TAB
     ]
-    assert (tab, label) == ("SP-ESS", "Essais et mise en service")
+    assert (code, label) == ("PRJ-001/SP-ESS", "Essais et mise en service")
+    tab = mockexchanges.tab_name(mockexchanges.TAB)
+    assert tab == "PRJ-001_SP-ESS"
     assert report["rejected"] == [
         {
             "sheet": tab,
@@ -299,13 +302,11 @@ def test_the_extraction_of_april_reports_what_its_journal_counts() -> None:
     other = mockexchanges.other_project()
     assert other != mockwitness.fixture("project")["code"]
     assert rejected["code"] == "WBS_ELEMENT_OUTSIDE_PROJECT"
-    assert rejected["params"] == {"wbs_element": f"{other}/SP-CAB", "project_code": other}
+    assert rejected["params"] == {"wbs_element": f"{other}/SP-CAB"}
     assert rejected["sheet"] is None
     assert report["format_version"] is None
-    assert report["requires_confirmation_reasons"] == [
-        "lines_outside_project",
-        "unknown_subproject",
-    ]
+    assert report["requires_confirmation_reasons"] == ["lines_outside_project"]
+    assert report["unknown_wbs_elements"] == [{"wbs_element": f"{other}/SP-CAB", "line_count": 1}]
     assert (imported["period_from"], imported["period_to"]) == (
         entry["period_from"],
         entry["period_to"],

@@ -639,8 +639,7 @@ ProjectCode:
     `fields[].params.max_length` at `50`, the bound that every `VALUE_TOO_LONG` carries (J-02,
     #1796). A project recoded to the code of one of its subprojects is refused with
     `SUBPROJECT_CODE_INVALID`, on `/code`, without a parameter: a subproject never bears the code
-    of its project (WF-PRJ-0050). `PROJECT_CODE_INVALID`, which refused a slash (D-07), is no
-    longer given (#3966).
+    of its project (WF-PRJ-0050; #3966).
 
 ProjectClient:
   type: string
@@ -1076,9 +1075,8 @@ DeclaredSubprojectCode:
     not respect it is refused with 422 `VALIDATION_FAILED`, `fields` designating `/code`: empty
     or made only of whitespace, with `VALUE_REQUIRED`; too long, with `VALUE_TOO_LONG`,
     `fields[].params.max_length` at `100`, the bound that every `VALUE_TOO_LONG` carries; equal to
-    the code of the project, compared whole, with `SUBPROJECT_CODE_INVALID`, without a parameter.
-    The parameters `fields[].params.forbidden_characters` and `fields[].params.reserved_name`,
-    which named the characters a tab refuses and the reserved names, are no longer given (#3966).
+    the code of the project, compared whole, with `SUBPROJECT_CODE_INVALID`, without a parameter
+    (#3966).
 
 SubprojectCommand:
   type: string

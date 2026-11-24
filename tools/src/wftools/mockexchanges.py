@@ -156,16 +156,25 @@ TAB = SUBPROJECT_TESTS
 """The tab of the file the two lines are placed in: the tests and the commissioning."""
 
 
-def tab_name(subproject: str) -> str:
-    """Return the name of the tab of a subproject, as the file names it: its code (ANNEXE B).
+TAB_REFUSED = frozenset(":\\/?*[]")
+"""The characters Excel refuses in the name of a tab, each replaced by an underscore."""
+TAB_LENGTH = 31
+"""The longest name of a tab."""
 
-    The code of a subproject is bounded so that it names a tab (`DeclaredSubprojectCode`,
-    WF-PRJ-0050; EP-16/US-0610); its label is not.
+
+def tab_name(subproject: str) -> str:
+    """Return the name of the tab of a subproject, as the file names it: drawn from its code.
+
+    The code is free (`DeclaredSubprojectCode`, WF-PRJ-0050; #3966): each character a tab refuses
+    is replaced by an underscore, and the name cut to 31 characters, as the service draws it
+    (``sheet_name``, annex B) — the witness's codes, of the code of the project, a slash and an
+    older code, are short and do not collide.
     """
-    [name] = [
+    [code] = [
         entry["code"] for entry in fixture("subprojects") if entry["subproject_id"] == subproject
     ]
-    return cast("str", name)
+    name = "".join("_" if each in TAB_REFUSED else each for each in cast("str", code))
+    return name[:TAB_LENGTH]
 
 
 IMPORTED = (N.COMMISSIONING_LINE, N.LABOUR)
@@ -581,11 +590,10 @@ def cost_report(entry: CostImport) -> JsonObject:
     Each line whose document and item were not yet imported is added, each one already imported
     and brought back updated, both named by their document and their item (WF-INTF-0140, D-4);
     the lines it brings back as they were are counted unchanged; each line of another project the
-    journal counts is rejected, its element named as the file carries it, with the code of project
-    read (WF-CRE-0020), last in the file, and named once with the number of its lines
-    (``unknown_wbs_elements``, #3966). The witness does not say which columns an update
-    changes: an updated line names none. A code of subproject no subproject of the project
-    carries is kept, and asks for an explicit confirmation, as the lines of another project do.
+    journal counts is rejected, its element named as the file carries it, alone (WF-CRE-0020),
+    last in the file, and named once with the number of its lines (``unknown_wbs_elements``,
+    #3966), which asks for an explicit confirmation. The witness does not say which columns an
+    update changes: an updated line names none.
     """
     added = brought(entry, created=True)
     updated = brought(entry, created=False)
@@ -596,7 +604,7 @@ def cost_report(entry: CostImport) -> JsonObject:
             "sheet": None,
             "row": first + offset,
             "code": "WBS_ELEMENT_OUTSIDE_PROJECT",
-            "params": {"wbs_element": f"{code}/{OUTSIDE_SUBPROJECT}", "project_code": code},
+            "params": {"wbs_element": f"{code}/{OUTSIDE_SUBPROJECT}"},
         }
         for offset in range(entry.rejected)
     ]
@@ -610,8 +618,6 @@ def cost_report(entry: CostImport) -> JsonObject:
         else []
     )
     reasons: list[JsonValue] = ["lines_outside_project"] if rejected else []
-    if unknown_codes([*added, *updated]):
-        reasons.append("unknown_subproject")
     return {
         "format_version": None,
         "read_count": len(differences) + entry.unchanged + len(rejected),
@@ -633,13 +639,6 @@ def cost_report(entry: CostImport) -> JsonObject:
 def april_report() -> JsonObject:
     """Return the report of the extraction of April, as its analysis presented it."""
     return cost_report(APRIL)
-
-
-def unknown_codes(added: Sequence[CostLine]) -> list[str]:
-    """Return the codes of subproject of lines no subproject of the project carries, once each."""
-    return sorted(
-        {line.code for line in added if line.code is not None and mockcosts.imputed(line) is None}
-    )
 
 
 def import_actual_costs_first() -> JsonObject:
@@ -691,13 +690,6 @@ def _april_said() -> str:
         for line in added
     )
     [rejected] = report["rejected"]
-    codes = unknown_codes(added)
-    confirmed = "des lignes d'un autre projet"
-    if codes:
-        confirmed += (
-            f", et le code de sous-projet {', '.join(codes)}, qu'aucun sous-projet du projet "
-            "ne porte"
-        )
     return (
         f"L'extraction d'avril, {mockcosts.period_said(APRIL)}, déposée le "
         f"{mocktext.day(date(2026, 5, 4))} à {mocktext.hour(APRIL_SUBMITTED)} et analysée à "
@@ -705,10 +697,11 @@ def _april_said() -> str:
         f"application à {mocktext.hour(stamp(APRIL.event.instant))} (imports, cost_imports) : "
         f"{report['read_count']} lignes lues ; {len(added)} lignes nouvelles ajoutées, chacune "
         f"désignée par sa pièce et son poste — {named} — ; à la ligne {rejected['row']}, "
-        f"l'élément d'OTP « {rejected['params']['wbs_element']} », d'un autre projet, rejeté et "
-        f"nommé avec le code projet lu, {rejected['params']['project_code']}, que le journal "
-        f"compte parmi les lignes rejetées. L'application demande une confirmation explicite : "
-        f"{confirmed} (WF-CRE-0020, WF-CRE-0050, WF-INTF-0140, WF-INTF-0080)."
+        f"l'élément d'OTP « {rejected['params']['wbs_element']} », ni le code du projet ni "
+        f"celui de l'un de ses sous-projets, rejeté, nommé au compte rendu avec le nombre de ses "
+        f"lignes, et que le journal compte parmi les lignes rejetées. L'application demande une "
+        f"confirmation explicite pour cette ligne (WF-CRE-0020, WF-CRE-0050, WF-INTF-0140, "
+        f"WF-INTF-0080)."
     )
 
 
