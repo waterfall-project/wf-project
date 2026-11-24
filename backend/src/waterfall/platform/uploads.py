@@ -203,7 +203,8 @@ def expire_uploads(session: Session, upload_ids: Sequence[UUID], at: datetime) -
 
     A deposit an import employed never becomes free again (WF-DAT-0120): once that import is
     abandoned or purged, no row names the deposit, and its expiry keeps it from being opened again
-    or counted by `pending_imports`. The purge deletes the row, and its object, in its next step.
+    or counted by `pending_imports`. The deposit is then due: the purge pass deletes its row, the
+    one that follows an abandonment, or the next step of the pass that called this.
     """
     if upload_ids:
         session.execute(

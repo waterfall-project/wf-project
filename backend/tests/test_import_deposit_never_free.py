@@ -17,11 +17,14 @@ from imports_trial import (
     ROWS,
     STATE,
     TrialFormat,
+    analysed,
     deposited,
+    import_worker,
     open_import,
     path,
     refusal,
     stand_in,
+    stored,
     trial_file,
     upload,
 )
@@ -33,6 +36,7 @@ from support import ContractClient
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.exchanges.interface import purge, remove_purged
+from waterfall.core.exchanges.tables import ImportReport
 from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.storage import Bucket
@@ -129,7 +133,7 @@ def freed_again(database: Database, upload_id: str) -> str:
     return upload_id
 
 
-@pytest.mark.requirement("WF-DAT-0120")
+@pytest.mark.requirement("WF-DAT-0120-A")
 def test_an_account_that_abandons_an_import_keeps_its_place_under_the_bound_of_twenty(
     api: ContractClient, stage: Scene, database: Database, backups_bucket: Bucket
 ) -> None:
@@ -147,7 +151,7 @@ def test_an_account_that_abandons_an_import_keeps_its_place_under_the_bound_of_t
     assert refusal(upload(api, manager, trial_file(*ROWS))) == FULL
 
 
-@pytest.mark.requirement("WF-DAT-0120")
+@pytest.mark.requirement("WF-DAT-0120-A")
 def test_the_purge_of_an_abandoned_import_leaves_its_deposit_refused_without_reading_storage(
     api: ContractClient,
     stage: Scene,
@@ -175,7 +179,7 @@ def test_the_purge_of_an_abandoned_import_leaves_its_deposit_refused_without_rea
     assert reads == []
 
 
-@pytest.mark.requirement("WF-DAT-0120")
+@pytest.mark.requirement("WF-DAT-0120-A")
 def test_the_bound_does_not_count_a_deposit_whose_import_was_purged(
     api: ContractClient, stage: Scene, database: Database, backups_bucket: Bucket
 ) -> None:
@@ -189,3 +193,39 @@ def test_the_bound_does_not_count_a_deposit_whose_import_was_purged(
     for _ in range(MOST_PENDING):
         deposited(api, manager, trial_file(*ROWS))
     assert refusal(upload(api, manager, trial_file(*ROWS))) == FULL
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_the_purge_of_an_analysed_import_whose_report_expired_leaves_its_deposit_refused(
+    api: ContractClient,
+    stage: Scene,
+    database: Database,
+    services: Services,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Vérif : un dépôt employé par un import ne redevient jamais libre. The report of an import
+    # analysed expires and the purge deletes it: its deposit, alive until then, is not counted by
+    # the bound afterwards, and ``openImport`` refuses it (404) without reading the storage.
+    worker = import_worker(database, services.queue, services.backups)
+    import_id = analysed(api, stage, worker)["import_id"]
+    upload_id = str(stored(database, import_id).upload_id)
+    assert pending(database, stage) == 1
+    with database.transaction() as session:
+        session.execute(
+            update(ImportReport)
+            .where(ImportReport.id == UUID(import_id))
+            .values(expires_at=utc_now() - timedelta(hours=1))
+        )
+    reads: list[str] = []
+    head = Bucket.head
+
+    def counted(bucket: Bucket, key: str, length: int) -> bytes:
+        reads.append(key)
+        return head(bucket, key, length)
+
+    monkeypatch.setattr(Bucket, "head", counted)
+    purged(database, services.backups)
+    assert pending(database, stage) == 0
+    again = open_import(api, stage.manager, stage.project["project_id"], upload_id)
+    assert again.status_code == 404
+    assert reads == []
