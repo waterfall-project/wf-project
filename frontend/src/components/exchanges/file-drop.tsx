@@ -12,8 +12,10 @@
  * says that it is sending, says a file dropped meanwhile is not taken, and takes no other once one
  * is sent — unless the task that analyses it fails, which frees the zone for another file —, nor
  * while the analysis of a file of the project it finds, mounted anew, runs (#3404). Once the address
- * has named the import sent and names it no more — abandoned, or another shown —, the zone takes a
- * new file and no longer says the last one is sent (WF-INTF-0080, #4429). The API judges the content.
+ * has named the import sent and names it no more — abandoned, or another shown —, or once the screen
+ * reads it refused or failed (`ended`), whose report stays on the page with no way to apply or abandon
+ * it, the zone takes a new file and no longer says the last one is sent (WF-INTF-0080, #4429). The API
+ * judges the content.
  *
  * The zone is lit while a file is dragged over it, over its children too: the entries and the exits
  * of the drag are counted, as `relatedTarget` of a leave is null in Firefox.
@@ -55,12 +57,16 @@ function fileProblem(file: File): FileProblem | undefined {
 
 /**
  * The import the file sent opened, followed by the address: once the address has named it and names
- * it no more, `free` runs, in the render that sees it, so that the zone takes a new file.
+ * it no more — or once the screen reads it `ended`, refused or failed, its report staying shown —,
+ * `free` runs, in the render that sees it, so that the zone takes a new file.
  */
-function useSentImport(free: () => void) {
+function useSentImport(free: () => void, ended: string | undefined) {
   const [sent, setSent] = useState<{ readonly id: string; readonly named: boolean }>();
   const addressed = useSearchParams().get(IMPORT_PARAMETER);
-  if (sent !== undefined && !sent.named && addressed === sent.id) {
+  if (sent !== undefined && ended === sent.id) {
+    setSent(undefined);
+    free();
+  } else if (sent !== undefined && !sent.named && addressed === sent.id) {
     setSent({ id: sent.id, named: true });
   } else if (sent?.named === true && addressed !== sent.id) {
     setSent(undefined);
@@ -86,10 +92,13 @@ function useSentImport(free: () => void) {
 export function FileDrop({
   projectId,
   start,
+  ended,
 }: {
   readonly projectId: string;
   /** The address of the screen, its context kept, from which the report of the import is shown. */
   readonly start: string;
+  /** The import the page reads refused or failed, which the zone no longer waits for. */
+  readonly ended?: string | undefined;
 }) {
   const t = useTranslations("exchanges.drop");
   const open = useOpenImport(projectId, start);
@@ -108,7 +117,7 @@ export function FileDrop({
   const sentImport = useSentImport(() => {
     setSent(undefined);
     setAnalysis(undefined);
-  });
+  }, ended);
   // The button waits while the file is sent and while its analysis runs (WF-IHM-0080, #3279) —
   // mounted anew, while an analysis of the project runs (#3404).
   const found = useRunningTask(analysisAim(projectId));

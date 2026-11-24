@@ -163,6 +163,11 @@ export default async function ProjectPage(props: ProjectPageProps) {
             offers={startable}
             breakdownHref={`${breakdown}${breakdown.includes("?") ? "&" : "?"}start=skeleton`}
             start={start}
+            ended={
+              entry?.status === "refused" || entry?.status === "failed"
+                ? entry.import_id
+                : undefined
+            }
           />
         )}
         {entry === undefined ? null : (

@@ -92,9 +92,10 @@ function offered(revision = "revision_without_tasks", project = "project") {
 }
 
 /** The encart, as the page renders it. */
-function encart(revision = "revision_without_tasks", project = "project") {
+function encart(revision = "revision_without_tasks", project = "project", ended?: string) {
   return (
     <ProjectStart
+      ended={ended}
       projectId={PROJECT}
       offers={offered(revision, project)}
       breakdownHref={BREAKDOWN}
@@ -451,6 +452,42 @@ describe("the drop zone", () => {
       }
     },
   );
+
+  it("takes a new file once the page reads the import sent refused or failed, its report staying shown [WF-INTF-0080-A]", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { client, group, view } = await zone({
+        ...IMPORTED,
+        [TASK]: "task_import_succeeded",
+      });
+      fireEvent.drop(group, {
+        dataTransfer: { files: [new File(["<Project/>"], "planning.xml", { type: "text/xml" })] },
+      });
+      await waitFor(() => {
+        expect(within(group).getByRole("status")).toHaveTextContent("« planning.xml » est envoyé");
+      });
+      await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+      // The address still names the import, which the page reads refused or failed: no way to
+      // apply it or to abandon it, and the zone no longer waits for it.
+      const imported = "01926f3a-7c00-7000-8000-000000000a11";
+      address.search = new URLSearchParams(`import=${imported}`);
+      view.rerender(shell(encart()));
+      const choose = within(group).getByRole("button", { name: "Choisir un fichier" });
+      expect(choose).toHaveAttribute("aria-disabled", "true");
+      view.rerender(shell(encart("revision_without_tasks", "project", imported)));
+      expect(within(group).queryByRole("status")).toBeNull();
+      expect(choose).not.toHaveAttribute("aria-disabled");
+      const sent = client.calls.filter((call) => call.route === OPEN).length;
+      fireEvent.drop(group, {
+        dataTransfer: { files: [new File(["<Project/>"], "autre.xml", { type: "text/xml" })] },
+      });
+      await waitFor(() => {
+        expect(client.calls.filter((call) => call.route === OPEN)).toHaveLength(sent + 1);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   it("takes another file once the task that analyses the one sent has not succeeded", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
