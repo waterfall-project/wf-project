@@ -424,7 +424,7 @@ const DETAILS: readonly Reader[] = [
     if (typeof value !== "string") {
       return undefined;
     }
-    return typeof subproject_code === "string"
+    return typeof subproject_code === "string" && subproject_code !== ""
       ? ["unknown_subproject_code", { sheet: value, code: subproject_code }]
       : ["unknown_value", { value }];
   },

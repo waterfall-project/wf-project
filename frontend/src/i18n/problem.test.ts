@@ -580,6 +580,13 @@ describe("the sentence of a refusal", () => {
     expect(say({ code: "UNKNOWN_SUBPROJECT", params: { value: "Essais sur site" } }, "fr")).toBe(
       "Sous-projet inconnu. Valeur lue dans le fichier\u00A0: «\u00A0Essais sur site\u00A0».",
     );
+    // A head whose code is empty is a head without a code.
+    expect(
+      say(
+        { code: "UNKNOWN_SUBPROJECT", params: { value: "Essais sur site", subproject_code: "" } },
+        "fr",
+      ),
+    ).toBe("Sous-projet inconnu. Valeur lue dans le fichier\u00A0: «\u00A0Essais sur site\u00A0».");
   });
 
   it("says the day without a working hour in the language of the reader, from the refusal of a start or of a finish [WF-PLA-0020-A]", () => {

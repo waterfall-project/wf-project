@@ -210,7 +210,8 @@ describe("the grid of the actual costs", () => {
     render(costsGrid({ ...costs, items: long }));
     const shown = within(cellsOf("FA-2026-0521")[4] ?? grid()).getByText(code);
     expect(shown).toHaveAttribute("title", code);
-    expect(shown).toHaveClass("truncate");
+    // The width bound is what leaves the label its place; jsdom does not measure the layout.
+    expect(shown).toHaveClass("truncate", "max-w-3/5", "shrink-0");
     // The label keeps its place beside the code cut.
     expect(cellsOf("FA-2026-0521")[4]).toHaveTextContent(`${code}Poste de commande`);
   });
