@@ -25,6 +25,8 @@ backend/coverage-keycloak.json
 # The measures of the parts of the tests of the back (`make coverage-back SHARD=i/N`).
 backend/.coverage-parts/
 .coverage
+# Parallel coverage data files (`.coverage.<host>.pid<n>.<random>`), left behind by an interrupted `make check`/`make check-back`
+.coverage.*
 test-results/
 playwright-report/
 # Schémas XML de MS Project, non redistribuables : lus sur le poste, jamais versionnés
