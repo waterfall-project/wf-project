@@ -170,7 +170,7 @@ const NETWORK_FAILURES: ReadonlySet<unknown> = new Set([...UNMADE_CONNECTION, ..
  * its data (`LOADING`), has become a replica (`READONLY`), has lost its master (`MASTERDOWN`), or
  * has no place for one more connection (`ERR max number of clients reached`).
  */
-const UNAVAILABLE_REPLY = /^(?:LOADING|READONLY|MASTERDOWN)\b|^ERR max number of clients reached/i;
+const UNAVAILABLE_REPLY = /^(?:LOADING|READONLY|MASTERDOWN)\b|^ERR max number of clients reached/;
 
 /** How deep the causes of an error are looked into: a chain that loops ends there. */
 const CAUSES = 8;
@@ -208,7 +208,8 @@ export function unreached(error: unknown, depth = 0): boolean {
  * Redis could not be reached — a connection refused, lost, or not made in time —: nothing was read,
  * and nothing written but, perhaps, a write in flight when the connection was lost. A refusal of
  * Redis itself, an answer — a password or a database refused at the connection included —, is not
- * this, but a defect; nor is an address missing or badly written.
+ * this but a defect, but for the replies of a Redis that cannot serve for now (`UNAVAILABLE_REPLY`);
+ * nor is an address missing or badly written.
  */
 export class StoreUnreachable extends Error {
   /** The failure of the client, kept as the cause. */
