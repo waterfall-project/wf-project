@@ -5138,9 +5138,9 @@ Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qu
 ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`. Ce qui
 dépend de l'horloge : rien dans le référentiel, dont les dates sont celles du chargement
 (WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas :
-l'ouverture, depuis `/`, du portefeuille de `navigation.spec.ts`, levée par **EP-11**, et celle de
-l'écran d'état du système, levée par **EP-13** (`getSystemStatus`, #2307). L'administration, elle,
-se lit sous `@administration` (le compte de la course n'y porte pas le rôle « Manager » mais
+l'ouverture, depuis `/`, du portefeuille de `navigation.spec.ts`, levée par **EP-11**. L'état du
+système, servi par EP-13 (`getSystemStatus`, #2307), se lit et s'ouvre des deux côtés, comme
+l'administration, sous `@administration` (le compte de la course n'y porte pas le rôle « Manager » mais
 « Administrateur (parcours) ») : les parcours d'`admin.spec.ts` qui lisent sont
 `@shared @administration`. Ne se rejouent pas ceux d'`admin.spec.ts` qui écrivent — les sauvegardes
 (lancer, garder, restaurer), l'horaire des sauvegardes, les comptes et les rôles : chacun écrit un

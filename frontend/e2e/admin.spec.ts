@@ -131,8 +131,8 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
     matrix.getByRole("rowheader", { name: "Sauvegarde et restauration", exact: true }),
   ).toBeVisible();
 
-  // The service does not serve the state of the system before EP-13 (`getSystemStatus`): against it,
-  // the screen is not read here.
+  // The state of the system, served since EP-13 (`getSystemStatus`, #2307): what the service renders
+  // of it is read by the path below; the fake back says its example here.
   if (!inService) {
     await page.goto("/system");
     await expect(page.getByText(/^Version installée\s: 1\.0\.0$/)).toBeVisible();
@@ -165,6 +165,35 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
       page.getByText("Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées"),
     ).toBeVisible();
   }
+});
+
+// Played in service too (`@shared @administration`, US-2890/L2, #2307): the reader of the
+// administration holds no role in any project, and the state of the platform is shown to it all the
+// same, outside any project (WF-ADM-0130). What the service measures varies from one run to the
+// next — the components, the spaces, the alerts, the versions: only what holds whatever it
+// measures is asserted, the example of the fake back being read above.
+test("shows the state of the system to a user who holds the permission and contributes to no project [WF-ADM-0130-A] @shared @administration", async ({
+  page,
+}) => {
+  await page.goto("/system");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Surveillance de l’état du système",
+    { timeout: WORKING },
+  );
+  await expect(page).toHaveTitle("Surveillance de l’état du système — Waterfall");
+  // The version installed, whatever it is, and the five sections of the state.
+  await expect(page.getByText(/^Version installée\s: \S+/)).toBeVisible();
+  for (const section of [
+    "Alertes en cours",
+    "Composants",
+    "Espace de stockage",
+    "Paramètres d’exploitation",
+    "Dernières opérations",
+  ]) {
+    await expect(page.getByRole("region", { name: section, exact: true })).toBeVisible();
+  }
+  // No project is opened, nor offered: there is none to go back to.
+  await expect(page.getByRole("link", { name: "Retour au projet" })).toHaveCount(0);
 });
 
 test("starts a backup, marks one to be kept, downloads one and restores the platform from one, confirmed by its identifier typed [WF-ADM-0160-A]", async ({

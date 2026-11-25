@@ -16,7 +16,7 @@ import { expect } from "@playwright/test";
 
 import { WORKING } from "./bounds";
 import { untilHydrated } from "./hydration";
-import { inService, test } from "./mode";
+import { test } from "./mode";
 import { type AppScreen, tableScreens } from "./routes";
 
 test.describe.configure({ mode: "parallel" });
@@ -26,13 +26,6 @@ test.describe.configure({ mode: "parallel" });
  * `installation.read`): the administrator of the installation reads it (`@administrator`, `mode.ts`).
  */
 const ADMINISTRATOR_ONLY: readonly string[] = ["FBS-1.6"];
-
-/**
- * The screen the service cannot serve yet, whoever reads it: the state of the system reads
- * `GET /system/status`, which the service does not serve (the administrator and the reader of the
- * administration both receive « Introuvable »), until US-2890 of EP-13 (#2307).
- */
-const NOT_SERVED = "FBS-1.3";
 
 /** Whether the screen belongs to the administration, which its reader alone opens. */
 function administered(screen: AppScreen): boolean {
@@ -57,10 +50,6 @@ for (const screen of tableScreens()) {
   test(`${screen.code} ${screen.route}: the help of the screen opens, named by its page, and says what the screen shows @shared${reader} [WF-IHM-0140-A]`, async ({
     page,
   }) => {
-    test.skip(
-      inService && screen.code === NOT_SERVED,
-      "the service does not serve getSystemStatus",
-    );
     test.slow();
     await page.goto(screen.address);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(screen.name, {
