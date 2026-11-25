@@ -138,16 +138,17 @@ describe("the state of the platform and its backups", () => {
   ] as const)(
     "names the front, in the words of the catalogue, in an alert of a component unavailable (%s) [US-2880] [WF-OBS-0030-A]",
     (locale, title, name) => {
-      // The example of the contract, the unavailable component being the front.
+      // The example of the contract, its unavailable component replaced by the front
+      // (the contract has no example that carries it).
       const alerts = structuredClone(failed.alerts).map((alert) =>
         alert.code === "component_unavailable"
           ? { ...alert, params: { ...alert.params, component: "front" as const } }
           : alert,
       );
       rendered(<AlertList alerts={alerts} />, locale);
-      expect(
-        screen.getByRole("row", { name: new RegExp(`${title}.*${name}`) }),
-      ).toBeInTheDocument();
+      const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const row = screen.getByRole("row", { name: new RegExp(escape(title)) });
+      expect(within(row).getByText(new RegExp(escape(name)))).toBeInTheDocument();
     },
   );
 
