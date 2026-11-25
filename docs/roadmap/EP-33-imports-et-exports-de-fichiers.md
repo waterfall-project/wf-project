@@ -1,7 +1,7 @@
 ---
 id: EP-33
 titre: Fiabiliser les allers-retours de fichiers — rapprochement MS Project, bornes des classeurs, compte rendu confirmé, comptes rendus d'import et leur purge
-statut: en cours
+statut: livré
 depend_de: EP-08
 famille: front, back
 issue: 4523
@@ -250,7 +250,7 @@ l'auteur le 2026-11-23 :
 - #4759 — back : un fichier tiers qui range de vrais UUID dans `Text1` est pris pour un export de
   Waterfall — limite acceptée, rejouée à la recette de l'aller-retour MS Project ;
 - #4779, #4813 — instabilités de la file (Keycloak, `test_partitions`), vues une fois — on attend ;
-  vues deux fois, le pilote ouvre le lot correctif ;
+  vues deux fois, le pilote ouvre le lot correctif ; reportés à EP-36 à la fin d'EP-33 (2026-11-25) ;
 - #4784 — back : un onglet de lignes qui perd « Tâche » ou « Rôle ou catégorie » n'est ni refusé ni
   lu, et ses lignes se lisent absentes → US-3200b : la liste de #4421 s'étend aux deux clés ;
 - #4785 — contrat : aucun exemple d'un devis refusé pour une colonne absente → US-3280, un exemple
@@ -325,7 +325,9 @@ par l'auteur le 2026-11-25 :
   pas ignorés par git, et un commit de L6 en a embarqué 67 → US-3270/L6b : `.coverage.*` dans
   `.gitignore` ; l'historique d'`epic/EP-33` n'est pas réécrit ;
 - #4946 — back, déploiement : la lecture d'un classeur importé n'a pas de plafond de mémoire dur
-  (relevé à la mesure d'US-3190/L3) → reporté à EP-39, avec la limite de mémoire du service.
+  (relevé à la mesure d'US-3190/L3) → reporté à EP-39, avec la limite de mémoire du service ;
+- #4949 — back : les crêtes annoncées des listes riches ne se reproduisent pas, et la commande
+  `counts` n'est pas branchée dans `make measure-workbooks` → reporté à EP-39, avec #4946.
 
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
