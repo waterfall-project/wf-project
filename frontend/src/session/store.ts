@@ -165,6 +165,13 @@ const CONNECTION_FAILURES = [
  */
 const NETWORK_FAILURES: ReadonlySet<unknown> = new Set([...UNMADE_CONNECTION, ...LOST_CONNECTION]);
 
+/**
+ * The refusals of Redis that say it cannot serve for now, not that the request is wrong: it loads
+ * its data (`LOADING`), has become a replica (`READONLY`), has lost its master (`MASTERDOWN`), or
+ * has no place for one more connection (`ERR max number of clients reached`).
+ */
+const UNAVAILABLE_REPLY = /^(?:LOADING|READONLY|MASTERDOWN)\b|^ERR max number of clients reached/;
+
 /** How deep the causes of an error are looked into: a chain that loops ends there. */
 const CAUSES = 8;
 
@@ -174,11 +181,15 @@ const CAUSES = 8;
  * each address of a host, and gathers their refusals). A connection given up after its retries is
  * judged by the failure of its last attempt. Anything else — a variable missing, an address badly
  * written, a refusal of Redis such as a password or a database it does not know, a certificate not
- * trusted, a defect — is not, and is thrown as it is.
+ * trusted, a defect — is not (but for the replies of a Redis that cannot serve for now, see
+ * `UNAVAILABLE_REPLY`), and is thrown as it is.
  */
 export function unreached(error: unknown, depth = 0): boolean {
-  if (!(error instanceof Error) || error instanceof ErrorReply || depth > CAUSES) {
+  if (!(error instanceof Error) || depth > CAUSES) {
     return false;
+  }
+  if (error instanceof ErrorReply) {
+    return UNAVAILABLE_REPLY.test(error.message);
   }
   if (error instanceof ReconnectStrategyError) {
     return unreached(error.socketError, depth + 1);
@@ -197,7 +208,8 @@ export function unreached(error: unknown, depth = 0): boolean {
  * Redis could not be reached — a connection refused, lost, or not made in time —: nothing was read,
  * and nothing written but, perhaps, a write in flight when the connection was lost. A refusal of
  * Redis itself, an answer — a password or a database refused at the connection included —, is not
- * this, but a defect; nor is an address missing or badly written.
+ * this but a defect, but for the replies of a Redis that cannot serve for now (`UNAVAILABLE_REPLY`);
+ * nor is an address missing or badly written.
  */
 export class StoreUnreachable extends Error {
   /** The failure of the client, kept as the cause. */
