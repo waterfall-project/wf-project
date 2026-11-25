@@ -297,6 +297,27 @@ describe("a failure to reach Redis", () => {
     },
   );
 
+  it.each([
+    "LOADING Redis is loading the dataset in memory",
+    "READONLY You can't write against a read only replica.",
+    "MASTERDOWN Link with MASTER is down and replica-serve-stale-data is set to 'no'.",
+    "ERR max number of clients reached",
+  ])("holds a Redis that cannot serve for now as out of reach: %s [US-2860]", (reply) => {
+    const failure = new ErrorReply(reply);
+    expect(unreached(failure)).toBe(true);
+    expect(unreached(new Error("the command failed", { cause: failure }))).toBe(true);
+    expect(unreached(new ReconnectStrategyError(failure, failure))).toBe(true);
+  });
+
+  it.each([
+    "ERR unknown command 'FOO'",
+    "WRONGTYPE Operation against a key holding the wrong kind of value",
+    "NOAUTH Authentication required.",
+    "ERR syntax error",
+  ])("keeps any other reply of Redis an unexpected error: %s [US-2860]", (reply) => {
+    expect(unreached(new ErrorReply(reply))).toBe(false);
+  });
+
   it("is told by the last attempt of a connection given up, never by the giving up alone", () => {
     const refused = systemError("ECONNREFUSED");
     expect(unreached(new ReconnectStrategyError(refused, refused))).toBe(true);
