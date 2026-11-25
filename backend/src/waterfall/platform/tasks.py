@@ -54,7 +54,7 @@ type TaskKind = Literal[
     "identity_sync",
 ]
 # The kinds the platform schedules (EP-13): requested by nobody, so listed to nobody, they are not
-# the contract's (migration 0044).
+# the contract's (migration 0048).
 type ScheduledKind = Literal["purge", "backup_copy", "restore_test"]
 CONTRACT_KINDS: tuple[str, ...] = get_args(TaskKind.__value__)
 SCHEDULED_KINDS: tuple[str, ...] = get_args(ScheduledKind.__value__)
@@ -150,6 +150,17 @@ class UndoneError(Exception):
         super().__init__(str(cause))
         self.cause = cause
         self.trace = trace
+
+
+class RetriedError(UndoneError):
+    """A task that stalled on a failure that may pass: taken again, unless it is its last attempt.
+
+    A handler raises it from a cause the next attempt may not meet — a component that does not
+    answer. The worker undoes the work of the handler, writes nothing, and leaves the entry of the
+    task pending: it is claimed again, as after a worker stopped (WF-ARC-0090), and the task runs
+    from the start. On the last attempt, it is an ``UndoneError``: the trace is written and the
+    task fails with the cause, which a refusal gives its code and parameters.
+    """
 
 
 def _written(

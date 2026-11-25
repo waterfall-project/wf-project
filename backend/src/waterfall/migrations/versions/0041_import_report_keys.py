@@ -6,8 +6,9 @@ Each of ``import_report.structure_id`` and ``revision_id`` receives its key, wit
 deleted with what it names (``CASCADE``): the structure, partitioned by project, and the revision.
 The imports that pointed at nothing are deleted by the migration before.
 
-The keys are posed and checked at once, not ``NOT VALID``: the table holds the imports of a few
-days, deleted at their expiry. A project created after them has the keys of its partitions as one
+The keys are posed and checked at once, not ``NOT VALID``: the table holds few imports, the purge
+deleting the row of one expired or abandoned in the pass that finds it so (US-3250), the others
+staying. A project created after them has the keys of its partitions as one
 that existed before.
 
 The descent drops the keys.

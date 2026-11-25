@@ -8,7 +8,7 @@ maintenance lifted (``waterfall.restore.runner``). A row there — a restoration
 migration — is dated by the migration, its deadline counted from then.
 
 The schema ``platform`` is left in place by a restoration, which applies the migrations that follow
-its backup again (0044): the column is added where it is missing, and a restoration of a backup
+its backup again (0048): the column is added where it is missing, and a restoration of a backup
 taken before this revision leaves it as it is, the maintenance it holds included.
 """
 
@@ -20,8 +20,8 @@ from alembic import op
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-revision: str = "0050"
-down_revision: str | None = "0049"
+revision: str = "0054"
+down_revision: str | None = "0053"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -328,11 +328,10 @@ def test_a_task_is_modified_by_its_dates_its_duration_and_its_state(
             "started_on": None,
         }
     }
-    # The other, untouched, gains the float the longer task gives the project: a value it carries.
-    assert (found["Essais"]["changes"], found["Essais"]["base"]) == (
-        ["other"],
-        {"task": {"total_float": {"value": "0", "unit": "d"}, "is_critical": True}},
-    )
+    # The other, untouched, gains the float the longer task gives the project and leaves the
+    # critical path: values the planning engine computes, which modify no task (#4312).
+    essais = found["Essais"]
+    assert (essais["difference"], essais["changes"], essais["base"]) == ("unchanged", [], None)
     # Its line, at the same amounts, its hours spread over the same year: unchanged.
     assert (
         found["Câblage — Ingénieur"]["difference"],
@@ -381,12 +380,11 @@ def test_the_predecessors_are_numbered_in_the_union_a_removed_task_naming_the_co
     mark(stage, amendment, "v2.0")
     found = compared(api, stage, (offer, amendment))
     nodes = by_label(found["items"])
-    # Its successor removed, « Préparation » loses its float: a value it carries (US-2320).
-    assert nodes["Préparation"]["base"] == {
-        "task": {"total_float": {"value": "0", "unit": "d"}, "is_critical": True}
-    }
+    # Its successor removed, « Préparation » gains float and leaves the critical path: values the
+    # planning engine computes, which leave it unchanged (#4312).
+    assert nodes["Préparation"]["base"] is None
     assert [(label_of(each), each["difference"]) for each in found["items"]] == [
-        ("Préparation", "modified"),
+        ("Préparation", "unchanged"),
         ("Essais", "removed"),
         ("Recette", "unchanged"),
         ("Clôture", "unchanged"),

@@ -18,7 +18,15 @@
       (`openImport`, `startRestore`). A backup is not uploaded here, but in
       chunks (`openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`): `purpose` set to
       `external_backup` is refused with 422, `VALIDATION_FAILED`, `fields` designating `/purpose`
-      with `UPLOAD_PURPOSE_MISMATCH`.
+      with `UPLOAD_PURPOSE_MISMATCH`. Uploading asks for one of the four import permissions —
+      `planning.write`, `estimate.write`, `remaining.write`, `actual_costs.write` —, any of
+      them: an account that holds none is refused with 403 (WF-ADM-0020). An account keeps at most
+      twenty uploads for an import that no import has used and that have not expired: the
+      twenty-first is refused with 409; as soon as an import uses one of them, or one expires
+      and is deleted, a new upload passes (WF-DAT-0120). The limit is counted before the file is
+      written, without a lock: two simultaneous uploads may pass it by one, the limit guarding
+      against a loop and not being an invariant. Every refusal comes before anything is written to
+      object storage or recorded (#4423).
     requestBody:
       required: true
       content:
@@ -39,8 +47,43 @@
               estimate: { $ref: ../../../fixtures/api/file_upload.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403':
+        description: >-
+          The account holds none of the four import permissions: `PERMISSION_MISSING`,
+          `params.missing_permission` naming `planning.write`, the first of them, as the writes
+          of the grids that any of three permissions opens name the first (WF-ADM-0020; #4423).
+          Nothing is written.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              permission_missing: { $ref: ../../../fixtures/api/file_upload_permission_missing.json }
+      '409':
+        description: >-
+          The account already keeps twenty uploads for an import that no import has used and that
+          have not expired: `STATE_FORBIDS_OPERATION`, `params.missing_condition` set to
+          `pending_uploads_below_limit` and `params.maximum` to `20` (WF-DAT-0120; #4423). Judged
+          after the permission, a 409 and not a 429, like every refusal of a state (J-01). Nothing
+          is written.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              pending_limit: { $ref: ../../../fixtures/api/file_upload_pending_limit.json }
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` designating the field at fault: a backup, `/purpose` with
+          `UPLOAD_PURPOSE_MISMATCH`; an empty file, or one without a name, `/file` with
+          `VALUE_REQUIRED`; a name longer than 255 characters, `/file` with `VALUE_TOO_LONG`,
+          `fields[].params.max_length` at `255`, like every `VALUE_TOO_LONG`; a name that holds
+          the NUL character, `/file` with `VALIDATION_FAILED`, as every text that holds it is
+          refused (BEX-08, #4426, #4423). Nothing is written.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              filename_nul: { $ref: ../../../fixtures/api/file_upload_filename_nul.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -207,14 +250,19 @@
     description: >-
       The imports of the project, ongoing and past, with the state where each one stopped
       (WF-INTF-0080, WF-ARC-0100), from the most recent to the oldest by their opening
-      (`created_at`), like the other logs.
+      (`created_at`), like the other logs. An import expired or abandoned is listed until the
+      pass of the purge that follows deletes it, its report included (§4.4.1, WF-DAT-0080): the
+      list then neither lists nor counts it (`meta.total`). An import applied, failed or refused
+      stays (#4425).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
     responses:
       '200':
-        description: Imports, analysed, applied or abandoned, from the most recent to the oldest.
+        description: >-
+          Imports, analysed, applied or abandoned, from the most recent to the oldest; an import
+          expired or abandoned until the pass of the purge deletes it.
         content:
           application/json:
             schema:
@@ -258,7 +306,14 @@
       import is refused as long as one of the four required columns has no label in it, which
       the project's `import_actual_costs` command states in advance; a file missing a required
       column is refused, naming it; a column neither read nor declared kept is ignored, and the
-      report names it (`ImportIgnoredKind`, `columns`). The analysed report is what applies,
+      report names it (`ImportIgnoredKind`, `columns`). The WBS element of each line is compared
+      whole with the code of the project and those of its subprojects: equal to the code of the
+      project, the line is charged to the project alone; to that of a subproject, to that
+      subproject; otherwise it is rejected, and the report names each unknown element and the
+      number of its lines (`ImportReport.unknown_wbs_elements`, WF-CRE-0020; #3966). Two lines of
+      the same document and item are compared among the lines of the project alone (BRC-04). A
+      remaining to commit designates the subproject of a sheet by the code at its head, never by
+      the name of the sheet (WF-INTF-0120). The analysed report is what applies,
       even if the mapping changes in the meantime (`applyImport`). An MS Project schedule
       updates an existing task without touching its attachment to the work breakdown; on the
       main structure, the only one to carry attachments, a file that would place the task of an
@@ -345,7 +400,15 @@
           is refused with `FILE_FORMAT_UNREADABLE`, `params.expected_format` set to `actual_costs`,
           without `expected_version`, and `params.missing_columns` each required column that the
           file carries under none of its labels, with the declared labels, in the order
-          of the mapping. Or an upload
+          of the mapping. An estimate or a remaining to commit one of whose sheets of lines lacks a
+          column the import reads, and whose absence would change data — « ID ligne »,
+          « Quantité », « Heures » or « Débours unitaire » for an estimate, « ID ligne »,
+          « Jours restants » or « Débours restant » for a remaining to commit —, is refused
+          likewise, with `params.expected_format` and `params.expected_version`, and
+          `params.missing_columns` each missing column by its header as the format writes it and
+          its sheet (`header`, `sheet`), sheet by sheet in the order of the file, then in the
+          order of the format: a renamed header is a missing column, and a column the import
+          does not read may be missing (WF-INTF-0070, WF-INTF-0120; #4421). Or an upload
           that was not made for an import — a backup uploaded for a restore
           (`FileUploadPurpose`) —: `VALIDATION_FAILED`, `fields` designating `/upload_id` with
           `UPLOAD_PURPOSE_MISMATCH`. Or an extracted period whose end precedes its start:
@@ -357,6 +420,8 @@
             examples:
               format_unreadable: { $ref: ../../../fixtures/api/import_format_unreadable.json }
               actual_costs_column_missing: { $ref: ../../../fixtures/api/import_actual_costs_column_missing.json }
+              estimate_column_missing: { $ref: ../../../fixtures/api/import_estimate_column_missing.json }
+              remaining_column_missing: { $ref: ../../../fixtures/api/import_remaining_column_missing.json }
               purpose_mismatch: { $ref: ../../../fixtures/api/import_upload_purpose_mismatch.json }
               period_inverted: { $ref: ../../../fixtures/api/import_period_inverted.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
@@ -390,15 +455,25 @@
       an actual cost extraction, the columns of the file neither read nor declared kept, ignored
       and named by their label (`ImportIgnoredKind`, `columns`, WF-REF-0190), each cost line
       designated by its document and its item, the lines of the file with the same document and
-      the same item rejected (`DUPLICATE_COST_LINE`, WF-INTF-0140; EP-16/US-0630), and those
-      whose WBS element is malformed or of another project (`WBS_ELEMENT_INVALID`,
-      `WBS_ELEMENT_OUTSIDE_PROJECT`, WF-CRE-0020). The report is stored as codes and rendered in
+      the same item rejected, compared among the lines of the project alone
+      (`DUPLICATE_COST_LINE`, WF-INTF-0140; EP-16/US-0630, BRC-04), and those whose WBS element is
+      neither the code of the project nor that of one of its subprojects, compared whole
+      (`WBS_ELEMENT_OUTSIDE_PROJECT`, WF-CRE-0020), each such element named once with the number
+      of its lines (`ImportReport.unknown_wbs_elements`, `import_actual_costs_unknown_elements`;
+      #3966). The report is stored as codes and rendered in
       the language of the reader (WF-ARC-0110). The import always returns its report, its task
       and its commands, apply and abandon, available or not with their conditions
-      (`ImportDetail`, WF-IHM-0090; I-01, I-06, #1789, #1780); for a remaining to commit, a new
-      line under a completed task is rejected, the task named
-      (`import_remaining_completed_task`; I-05, #1793), and an import whose application was
-      refused reads `refused` (`import_apply_refused_permission`).
+      (`ImportDetail`, WF-IHM-0090; I-01, I-06, #1789, #1780) — its task null once it has been
+      deleted at the end of the retention of its result
+      (`OperatingParameters.background_task_retention_days`, §4.4.1, WF-DAT-0080), or for an
+      import that has none (`import_actual_costs_task_purged`; #4425); for a remaining to commit,
+      a new line under a completed task is rejected, the task named
+      (`import_remaining_completed_task`; I-05, #1793), and a line whose amount the application
+      writes is not the amount the file carries is signalled, both amounts named
+      (`AMOUNT_ROUNDED`, `ImportSignal`, WF-INTF-0120; #4428); and an import whose application
+      was refused reads `refused` (`import_apply_refused_permission`). An import expired or
+      abandoned is read until the pass of the purge that follows deletes it, its report
+      included: it is then a 404, like an unknown import (§4.4.1, WF-DAT-0080; #4425).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId
@@ -425,12 +500,15 @@
               planning_calendar_gap: { $ref: ../../../fixtures/api/import_planning_calendar_gap.json }
               planning_provision_moved: { $ref: ../../../fixtures/api/import_planning_provision_moved.json }
               estimate_task_without_hours: { $ref: ../../../fixtures/api/import_estimate_task_without_hours.json }
-              actual_costs_wbs_invalid: { $ref: ../../../fixtures/api/import_actual_costs_wbs_invalid.json }
               actual_costs_dotted_code: { $ref: ../../../fixtures/api/import_actual_costs_dotted_code.json }
+              actual_costs_unknown_elements: { $ref: ../../../fixtures/api/import_actual_costs_unknown_elements.json }
               remaining_ambiguous_label: { $ref: ../../../fixtures/api/import_remaining_ambiguous_label.json }
               remaining_duplicate_lineage: { $ref: ../../../fixtures/api/import_remaining_duplicate_lineage.json }
+              remaining_unknown_subproject: { $ref: ../../../fixtures/api/import_remaining_unknown_subproject.json }
               remaining_completed_task: { $ref: ../../../fixtures/api/import_remaining_completed_task.json }
               apply_refused_permission: { $ref: ../../../fixtures/api/import_apply_refused_permission.json }
+              actual_costs_task_purged: { $ref: ../../../fixtures/api/import_actual_costs_task_purged.json }
+              remaining_amount_rounded: { $ref: ../../../fixtures/api/import_remaining_amount_rounded.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '500': { $ref: ../components/responses.yaml#/InternalError }
@@ -445,14 +523,19 @@
       expired, failed or refused — returns 204 without effect, its file being already deleted
       (WF-ARC-0100). An import applied or being applied cannot be abandoned: what it has written
       is not undone by abandoning it (WF-INTF-0080), which its `abandon` command states in
-      advance (I-02, #1789).
+      advance (I-02, #1789). The abandoned import is deleted, its report included, by the pass of
+      the purge that follows, not by the abandonment itself, so that abandoning again returns 204
+      until that pass; the import expired is deleted by the same pass. Once deleted, abandoning it,
+      as reading it (`getImport`) or applying it (`applyImport`), is a 404 (§4.4.1, WF-DAT-0080;
+      #4425).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId
     responses:
       '204':
         description: >-
-          Import abandoned, or already abandoned, expired, failed or refused (without effect).
+          Import abandoned, or already abandoned, expired, failed or refused (without effect); an
+          import abandoned or expired that the purge has deleted since is a 404.
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -483,7 +566,16 @@
       exclusions (WF-INTF-0140, WF-DAT-0110, WF-CRE-0030; D-4). It applies as it was analysed,
       even if the mapping of the extraction has changed since the analysis: the confirmed report
       is what applies (WF-INTF-0080), and a change to the mapping holds for subsequent imports,
-      without changing any line already imported (WF-REF-0190).
+      without changing any line already imported (WF-REF-0190). A schedule, an estimate or a
+      remaining to commit applies only on the structure its report read: "between the analysis
+      and the confirmation, no data of the project has changed" (WF-ARC-0100). The analysis keeps
+      the write counter of the structure, and any write of its tree since — a cell, a paste, a
+      move, a creation, a deletion — refuses the application for good, the user uploading the
+      file again (`import_structure_unchanged`, #4420); an actual cost extraction, which writes
+      in no structure, is not concerned. The client sends no counter: the service keeps it, and
+      compares it at the request and again at the execution, under the lock of the structure.
+      An import expired or abandoned is refused by its state until the pass of the purge that
+      follows deletes it; it is then a 404, like an unknown import (§4.4.1; #4425).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId
@@ -511,7 +603,13 @@
           being no longer `analysed` — applied or being applied, abandoned, expired, failed or
           refused: there is nothing left to apply (WF-ARC-0100), and the import does not change
           (`import_apply_expired`). Then `import_file_accepted`, a report that rejects the whole
-          file (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150; EP-14/L42s). Then the state
+          file (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150; EP-14/L42s). Then
+          `import_structure_unchanged`, a schedule, an estimate or a remaining to commit whose
+          structure has been written since its analysis — the report no longer says what the
+          application would do (WF-ARC-0100; #4420): a structure analysed in the last marked
+          revision, the project having no current revision, remains unchanged when a revision
+          opened since copies it without writing in it, and the revision the application creates
+          itself is not compared (`import_apply_structure_changed`). Then the state
           conditions checked again when the task is submitted, those the opening judged
           (`openImport`): `project_not_terminal`, then, for a remaining to commit,
           `project_in_progress` first, when the project is not In progress (WF-RAE-0040; US-1630,
@@ -522,7 +620,8 @@
           place, the application asked again once the condition holds, without a new deposit:
           `no_background_task_running`, a background task of the project that ends, and
           `may_create_revision`, a permission that can be granted (`background_running`,
-          `may_create_revision`; WF-ARC-0100, #2475). Refused for good — the report,
+          `may_create_revision`; WF-ARC-0100, #2475). Refused for good — the report, the
+          structure written since the analysis (`import_structure_unchanged`),
           `project_not_terminal`, `project_in_progress` of a remaining to commit, a condition of
           the kind, the structure analysed that the current revision no longer holds (404
           `NOT_FOUND`), or a permission or a contributor
@@ -531,7 +630,10 @@
           effect (`import_apply_refused_permission`). Refusals are judged again at execution: a file
           that the analysis accepted and that an entry made since would cause to be rejected is
           not applied, the background task failing on the reason for the refusal, with the
-          parameters the report would give it. An estimate analysed on the main structure before
+          parameters the report would give it; likewise a structure written between the request
+          and the execution, judged under its lock, the task failing with
+          `STATE_FORBIDS_OPERATION`, `missing_condition` set to `import_structure_unchanged`, and
+          the import `refused`. An estimate analysed on the main structure before
           the project moved to In progress is no longer applied after it:
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` set to
           `project_before_in_progress`, as at the opening (`openImport`, WF-INTF-0100; C-358).
@@ -540,6 +642,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               file_rejected: { $ref: ../../../fixtures/api/import_apply_rejected.json }
+              structure_changed: { $ref: ../../../fixtures/api/import_apply_structure_changed.json }
               main_in_progress: { $ref: ../../../fixtures/api/import_apply_main_in_progress.json }
               expired: { $ref: ../../../fixtures/api/import_apply_expired.json }
               background_running:
@@ -641,8 +744,11 @@
       twenty-four hours if it has not been downloaded, an interrupted download leaving it in
       place (WF-DAT-0120, WF-ARC-0040); its headers do not depend on the language
       (WF-INTF-0180). An MS Project schedule writes the planning start date of the structure
-      into the project start date (WF-INTF-0050, WF-PLA-0020); a remaining to commit, the review
-      date in "Synthèse", the one the request names or the day of the request
+      into the project start date (WF-INTF-0050, WF-PLA-0020); a remaining to commit, a sheet per
+      subproject, which bears the code of the subproject at its head and a name that Waterfall
+      derives from it — the characters Excel refuses replaced, cut to 31 characters, numbered on
+      a collision — (annex B, WF-INTF-0130, WF-PRJ-0050; #3966), and the review date in
+      "Synthèse", the one the request names or the day of the request
       (`ExportRequest.review_date`, WF-INTF-0130), which its import will use to complete a task
       (WF-INTF-0120). The named revision (`revision_id`, required) is the one whose `export_*`
       command judges the export; an unknown revision or one of another project is refused with

@@ -128,6 +128,53 @@ function differencesOnly(): HTMLElement {
   return screen.getByRole("button", { name: "Écarts seulement" });
 }
 
+/** The number of columns a row of the grid shows, which the row of a run spans in all. */
+function visibleColumns(): number {
+  const row = [...document.querySelectorAll("tbody tr")].find(
+    (candidate) => candidate.querySelector("td[data-row]") !== null,
+  );
+  return row?.querySelectorAll("td").length ?? 0;
+}
+
+/** The element of the grid that a selector says, which the test counts on. */
+function found(selector: string): HTMLElement {
+  const element = document.querySelector<HTMLElement>(selector);
+  if (element === null) {
+    throw new Error(`nothing for ${selector}`);
+  }
+  return element;
+}
+
+/** The rows of the runs folded, in their order. */
+function runs(): HTMLElement[] {
+  return [...document.querySelectorAll<HTMLElement>("tbody tr")].filter(
+    (row) => row.querySelector("td[data-run]") !== null,
+  );
+}
+
+/** The planning where the task `successor` follows the task `predecessor`, finish to start. */
+function linking(successor: string, predecessor: string): NodeList {
+  const before = planning.items.find((node) => node.task?.label === predecessor);
+  return {
+    ...planning,
+    items: planning.items.map((node) =>
+      node.task?.label === successor
+        ? {
+            ...node,
+            predecessors: [
+              {
+                predecessor_node_id: before?.node_id ?? "",
+                predecessor_row_number: before?.row_number ?? 0,
+                link_type: "finish_to_start" as const,
+                lag: { value: "0", unit: "d" as const },
+              },
+            ],
+          }
+        : node,
+    ),
+  };
+}
+
 /** The text of the totals row. */
 function totals(): string {
   return document.querySelector("tfoot")?.textContent ?? "";
@@ -171,6 +218,135 @@ describe("« Écarts seulement » on a grid that reads a comparison", () => {
     expect(router.push).not.toHaveBeenCalled();
     expect(router.replace).not.toHaveBeenCalled();
     expect(router.refresh).not.toHaveBeenCalled();
+  });
+
+  it("draws in the row of a run the stretch of the link that crosses it, so that a vertical link is not cut [WF-PLA-0090-A]", async () => {
+    // « Dossier de conception » follows « Études », the four tasks between them folded away.
+    const [studies] = planning.items;
+    const linked: NodeList = {
+      ...planning,
+      items: planning.items.map((node) =>
+        node.task?.label === DESIGN
+          ? {
+              ...node,
+              predecessors: [
+                {
+                  predecessor_node_id: studies?.node_id ?? "",
+                  predecessor_row_number: studies?.row_number ?? 0,
+                  link_type: "finish_to_start" as const,
+                  lag: { value: "0", unit: "d" as const },
+                },
+              ],
+            }
+          : node,
+      ),
+    };
+    render(planningGrid(compared(MARKED, linked)));
+    await userEvent.click(differencesOnly());
+    const run = screen.getByRole("button", { name: "4 lignes sans écart repliées" }).closest("tr");
+    const gantt = run?.querySelector<HTMLElement>("td[data-run-end='gantt']");
+    // The link leaves the row of « Études », reaches the row of « Dossier de conception », and runs
+    // the whole height of the row of the run between them: not cut there.
+    const stretch = gantt?.querySelectorAll("g[data-link] line");
+    expect(stretch).toHaveLength(1);
+    expect(stretch?.[0]).toHaveAttribute("y1", "0");
+    expect(stretch?.[0]).toHaveAttribute("y2", "100%");
+    // The cell of the run still spans the columns before the Gantt, and says what it folds: all the
+    // visible columns but the Gantt one, which has its own cell, the only one of the row.
+    expect(run?.querySelector("td[data-run]")).toHaveAttribute(
+      "colspan",
+      (visibleColumns() - 1).toString(),
+    );
+    expect(run?.querySelectorAll("td[data-run-end]")).toHaveLength(1);
+    expect(run?.querySelectorAll("td")).toHaveLength(2);
+  });
+
+  it("leaves the cell of the run a column at least: the span and the cells at the end add up to the visible columns [WF-PLA-0090-A]", async () => {
+    render(planningGrid(compared(MARKED)));
+    await userEvent.click(differencesOnly());
+    const run = screen.getByRole("button", { name: "4 lignes sans écart repliées" }).closest("tr");
+    const span = Number(run?.querySelector("td[data-run]")?.getAttribute("colspan"));
+    const ends = run?.querySelectorAll("td[data-run-end]").length ?? 0;
+    expect(span).toBeGreaterThanOrEqual(1);
+    expect(span + ends).toBe(visibleColumns());
+  });
+
+  it("draws the stretch in the first of two runs only, when the link crosses that one alone [WF-PLA-0090-A]", async () => {
+    // « Pupitres opérateurs » follows « Études », « Études de détail » folded between them; then
+    // « Revue de conception » and « Réception des études » are folded before « Dossier de conception ».
+    render(
+      planningGrid(
+        compared(
+          { [SUMMARY]: "modified", [UNCHANGED[1] ?? ""]: "modified", [DESIGN]: "modified" },
+          linking(UNCHANGED[1] ?? "", SUMMARY),
+        ),
+      ),
+    );
+    await userEvent.click(differencesOnly());
+    const [first, second] = runs();
+    expect(first?.textContent).toContain("1 ligne");
+    expect(second?.textContent).toContain("2 lignes");
+    expect(first?.querySelectorAll("g[data-link] line")).toHaveLength(1);
+    expect(second?.querySelector("td[data-run-end='gantt']")).not.toBeNull();
+    expect(second?.querySelectorAll("g[data-link] line")).toHaveLength(0);
+  });
+
+  it("draws no stretch in a run at the head of the rows, nor in a run at the end of them [WF-PLA-0090-A]", async () => {
+    // Only « Revue de conception » is shown: a run before it, a run after it, no link between rows.
+    render(planningGrid(compared({ [REVIEW]: "modified" }, linking(DESIGN, UNCHANGED[1] ?? ""))));
+    await userEvent.click(differencesOnly());
+    const rows = runs();
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row.querySelector("td[data-run-end='gantt']")).not.toBeNull();
+      expect(row.querySelectorAll("g[data-link] line")).toHaveLength(0);
+    }
+  });
+
+  it("acts from the cell of the run with its span reduced: the arrows, Enter and Space [WF-PLA-0090-A]", async () => {
+    render(planningGrid(compared(MARKED)));
+    await userEvent.click(differencesOnly());
+    labelOf(SUMMARY).focus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toHaveAttribute("colspan", (visibleColumns() - 1).toString());
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(labelOf(DESIGN));
+    await userEvent.keyboard("{ArrowUp}{ArrowUp}");
+    expect(document.activeElement).toBe(labelOf(SUMMARY));
+    await userEvent.keyboard("{ArrowDown}{Enter}");
+    expect(labels()).toEqual([SUMMARY, ...UNCHANGED, DESIGN]);
+  });
+
+  it("unfolds from the cell of the run with Space, its span reduced [WF-PLA-0090-A]", async () => {
+    render(planningGrid(compared(MARKED)));
+    await userEvent.click(differencesOnly());
+    labelOf(SUMMARY).focus();
+    await userEvent.keyboard("{ArrowDown} ");
+    expect(labels()).toEqual([SUMMARY, ...UNCHANGED, DESIGN]);
+  });
+
+  it("opens no menu on a position and starts no entry from the cell at the end of a run [WF-PLA-0090-A]", async () => {
+    render(planningGrid(compared(MARKED)));
+    await userEvent.click(differencesOnly());
+    const end = found("td[data-run-end='gantt']");
+    const own = found("td[data-run]");
+    // Not a cell of the grid: neither a row nor a column to take a position from.
+    expect(end).not.toHaveAttribute("data-column");
+    expect(end).not.toHaveAttribute("data-row");
+    // The menu it opens is that of the grid away from any cell, the same as the cell of the run.
+    const commands = async (cell: HTMLElement) => {
+      fireEvent.contextMenu(cell, { clientX: 300, clientY: 200 });
+      const menu = await screen.findByRole("menu", { name: "Menu de la cellule" });
+      const names = within(menu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent);
+      await userEvent.keyboard("{Escape}");
+      return names;
+    };
+    expect(await commands(end)).toEqual(await commands(own));
+    await userEvent.dblClick(end);
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(calls()).toBe(0);
   });
 
   it("unfolds a run at the click, and keeps it unfolded while the folding is on [WF-IHM-0170-A]", async () => {

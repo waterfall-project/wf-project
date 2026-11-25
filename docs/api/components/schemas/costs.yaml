@@ -44,26 +44,23 @@ ActualCostLine:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
         The subproject charged; null when the line is charged to the project alone, hence
-        "hors sous-projet" — without a subproject part in its WBS element, or with a code that no
-        subproject of the project bears (WF-CRE-0020).
+        "hors sous-projet" — its WBS element being the code of the project (WF-CRE-0020).
     subproject_code:
-      anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
+      anyOf: [{ type: string, maxLength: 100 }, { type: 'null' }]
       description: >-
-        The subproject code read in the line's WBS element, kept as is, whether or not it
-        matches a declared subproject (WF-CRE-0010): always filled in when the WBS element gives
-        one, null only for a line without a subproject part. A line with an unknown code is
-        charged to the project alone (`subproject_id` null) and presented with its code
-        (WF-CRE-0020); it is through this code that the creation of the subproject immediately
-        charges to it the lines that were waiting for it, and that a re-import that changes the
-        WBS element recomputes its charging — an `updated` difference of the report on the
-        `subproject` column (`ActualCostColumn`, WF-INTF-0140). It keeps its bound of 50
-        characters: the bound of 31 and the pattern of a declared subproject
-        (`DeclaredSubprojectCode`) apply only when a subproject is written (EP-16/US-0610).
+        The code of the subproject the line is charged to, which its WBS element, compared whole,
+        equals (WF-CRE-0020); null for a line charged to the project alone, whose element is the
+        code of the project. A line whose element is neither is rejected at its import, never
+        kept (#3966): no line awaits the creation of its subproject, which charges no line, only a
+        re-import charging one. A re-import that changes the WBS element recomputes the
+        charging of the line — an `updated` difference of the report on the `subproject` column
+        (`ActualCostColumn`, WF-INTF-0140). Its bound is that of the code of a subproject
+        (`DeclaredSubprojectCode`).
     subproject_label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
         Label of the charged subproject, resolved at read time; null for a line outside any
-        subproject, unknown code included.
+        subproject.
     is_in_tracked_scope:
       type: boolean
       description: False for an excluded line, which remains viewable and enters no indicator (WF-CRE-0030).
@@ -166,5 +163,6 @@ CostImport:
       type: integer
       minimum: 0
       description: >-
-        Lines rejected in the report: a malformed WBS element or one of another project
-        (WF-CRE-0020), two lines with the same document and the same item (WF-INTF-0140).
+        Lines rejected in the report: a WBS element that is neither the code of the project nor
+        that of one of its subprojects (WF-CRE-0020; #3966), two lines of the project with the
+        same document and the same item (WF-INTF-0140, BRC-04).

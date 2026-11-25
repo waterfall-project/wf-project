@@ -14,12 +14,14 @@ from typing import Any
 
 import pytest
 from openpyxl import Workbook, load_workbook
+from remaining_import_support import workbook as import_workbook
 
 from waterfall.core.estimate.remaining.excel.layout import (
     FORMAT_NAME,
     FORMAT_VERSION,
     HEADERS,
     OUTSIDE,
+    OUTSIDE_KEY,
     PREPARED,
     REVIEW_DATE_CELL,
     SUMMARY,
@@ -39,10 +41,12 @@ from waterfall.core.estimate.remaining.excel.model import (
 from waterfall.core.estimate.remaining.excel.reader import (
     DAYS_HEADER,
     DISBURSEMENT_HEADER,
+    check_workbook,
     read_remaining_workbook,
 )
 from waterfall.core.estimate.remaining.excel.writer import write_workbook
 from waterfall.platform.errors import UnprocessableError
+from wftools.mockexchanges import REMAINING_FIRST_ROW
 
 D = Decimal
 ARCH = "Architecte logiciel (ARCH-LOG)"
@@ -153,6 +157,41 @@ def test_the_tabs_are_read_by_their_headers_and_the_fixed_tabs_are_not() -> None
     assert [(r.sheet, r.row, r.code) for r in read.rejected] == [(OUTSIDE, 2, "NUMBER_INVALID")]
     assert read.unread_sheets == ("Notes",)
     assert dict(read.tasks) == {"1 A": "t-1", "2 B": "t-2"}
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_the_head_of_a_tab_bears_a_code_only_under_the_label_of_a_code_or_the_outside() -> None:
+    # The subproject of a tab is the one of the code at its head (WF-PRJ-0050): A1 says what B1
+    # holds; any other head, and a code cell left empty, bears none; a number is read as the figure
+    # the cell holds, in text (the writer never writes one: it writes the code as a text).
+    row = ["1 A", ARCH, "x", 3, None, "l-1"]
+
+    def tab(*head: Any) -> list[list[Any]]:
+        return [list(head), SMALL, row]
+
+    read = read_remaining_workbook(
+        workbook(
+            {
+                "Avec code": tab("Code du sous-projet", "SP/1"),
+                "Code vide": tab("Code du sous-projet", None),
+                "Libellé inconnu": tab("Lot", "SP/2"),
+                "Dehors": tab(OUTSIDE),
+                "Dehors avec code": tab(OUTSIDE, "SP/3"),
+                "Numérique": tab("Code du sous-projet", 10001.5),
+                "Sans tête": [SMALL, row],
+            }
+        )
+    )
+
+    assert dict(read.heads) == {
+        "Avec code": "SP/1",
+        "Code vide": None,
+        "Libellé inconnu": None,
+        "Dehors": OUTSIDE_KEY,
+        "Dehors avec code": OUTSIDE_KEY,
+        "Numérique": "10001.5",
+        "Sans tête": None,
+    }
 
 
 @pytest.mark.requirement("WF-INTF-0120-A")
@@ -484,3 +523,88 @@ def test_a_second_row_with_the_task_column_alone_after_the_note_is_read() -> Non
     read = read_remaining_workbook(workbook({"SP-1": rows}))
 
     assert [(line.row, line.task) for line in read.lines] == [(2, "1 A"), (5, "3 C")]
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_each_column_a_tab_lacks_is_named_with_its_tab_in_the_order_of_the_format() -> None:
+    # « un reste à engager dont un onglet n'a plus « ID ligne », « Jours restants » ou « Débours
+    # restant » est refusé […] params.missing_columns nommant chaque colonne manquante avec son
+    # onglet » ; un en-tête renommé (« Débours restant (€) ») est une colonne absente.
+    content = workbook(
+        {
+            "SP-1": [["Tâche", "Rôle ou catégorie", "Désignation", DAYS_HEADER]],
+            "SP-2": [SMALL],
+            "Hors sous-projet": [
+                ["Tâche", "Rôle ou catégorie", DAYS_HEADER, "Débours restant (€)", "ID ligne"]
+            ],
+        }
+    )
+
+    with pytest.raises(UnprocessableError) as raised:
+        check_workbook(content)
+
+    assert raised.value.code == "FILE_FORMAT_UNREADABLE"
+    assert raised.value.params == {
+        "expected_format": "remaining",
+        "expected_version": "1",
+        "missing_columns": [
+            {"header": DISBURSEMENT_HEADER, "sheet": "SP-1"},
+            {"header": "ID ligne", "sheet": "SP-1"},
+            {"header": DISBURSEMENT_HEADER, "sheet": "Hors sous-projet"},
+        ],
+    }
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+@pytest.mark.parametrize("key", ["Tâche", "Rôle ou catégorie"])
+def test_a_tab_whose_task_or_role_header_is_renamed_is_refused_naming_it(key: str) -> None:
+    # US-3200b (#4784): a renamed key of a tab of lines is a missing column.
+    renamed = [f"{key} (x)" if header == key else header for header in SMALL]
+
+    with pytest.raises(UnprocessableError) as raised:
+        check_workbook(workbook({"SP-1": [renamed]}))
+
+    assert raised.value.params["missing_columns"] == [{"header": key, "sheet": "SP-1"}]
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_a_tab_of_notes_stays_ignored_but_one_with_a_header_read_is_refused() -> None:
+    # US-3200b (#4784): ignored with no header read at all; with one, both keys are named.
+    check_workbook(workbook({"SP-1": [SMALL], "Notes": [["Remarque", "Commentaire"]]}))
+
+    with pytest.raises(UnprocessableError) as raised:
+        check_workbook(workbook({"SP-1": [SMALL], "Notes": [["Remarque", DAYS_HEADER]]}))
+
+    # Both keys open the list; only the other required columns follow, as for any tab.
+    assert raised.value.params["missing_columns"] == [
+        {"header": "Tâche", "sheet": "Notes"},
+        {"header": "Rôle ou catégorie", "sheet": "Notes"},
+        {"header": "Débours restant", "sheet": "Notes"},
+        {"header": "ID ligne", "sheet": "Notes"},
+    ]
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_the_workbook_exported_opens_and_the_label_alone_may_be_missing() -> None:
+    # « un classeur exporté, toutes ses colonnes lues présentes, s'ouvre comme avant ; une colonne
+    # que le format ne lit pas peut manquer » : « Désignation » seule ne fonde aucune application.
+    check_workbook(
+        workbook(
+            {"SP-1": [["Tâche", "Rôle ou catégorie", DAYS_HEADER, DISBURSEMENT_HEADER, "ID ligne"]]}
+        )
+    )
+    check_workbook(write_workbook(_book()))
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_the_first_line_of_a_tab_is_the_row_the_examples_of_the_contract_number_it_from() -> None:
+    # [US-3270] The examples of the remaining to commit (``wftools.mockexchanges``) number their
+    # lines from REMAINING_FIRST_ROW: under the head and the headings of the tab, where the reader
+    # places the first line of a tab (#4919).
+    line = ["1 Câblage", "", "Raccordement", 2, None, "L-1"]
+    read = read_remaining_workbook(import_workbook({"Lot": [line, line]}))
+    assert [each.row for each in read.lines] == [REMAINING_FIRST_ROW, REMAINING_FIRST_ROW + 1]

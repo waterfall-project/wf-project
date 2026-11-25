@@ -232,7 +232,6 @@
       "deltaStartedOn": "Écart du démarrage",
       "deltaCompletedOn": "Écart de l’achèvement",
       "deltaDuration": "Écart de la durée",
-      "deltaTotalFloat": "Écart de la marge",
       "deltaUnitDisbursement": "Écart du débours unit.",
       "deltaBudgetedAmount": "Écart du budgété",
       "deltaReferenceAmount": "Écart du montant de réf.",
@@ -511,7 +510,7 @@
     "trackingSeparator": ", ",
     "notComputableReason": " — {reason}",
     "skeletonGenerated": "Squelette de planning engendré : {tasks, plural, one {# tâche} other {# tâches}} dans la grille.",
-    "conflict": "Liaison en conflit : {predecessor}{code}{successor, select, unknown {} other { vers la ligne {successor}}}",
+    "conflict": "Liaison en conflit : {predecessor}{code}{successor, select, unknown {} other { vers la ligne {successor}}}{manual, select, unknown {} other { — tâche manuelle à la ligne {manual}}}",
     "planningStart": {
       "shown": "<label>Date de début de planning</label> : <time>{date}</time>",
       "label": "Date de début de planning",
@@ -2013,7 +2012,7 @@
         "help": "Montant signé de la ligne, tel que l’extraction le donne."
       },
       "subproject": {
-        "help": "Sous-projet auquel la ligne est imputée, d’après son élément d’OTP ; « Hors sous-projet » pour une ligne imputée au seul projet, suivi du code lu quand l’élément en porte un que le projet n’a pas."
+        "help": "Sous-projet auquel la ligne est imputée, d’après son élément d’OTP ; « Hors sous-projet » pour une ligne imputée au seul projet."
       },
       "trackedScope": {
         "help": "Si la ligne entre dans le périmètre suivi ; une ligne exclue reste consultable et n’entre dans aucun indicateur."
@@ -2294,7 +2293,7 @@
   "projectForm": {
     "card": "Projet",
     "create": "Créer un projet",
-    "createHint": "Le projet naît à l’état Créé, et vous en êtes chef de projet. Le code projet peut attendre la commande.",
+    "createHint": "Le projet naît à l’état Créé, et vous en êtes chef de projet. Le code projet peut attendre la commande ; il se compare en entier, sans ses blancs en bout, à l’élément d’OTP des lignes de coût.",
     "modifyTitle": "Modifier « {name} »",
     "modifyHint": "Le taux d’inflation ne touche aucune révision marquée.",
     "label": "Libellé",
@@ -2319,7 +2318,7 @@
       "withoutActualCosts": "Sans coût réel imputé",
       "create": "Nouveau sous-projet",
       "createTitle": "Nouveau sous-projet",
-      "formHint": "Un sous-projet se désigne par le code que lui donne l’ERP, unique dans le projet.",
+      "formHint": "Un sous-projet se désigne par le code que lui donne l’ERP, tel que l’élément d’OTP de ses lignes le porte : unique dans le projet, jamais celui du projet, comparé en entier sans ses blancs en bout.",
       "modify": "Modifier",
       "modifyNamed": "Modifier « {code} »",
       "delete": "Supprimer",
@@ -3210,11 +3209,11 @@
     "PROJECT_HORIZON_EXCEEDED": "La durée du projet dépasserait quinze ans.",
     "FIELD_NOT_ACCEPTED": "Ce champ ne se saisit pas sur cette ligne.",
     "SUBPROJECT_HAS_ACTUAL_COSTS": "Cette ligne ne peut pas quitter ce sous-projet : sa tâche est démarrée, et le sous-projet a reçu des coûts réels.",
-    "SUBPROJECT_CODE_INVALID": "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager.",
-    "PROJECT_CODE_INVALID": "Le code du projet ne peut pas contenir de barre oblique.",
+    "SUBPROJECT_CODE_INVALID": "Ce code est celui du projet ou de l’un de ses sous-projets : un sous-projet ne porte jamais le code de son projet.",
     "DUPLICATE_COLUMN_LABEL": "Cet intitulé de colonne figure déjà dans la correspondance, sans égard à la casse, aux accents ni aux espaces en bout : chacun ne désigne qu’une colonne.",
     "DUPLICATE_COST_LINE": "Cette ligne partage sa pièce et son poste, poste vide compris, avec d’autres lignes du fichier : toutes sont rejetées, aucune n’est préférée. Corrigez ou retirez les doublons dans le fichier.",
     "DUPLICATE_LINEAGE": "Cette ligne porte un identifiant de ligne (« ID ligne ») que d’autres lignes du fichier portent aussi : toutes sont rejetées, aucune n’est préférée, et la ligne de la révision est laissée telle quelle. Retirez ou corrigez les copies dans le fichier.",
+    "AMOUNT_ROUNDED": "Le montant de cette ligne est arrondi : l’import écrit le débours unitaire au centime, et le montant écrit diffère de celui du fichier.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service.",
     "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",
@@ -3226,8 +3225,7 @@
     "BACKUP_FROM_NEWER_VERSION": "Cette sauvegarde vient d’une version plus récente que celle installée : elle ne se restaure pas.",
     "TASK_INTERRUPTED_BY_RESTORE": "La restauration a interrompu cette tâche, en cours au moment de la sauvegarde restaurée : elle ne reprend pas.",
     "PASTE_TARGET_REMOVED": "La cible du collage a disparu entre-temps : rien n’a été collé.",
-    "WBS_ELEMENT_INVALID": "L’élément d’OTP de la ligne n’a pas la forme attendue : un code projet, une barre oblique, puis un code de sous-projet.",
-    "WBS_ELEMENT_OUTSIDE_PROJECT": "L’élément d’OTP de la ligne appartient à un autre projet.",
+    "WBS_ELEMENT_OUTSIDE_PROJECT": "L’élément d’OTP de la ligne n’est ni le code du projet ni celui de l’un de ses sous-projets.",
     "AMBIGUOUS_TASK_LABEL": "Ce libellé est porté par plusieurs tâches : le compte rendu ne dit pas laquelle il vise.",
     "TASK_TREE_IMAGE_TOO_LARGE": "L’image de l’arborescence de tâches dépasserait cent millions de pixels : rien n’a été dessiné. Choisissez un niveau moins profond."
   },
@@ -3247,11 +3245,10 @@
     "projects_listed": "{count, number} projets en cause, listés ci-dessous.",
     "codedName": "{label} ({code})",
     "projectState": "État du projet : {state}.",
-    "forbidden_characters": "Caractères interdits dans le code : {characters}.",
-    "reserved_name": "« {name} » est un nom réservé, que le code ne peut pas porter.",
     "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
     "minimum": "Valeur minimale : {minimum}.",
     "maximum": "Valeur maximale : {maximum}.",
+    "pendingUploadsMaximum": "Nombre maximal d’imports en attente : {maximum}.",
     "component": "Composant indisponible : {component}.",
     "expected_format": "Format attendu : {format}.",
     "expected_version": "Version attendue : {version}.",
@@ -3259,6 +3256,7 @@
     "missing_columns": "{count, plural, one {Colonne exigée absente du fichier} other {Colonnes exigées absentes du fichier}} : {columns}.",
     "missingColumn": "{column} ({count, plural, one {intitulé déclaré} other {intitulés déclarés}} : {labels})",
     "declaredLabel": "« {label} »",
+    "missingHeader": "« {header} » (onglet « {sheet} »)",
     "work_package_task": "Tâche du lot : {task}.",
     "order_item_tasks": "{count, plural, one {Tâche du poste en cause} other {Tâches des postes en cause}} : {tasks}.",
     "subproject": "Sous-projet qui a reçu des coûts réels, que la ligne ne quitte pas : « {label} ».",
@@ -3271,9 +3269,9 @@
     "horizon_task_row": "Tâche en cause : {task}, ligne {row} du bloc collé.",
     "taskName": "« {label} »",
     "unknown_value": "Valeur lue dans le fichier : « {value} ».",
+    "unknown_subproject_code": "Code lu en tête de l’onglet « {sheet} » : « {code} », qu’aucun sous-projet du projet ne porte.",
     "ambiguous_label": "Libellé lu : « {label} », porté par les tâches {tasks}.",
     "wbs_element": "Élément d’OTP lu : « {element} ».",
-    "project_code": "Code projet lu : « {code} ».",
     "duplicate_rows": "{count, plural, one {Autre ligne} other {Autres lignes}} du fichier de même pièce et de même poste : {rows}.",
     "project_terminal": "Le projet est clos : il ne se modifie plus.",
     "revision_marked": "La révision est marquée : elle ne se modifie plus.",
@@ -3284,6 +3282,7 @@
     "missingRateYear": "une catégorie en {year}",
     "risks": "{count, plural, one {Risque concerné} other {Risques concernés}} : {risks}.",
     "riskName": "« {label} »",
+    "amount_rounded": "Montant du fichier : {typed} ; montant écrit : {written}.",
     "conflicting_object": "Objet repris depuis : « {label} »."
   },
   "permissions": {
@@ -3686,6 +3685,8 @@
       "import_file_accepted": "fichier accepté par le compte rendu",
       "import_not_applied": "import non appliqué",
       "import_calendar_gap": "écart de calendrier au compte rendu",
+      "import_structure_unchanged": "structure inchangée depuis l’analyse",
+      "pending_uploads_below_limit": "moins de vingt imports en attente pour le compte",
       "is_local_account": "compte créé dans Waterfall",
       "is_active_account": "compte actif",
       "is_deactivated_account": "compte désactivé",
@@ -4130,7 +4131,8 @@
     "ImportSignal": {
       "code": {
         "NON_WORKING_DAY": "Jour non travaillé",
-        "SUMMARY_TASK_DERIVED": "Tâche récapitulative dérivée de ses tâches"
+        "SUMMARY_TASK_DERIVED": "Tâche récapitulative dérivée de ses tâches",
+        "AMOUNT_ROUNDED": "Montant arrondi"
       }
     },
     "ActualCostSourceColumn": {
@@ -4149,8 +4151,7 @@
     },
     "ImportReport": {
       "requires_confirmation_reasons": {
-        "lines_outside_project": "Lignes hors du projet",
-        "unknown_subproject": "Sous-projet inconnu"
+        "lines_outside_project": "Lignes hors du projet"
       }
     },
     "Import": {
@@ -4259,6 +4260,14 @@
       "rejected": "{count, plural, =0 {Aucune ligne rejetée} one {# ligne rejetée} other {# lignes rejetées}}",
       "refusals": "{count, plural, one {# motif rejette le fichier entier : rien ne s’applique} other {# motifs rejettent le fichier entier : rien ne s’applique}}",
       "rejectedTable": "Lignes rejetées",
+      "rowsLeft": "{count, plural, one {# rangée de plus n’est pas affichée.} other {# rangées de plus ne sont pas affichées.}}",
+      "showAll": "Tout afficher",
+      "allShown": "{count, plural, one {La rangée est affichée.} other {Les # rangées sont affichées.}}",
+      "unknownElements": "{count, plural, one {# élément d’OTP n’est ni le code du projet ni celui d’un sous-projet : ses lignes sont rejetées ; déclarez le sous-projet, puis réimportez} other {# éléments d’OTP ne sont ni le code du projet ni celui d’un sous-projet : leurs lignes sont rejetées ; déclarez les sous-projets, puis réimportez}}",
+      "unknownElementsTable": "Éléments d’OTP inconnus du projet",
+      "wbsElement": "Élément d’OTP",
+      "lineCount": "Lignes",
+      "withoutElement": "Sans élément d’OTP",
       "row": "Ligne",
       "motive": "Motif",
       "sheet": "Onglet",
@@ -4337,6 +4346,8 @@
       }
     },
     "list": {
+      "purged": "L’import que l’adresse nomme n’existe plus : il a été supprimé à l’échéance de sa conservation ou à son abandon.",
+      "purgedListed": "L’import que l’adresse nomme n’existe plus : il a été supprimé à l’échéance de sa conservation ou à son abandon. Les imports du projet sont listés ci-dessous.",
       "title": "Imports du projet",
       "none": "Aucun import n’a encore été ouvert sur ce projet.",
       "file": "Fichier",

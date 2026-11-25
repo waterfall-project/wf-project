@@ -76,7 +76,7 @@ test("an active filter is visible without opening the panel of filters @shared [
   const chips = banner(page).getByRole("list", { name: "Filtres actifs" }).getByRole("listitem");
   // The sub-project restricts every figure but the tracking of the milestones (WF-IND-0020).
   await expect(chips).toHaveText([
-    "Sous-projet : SP-CMD — Poste de commande, hors suivi des jalons",
+    "Sous-projet : PRJ-001/SP-CMD — Poste de commande, hors suivi des jalons",
     "Date de calcul : 31 mai 2026",
   ]);
   await expect(chips.first()).toBeVisible();
@@ -88,7 +88,7 @@ test("an active filter is visible without opening the panel of filters @shared [
     .click();
   await expect(page).toHaveURL(`${IN_REVISION}/indicators?subproject_id=${SUBPROJECT}`);
   await expect(chips).toHaveText([
-    "Sous-projet : SP-CMD — Poste de commande, hors suivi des jalons",
+    "Sous-projet : PRJ-001/SP-CMD — Poste de commande, hors suivi des jalons",
   ]);
 });
 
@@ -183,7 +183,7 @@ test("from the same grid, another revision of the project opens without going th
     timeout: WORKING,
   });
   await expect(banner(page).getByRole("list", { name: "Filtres actifs" })).toContainText(
-    "SP-CMD — Poste de commande",
+    "PRJ-001/SP-CMD — Poste de commande",
   );
 });
 

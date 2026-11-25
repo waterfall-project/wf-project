@@ -25,6 +25,7 @@ from actual_costs_import_support import (
     in_progress,
     line,
     opening,
+    subproject,
     untouched,
 )
 from fastapi.testclient import TestClient
@@ -82,9 +83,14 @@ def api(contract: OpenAPI, import_services: Services) -> ContractClient:
 
 @pytest.fixture
 def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
-    """Give a platform installed — its mapping empty —, its sessions, a project In progress."""
+    """Give a platform installed — its mapping empty —, its sessions, a project In progress.
+
+    The project bears the subproject whose code is the element of the lines of the support: an
+    element no code is would be rejected (#3966).
+    """
     made = make_scene(api, owner, database, realm)
     in_progress(made)
+    subproject(api, made)
     return made
 
 
@@ -157,14 +163,16 @@ def test_the_mapping_is_judged_at_the_opening_after_the_project_and_before_the_h
     api: ContractClient, stage: Scene
 ) -> None:
     # « … un import déjà analysé est appliqué tel qu'il a été analysé » (setActualCostMapping) : the
-    # opening refuses an incomplete mapping, in ``read_header`` and before the header is read;
+    # opening refuses an incomplete mapping, in ``judge_header`` and before the header is judged;
     # ``judge``, which the application replays, no longer judges the mapping.
     declare(stage.database, {**DECLARED, "document_date": []})
     target = ImportTarget(UUID(stage.project["project_id"]), None, None)
     with stage.database.transaction() as session:
         ACTUAL_COSTS_FORMAT.judge(session, target)
         with pytest.raises(ConflictError) as incomplete:
-            ACTUAL_COSTS_FORMAT.read_header(session, b"no workbook")
+            ACTUAL_COSTS_FORMAT.judge_header(
+                session, ACTUAL_COSTS_FORMAT.parse_header(b"no workbook")
+            )
     assert incomplete.value.params == {
         "missing_condition": "actual_cost_mapping_complete",
         "columns": ["document_date"],

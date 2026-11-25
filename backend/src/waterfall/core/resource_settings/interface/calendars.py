@@ -436,10 +436,12 @@ def update_calendar(
 
     The days are refused first (422), then the version, then the label (409); a change that would
     leave a task without an hour is refused (422), which EP-06 judges. The structures of the current
-    revisions are redated in the transaction, once the calendar is written (``recalculate``), when
-    the hours of the default change: a label, or the hours of another calendar, which no task of
-    EP-06 is on, redate nothing. A line the redating prices past its column is refused at each day
-    whose hours change, in the order of the week (``/weekly_hours/<day>``, #3401).
+    revisions are redated and priced again in the transaction, once the calendar is written
+    (``recalculate``), when its hours change, whichever calendar it is: the default, which the
+    tasks without a labour line are on, or that of a role, which the tasks of its lines are on
+    (WF-PLA-0010, US-3320). A label alone redates nothing. A line the redating prices past its
+    column is refused at each day whose hours change, in the order of the week
+    (``/weekly_hours/<day>``, #3401).
     """
     _refuse_hours(change.weekly_hours)
     lock_reference(session)
@@ -450,7 +452,7 @@ def update_calendar(
     changed = tuple(json_pointer("weekly_hours", day) for day in DAYS if before[day] != after[day])
     with _unique_label(session, change.label):
         _write(session, calendar, act, label=change.label, **after)
-    if calendar.is_default and changed:
+    if changed:
         recalculate(session, act.at, changed)
     return read_calendar(session, calendar_id)
 

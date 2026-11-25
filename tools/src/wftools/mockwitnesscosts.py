@@ -54,10 +54,10 @@ class CostLine:
 
     Its number, 0xc0n; its document, the number of its item in the document — none when the
     extraction gives none —, the two identifying the line in its project (D-4, EP-16/US-0630), its
-    date of document, its signed amount; the code of subproject its element
-    of the work breakdown structure carries, if it has a subproject part, imputed to the
-    subproject of that code if the project has one, to the project alone otherwise — as is a line
-    without a subproject part (WF-CRE-0020); the columns kept of the file;
+    date of document, its signed amount; the code of the subproject its element of the work
+    breakdown structure is, compared whole, which it is imputed to — none for a line whose element
+    is the code of the project, imputed to the project alone (WF-CRE-0020; #3966); the columns
+    kept of the file;
     the imports that brought it, the first creating it, the others updating it (WF-CRE-0010); and
     its exclusion from the tracked scope, when and why, kept by the imports after it
     (WF-CRE-0030).
@@ -82,7 +82,7 @@ COSTS = (
         "10",
         date(2026, 4, 21),
         Decimal("1800.00"),
-        "SP-CAB",
+        None,
         "Câbles du Rhône",
         "Câbles de commande du pupitre",
         (APRIL, APRIL_AGAIN),
@@ -93,7 +93,7 @@ COSTS = (
         None,
         date(2026, 4, 8),
         Decimal("-200.00"),
-        "SP-CAB",
+        None,
         "Câbles du Rhône",
         "Avoir sur livraison incomplète",
         (APRIL, APRIL_AGAIN),
@@ -104,7 +104,7 @@ COSTS = (
         "10",
         date(2026, 3, 27),
         Decimal("1100.00"),
-        "SP-AUT",
+        None,
         "Automatismes Durand",
         "Automate de sécurité",
         (MARCH, APRIL_AGAIN),
@@ -115,7 +115,7 @@ COSTS = (
         "20",
         date(2026, 3, 27),
         Decimal("300.00"),
-        "SP-CAB",
+        None,
         "Automatismes Durand",
         "Câblage de l'automate de sécurité",
         (MARCH, APRIL_AGAIN),
@@ -126,7 +126,7 @@ COSTS = (
         "10",
         date(2026, 3, 20),
         Decimal("650.00"),
-        "SP-REC",
+        None,
         "Traiteur Lumière",
         "Réception du client sur site",
         (MARCH, APRIL_AGAIN),
@@ -149,22 +149,23 @@ COSTS = (
         "10",
         date(2026, 5, 18),
         Decimal("2400.00"),
-        "SP-CMD",
+        "PRJ-001/SP-CMD",
         "Automatismes Durand",
         "Écrans du poste de commande",
         (MAY,),
     ),
 )
 """The lines of actual cost of the witness today: the purchases of cables, a credit note on them,
-which bears no item, and the safety controller, under codes of subproject the project does not
-have, imputed to it alone — the invoice of the controller spread over two elements of the work
-breakdown structure, in two items of the same document, its wiring under the code of the cables,
+which bears no item, and the safety controller, under the element of the project, imputed to it
+alone — the invoice of the controller, in two items of the same document, its wiring apart,
 gives two lines (WF-INTF-0140, D-4) —;
 the reception of the customer, excluded from the tracked scope three days after its import; the
-invoice of the detailed studies, 100,000 of subcontracting dated the day they finished, without a
-subproject part, as their line 527 has none — its payment delay of thirty days shifts the
-disbursement, not the date of the document (decision of the author, review of EP-02/L25) —; and
-the screens of the control station, imputed to its subproject."""
+invoice of the detailed studies, 100,000 of subcontracting dated the day they finished, under the
+element of the project, as their line 527 has no subproject — its payment delay of thirty days
+shifts the disbursement, not the date of the document (decision of the author, review of
+EP-02/L25) —; and the screens of the control station, imputed to its subproject, whose code is
+their element. Since #3966 an element is compared whole, and a line no subproject bears the code
+of is rejected at its import: none waits for its subproject (US-3270/L2)."""
 
 PASSTHROUGH: tuple[str, ...] = tuple(fixture("actual_cost_mapping")["kept_columns"])
 """The columns of the file the imports keep, read from the mapping of the extraction the witness

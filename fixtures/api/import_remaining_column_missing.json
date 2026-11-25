@@ -1,0 +1,10 @@
+{
+  "summary": "Un reste à engager déposé aujourd'hui dont l'onglet « PRJ-001_SP-CMD » a perdu sa colonne « Débours restant », renommée « Débours restant (€) » dans le tableur : un en-tête renommé est une colonne absente. Refusé à l'ouverture, le format et la version attendus nommés, et la colonne nommée avec son onglet ; rien n'est analysé : aucun reste n'est mis à zéro, aucune tâche n'est terminée (WF-INTF-0070, WF-INTF-0120, #4421).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "FILE_FORMAT_UNREADABLE",
+    "status": 422,
+    "params": {"expected_format":"remaining","expected_version":"1","missing_columns":[{"header":"Débours restant","sheet":"PRJ-001_SP-CMD"}]},
+    "correlation_id": "01926f3a-7c00-7000-8000-afd99539bb55"
+  }
+}

@@ -76,12 +76,18 @@ class TrialFormat:
     application: str | None = None
     seen: list[ImportTarget] = field(default_factory=list[Any])
 
-    def read_header(self, session: Session, head: bytes) -> None:
-        """Refuse a head that is not the trial's, naming the format and the version expected."""
+    def parse_header(self, head: bytes) -> UnprocessableError | None:
+        """Keep the refusal of a head that is not the trial's, naming the format and the version."""
+        if head == HEAD:
+            return None
+        expected = {"expected_format": "remaining", "expected_version": "1"}
+        return UnprocessableError(UNREADABLE, expected)
+
+    def judge_header(self, session: Session, parsed: UnprocessableError | None) -> None:
+        """Refuse, under the lock of the project, a head the parse did not recognise."""
         del session
-        if head != HEAD:
-            expected = {"expected_format": "remaining", "expected_version": "1"}
-            raise UnprocessableError(UNREADABLE, expected)
+        if parsed is not None:
+            raise parsed
 
     def judge(self, session: Session, target: ImportTarget) -> None:
         """Refuse an import whose kind lacks the condition the test names."""

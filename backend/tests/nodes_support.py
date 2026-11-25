@@ -25,7 +25,7 @@ from support import bearer, raw_account
 from waterfall.core.access_roles.tables import UserAccessRole
 from waterfall.core.cost_settings.tables import CostCategory
 from waterfall.core.history.tables import UndoEntry
-from waterfall.core.planning.tables import Node, Task
+from waterfall.core.planning.tables import Node, Task, TrackingEntry
 from waterfall.core.projects.tables import OrderItem, WorkPackage
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.core.revisions.tables import CostStructure
@@ -294,3 +294,30 @@ def work_breakdown(stage: Scene) -> tuple[UUID, UUID]:
             )
         )
     return package, item
+
+
+def inscribed(stage: Scene, node: dict[str, Any], timeline_id: str) -> None:
+    """Inscribe the lineage of a task to a timeline."""
+    with stage.database.transaction() as session:
+        session.execute(
+            insert(TrackingEntry).values(
+                id=uuid4(),
+                project_id=UUID(stage.project["project_id"]),
+                lineage_id=UUID(node["lineage_id"]),
+                kind="timeline",
+                timeline_id=UUID(timeline_id),
+                **STAMP,
+            )
+        )
+
+
+def inscribed_lineages(stage: Scene) -> set[UUID]:
+    """Read the lineages the project has inscriptions for."""
+    with stage.database.transaction() as session:
+        return set(
+            session.scalars(
+                select(TrackingEntry.lineage_id).where(
+                    TrackingEntry.project_id == UUID(stage.project["project_id"])
+                )
+            )
+        )

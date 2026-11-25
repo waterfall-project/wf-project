@@ -227,11 +227,11 @@ def test_the_readings_of_the_subprojects_follow_their_parameters(lists: dict[str
     assert [row["code"] for row in written] == sorted(row["code"] for row in written)
     by_label = [row["label"] for row in lists["subprojects_by_label"]]
     assert by_label == ["Essais et mise en service", "Poste de commande"]
-    assert [row["code"] for row in written] == ["SP-CMD", "SP-ESS"]
+    assert [row["code"] for row in written] == ["PRJ-001/SP-CMD", "PRJ-001/SP-ESS"]
     # Both subprojects bear actual costs: the invoice of the screens, and those of the drawn tasks
     # of the lots « Ligne d'essais » completed (EP-14/L45a).
     charged = lists["subprojects_with_actual_costs"]
-    assert [row["code"] for row in charged] == ["SP-CMD", "SP-ESS"]
+    assert [row["code"] for row in charged] == ["PRJ-001/SP-CMD", "PRJ-001/SP-ESS"]
     assert all(row["has_actual_costs"] is True for row in charged)
 
 

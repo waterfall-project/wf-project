@@ -228,7 +228,6 @@ def test_the_codes_the_catalogue_named_without_an_example_are_carried_by_their_o
     shared = _shared()["Unauthorized"]["content"]["application/problem+json"]["examples"]
     assert "session_required" in shared
     codes = {
-        "import_actual_costs_wbs_invalid": "WBS_ELEMENT_INVALID",
         "import_remaining_ambiguous_label": "AMBIGUOUS_TASK_LABEL",
     }
     served = _operations()["getImport"]["responses"]["200"]["content"]["application/json"]

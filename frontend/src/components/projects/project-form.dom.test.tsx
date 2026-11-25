@@ -280,6 +280,20 @@ describe("the creation of a project", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
+  it("creates a project under a code that bears a slash, sent as typed [WF-PRJ-0010-A] [US-3270]", async () => {
+    // Le code d'un projet peut porter une barre oblique : PROJECT_CODE_INVALID tombe.
+    const client = serve();
+    const form = await openCreation();
+    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Rénovation");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Code projet" }), "A.ABC/26001");
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    await vi.waitFor(() => {
+      expect(router.push).toHaveBeenCalled();
+    });
+    expect(client.calls[0]?.body).toMatchObject({ code: "A.ABC/26001" });
+    expect(form).toHaveTextContent("sans ses blancs en bout");
+  });
+
   it("presents the creation unavailable while the reference data is incomplete: pressed, it opens nothing", async () => {
     const client = serve();
     render(inFrench(<CreateProject ready={false} variant="default" />));
@@ -572,6 +586,28 @@ describe("the modification of a project", () => {
     );
     expect(code).toHaveValue("PRJ-001");
     // Said at its field, the refusal is not told again under the form.
+    expect(within(form).queryByRole("alert")).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("says at its code a project recoded to the code of one of its subprojects, the form kept to be corrected [WF-PRJ-0050-A] [US-3270]", async () => {
+    // Le recodage d'un projet vers le code de l'un de ses sous-projets est refusé.
+    serve({
+      [UPDATE]: { problem: example("project_code_of_subproject") as Problem & { status: 422 } },
+    });
+    const form = await openModification(pricing);
+    const code = within(form).getByRole("textbox", { name: "Code projet" });
+    await userEvent.clear(code);
+    await userEvent.type(code, "PRJ-001/SP-CMD");
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(code).toHaveFocus();
+    });
+    expect(code).toHaveAttribute("aria-invalid", "true");
+    expect(code).toHaveAccessibleDescription(
+      "Ce code est celui du projet ou de l’un de ses sous-projets\u00a0: un sous-projet ne porte jamais le code de son projet.",
+    );
+    expect(code).toHaveValue("PRJ-001/SP-CMD");
     expect(within(form).queryByRole("alert")).toBeNull();
     expect(refresh).not.toHaveBeenCalled();
   });

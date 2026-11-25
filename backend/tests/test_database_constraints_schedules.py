@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The database refuses what the schedules, the tests of a restoration and a copy forbid (EP-13).
 
-The constraints of migration 0046, one refusal each: the two schedules, a single row each that
-migration 0047 writes at its shipped values; the tests of a restoration; the latest copy of a
+The constraints of migration 0050, one refusal each: the two schedules, a single row each that
+migration 0051 writes at its shipped values; the tests of a restoration; the latest copy of a
 backup out of the platform. Every row is written around the services of the modules, by the owner
 of the tables, and the schedules written back at their shipped values after each test
 (``database``).
@@ -94,7 +94,7 @@ def backup(task_id: object, **overrides: object) -> Executable:
         "is_retained": False,
         "object_key": f"backup-{task_id}.tar",
         "application_version": "0.1.0",
-        "schema_revision": "0046",
+        "schema_revision": "0050",
         "task_id": task_id,
     }
     return insert(Backup).values(**{**columns, **overrides})

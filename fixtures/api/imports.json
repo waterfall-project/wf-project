@@ -1,5 +1,5 @@
 {
-  "summary": "Les imports du projet au 3 juin 2026 à 14 h 05, du plus récent au plus ancien : le devis de l'avenant 2 « reprise des essais » (import_analysed), analysé ce matin à 8 h 41, qui attend sa confirmation jusqu'à demain 8 h 41 ; l'extraction de coûts réels de mai, appliquée à 8 h 30 ; la nouvelle extraction d'avril analysée le 2 juin, expirée ce matin sans avoir été appliquée, vingt-quatre heures après son analyse ; un planning MS Project abandonné ; les quatre premières extractions de coûts réels du journal (cost_imports), appliquées. L'import du reste à engager de import_remaining_analysed est une variante que la liste ne reprend pas (WF-INTF-0080, WF-ARC-0100, WF-CRE-0050).",
+  "summary": "Les imports du projet au 3 juin 2026 à 14 h 05, du plus récent au plus ancien : le devis de l'avenant 2 « reprise des essais » (import_analysed), analysé ce matin à 8 h 41, qui attend sa confirmation jusqu'à demain 8 h 41 ; l'extraction de coûts réels de mai, appliquée à 8 h 30 ; les quatre premières extractions de coûts réels du journal (cost_imports), appliquées. Aucun import expiré ni abandonné n'y figure : la passe de purge supprime la ligne d'un import expiré ou abandonné, compte rendu compris, et la liste ne les voit plus. L'import du reste à engager de import_remaining_analysed est une variante que la liste ne reprend pas (WF-INTF-0080, WF-ARC-0100, WF-DAT-0080, WF-CRE-0050).",
   "value": {
     "items": [
       {
@@ -25,30 +25,6 @@
         "status": "applied",
         "created_at": "2026-06-03T08:25:00Z",
         "expires_at": "2026-06-04T08:26:00Z"
-      },
-      {
-        "import_id": "01926f3a-7c00-7000-8000-000000000a12",
-        "kind": "actual_costs",
-        "filename": "couts-reels-2026-04-correction.xlsx",
-        "structure_id": null,
-        "revision_id": null,
-        "period_from": "2026-04-01",
-        "period_to": "2026-04-30",
-        "status": "expired",
-        "created_at": "2026-06-02T09:00:05Z",
-        "expires_at": "2026-06-03T09:01:00Z"
-      },
-      {
-        "import_id": "01926f3a-7c00-7000-8000-000000000a10",
-        "kind": "ms_project_schedule",
-        "filename": "planning-poste-de-commande.xml",
-        "structure_id": "01926f3a-7c00-7000-8000-000000000201",
-        "revision_id": "01926f3a-7c00-7000-8000-000000000102",
-        "period_from": null,
-        "period_to": null,
-        "status": "abandoned",
-        "created_at": "2026-05-20T10:15:00Z",
-        "expires_at": "2026-05-21T10:16:00Z"
       },
       {
         "import_id": "01926f3a-7c00-7000-8000-000000000a09",
@@ -102,7 +78,7 @@
     "meta": {
       "limit": 50,
       "offset": 0,
-      "total": 8
+      "total": 6
     }
   }
 }

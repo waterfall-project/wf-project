@@ -221,7 +221,11 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
    sur le type de l'élément.
 7. **Valeur dérivée recalculée sur un chemin, pas sur les autres.** Un total, une durée
    récapitulative, un indicateur est recalculé à la création, mais pas au déplacement ni à
-   la suppression d'un enfant.
+   la suppression d'un enfant. Variante : une règle de comparaison ou de normalisation écrite
+   deux fois — l'élément d'OTP rogné par `str.strip()` dans `core/costs`, les codes par
+   `compared_code` de `core/projects/interface` —, que rien ne lie : qu'une seule dérive, et
+   une imputation se manque sans erreur (#4892). Une telle règle a une seule fonction, que les
+   autres modules appellent par l'interface.
 8. **Arithmétique de dates naïve.** Une durée calculée en jours de calendrier là où la règle
    veut des jours ouvrés du calendrier applicable : juste sur un cas simple, faux dès qu'un
    week-end ou un calendrier propre s'en mêle.

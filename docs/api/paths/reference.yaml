@@ -722,7 +722,18 @@
           `TASK_WITHOUT_WORKING_HOURS`, `params.resource_roles` naming the roles concerned, by their
           identifier, their code and their label (#1684), and `params.projects` each project
           concerned, by its label and its code (`project_label`, `project_code`), without identifier or
-          task: the caller may not be allowed to consult it (WF-PLA-0010, WF-ADM-0110). Nothing is written.
+          task: the caller may not be allowed to consult it (WF-PLA-0010, WF-ADM-0110). A change
+          of the role's calendar redates and reprices the ongoing revisions, as a change of the
+          hours of a calendar does (`updateCalendar`; WF-PLA-0010, WF-PLA-0020, WF-PLA-0160): when
+          that would take a project beyond fifteen years, the write is refused —
+          `PROJECT_HORIZON_EXCEEDED`, without `fields`, `params.projects` naming each project
+          concerned by its label and its code (`project_label`, `project_code`), without identifier
+          or task: the caller may not be allowed to consult it (WF-PLA-0150, WF-ADM-0110; #2505). A
+          single project at the limit is enough to refuse it. When it would reprice a line beyond
+          what its amount column holds, the write is refused with `VALIDATION_FAILED`, `fields`
+          designating `/calendar_id` with `VALIDATION_FAILED`, without a parameter, as a derived
+          amount that overflows its column is refused at the field that causes it (#3401).
+          Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

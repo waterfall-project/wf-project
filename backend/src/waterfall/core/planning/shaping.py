@@ -14,11 +14,12 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 
+from waterfall.core.planning.inscriptions import delete_orphan_inscriptions
 from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.interface.open_lines import held_open, zeroed_at
-from waterfall.core.planning.tables import Node, TrackingEntry
+from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tree import LINE, TASK
 from waterfall.core.planning.views import COMPLETED, STARTED, State, state_of, states_without
 from waterfall.core.projects.interface import current_day
@@ -60,9 +61,11 @@ def stamp(node: Node, act: Act) -> None:
 def emptied(tree: Tree, parent_id: UUID) -> None:
     """Make a summary that loses its last subordinate a leaf, in its state (WF-PLA-0040).
 
-    Its state is the one its subordinates gave it, read on the tree before the write; it keeps the
-    duration it computed, a day if that is nought and it is started — a milestone is never
-    started (WF-PLA-0050) —, in automatic mode, and its attachment.
+    Its state is the one it derived, read on the tree before the write: from its subordinates, and
+    from the start its facet keeps (``kept_start``) — a leaf started that received a subtask and
+    loses it is a leaf started again, at its date (US-3310) —; it keeps the duration it computed,
+    a day if that is nought and it is started — a milestone is never started (WF-PLA-0050) —, in
+    automatic mode, and its attachment.
     """
     state = state_of(tree, parent_id)
     task = tree.tasks[parent_id]
@@ -80,7 +83,8 @@ def closed_above(tree: Tree, parent_id: UUID | None) -> tuple[UUID, ...]:
     A task not completed under ``parent_id`` — created or moved there — makes it and every
     summary above it not completed: what their facet keeps of the completion — the state and the
     day the last own line set to nought gave (``own_lines``) — is stale, and a later completion
-    must not read it (WF-PLA-0040, WF-PLA-0130; #2769).
+    must not read it (WF-PLA-0040, WF-PLA-0130; #2769). The start stays (``reopened``): a leaf
+    completed that receives a subtask not completed is a summary started at its date (US-3310).
     """
     if parent_id is None:
         return ()
@@ -94,7 +98,8 @@ def closed_above(tree: Tree, parent_id: UUID | None) -> tuple[UUID, ...]:
 def reopened(tree: Tree, node_ids: Collection[UUID], act: Act) -> None:
     """Put back to started the tasks whose completion is stale, and clear the day they closed at.
 
-    Written once: a task whose facet keeps no completion any more is left as it is.
+    Written once: a task whose facet keeps no completion any more is left as it is. Its start is
+    kept, which the summary it is reads as its own (``kept_start``, WF-PLA-0040).
     """
     for each in node_ids:
         task = tree.tasks[each]
@@ -177,20 +182,7 @@ def deleted(session: Session, project_id: UUID, tree: Tree, node_ids: list[UUID]
         .where(Node.project_id == project_id, Node.id.in_(node_ids))
         .execution_options(synchronize_session=False)
     )
-    kept = set(
-        session.scalars(
-            select(Node.lineage_id).where(
-                Node.project_id == project_id, Node.lineage_id.in_(lineages)
-            )
-        )
-    )
-    gone = lineages - kept
-    if gone:
-        session.execute(
-            delete(TrackingEntry)
-            .where(TrackingEntry.project_id == project_id, TrackingEntry.lineage_id.in_(gone))
-            .execution_options(synchronize_session=False)
-        )
+    delete_orphan_inscriptions(session, project_id, lineages)
 
 
 def _not_sibling() -> UnprocessableError:

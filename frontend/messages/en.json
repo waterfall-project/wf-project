@@ -232,7 +232,6 @@
       "deltaStartedOn": "Started-on difference",
       "deltaCompletedOn": "Completed-on difference",
       "deltaDuration": "Duration difference",
-      "deltaTotalFloat": "Float difference",
       "deltaUnitDisbursement": "Unit disbursement difference",
       "deltaBudgetedAmount": "Budgeted amount difference",
       "deltaReferenceAmount": "Reference amount difference",
@@ -511,7 +510,7 @@
     "trackingSeparator": ", ",
     "notComputableReason": " — {reason}",
     "skeletonGenerated": "Planning skeleton generated: {tasks, plural, one {# task} other {# tasks}} in the grid.",
-    "conflict": "Link in conflict: {predecessor}{code}{successor, select, unknown {} other { to row {successor}}}",
+    "conflict": "Link in conflict: {predecessor}{code}{successor, select, unknown {} other { to row {successor}}}{manual, select, unknown {} other { — manual task on row {manual}}}",
     "planningStart": {
       "shown": "<label>Planning start date</label>: <time>{date}</time>",
       "label": "Planning start date",
@@ -2013,7 +2012,7 @@
         "help": "Signed amount of the line, as the extraction gives it."
       },
       "subproject": {
-        "help": "Sub-project the line is charged to, after its WBS element; “No subproject” for a line charged to the project alone, followed by the code read when the element bears one the project does not have."
+        "help": "Sub-project the line is charged to, after its WBS element; “No subproject” for a line charged to the project alone."
       },
       "trackedScope": {
         "help": "Whether the line is in the tracked scope; a line excluded stays consultable and enters no indicator."
@@ -2294,7 +2293,7 @@
   "projectForm": {
     "card": "Project",
     "create": "Create a project",
-    "createHint": "The project is born in the Created state, and you are its project manager. The project code may wait for the order.",
+    "createHint": "The project is born in the Created state, and you are its project manager. The project code may wait for the order; it is compared whole, without its trailing blanks, with the WBS element of the cost lines.",
     "modifyTitle": "Modify “{name}”",
     "modifyHint": "The inflation rate affects no marked revision.",
     "label": "Label",
@@ -2319,7 +2318,7 @@
       "withoutActualCosts": "Without actual costs charged",
       "create": "New subproject",
       "createTitle": "New subproject",
-      "formHint": "A subproject is known by the code the ERP gives it, unique within the project.",
+      "formHint": "A subproject is known by the code the ERP gives it, as the WBS element of its lines bears it: unique within the project, never the code of the project, compared whole without its trailing blanks.",
       "modify": "Modify",
       "modifyNamed": "Modify “{code}”",
       "delete": "Delete",
@@ -3210,11 +3209,11 @@
     "PROJECT_HORIZON_EXCEEDED": "The duration of the project would exceed fifteen years.",
     "FIELD_NOT_ACCEPTED": "This field is not entered on this line.",
     "SUBPROJECT_HAS_ACTUAL_COSTS": "This line cannot leave this subproject: its task has started, and the subproject has received actual costs.",
-    "SUBPROJECT_CODE_INVALID": "This code cannot name the tab of the subproject in the estimate-to-complete file.",
-    "PROJECT_CODE_INVALID": "The project code cannot contain a slash.",
+    "SUBPROJECT_CODE_INVALID": "This code is that of the project or of one of its subprojects: a subproject never bears the code of its project.",
     "DUPLICATE_COLUMN_LABEL": "This column label is already in the mapping, regardless of case, accents or surrounding spaces: each one names a single column.",
     "DUPLICATE_COST_LINE": "This line shares its document and item, blank item included, with other lines of the file: all of them are rejected, none is preferred. Correct or remove the duplicates in the file.",
     "DUPLICATE_LINEAGE": "This line carries a line identifier (“ID ligne”) that other lines of the file carry too: all of them are rejected, none is preferred, and the line of the revision is left as it is. Remove or correct the copies in the file.",
+    "AMOUNT_ROUNDED": "The amount of this line is rounded: the import writes the unit disbursement to the cent, and the amount written differs from the one in the file.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
     "INTERNAL_ERROR": "Unexpected service error.",
     "ACCOUNT_DEACTIVATED": "This account is deactivated; contact an administrator.",
@@ -3226,8 +3225,7 @@
     "BACKUP_FROM_NEWER_VERSION": "This backup comes from a newer version than the one installed: it cannot be restored.",
     "TASK_INTERRUPTED_BY_RESTORE": "The restoration interrupted this task, under way when the restored backup was taken: it does not resume.",
     "PASTE_TARGET_REMOVED": "The target of the paste disappeared in the meantime: nothing was pasted.",
-    "WBS_ELEMENT_INVALID": "The WBS element of the line does not have the expected form: a project code, a slash, then a sub-project code.",
-    "WBS_ELEMENT_OUTSIDE_PROJECT": "The WBS element of the line belongs to another project.",
+    "WBS_ELEMENT_OUTSIDE_PROJECT": "The WBS element of the line is neither the code of the project nor that of one of its subprojects.",
     "AMBIGUOUS_TASK_LABEL": "This label is carried by several tasks: the report does not say which one it targets.",
     "TASK_TREE_IMAGE_TOO_LARGE": "The image of the task tree would exceed one hundred million pixels: nothing was drawn. Choose a shallower level."
   },
@@ -3247,11 +3245,10 @@
     "projects_listed": "{count, number} projects involved, listed below.",
     "codedName": "{label} ({code})",
     "projectState": "State of the project: {state}.",
-    "forbidden_characters": "Characters the code cannot hold: {characters}.",
-    "reserved_name": "“{name}” is a reserved name, which the code cannot bear.",
     "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
     "minimum": "Minimum value: {minimum}.",
     "maximum": "Maximum value: {maximum}.",
+    "pendingUploadsMaximum": "Maximum number of pending imports: {maximum}.",
     "component": "Unavailable component: {component}.",
     "expected_format": "Expected format: {format}.",
     "expected_version": "Expected version: {version}.",
@@ -3259,6 +3256,7 @@
     "missing_columns": "{count, plural, one {Required column missing from the file} other {Required columns missing from the file}}: {columns}.",
     "missingColumn": "{column} ({count, plural, one {declared label} other {declared labels}}: {labels})",
     "declaredLabel": "“{label}”",
+    "missingHeader": "“{header}” (sheet “{sheet}”)",
     "work_package_task": "Task of the work package: {task}.",
     "order_item_tasks": "{count, plural, one {Task of the order item at issue} other {Tasks of the order items at issue}}: {tasks}.",
     "subproject": "Subproject that has received actual costs, which the line does not leave: “{label}”.",
@@ -3271,9 +3269,9 @@
     "horizon_task_row": "Task concerned: {task}, row {row} of the pasted block.",
     "taskName": "“{label}”",
     "unknown_value": "Value read in the file: “{value}”.",
+    "unknown_subproject_code": "Code read at the head of the sheet “{sheet}”: “{code}”, which no subproject of the project bears.",
     "ambiguous_label": "Label read: “{label}”, shared by the tasks {tasks}.",
     "wbs_element": "Work breakdown element read: “{element}”.",
-    "project_code": "Project code read: “{code}”.",
     "duplicate_rows": "{count, plural, one {Other line} other {Other lines}} of the file with the same document and item: {rows}.",
     "project_terminal": "The project is closed: it no longer changes.",
     "revision_marked": "The revision is marked: it no longer changes.",
@@ -3284,6 +3282,7 @@
     "missingRateYear": "a category in {year}",
     "risks": "{count, plural, one {Risk at issue} other {Risks at issue}}: {risks}.",
     "riskName": "“{label}”",
+    "amount_rounded": "Amount in the file: {typed}; amount written: {written}.",
     "conflicting_object": "Object changed since: “{label}”."
   },
   "permissions": {
@@ -3686,6 +3685,8 @@
       "import_file_accepted": "file accepted by the report",
       "import_not_applied": "import not applied",
       "import_calendar_gap": "calendar gap in the report",
+      "import_structure_unchanged": "structure unchanged since the analysis",
+      "pending_uploads_below_limit": "fewer than twenty pending imports for the account",
       "is_local_account": "account created in Waterfall",
       "is_active_account": "active account",
       "is_deactivated_account": "deactivated account",
@@ -4130,7 +4131,8 @@
     "ImportSignal": {
       "code": {
         "NON_WORKING_DAY": "Non-working day",
-        "SUMMARY_TASK_DERIVED": "Summary task derived from its tasks"
+        "SUMMARY_TASK_DERIVED": "Summary task derived from its tasks",
+        "AMOUNT_ROUNDED": "Amount rounded"
       }
     },
     "ActualCostSourceColumn": {
@@ -4149,8 +4151,7 @@
     },
     "ImportReport": {
       "requires_confirmation_reasons": {
-        "lines_outside_project": "Lines outside the project",
-        "unknown_subproject": "Unknown subproject"
+        "lines_outside_project": "Lines outside the project"
       }
     },
     "Import": {
@@ -4259,6 +4260,14 @@
       "rejected": "{count, plural, =0 {No line rejected} one {# line rejected} other {# lines rejected}}",
       "refusals": "{count, plural, one {# reason rejects the whole file: nothing is applied} other {# reasons reject the whole file: nothing is applied}}",
       "rejectedTable": "Rejected lines",
+      "rowsLeft": "{count, plural, one {# more row is not shown.} other {# more rows are not shown.}}",
+      "showAll": "Show all",
+      "allShown": "{count, plural, one {The row is shown.} other {All # rows are shown.}}",
+      "unknownElements": "{count, plural, one {# WBS element is neither the code of the project nor that of a subproject: its lines are rejected; declare the subproject, then import again} other {# WBS elements are neither the code of the project nor that of a subproject: their lines are rejected; declare the subprojects, then import again}}",
+      "unknownElementsTable": "WBS elements unknown to the project",
+      "wbsElement": "WBS element",
+      "lineCount": "Lines",
+      "withoutElement": "No WBS element",
       "row": "Line",
       "motive": "Reason",
       "sheet": "Tab",
@@ -4337,6 +4346,8 @@
       }
     },
     "list": {
+      "purged": "The import the address names no longer exists: it was deleted at the end of its retention or on its abandonment.",
+      "purgedListed": "The import the address names no longer exists: it was deleted at the end of its retention or on its abandonment. The imports of the project are listed below.",
       "title": "Imports of the project",
       "none": "No import has been opened on this project yet.",
       "file": "File",

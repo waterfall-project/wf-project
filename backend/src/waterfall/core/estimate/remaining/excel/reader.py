@@ -12,9 +12,10 @@ A number is read in a numeric cell and a number written as text is rejected; eac
 each rejection is named by its tab and its Excel row number (WF-INTF-0070, WF-INTF-0120,
 WF-INTF-0130).
 The reading of the cells is the estimate's (``waterfall.core.estimate.excel.reader``); the layout
-is the writer's (``layout``), so that the workbook is read where it is written. openpyxl reads, in
-``read_only`` mode and by values; nothing here touches a database or a session: the matching by
-lineage, the analysis and the application are US-1630/L3.
+is the writer's (``layout``), so that the workbook is read where it is written. The workbook is
+opened as the estimate's is, by the opener of the exchanges, and only the tabs the format reads are
+materialised, each within its bounds — « Paramètres » is not (US-3190). Nothing here touches a
+database or a session: the matching by lineage, the analysis and the application are US-1630/L3.
 """
 
 from dataclasses import dataclass
@@ -38,6 +39,7 @@ from waterfall.core.estimate.excel.reader import (
     header_columns,
     load_sheets,
     read_number,
+    refuse_missing_columns,
     task_entries,
     text,
     unreadable,
@@ -46,9 +48,13 @@ from waterfall.core.estimate.excel.reader import (
     check_header as check_any_header,
 )
 from waterfall.core.estimate.remaining.excel.layout import (
+    CODE_CELL,
+    CODE_LABEL,
     FIXED_TABS,
     FORMAT_NAME,
     FORMAT_VERSION,
+    OUTSIDE,
+    OUTSIDE_KEY,
     REVIEW_DATE_CELL,
     SUMMARY,
     TASKS,
@@ -65,6 +71,7 @@ __all__ = [
     "Rejection",
     "RemainingRead",
     "check_header",
+    "check_workbook",
     "read_remaining_workbook",
 ]
 
@@ -78,10 +85,21 @@ DISBURSEMENT_HEADER = "Débours restant"
 _TEXT_HEADERS = (TASK_HEADER, ROLE_OR_CATEGORY_HEADER, LABEL_HEADER, LINEAGE_HEADER)
 _NUMBER_HEADERS = (DAYS_HEADER, DISBURSEMENT_HEADER)
 _ALL_HEADERS = _TEXT_HEADERS + _NUMBER_HEADERS
+# The columns a tab of lines cannot lack, in the order of the writer (#4421): without one, a
+# remaining would be set to zero, a task finished, or a line created, on a column it cannot read.
+_REQUIRED_HEADERS = (
+    TASK_HEADER,
+    ROLE_OR_CATEGORY_HEADER,
+    DAYS_HEADER,
+    DISBURSEMENT_HEADER,
+    LINEAGE_HEADER,
+)
 _READ_HEADERS = frozenset(_ALL_HEADERS)
 # A tab of lines is the one that carries both of these, on whichever row.
 _KEY_HEADERS = frozenset({TASK_HEADER, ROLE_OR_CATEGORY_HEADER})
 _NOT_LINE_SHEETS = frozenset(FIXED_TABS)
+# Of the fixed tabs, the reading reads « Synthèse » and « Tâches »; the others are not materialised.
+_UNREAD_SHEETS = _NOT_LINE_SHEETS - {SUMMARY, TASKS}
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,10 +127,12 @@ class RemainingRead:
     ``review_date`` is none when « Synthèse » holds no date the reading understands; then
     ``unreadable_review`` tells an absent date (none) from a cell that holds something else, by
     the value as the file carries it (``DATE_INVALID``, #2410). ``unread_sheets`` names the tabs
-    that are not fixed ones and carry no headers of lines; ``missing_headers`` gives, by tab read,
-    the headers of the columns read that the tab lacks (their cells read as none). ``tasks`` gives,
-    by the entry « Tâches » lists, the lineage of its task: the analysis designates the task of a
-    line by it.
+    that are not fixed ones and carry no header read at all; ``missing_headers`` gives, by tab
+    read (one header read suffices, US-3200b), the headers of the columns read that the tab lacks
+    (their cells read as none). ``tasks`` gives, by the entry « Tâches » lists, the lineage of its
+    task: the analysis designates the task of a line by it. ``heads`` gives, by tab of lines, the
+    code its head bears (``OUTSIDE_KEY`` for « Hors sous-projet », none for a head without a code):
+    the subproject of a tab is the one of that code, never the one of its name (WF-INTF-0120).
     """
 
     review_date: date | None
@@ -122,6 +142,28 @@ class RemainingRead:
     unread_sheets: tuple[str, ...] = ()
     missing_headers: Mapping[str, tuple[str, ...]] = MappingProxyType({})
     tasks: Mapping[str, str] = MappingProxyType({})
+    heads: Mapping[str, str | None] = MappingProxyType({})
+
+
+def _cell(rows: Sequence[Sequence[object]], reference: str) -> str | None:
+    """Read the text of a cell of the first rows by its reference (``B1``), none if empty."""
+    column, row = coordinate_from_string(reference)
+    cells = tuple(rows[row - 1]) if row <= len(rows) else ()
+    rank = column_index_from_string(column) - 1
+    return text(cells[rank]) if rank < len(cells) else None
+
+
+def _head(rows: Sequence[Sequence[object]]) -> str | None:
+    """Read the head of a tab of lines: the code of its subproject, ``OUTSIDE_KEY`` for the outside.
+
+    A1 says « Code du sous-projet » and B1 holds the code, or A1 says « Hors sous-projet »; any
+    other head — a title written before the code came to the head included — bears no code, and
+    the tab designates no subproject (``tab_subprojects``).
+    """
+    first = _cell(rows, "A1")
+    if first == OUTSIDE:
+        return OUTSIDE_KEY
+    return _cell(rows, CODE_CELL) if first == CODE_LABEL else None
 
 
 def _check_header(rows: Sequence[Sequence[object]]) -> None:
@@ -136,6 +178,21 @@ def check_header(content: bytes) -> None:
     ``FILE_FORMAT_UNREADABLE`` with ``expected_format`` at ``remaining`` and ``expected_version``.
     """
     check_any_header(content, FORMAT_NAME, FORMAT_VERSION, FORMAT_KIND)
+
+
+def check_workbook(content: bytes) -> None:
+    """Refuse a file that is no workbook of a remaining, or whose tab of lines lacks a column.
+
+    What the opening of an import reads before any lock (US-3200): the header, then the headers of
+    every tab of lines; ``FILE_FORMAT_UNREADABLE`` names each column missing with its tab.
+    """
+    check_header(content)
+    refuse_missing_columns(
+        read_remaining_workbook(content).missing_headers,
+        _REQUIRED_HEADERS,
+        FORMAT_KIND,
+        FORMAT_VERSION,
+    )
 
 
 def _review_date(rows: Sequence[Sequence[object]]) -> tuple[date | None, str | None]:
@@ -190,15 +247,22 @@ def _is_empty(texts: Mapping[str, str | None], raws: Mapping[str, object]) -> bo
 def _read_sheet(
     name: str, rows: Sequence[Sequence[object]]
 ) -> tuple[list[ReadRemainingLine], list[Rejection], dict[str, int] | None]:
-    """Read the lines of a tab, below the row of its headers; the columns found, none without."""
+    """Read the lines of a tab, below the row of its headers.
+
+    The last item is the columns found: those of the row that carries both keys, else those of
+    the first row that carries any header read (no line is read then), none without any.
+    """
     lines: list[ReadRemainingLine] = []
     rejected: list[Rejection] = []
     columns: dict[str, int] | None = None
+    partial: dict[str, int] | None = None
     total_seen = note_seen = False
     for number, row in enumerate(rows, start=1):
         if columns is None:
             found = header_columns(row, _READ_HEADERS)
             columns = found if found.keys() >= _KEY_HEADERS else None
+            if columns is None and found and partial is None:
+                partial = found
             continue
         texts = {header: text(at(row, columns, header)) for header in _TEXT_HEADERS}
         raws = {header: at(row, columns, header) for header in _NUMBER_HEADERS}
@@ -238,17 +302,23 @@ def _read_sheet(
                 lineage=texts[LINEAGE_HEADER],
             )
         )
-    return lines, rejected, columns
+    return lines, rejected, columns or partial
 
 
 def read_remaining_workbook(content: bytes) -> RemainingRead:
     """Read the workbook of a remaining to commit: its header, its review date, its tabs of lines.
 
     Raises ``FILE_FORMAT_UNREADABLE`` (``expected_format`` at ``remaining``, ``expected_version``)
-    for a file that is no workbook, whose XML is damaged, or whose first tab does not say the
-    format « Reste à engager » and a known version.
+    for a file that is no workbook, whose XML is damaged, beyond the bounds of the opener or with a
+    tab read beyond its rows or columns, or whose first tab does not say the format « Reste à
+    engager » and a known version.
     """
-    sheets = load_sheets(content, FORMAT_KIND, FORMAT_VERSION)
+    sheets = load_sheets(
+        content,
+        unread=_UNREAD_SHEETS,
+        expected_format=FORMAT_KIND,
+        expected_version=FORMAT_VERSION,
+    )
     if not sheets:
         raise unreadable(FORMAT_KIND, FORMAT_VERSION)
     _check_header(sheets[0][1])
@@ -259,6 +329,7 @@ def read_remaining_workbook(content: bytes) -> RemainingRead:
     unread: list[str] = []
     missing: dict[str, tuple[str, ...]] = {}
     tasks: dict[str, str] = {}
+    heads: dict[str, str | None] = {}
     for name, rows in sheets:
         if name == SUMMARY:
             review_date, unparsed = _review_date(rows)
@@ -266,6 +337,7 @@ def read_remaining_workbook(content: bytes) -> RemainingRead:
             tasks = task_entries(rows)
         if name in _NOT_LINE_SHEETS:
             continue
+        heads[name] = _head(rows)
         sheet_lines, sheet_rejected, columns = _read_sheet(name, rows)
         lines += sheet_lines
         rejected += sheet_rejected
@@ -283,4 +355,5 @@ def read_remaining_workbook(content: bytes) -> RemainingRead:
         tuple(unread),
         MappingProxyType(missing),
         MappingProxyType(tasks),
+        MappingProxyType(heads),
     )

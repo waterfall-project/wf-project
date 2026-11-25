@@ -206,8 +206,8 @@ def _field_of(fault: Mapping[str, Any]) -> FieldError:
         code = ErrorCode.VALUE_OUT_OF_RANGE
         params[_INCLUSIVE_BOUNDS[kind]] = next(iter(fault["ctx"].values()))
     elif kind in ErrorCode.__members__:
-        # A rule of a body that names its own code of the contract (``PROJECT_CODE_INVALID``): its
-        # context is the parameters of the refusal.
+        # A rule of a body that names its own code of the contract (``VALUE_REQUIRED`` of a blank
+        # code of a subproject): its context is the parameters of the refusal.
         code = ErrorCode(kind)
         params.update(fault.get("ctx", {}))
     elif _is_integer_not_admitted(fault):

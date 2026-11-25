@@ -5,6 +5,10 @@
 The deposits are made through the API of an installation of the tests (``installations``), on the
 object storage of the tests; a backup taken on one installation, copied out, deposited on another
 and restored there by the service of the restoration makes it a copy of the first.
+
+And the bounds of a deposit for an import (``uploadFile``, US-3240, #4423): twenty pending deposits
+by account at most, a name without NUL and of 255 characters at most, nothing written for a refusal.
+The permission it asks is tried with the imports (``test_imports.py``).
 """
 
 import hashlib
@@ -19,6 +23,18 @@ from uuid import UUID, uuid4
 import pytest
 from access_rows import account, role
 from fastapi.testclient import TestClient
+from imports_trial import (
+    ROWS,
+    STATE,
+    UPLOADS,
+    TrialFormat,
+    open_import,
+    refusal,
+    stand_in,
+    trial_file,
+    upload,
+)
+from imports_trial import deposited as deposited_whole
 from installations import (
     Installation,
     Provider,
@@ -27,8 +43,10 @@ from installations import (
     restorer_headers,
     written_task,
 )
+from projects_support import Person, Scene
+from projects_support import scene as make_scene
 from realm import KEY, TestRealm
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select, update
 from support import ContractClient, bearer
 
 from waterfall import __version__
@@ -37,6 +55,7 @@ from waterfall.api.authentication import Services
 from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.backups.interface import MANIFEST, archive_taken_at
 from waterfall.core.backups.tables import Backup
+from waterfall.core.exchanges.interface import purge, remove_purged
 from waterfall.core.users.tables import UserAccount
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.audit import AuditEntry
@@ -49,7 +68,14 @@ from waterfall.platform.queue import RESTORES as RESTORES_SUFFIX
 from waterfall.platform.queue import TaskQueue
 from waterfall.platform.storage import Bucket, unavailable
 from waterfall.platform.tasks import BackgroundTask
-from waterfall.platform.uploads import LARGEST_PART, MOST_PARTS, SMALLEST_PART, FileUpload, cut
+from waterfall.platform.uploads import (
+    LARGEST_PART,
+    MOST_PARTS,
+    MOST_PENDING,
+    SMALLEST_PART,
+    FileUpload,
+    cut,
+)
 from waterfall.restore.runner import Restorer
 from waterfall.restore.task import RestoreTask
 from waterfall.worker.runner import Timing
@@ -59,6 +85,7 @@ if TYPE_CHECKING:
 
     from httpx2 import Response
     from openapi_core import OpenAPI
+    from sqlalchemy import Engine
 
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.settings import ServiceSettings
@@ -595,3 +622,186 @@ def test_the_head_of_an_archive_whose_manifest_nests_too_deep_says_no_date() -> 
     with tarfile.open(fileobj=written, mode="w") as tar:
         tar.addfile(member, io.BytesIO(nested))
     assert archive_taken_at(written.getvalue()) is None
+
+
+@pytest.fixture
+def import_services(
+    database: Database,
+    keycloak: Keycloak,
+    realm_settings: ServiceSettings,
+    queue: TaskQueue,
+    backups_bucket: Bucket,
+) -> Services:
+    """Give the services of the API on the database, the queue and the bucket of the test."""
+    administration = KeycloakAdmin(keycloak, realm_settings)
+    return Services(database, keycloak, administration, queue, backups_bucket)
+
+
+@pytest.fixture
+def imports_api(contract: OpenAPI, import_services: Services) -> ContractClient:
+    """Serve the API on the database, the queue and the bucket of the test, for a deposit."""
+    client = TestClient(create_app(import_services), raise_server_exceptions=False)
+    return ContractClient(client, contract)
+
+
+@pytest.fixture
+def stage(
+    imports_api: ContractClient, owner: Engine, database: Database, realm: TestRealm
+) -> Scene:
+    """Give a platform whose reference is complete, its sessions, and a project its manager made."""
+    return make_scene(imports_api, owner, database, realm)
+
+
+@pytest.fixture
+def written(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Give the keys written to the storage from now on, each write let through.
+
+    The patch lives in the process of the test and is undone with it: under ``pytest -n`` each
+    worker is a process and runs its tests one after the other, so only the writes of this test
+    are counted, whatever the other workers write to the shared bucket.
+    """
+    keys: list[str] = []
+    put = Bucket.put
+
+    def counted(bucket: Bucket, key: str, content: bytes, media_type: str | None = None) -> None:
+        keys.append(key)
+        put(bucket, key, content, media_type)
+
+    monkeypatch.setattr(Bucket, "put", counted)
+    return keys
+
+
+def pending(database: Database, who: Person) -> int:
+    """Count the deposits for an import ``who`` made."""
+    with database.transaction() as session:
+        mine = select(func.count()).where(
+            FileUpload.uploaded_by == who.user_id, FileUpload.purpose == "import"
+        )
+        return session.scalar(mine) or 0
+
+
+def filled(api: ContractClient, who: Person, count: int) -> list[str]:
+    """Deposit ``count`` files for an import as ``who`` does; give their deposits."""
+    return [deposited_whole(api, who, trial_file(*ROWS)) for _ in range(count)]
+
+
+FULL = (409, STATE, {"missing_condition": "pending_uploads_below_limit", "maximum": MOST_PENDING})
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_a_twenty_first_pending_deposit_is_refused_and_nothing_is_written(
+    imports_api: ContractClient, stage: Scene, written: list[str]
+) -> None:
+    # Vérif : « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. »,
+    # in its form for the bound: an account keeps twenty deposits for an import that no import
+    # used; the twenty-first is refused by the condition the contract names, nothing written to the
+    # storage (#4423). A backup deposited by parts is not counted; another account is not bound by
+    # this one's deposits.
+    api, manager = imports_api, stage.manager
+    with stage.database.transaction() as session:
+        session.execute(
+            insert(FileUpload).values(
+                id=uuid4(),
+                purpose="external_backup",
+                filename="copie.tar",
+                size_bytes=1,
+                part_size_bytes=SMALLEST_PART,
+                part_count=1,
+                object_key=f"uploads/{uuid4()}",
+                uploaded_by=manager.user_id,
+                created_at=utc_now(),
+                expires_at=utc_now() + timedelta(hours=1),
+                completed_at=utc_now(),
+            )
+        )
+    filled(api, manager, MOST_PENDING)
+    written.clear()
+    assert refusal(upload(api, manager, trial_file(*ROWS))) == FULL
+    assert written == []
+    assert pending(stage.database, manager) == MOST_PENDING
+    # The request is judged before the state: an empty file is refused as such (422), not 409.
+    empty = upload(api, manager, b"")
+    assert (empty.status_code, empty.json()["fields"][0]["code"]) == (422, "VALUE_REQUIRED")
+    other = upload(api, stage.outsider, trial_file(*ROWS))
+    assert other.status_code == 201, other.text
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_a_deposit_used_by_an_import_or_purged_at_its_term_frees_a_place(
+    imports_api: ContractClient,
+    stage: Scene,
+    backups_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Vérif : « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. » As
+    # soon as an import uses one of the twenty deposits, or the purge deletes one at its term, a new
+    # deposit passes (#4423).
+    stand_in(monkeypatch, "remaining", TrialFormat())
+    api, manager = imports_api, stage.manager
+    first, second, *_ = filled(api, manager, MOST_PENDING)
+    assert refusal(upload(api, manager, trial_file(*ROWS))) == FULL
+    opening = open_import(api, manager, stage.project["project_id"], first)
+    assert opening.status_code == 202, opening.text
+    assert upload(api, manager, trial_file(*ROWS)).status_code == 201
+    assert refusal(upload(api, manager, trial_file(*ROWS))) == FULL
+    with stage.database.transaction() as session:
+        session.execute(
+            update(FileUpload)
+            .where(FileUpload.id == UUID(second))
+            .values(expires_at=utc_now() - timedelta(minutes=1))
+        )
+    with stage.database.transaction() as session:
+        purged = purge(session, utc_now())
+    remove_purged(backups_bucket, purged)
+    with stage.database.transaction() as session:
+        assert session.get(FileUpload, UUID(second)) is None
+    assert upload(api, manager, trial_file(*ROWS)).status_code == 201
+
+
+def raw_upload(api: ContractClient, who: Person, filename: bytes) -> Response:
+    """Deposit a trial file under a name sent as it is, which a client would escape; the answer."""
+    boundary = "wf-boundary"
+    purpose = 'Content-Disposition: form-data; name="purpose"\r\n\r\nimport\r\n'
+    body = b"".join(
+        (
+            f"--{boundary}\r\n{purpose}".encode(),
+            f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="'.encode(),
+            filename,
+            b'"\r\nContent-Type: application/octet-stream\r\n\r\n',
+            trial_file(*ROWS),
+            f"\r\n--{boundary}--\r\n".encode(),
+        )
+    )
+    headers = {**who.headers, "Content-Type": f"multipart/form-data; boundary={boundary}"}
+    return api.post(UPLOADS, headers=headers, content=body)
+
+
+@pytest.mark.story("US-3240")
+def test_a_name_that_holds_the_nul_character_is_refused_and_nothing_is_written(
+    imports_api: ContractClient, stage: Scene, written: list[str]
+) -> None:
+    # BEX-08 of #4426: a name that holds NUL is refused on the file, as every text that holds it,
+    # nothing written to the storage nor to the database.
+    refused = raw_upload(imports_api, stage.manager, b"plan\x00ning.wft")
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["fields"] == [{"pointer": "/file", "code": "VALIDATION_FAILED"}]
+    assert written == []
+    assert pending(stage.database, stage.manager) == 0
+
+
+@pytest.mark.story("US-3240")
+def test_a_name_longer_than_a_deposit_keeps_is_refused_with_its_max_length(
+    imports_api: ContractClient, stage: Scene, written: list[str]
+) -> None:
+    # #4732: the bound of a name is said ``max_length``, as every VALUE_TOO_LONG; 255 characters
+    # pass.
+    name = "x" * 252 + ".wft"
+    refused = upload(imports_api, stage.manager, trial_file(*ROWS), filename=name)
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["fields"] == [
+        {"pointer": "/file", "code": "VALUE_TOO_LONG", "params": {"max_length": 255}}
+    ]
+    assert written == []
+    assert pending(stage.database, stage.manager) == 0
+    kept = upload(imports_api, stage.manager, trial_file(*ROWS), filename=name[1:])
+    assert kept.status_code == 201, kept.text

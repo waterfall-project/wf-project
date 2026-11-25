@@ -875,7 +875,8 @@ gel ») ; `info.version` reste `1.0.0`.
   choix, comme `import_file_accepted` refuse l'application d'un fichier rejeté. Aucune commande ne
   l'annonce : `calendar_gap` le dit, comme `UndoResult.remaining_depth` annonce
   `undo_history_not_empty`. Pas de compteur : aucune opération d'import n'en porte, et la règle se
-  pose sous le verrou de l'import. Les conditions de l'état du projet ne sont pas jugées : l'analyse
+  pose sous le verrou de l'import — révisé pour l'application, qui compare celui de la structure
+  que le service garde à l'analyse (« Le contrat des échanges d'EP-33 », US-3250/L1, #4420). Les conditions de l'état du projet ne sont pas jugées : l'analyse
   n'écrit rien, et `applyImport` les rejuge. `applyImport` ne change pas : il applique le compte
   rendu tel qu'analysé.
 - **Le catalogue du front** reçoit `enums.ImportDurationRule.*` et
@@ -8195,7 +8196,9 @@ sert qu'aux fichiers exportés.
 ### Le client d'un projet et le code borné d'un sous-projet (US-0610, #1316)
 
 > Révisée par la décision de l'auteur du 2026-11-18 (« Le tri des constats de spécification », #3370) :
-> le code d'un sous-projet est libre, et ne nomme plus son onglet.
+> le code d'un sous-projet est libre, et ne nomme plus son onglet. Le contrat suit par US-3270/L1
+> (« L'élément d'OTP comparé en entier et le code de sous-projet libre ») : 100 caractères, ni
+> caractère interdit ni nom réservé, jamais le code du projet.
 
 WF-PRJ-0080 fait porter au projet le nom de son client, facultatif, que présente un devis exporté ;
 WF-PRJ-0050 veut que le code d'un sous-projet nomme son onglet dans le fichier de reste à engager
@@ -9968,7 +9971,8 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
   exemple : il tient à `setTaskProgress`, hors des fichiers du lot.
 - **Le code projet borné** (D-07 ; WF-PRJ-0010, WF-CRE-0020). Révisé par la décision de l'auteur du
   2026-11-18 (« Le tri des constats de spécification », #3370) : la barre oblique n'est plus
-  interdite, `PROJECT_CODE_INVALID` tombe. `ProjectCode`, partagé par
+  interdite, `PROJECT_CODE_INVALID` tombe ; le contrat suit par US-3270/L1 (« L'élément d'OTP
+  comparé en entier et le code de sous-projet libre »). `ProjectCode`, partagé par
   `Project`, `ProjectSummary`, `ProjectCreate` et `ProjectUpdate` : de 1 à 50 caractères, jamais
   blanc, sans barre oblique. Vide, `VALUE_REQUIRED` ; blanc, `VALIDATION_FAILED`, comme tout libellé
   (#837) ; une barre oblique, `PROJECT_CODE_INVALID`, nouveau au catalogue comme
@@ -11864,6 +11868,12 @@ La version reste `1.0.0` : un motif et un paramètre de plus, que `ProblemParams
 
 ### Les descriptions d'un import de coûts réels : le double d'un autre projet, l'arrondi, l'OTP sans suffixe, `params.column` (US-1610/L2, #2721, #2722, #2724)
 
+> Révisée par la décision de l'auteur du 2026-11-18 (« Le tri des constats de spécification », #3370)
+> et par le cadrage d'EP-33 (BRC-04) : l'élément d'OTP se compare en entier, `WBS_ELEMENT_INVALID`
+> tombe avec l'élément sans rien après la barre oblique, et une ligne d'un autre élément n'est plus
+> comparée aux doubles. Le contrat suit par US-3270/L1 (« L'élément d'OTP comparé en entier et le
+> code de sous-projet libre »).
+
 Décisions de l'auteur du 2026-11-10, qui ne changent aucune forme, seulement ce que les descriptions
 disent. `requires_confirmation_reasons` : une ligne d'un autre projet compte pour
 `lines_outside_project` même quand elle est rejetée `DUPLICATE_COST_LINE` (#2724) : la confirmation
@@ -12978,6 +12988,375 @@ l'écran d'état, qui écarte un code qu'il ne connaît pas, ne la verrait jamai
 `abandoned` à côté de `ok` et `maintenance`, qu'un client qui ne connaît que les deux premiers
 lirait mal ; un code de l'alerte au contrat, qui demanderait au front un libellé qu'il n'affiche
 jamais.
+
+### Le contrat des échanges d'EP-33 : le compte rendu périmé, le dépôt sous permission, la tâche purgée, les colonnes d'un onglet, le montant écrit (US-3250/L1, #4525)
+
+Décisions de l'auteur du 2026-11-21, au cadrage d'EP-33 (conception, « Modifications du contrat »),
+sur cinq constats de la revue complète du 2026-11-14. Le contrat précède le service : chaque US
+remplit ce qu'il déclare (US-3200, US-3210, US-3230, US-3240, US-3250/L2), et jusque-là le service ne
+rend ni la condition nouvelle de l'application, ni le plafond des dépôts, ni la colonne d'un onglet,
+ni le signal du montant écrit. `info.version` reste `1.0.0` (« La règle d'après le gel »). Exemples
+engendrés par `wftools.mockimportfindings`, tenus par `tools/tests/test_mockimportfindings.py`.
+
+- **L'application d'un import compare le compteur de la structure que son analyse a lue** (#4420,
+  BEX-02, CTB-01 ; US-3210). Une valeur nouvelle de `CommandCondition`,
+  `import_structure_unchanged`, manque à l'application d'un planning, d'un devis ou d'un reste à
+  engager dont la structure a été écrite depuis l'analyse — une cellule, un collage, un déplacement,
+  une création, une suppression — ; elle ne vaut pas pour une extraction de coûts réels, qui n'écrit
+  dans aucune structure. `applyImport` la nomme en 409 `STATE_FORBIDS_OPERATION` après
+  `import_file_accepted`, avant les conditions d'état, parmi les refus définitifs : l'import passe
+  `refused`, son fichier est supprimé, l'utilisateur redépose. La comparaison se fait deux fois, à la
+  demande et à l'exécution sous le verrou de la structure : une écriture arrivée entre les deux fait
+  échouer la tâche d'application sur le même motif, l'import `refused`. Une structure analysée dans
+  la révision marquée, le projet sans révision en cours, reste inchangée quand une révision ouverte
+  depuis la copie sans que l'on y ait écrit ; la révision que la tâche crée elle-même n'est pas
+  comparée. Aucune commande ne l'annonce (`ImportDetail.available_commands`, `ImportCommand`) : la
+  conception ne compare qu'à la demande et à l'exécution, et une lecture qui jugerait le compteur
+  ajouterait une troisième comparaison qu'elle ne prévoit pas. Un compte rendu au compteur nul —
+  analysé avant la colonne du service — s'applique sans comparaison, pendant les vingt-quatre
+  heures qu'il vit ; c'est une règle du service, que le contrat ne dit pas. Exemple :
+  `import_apply_structure_changed`, le devis de l'avenant 2 (`import_analysed`) appliqué après la
+  saisie de `estimate_line_updated_amendment`, qui avance le compteur de sa structure. Écartés :
+  `ImportApply.lock_version`, que le client ne ferait que recopier d'une réponse ; un 412 sur ce
+  compteur ; recalculer le compte rendu sous verrou et le comparer à celui confirmé.
+- **« Pas de compteur : aucune opération d'import n'en porte » est révisée** (setImportDurationRule,
+  « L'import en deux temps » ci-dessus ; conception d'EP-33, « Décisions prises »). Aucune opération
+  n'en porte toujours : le client n'envoie rien, `ImportApply` ne change pas. Mais l'application en
+  compare un, que le service garde à l'analyse ; la nouvelle analyse que lance
+  `setImportDurationRule` garde celui qu'elle lit, et c'est lui que l'application compare
+  (WF-INTF-0080).
+- **Déposer un fichier demande l'une des quatre permissions d'import, et un compte garde vingt dépôts
+  en attente au plus** (#4423, CTB-02, BAC-09 ; US-3240). `uploadFile` déclare 403
+  `PERMISSION_MISSING` pour un compte qui ne porte ni `planning.write`, ni `estimate.write`, ni
+  `remaining.write`, ni `actual_costs.write` ; `params.missing_permission` nomme `planning.write`, la
+  première, comme les écritures des grilles que l'une de trois permissions ouvre nomment la leur
+  (#2601). Et 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
+  `pending_uploads_below_limit`, valeur nouvelle de `CommandCondition`, et `params.maximum` à `20`,
+  le nom que le contrat donne déjà à la plus grande valeur admise, pour le vingt et unième dépôt d'un
+  compte qui en garde vingt qu'aucun import n'a employés et qui n'ont pas expiré ; jugé après la
+  permission, rien n'étant écrit au stockage. Le plafond se compte sans verrou et n'est pas un
+  invariant : deux dépôts simultanés peuvent le passer d'un. Aucune commande ne l'annonce. Écartés :
+  un 429 et un code propre (règle unique des refus d'état, J-01) ; un verrou par compte. Exemples :
+  `file_upload_permission_missing`, `file_upload_pending_limit`. **Le service** prend la garde de
+  la permission dès ce lot : `test_access_evaluation.py` refuse un 403 déclaré qu'aucune garde ne
+  rend, et `Requires` (`waterfall.api.evaluation`) gagne `one_of`, comme `RequiresProject` ; le
+  plafond reste à US-3240.
+- **Un nom de fichier qui porte le caractère NUL est refusé sur `/file`** (BEX-08 de #4426, #4423 ;
+  US-3240), 422 `VALIDATION_FAILED`, le motif `VALIDATION_FAILED`, comme tout texte qui le porte
+  (« Session et erreurs », #743) : le nom n'est pas un champ d'un corps JSON, que la base des
+  modèles refuse déjà. Le 422 d'`uploadFile` dit désormais ses motifs — le dépôt d'une sauvegarde,
+  un fichier vide ou sans nom, un nom de plus de 255 caractères, `max_length` à `255` comme tout
+  `VALUE_TOO_LONG`, et le NUL — ; le service rend aujourd'hui `maximum` au lieu de `max_length`
+  (#4732). Exemple : `file_upload_filename_nul`.
+- **La tâche d'un import se lit nulle, et la purge supprime l'import expiré ou abandonné** (#4425,
+  BEX-07, BEX-11, DON-05 ; US-3250). `Import.task` et `ImportDetail.task` deviennent
+  `BackgroundTaskRef` ou nul : nul une fois la tâche supprimée au terme de la rétention de son
+  résultat (`OperatingParameters.background_task_retention_days`, §4.4.1), et pour un import qui
+  n'en a pas ; l'import se lit toujours, jamais 500. La passe de purge supprime un import `expired`
+  ou `abandoned`, compte rendu compris ; `applied`, `failed` et `refused` restent, au journal des
+  imports. `listImports`, `getImport`, `abandonImport` et `applyImport`, et la description des
+  états, le disent : jusqu'à la passe, l'import se lit, l'application le refuse par son état et
+  l'abandon rend 204 — l'idempotence de l'abandon (#1789) tient jusqu'à elle ; après, 404, et la
+  liste ne le compte plus. Exemple : `import_actual_costs_task_purged`, l'extraction d'avril
+  appliquée le 4 mai et lue aujourd'hui, la tâche de son application supprimée au bout de trente
+  jours. Les exemples de liste et le témoin, qui portent encore un import expiré et un import
+  abandonné, suivent avec le service (US-3250/L2, #4526). Écartés : vider la seule colonne `report`,
+  qui amendait la spécification ; supprimer à l'abandon même, qui romprait l'idempotence.
+- **`ProblemMissingColumn` nomme aussi la colonne qu'un onglet d'un devis ou d'un reste à engager a
+  perdue** (#4421, BCH-03 ; US-3200). Deux formes, l'une ou l'autre (`oneOf`) : la colonne exigée
+  d'une extraction de coûts réels par son identifiant et les intitulés que la correspondance
+  déclare (`column`, `labels`), sans onglet ; la colonne d'un classeur par son en-tête tel que le
+  format l'écrit — « ID ligne », « Quantité », « Heures », « Débours unitaire » au devis, « ID
+  ligne », « Jours restants », « Débours restant » au reste à engager — et son onglet tel que le
+  fichier le nomme (`header`, `sheet`). Un en-tête renommé est une colonne absente ; une colonne que
+  l'import ne lit pas peut manquer. `params.missing_columns` les range onglet par onglet dans l'ordre
+  du fichier, puis dans l'ordre du format. Le refus garde `FILE_FORMAT_UNREADABLE`, le format et la
+  version attendus nommés. Écartés : `labels` à un seul élément, qui dit les intitulés d'une
+  correspondance et non l'en-tête d'un format ; un identifiant de colonne, que le format n'a pas.
+  Limite : le `oneOf` n'exige que les champs de sa forme, il n'interdit pas ceux de l'autre — une
+  valeur qui porte `column`, `labels` et `header` sans `sheet` le satisfait. Fermer chaque forme
+  (`additionalProperties: false`, ou `not` sur les champs de l'autre) demande de redéclarer les
+  propriétés dans la branche, ce que la règle `no-required-schema-properties-undefined` du lint
+  refuse autrement et que la génération des modèles dédoublerait ; le serveur n'en écrit jamais
+  deux à la fois, et le contrat le dit dans la description.
+  Exemple : `import_remaining_column_missing`, l'onglet du poste de commande dont « Débours restant »
+  a été renommé.
+- **Le compte rendu d'un reste à engager signale le montant qu'il écrit** (#4428, BCH-11 ; US-3230).
+  `AMOUNT_ROUNDED` entre au catalogue des codes (`ErrorCode`), un signal et jamais un refus, et à
+  `ImportSignal.code` : une ligne hors main-d'œuvre dont le montant que l'application écrit — le
+  débours unitaire arrondi au centime, la quantité et le coefficient d'inflation de sa tâche gardés
+  — n'est pas le montant du fichier, nommée par sa lignée et son libellé, la colonne
+  `unit_disbursement`, `params.typed_amount` et `params.written_amount`, deux montants en chaîne
+  (`Money`). Une ligne dont le montant se divise juste n'est pas signalée ; la règle de calcul
+  d'EP-09 ne change pas. `ImportReport.signals` n'est plus dit vide pour les imports Excel : il
+  l'est pour un devis et une extraction de coûts réels. Exemple : `import_remaining_amount_rounded`,
+  variante contrefactuelle d'`import_remaining_analysed`, les borniers comptés par mille, 1 234,56
+  saisis écrivant 1 230,00. Écartés : ramener la quantité à 1 (conception d'EP-09) ; ne corriger
+  que la phrase de la décision #2797.
+- **Le catalogue du front** reçoit `errors.AMOUNT_ROUNDED`,
+  `enums.CommandCondition.import_structure_unchanged` et
+  `enums.CommandCondition.pending_uploads_below_limit`, et l'écran des imports lit un import sans
+  tâche sans la suivre : la part TypeScript du même lot.
+
+### Le conflit d'une liaison nomme sa tâche manuelle (US-3300/L1, #4565)
+
+WF-PLA-0020-A (septième phrase, spécification 1.0.7) veut qu'une tâche manuelle sous une
+récapitulative liée, que le prédécesseur ne peut pas satisfaire, soit signalée, et le prédécesseur
+« avec cette subordonnée ». `LinkConflict` ne savait nommer que les deux bouts de la liaison, et
+décrivait `successor_node_id` comme la tâche manuelle : faux dès que le successeur est une
+récapitulative. Décision de la conception d'EP-32 (« Ce que le cadrage décide », #3984) :
+
+- **`LinkConflict.manual_node_id`, exigé** : la tâche manuelle que le prédécesseur ne peut pas
+  satisfaire — le successeur lui-même, ou, quand il est une récapitulative, sa subordonnée
+  manuelle en conflit ; une liaison vers une récapitulative rend un conflit par subordonnée
+  manuelle en cause. `successor_node_id` reste le successeur de la liaison, et sa description le
+  dit.
+- **Où il est rendu** : `link_conflicts` du prédécesseur et de la tâche manuelle
+  (`TaskFacet.link_conflicts`, `NodeSchedule.link_conflicts`), triés par la ligne du prédécesseur,
+  puis du successeur, puis de la tâche manuelle ; une récapitulative n'en porte toujours aucun.
+- **Les exemples** : le témoin n'a aucun conflit sous une récapitulative ; le seul exemple qui en
+  porte, `task_dates_conflicting`, gagne le champ, égal au successeur, et le faux back le rend
+  ainsi (`wftools.mockcore`, `wftools.mockamendment`). Le service le rend égal au successeur
+  jusqu'à ce que le moteur juge les feuilles manuelles d'une récapitulative (US-3300/L3).
+
+Écarté : signaler à la lecture toutes les subordonnées manuelles de la récapitulative ; une
+subordonnée datée assez tard serait signalée à tort, et la lecture ne rejoue pas le moteur.
+
+### L'ouverture d'une révision refuse une tâche sans heure travaillée (US-3300/L1, #4566)
+
+L'ouverture d'une révision rejoue le moteur sur la copie de la dernière révision marquée. Un
+calendrier changé pendant que le projet était au repos peut laisser une tâche de la copie sans
+heure travaillée : le service levait une exception que rien ne traduisait (500, #4413), et
+`createRevision` ne déclarait aucun refus pour ce cas. Décision de l'auteur du 2026-11-21 :
+**`createRevision` déclare le 422 `TASK_WITHOUT_WORKING_HOURS`**, sans `fields`,
+`params.resource_roles` et `params.tasks` comme une saisie les rend (`ProblemTask`) ; rien n'est
+créé. La tâche est nommée par son nœud dans la copie, comme le refus `PROJECT_HORIZON_EXCEEDED` de
+la même opération nomme la sienne ; les rôles sont vides pour une tâche sans ligne de main-d'œuvre,
+sous le calendrier par défaut. `ProblemParams.tasks` et `ProblemTask` nomment l'ouverture. Pas
+d'exemple : aucune tâche du témoin n'est sans heure. La déclaration précède US-3330, qui sert le
+refus : le service ne le rend pas encore. Écarté : étendre la garde de la modification d'un
+calendrier à la dernière révision marquée des projets au repos, au-delà de WF-PLA-0010 (« d'une
+révision en cours »).
+
+### L'import MS Project nomme une tâche créée sans heure travaillée (US-3210b, #4799)
+
+L'import d'un planning MS Project rejoue le moteur sans passer par la traduction d'US-3330 : une
+tâche que le fichier crée sur un calendrier par défaut sans heure faisait échouer l'analyse, ou
+l'application, en erreur interne. Le refus `TASK_WITHOUT_WORKING_HOURS` ne pouvait pas nommer
+cette tâche : `ProblemTask` exige un nœud, `ProblemImportedTask` une lignée, et elle n'a encore
+ni l'un ni l'autre. Décision de l'auteur du 2026-11-23 (option 1 de #4799) :
+
+- **`ProblemImportedTask.lineage_id` devient nullable**, toujours exigé : nul pour une tâche que
+  le fichier crée, nommée par son libellé, comme `ImportDifference.lineage_id` l'est pour un
+  ajout. Le refus entre dans `ImportReport.refusals` (`ReportRefusal`), et l'application qui le
+  rencontre de nouveau, le calendrier changé depuis l'analyse, échoue sur lui.
+- **La forme de celle d'US-3330** : `params.resource_roles`, les rôles des lignes de
+  main-d'œuvre d'une tâche existante, aucun pour une tâche créée, qui n'en porte pas encore ;
+  `params.tasks`, la tâche par sa lignée et son libellé, comme le compte rendu nomme ses objets :
+  une analyse faite sur la révision marquée vise des nœuds que l'application ne garde pas.
+
+La version reste `1.0.0` : une forme assouplie, qu'aucun client ne lisait nulle. Pas d'exemple :
+aucun calendrier du témoin n'est sans heure. Écartés : une troisième forme de tâche, nommée par son
+seul libellé, que `ProblemParams.tasks` aurait dû distinguer des deux autres ; reporter le refus.
+
+### Le changement de calendrier d'un rôle déclare les refus du redatage (US-3300/L1, #4567)
+
+Un rôle qui change de calendrier ne redatait aucune révision en cours (#4411). US-3320 fait le
+redatage et le rechiffrage dans la transaction du changement, comme pour les heures d'un
+calendrier (WF-PLA-0010, WF-PLA-0020 : « recalculées à chaque modification […] d'un
+calendrier ») : `updateResourceRole` peut alors rendre les refus qu'`updateCalendar` déclare
+déjà, et il les déclare dans les mêmes termes :
+
+- **`PROJECT_HORIZON_EXCEEDED`**, 422 sans `fields`, `params.projects` nommant chaque projet
+  concerné par son libellé et son code, sans identifiant ni tâche (WF-PLA-0150, WF-ADM-0110 ;
+  #2505) ; un seul projet à la limite suffit ;
+- **une ligne rechiffrée au-delà de sa colonne**, 422 `VALIDATION_FAILED`, `fields` sur
+  `/calendar_id`, de code `VALIDATION_FAILED`, sans paramètre : la règle générale « Un montant
+  dérivé qui déborde sa colonne est refusé au champ qui le provoque » (US-2260/L3, #3401), dont
+  `/calendar_id` est le champ qui provoque le redatage.
+
+Rien n'est écrit. La déclaration précède US-3320, qui sert ces refus (#4411) : le service redate
+depuis US-3320 et rend ces refus, comme le contrat les décrit. Pas d'exemple ajouté : la conception d'EP-32
+n'en prévoit pas, et le refus d'horizon d'`updateCalendar` (`calendar_update_horizon_exceeded`) en
+montre déjà la forme.
+
+### La marge totale et le chemin critique ne rendent pas une tâche modifiée (US-3300/L5, #4312)
+
+La comparaison de deux révisions (`compareRevisions`) disait une tâche modifiée dès qu'une valeur
+qu'elle porte diffère, calculée comprise (EP-27, « Ce qui fait un nœud modifié ») : une tâche que
+rien n'a touchée était modifiée (`other`) dès qu'une autre, allongée, lui changeait sa marge totale
+ou la faisait sortir du chemin critique, et ses récapitulatives avec elle. WF-REV-0080-A ne modifie
+une tâche que par « ses dates, sa durée, son état et son parent ». Décision de l'utilisateur du
+2026-11-22 : **`TaskFacet.total_float` et `TaskFacet.is_critical` ne sont pas comparés**, comme
+`finish_overdue`, parce que le moteur de planning les calcule de toute la structure :
+
+- une tâche dont seules la marge ou l'appartenance au chemin critique changent est `unchanged`, et
+  ne rend plus ses récapitulatives modifiées ; la remontée reste : une récapitulative qui porte une
+  tâche modifiée l'est, `changes` vide ;
+- `ComparedNodeBase` ne les porte jamais (sa description les nomme parmi ce qui n'est pas
+  comparé) ; `TaskDeltas.total_float` est retiré ;
+- le service les écarte des deux chemins, les lignes et les lectures gardées (US-2270), qui rendent
+  le même corps ; les exemples de `compareRevisions` sont engendrés de nouveau
+  (`wftools.mockdiff`) : le dossier de conception allongé n'y dit plus `other`, et ne porte plus de
+  marge dans `base` ni dans `deltas`.
+
+Écarté : garder l'écart de marge dans `deltas` sans rendre la tâche modifiée ; une colonne d'écart
+remplie sur une ligne inchangée contredirait la marque, que la grille ne recalcule pas.
+
+### L'élément d'OTP comparé en entier et le code de sous-projet libre (US-3270/L1, #4539, #3966)
+
+Le contrat de #3966 : décisions de l'auteur du 2026-11-18 (« Le tri des constats de
+spécification », #3370 ; spécification 1.0.7, WF-CRE-0020, WF-PRJ-0010, WF-PRJ-0050, WF-INTF-0120,
+annexe B) et du 2026-11-21 (cadrage d'EP-33 : les doubles d'une extraction comparés dans le projet
+seul, BRC-04 ; les lignes en attente d'un sous-projet inconnu supprimées par la reprise). Elles
+révisent « Le code projet borné » (D-07), « Le client d'un projet et le code borné d'un
+sous-projet » (US-0610, #1316) et « Les descriptions d'un import de coûts réels » (#2721) ; la phrase
+du recodage d'`updateSubproject` (« Un recodage ne change l'imputation d'aucune ligne de coût »,
+#2421) perd les lignes qui attendaient un code. Le contrat précède le service : US-3270/L2 (le
+service et la reprise), L3 (le front), L4 (le témoin et le harnais des exemples). `info.version`
+reste `1.0.0` (« La règle d'après le gel ») : le lot ajoute et assouplit. Exemples engendrés par
+`wftools.mockfreecodes`, tenus par `tools/tests/test_mockfreecodes.py`.
+
+- **Le code d'un sous-projet est libre, et n'est jamais celui de son projet** (WF-PRJ-0050).
+  `DeclaredSubprojectCode` : de 1 à 100 caractères, jamais blanc — le motif `\S`, celui d'un
+  libellé —, sans caractère interdit ni nom réservé ; 100, parce que la reprise écrit le code du
+  projet (50 au plus), une barre oblique et l'ancien code (31 au plus), soit 82 (conception
+  d'EP-33). L'issue disait « sans motif » : le motif reste un écart assumé, un code blanc restant
+  un refus du contrat, comme pour `ProjectCode`. Vide ou blanc, `VALUE_REQUIRED`, comme le
+  service le rend déjà ; trop long, `VALUE_TOO_LONG`, `max_length` à `100`. Égal au code du
+  projet, comparé en entier : `SUBPROJECT_CODE_INVALID` sur `/code`, sans paramètre, à la
+  création et au recodage d'un sous-projet ; et `updateProject` refuse de même, sur `/code`, le
+  projet recodé vers le code de l'un de ses sous-projets. Écarté : un code nouveau, une clé de
+  catalogue de plus pour un refus que le code existant et son champ disent. Exemples :
+  `subproject_code_of_project`, cité par `createSubproject` et `updateSubproject`,
+  `project_code_of_subproject`, cité par `updateProject` ; `subproject_code_too_long` passe à
+  101 caractères, `max_length` à `100`.
+- **Le code d'un projet peut porter une barre oblique** (WF-PRJ-0010). `ProjectCode` garde sa
+  borne de 1 à 50 caractères, jamais blanc (le motif `\S`) ; la barre oblique n'est plus interdite.
+- **L'élément d'OTP se compare en entier** (WF-CRE-0020). `WBS_ELEMENT_OUTSIDE_PROJECT` rejette
+  toute ligne dont l'élément n'est ni le code du projet ni celui de l'un de ses sous-projets — vide,
+  d'un autre projet, un code de sous-projet sans celui du projet, un sous-projet non déclaré —,
+  `params.wbs_element` l'élément tel que le fichier le porte, seul. Le compte rendu gagne
+  `unknown_wbs_elements` (`ImportUnknownWbsElement` : `wbs_element`, `line_count` d'au moins 1),
+  exigé, toujours rendu : chaque élément inconnu une fois, avec le nombre de ses lignes, dans l'ordre
+  où le fichier le porte d'abord ; vide quand tous sont connus, et pour les autres natures d'import.
+  `ActualCostLine.subproject_code` devient le code du sous-projet d'imputation, nul pour une ligne
+  imputée au seul projet, borné à 100 comme lui. `lines_outside_project` reste le motif de
+  confirmation de #2724, pour les lignes rejetées pour leur élément. La création d'un sous-projet
+  n'impute plus rien (`createSubproject`, `Subproject.has_actual_costs`) : seul le réimport impute.
+  Deux suites que la conception ne nomme pas, l'élément n'étant plus découpé : `params.project_code`
+  (la part avant la barre oblique) ne se donne plus, et un élément plus long que tout code n'a plus
+  de refus `VALUE_TOO_LONG` sur `wbs_element` à 50 : il n'est le code de rien, et
+  `WBS_ELEMENT_OUTSIDE_PROJECT` le rejette. Exemple : `import_actual_costs_unknown_elements`, la
+  Vérif de WF-CRE-0020-A en compte rendu, variante contrefactuelle
+  d'`import_actual_costs_dotted_code`.
+- **Les doubles se comparent dans le projet seul** (BRC-04). `DUPLICATE_COST_LINE` ne compare que
+  les lignes dont l'élément est le code du projet ou celui de l'un de ses sous-projets ; une ligne
+  d'un autre élément est rejetée pour son élément et ne fait rejeter aucune ligne du projet. La
+  phrase de #2724 (« compte pour `lines_outside_project` même rejetée `DUPLICATE_COST_LINE` »)
+  tombe avec elle : une telle ligne n'est plus jugée double.
+- **L'onglet d'un sous-projet du reste à engager** porte un nom tiré du code — les caractères
+  qu'Excel refuse remplacés, coupé à 31 caractères, numéroté en cas de collision — et le code en
+  tête ; l'import désigne le sous-projet par ce code, jamais par le nom de l'onglet
+  (`requestExport`, `openImport`, `ImportRejection.sheet` ; WF-INTF-0120, WF-INTF-0130).
+- **Ce qui attendait le service** (US-3270/L2, fait : l'entrée qui suit). `PROJECT_CODE_INVALID`,
+  `WBS_ELEMENT_INVALID`, `unknown_subproject` et les paramètres `forbidden_characters`,
+  `reserved_name` et `project_code` sont restés au contrat, dits « no longer given », tant que le
+  service les émettait : les tests du service valident chaque réponse contre le contrat, et un code
+  ne sort du catalogue qu'avec le lot du service (conception d'EP-33). Leurs exemples sont restés
+  cités jusque-là, comme le témoin d'avant la reprise. Entre les deux lots, le service refusait
+  encore un code de sous-projet de plus de 31 caractères, rendait la borne `max_length` à 50 de
+  `VALUE_TOO_LONG` sur `wbs_element` que le contrat ne disait plus, imputait à la création d'un
+  sous-projet, et rendait `unknown_wbs_elements` vide ; un compte rendu écrit sans la clé se lit
+  toujours vide (`waterfall.api.imports`). US-3270/L2 a retiré le tout du contrat et du service.
+- **Le catalogue du front** ne reçoit aucune clé : aucun code ni paramètre nouveau. Les phrases de
+  `errors.SUBPROJECT_CODE_INVALID` et `errors.WBS_ELEMENT_OUTSIDE_PROJECT`, qui disent l'ancienne
+  règle comme le service la tient encore, se réécrivent avec le front (US-3270/L3).
+
+### Le service de l'élément comparé en entier, la reprise des codes et le témoin (US-3270/L2, #4540)
+
+Le service de #3966, que le contrat d'US-3270/L1 précédait. Le contrat perd ce que le service
+n'émet plus, `info.version` restant `1.0.0` : `PROJECT_CODE_INVALID` et `WBS_ELEMENT_INVALID`
+sortent de `ErrorCode`, `unknown_subproject` de `requires_confirmation_reasons`, et les
+paramètres `forbidden_characters`, `reserved_name` et `project_code` (ce dernier pour un élément
+d'OTP : il reste celui d'un projet nommé, `projects`) de la description de `Problem.params`, avec
+la borne de 50 sur `wbs_element`. Leurs exemples sortent avec eux : `project_code_invalid`,
+`subproject_code_invalid`, `subproject_code_reserved` et `import_actual_costs_wbs_invalid` ;
+`import_actual_costs_dotted_code` est réécrit sous la règle nouvelle, son sous-projet de code
+`A.ABC.26001/10001`, sans `project_code`. Les clés du catalogue du front qui les disaient sortent
+aussi (`errors.PROJECT_CODE_INVALID`, `errors.WBS_ELEMENT_INVALID`, `params.forbidden_characters`,
+`params.reserved_name`, `params.project_code`, et `unknown_subproject` des motifs de
+confirmation) ; les phrases de `SUBPROJECT_CODE_INVALID` et de
+`WBS_ELEMENT_OUTSIDE_PROJECT` se réécrivent avec le front (US-3270/L4).
+
+- **Le service.** L'élément d'OTP, sans ses blancs en bout, se compare en entier au code du projet
+  et à ceux de ses sous-projets lus sous le verrou du projet, à l'analyse comme à l'application ;
+  toute autre ligne est `WBS_ELEMENT_OUTSIDE_PROJECT`, `params.wbs_element` seul, et n'a pas de
+  clé pour les doubles (BRC-04). Le compte rendu écrit `unknown_wbs_elements` ; un compte rendu
+  d'une autre nature, ou analysé avant, se lit sans élément inconnu. La création d'un sous-projet
+  n'impute plus rien. Un sous-projet au code du projet, et un projet recodé au code de l'un de ses
+  sous-projets, sont refusés sous le verrou du projet, après les refus de l'écrivain et de l'état.
+  Les codes se comparent comme l'élément, sans leurs blancs en bout (`compared_code`), le code
+  stocké restant celui envoyé : un code saisi « A.ABC.26001 » suivi d'un blanc reçoit les lignes
+  de l'élément `A.ABC.26001`, et l'unicité du code dans le projet — entre sous-projets, contre le
+  code du projet, au recodage du projet — se juge sur le code ainsi rogné, sous le verrou du
+  projet que tient tout écrivain d'un sous-projet, l'index unique de la table, sur le code stocké,
+  ne restant qu'un garde-fou : `X` et `X` suivi d'un blanc ne nomment jamais deux sous-projets d'un
+  même élément. Deux codes qu'une base d'avant garderait ainsi, l'élément est celui qui ne porte
+  pas de blanc. `unknown_wbs_elements` regroupe de même les éléments qui ne diffèrent que par
+  leurs blancs en bout, nommés comme le fichier les porte la première fois. Le contrat ne change
+  pas (`DeclaredSubprojectCode`, « free otherwise »).
+- **La reprise** (migrations 0046, le schéma, et 0047, les données, séparées selon
+  `docs/dev/sql.md`) : les lignes de coût en attente d'un sous-projet supprimées, leur nombre
+  journalisé par projet ; les codes des sous-projets d'un projet codé préfixés du code du projet
+  et d'une barre oblique, leur compteur avancé pour qu'un formulaire lu avant ne réécrive pas
+  l'ancien code ; le code des lignes imputées préfixé de même ; `unknown_subproject` retiré des
+  comptes rendus gardés. Une ligne imputée dont le code passerait 100 caractères une fois préfixé
+  — elle n'a pu être écrite qu'autour du service — arrête la reprise avant toute écriture, en
+  nommant ses projets : aucun code n'est coupé. Le cache des indicateurs n'est pas vidé : la clé
+  du jour lit le nombre des imports du projet, qui ne recule jamais, et celui de ses lignes de
+  coût, que seul un import fait croître, dans sa transaction ; depuis le dernier import, le nombre
+  des lignes n'a pas bougé, et la suppression le fait tomber dessous, si bien que la clé d'après
+  n'a jamais été celle du projet — elle peut retrouver le nombre de lignes d'avant le dernier
+  import, mais pas son nombre d'imports. Le test de la reprise
+  (`test_no_entry_of_the_cache_kept_before_the_reprise_is_served_after_it`) le montre de bout en
+  bout : une entrée gardée sous la clé du jour après chacun de deux imports, la seconde lecture
+  après la reprise retombant au nombre de lignes de la première, n'est servie pour aucune des
+  deux, et les entrées d'avant restent au cache jusqu'à la fin de leur validité, sans être lues.
+- **Le témoin.** Ses sous-projets sont recodés comme la reprise les écrit (`PRJ-001/SP-CMD`,
+  `PRJ-001/SP-ESS`, la réception créée `PRJ-001/SP-REC`). Ses lignes qui attendaient un code
+  qu'aucun sous-projet ne porte (les câbles, l'avoir, l'automate et la réception) portent
+  désormais pour élément le code du projet : imputées au seul projet comme avant, elles gardent
+  les montants de tous les indicateurs. La réception créée aujourd'hui (`subproject_created`)
+  n'est plus chargée et se supprime ; le refus `subproject_delete_refused` devient une variante
+  contrefactuelle où un réimport lui a imputé la facture de la réception. Le faux back nomme
+  l'onglet d'un sous-projet comme le service (`sheet_name`) : `PRJ-001_SP-ESS`, la barre oblique
+  remplacée.
+
+### Le rejet d'un onglet de sous-projet inconnu nomme le code lu en tête (US-3270/L3b, #4898)
+
+Depuis US-3270/L3, un onglet de lignes d'un reste à engager désigne son sous-projet par le code
+qu'il porte en tête (B1), non par son nom. Le rejet `UNKNOWN_SUBPROJECT` d'une ligne d'un onglet
+qui ne désigne aucun sous-projet ne portait que le nom de l'onglet (`params.value`) : pour un
+onglet renommé, le compte rendu taisait le code en cause, celui que l'utilisateur doit déclarer.
+L'auteur a confié la correction à ce lot le 2026-11-24 ; la forme retenue :
+
+- **`params.subproject_code`**, le code lu en tête, tel que le fichier le porte, à côté de
+  `params.value`, qui garde le nom de l'onglet, où l'utilisateur retrouve la ligne. Il est
+  **absent** d'une tête sans code (un fichier exporté avant que le code vienne en tête), comme les
+  paramètres de `Problem.params` qui ne s'appliquent pas, jamais nul.
+- **Pas `code`**, que proposait le constat : `code` est, juste à côté, le motif du rejet
+  (`ImportRejection.code`, `Problem.code`), et le nom des objets que nomment `resource_roles` ou
+  `cost_categories` ; `params.code` se lirait comme l'un ou l'autre. `subproject_code` est le nom
+  que le contrat donne déjà au code d'un sous-projet (`ActualCostLine.subproject_code`).
+- **Décrit dans `Problem.params`**, non déclaré dans `ProblemParams` : un seul refus le porte.
+  L'import du devis ne change pas : son `UNKNOWN_SUBPROJECT` cite déjà la cellule de la colonne
+  « Sous-projet », c'est-à-dire le code.
+- **Un exemple engendré**, `import_remaining_unknown_subproject` (`getImport`,
+  `wftools.mockexchanges`) : l'onglet des essais renommé, un code qu'aucun sous-projet ne porte en
+  tête, ses deux lignes rejetées.
+
+La version reste `1.0.0` : un paramètre ajouté, qu'un client qui l'ignore lit comme avant.
 
 ## Collage et annulation
 

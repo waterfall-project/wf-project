@@ -44,6 +44,7 @@ from sqlalchemy.exc import IntegrityError
 from waterfall.core.resource_settings.interface.extensions import (
     CalendarChange,
     projects_left_idle,
+    recalculate,
 )
 from waterfall.core.resource_settings.interface.org_nodes import lock_tree, within_node
 from waterfall.core.resource_settings.interface.readiness import lock_reference
@@ -500,17 +501,20 @@ def _unique_code(session: Session, code: str) -> Generator[None]:
     except IntegrityError as error:
         if unique_violated(error) != CODE_INDEX:
             raise
-        holder = session.execute(
-            select(ResourceRole.id, ResourceRole.label).where(ResourceRole.code == code)
-        ).first()
-        params = (
-            {}
-            if holder is None
-            else {"conflicting_object_id": str(holder.id), "conflicting_object_label": holder.label}
-        )
-        raise ConflictError(
-            ALREADY_EXISTS, fields=(FieldError("/code", ALREADY_EXISTS, params),)
-        ) from None
+        raise _code_held(session, code) from None
+
+
+def _code_held(session: Session, code: str) -> ConflictError:
+    """Build the refusal of a code another role holds, naming that role if it is still there."""
+    holder = session.execute(
+        select(ResourceRole.id, ResourceRole.label).where(ResourceRole.code == code)
+    ).first()
+    params = (
+        {}
+        if holder is None
+        else {"conflicting_object_id": str(holder.id), "conflicting_object_label": holder.label}
+    )
+    return ConflictError(ALREADY_EXISTS, fields=(FieldError("/code", ALREADY_EXISTS, params),))
 
 
 def create_role(
@@ -553,12 +557,20 @@ def create_role(
     return read_role(session, role_id, may_change=True)
 
 
-def _lock_role(session: Session, role_id: UUID, lock_version: int) -> ResourceRole:
-    """Lock a role, then read it under the lock, at the version read; or refuse (404, 412)."""
+def _lock_role(
+    session: Session, role_id: UUID, lock_version: int, *, key_share: bool = False
+) -> ResourceRole:
+    """Lock a role, then read it under the lock, at the version read; or refuse (404, 412).
+
+    ``key_share`` locks it ``FOR NO KEY UPDATE``, which a line that names the role leaves free
+    (its foreign key takes ``FOR KEY SHARE``): what a change that then waits for the structures
+    takes, so that a write of a structure that adds a line of the role, which holds the structure,
+    is not waited for both ways.
+    """
     role = session.scalars(
         select(ResourceRole)
         .where(ResourceRole.id == role_id)
-        .with_for_update()
+        .with_for_update(key_share=key_share)
         .execution_options(populate_existing=True)
     ).first()
     if role is None:
@@ -644,8 +656,23 @@ def update_role(
     (422, one reason a field); at a calendar that would leave a task of a current revision without
     an hour (422 ``TASK_WITHOUT_WORKING_HOURS``, the roles and the projects named; US-1500); then
     if another role holds its code (409).
+
+    A role given another calendar redates and prices again the structures of the current
+    revisions in the transaction, once it is written (``recalculate``), as a change of the hours of
+    a calendar does (WF-PLA-0010, US-3320): beyond fifteen years, refused naming the projects (422
+    ``PROJECT_HORIZON_EXCEEDED``), and a line priced past its column at ``/calendar_id`` (#3401),
+    nothing written. A role that keeps its calendar redates nothing. The reference is locked first,
+    whatever changes — the effect of the write is only known under the lock —, then the role, then
+    the structures, by the recalculation: the order of EP-06. The role is locked ``FOR NO KEY
+    UPDATE`` (``key_share``): a write of the planning that holds a structure and adds a line of the
+    role is not waited for while the change waits for that structure. A code changed with the
+    calendar is written last, once the structures are held: a write of a unique column takes the
+    role ``FOR UPDATE``, which such a line would wait for while the change waits for its structure.
+    A code another role holds is refused (409) before the recalculation, as the refusals come in
+    the order above; the unique index still decides a race, at that last write.
     """
-    role = _lock_role(session, role_id, lock_version)
+    lock_reference(session)
+    role = _lock_role(session, role_id, lock_version, key_share=True)
     moved = change.org_node_id is not None and change.org_node_id != role.org_node_id
     recalendared = change.calendar_id != role.calendar_id
     _refuse(
@@ -664,17 +691,29 @@ def update_role(
         idle = _role_left_idle(session, role_id, change.calendar_id)
         if idle:
             raise idle_tasks_refused(session, idle)
-    with _unique_code(session, change.code):
-        _write(
-            session,
-            role,
-            act,
-            code=change.code,
-            label=change.label,
-            cost_category_id=change.cost_category_id,
-            calendar_id=change.calendar_id,
-            headcount=change.headcount,
-        )
+    code_changed = change.code != role.code
+    if code_changed and session.scalar(
+        select(ResourceRole.id).where(ResourceRole.code == change.code, ResourceRole.id != role_id)
+    ):
+        raise _code_held(session, change.code)
+    _write(
+        session,
+        role,
+        act,
+        label=change.label,
+        cost_category_id=change.cost_category_id,
+        calendar_id=change.calendar_id,
+        headcount=change.headcount,
+    )
+    if recalendared:
+        recalculate(session, act.at, ("/calendar_id",))
+    if code_changed:
+        # Last: a write of a unique column takes the role ``FOR UPDATE``, which a line naming the
+        # role, holding a structure, would wait for while this change waits for that structure.
+        with _unique_code(session, change.code):
+            session.execute(
+                update(ResourceRole).where(ResourceRole.id == role_id).values(code=change.code)
+            )
     return read_role(session, role_id, may_change=True)
 
 

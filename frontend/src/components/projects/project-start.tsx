@@ -35,10 +35,18 @@ export interface ProjectStartProps {
   readonly breakdownHref: string;
   /** The address of the page, its context kept, from which the report of the import is shown. */
   readonly start: string;
+  /** The import the page reads refused or failed: the drop zone takes a new file. */
+  readonly ended?: string | undefined;
 }
 
 /** Offer to start the planning of the project, or the way back to the encart once it is folded. */
-export function ProjectStart({ projectId, offers, breakdownHref, start }: ProjectStartProps) {
+export function ProjectStart({
+  projectId,
+  offers,
+  breakdownHref,
+  start,
+  ended,
+}: ProjectStartProps) {
   const t = useTranslations("projectStart");
   const helps = useTranslations("commands");
   const folded = useFolded(projectId);
@@ -137,7 +145,7 @@ export function ProjectStart({ projectId, offers, breakdownHref, start }: Projec
       </ul>
       <div id={drop}>
         {dropping && offers.planningImport?.is_available === true ? (
-          <FileDrop projectId={projectId} start={start} />
+          <FileDrop projectId={projectId} start={start} ended={ended} />
         ) : null}
       </div>
     </section>

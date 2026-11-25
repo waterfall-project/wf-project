@@ -8,12 +8,11 @@ the tabs of lines by these headers.
 
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.estimate.excel.model import DISBURSEMENT, LABOUR
 from waterfall.core.estimate.excel.names import sheet_name
 from waterfall.core.estimate.excel.writer import (
-    DISBURSEMENT,
     GREY,
     HOURS_FORMAT,
-    LABOUR,
     NOTE,
     amount_format,
     footer_text,
@@ -37,6 +36,12 @@ OUTSIDE = "Hors sous-projet"
 # The key of the lines of no subproject among the codes of the subprojects, and their code as a tab.
 OUTSIDE_KEY = ""
 FIXED_TABS = (SUMMARY, TASKS, PARAMETERS)
+# The head of a tab of lines, on its first row: A1 says what B1 holds, the code of the subproject;
+# the tab of the lines of none says « Hors sous-projet » in A1 and holds nothing in B1. The import
+# designates the subproject by the cell B1, whatever the tab's name (WF-PRJ-0050, WF-INTF-0120).
+CODE_LABEL = "Code du sous-projet"
+CODE_CELL = "B1"
+LABEL_CELL = "C1"
 
 
 def tab_names(codes: Iterable[str]) -> dict[str, str]:
@@ -58,11 +63,23 @@ def tab_names(codes: Iterable[str]) -> dict[str, str]:
     return names
 
 
-def tab_subprojects(subprojects: Mapping[str, UUID]) -> dict[str, UUID | None]:
-    """Give the subproject of each tab by its name (``tab_names``); none for the outside."""
-    names = tab_names(subprojects)
-    tabs: dict[str, UUID | None] = {names[code]: subprojects[code] for code in sorted(subprojects)}
-    tabs[names[OUTSIDE_KEY]] = None
+def tab_subprojects(
+    heads: Mapping[str, str | None], subprojects: Mapping[str, UUID]
+) -> dict[str, UUID | None]:
+    """Give the subproject of each tab by the code it bears in its head; none for the outside.
+
+    ``heads`` the head of each tab of lines, by its name, as the reader reads it (``OUTSIDE_KEY``
+    for « Hors sous-projet », none for a tab that bears no code); ``subprojects`` the subproject of
+    each code. The tab is designated by its code, never by its name — a tab renamed in Excel keeps
+    its subproject —: a tab whose head names no subproject, or none at all (a file exported before
+    the code came to the head), is not in the answer, as a tab unknown is not.
+    """
+    tabs: dict[str, UUID | None] = {}
+    for name, head in heads.items():
+        if head == OUTSIDE_KEY:
+            tabs[name] = None
+        elif head is not None and head in subprojects:
+            tabs[name] = subprojects[head]
     return tabs
 
 
@@ -193,15 +210,15 @@ def line_formulas(table: str) -> dict[str, str]:
             f'MATCH({key},Referentiel[[Entrée]],0)){suffix},"?"))'
         )
 
-    def of_task(column: str, default: str) -> str:
+    def of_task(column: str, default: str, suffix: str = "") -> str:
         found = f"MATCH({cell('Tâche')},Taches[[Entrée]],0)"
-        return f"IFERROR(INDEX(Taches[[{column}]],{found}),{default})"
+        return f"IFERROR(INDEX(Taches[[{column}]],{found}){suffix},{default})"
 
     empty = f'{cell("Rôle ou catégorie")}=""'
     labour = f"{cell('Type')}={quote(LABOUR)}"
     return {
         "Description de la tâche": (
-            f'=IF({cell("Tâche")}="","",{of_task("Description", quote(""))})'
+            f'=IF({cell("Tâche")}="","",{of_task("Description", quote(""), '&""')})'
         ),
         "État": f'=IF({cell("Tâche")}="","",{of_task("État", quote(""))})',
         "Nature": lookup("Nature"),

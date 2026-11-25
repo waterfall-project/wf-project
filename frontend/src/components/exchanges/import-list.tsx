@@ -30,17 +30,41 @@ export interface ImportListProps {
   readonly current: string | undefined;
   /** The address of the screen, its context kept. */
   readonly start: string;
+  /** Whether the address names an import that is gone, which the list says. */
+  readonly purged?: boolean;
   /** The way through the pages of the list. */
   readonly children?: ReactNode;
 }
 
+/**
+ * What the screen says of an import its address names and the API no longer knows: the purge deleted
+ * it at its expiry or its abandonment (US-3280). A note, not an error page. It points to the list
+ * below it only where the screen has one.
+ */
+export function PurgedImport({ listed = false }: { readonly listed?: boolean }) {
+  const t = useTranslations("exchanges.list");
+  return (
+    <p role="status" className="text-sm text-muted-foreground">
+      {t(listed ? "purgedListed" : "purged")}
+    </p>
+  );
+}
+
 /** Render the imports of the project, each leading to its report. */
-export function ImportList({ imports, total, current, start, children }: ImportListProps) {
+export function ImportList({
+  imports,
+  total,
+  current,
+  start,
+  purged = false,
+  children,
+}: ImportListProps) {
   const t = useTranslations();
   const title = t("exchanges.list.title");
   return (
     <SectionCard title={title} icon={History}>
       <div className="flex min-w-0 flex-col gap-2">
+        {purged ? <PurgedImport listed /> : null}
         {total === 0 ? (
           <p className="text-sm text-muted-foreground">{t("exchanges.list.none")}</p>
         ) : (

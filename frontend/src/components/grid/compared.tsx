@@ -88,7 +88,6 @@ const BASE_FIELDS: Readonly<Record<string, BaseField>> = {
   finish: { shown: "instant", task: "finish" },
   progress: { shown: "progress", task: "progress" },
   physical_progress: { shown: "share", task: "physical_progress" },
-  total_float: { shown: "duration", task: "total_float" },
   started_on: { shown: "plain", task: "started_on" },
   completed_on: { shown: "plain", task: "completed_on" },
   predecessors: { shown: "predecessors" },
@@ -135,7 +134,6 @@ const DELTAS: readonly Delta[] = [
   { column: "started_on", label: "deltaStartedOn", kind: "days", task: "started_on" },
   { column: "completed_on", label: "deltaCompletedOn", kind: "days", task: "completed_on" },
   { column: "duration", label: "deltaDuration", kind: "duration", task: "duration" },
-  { column: "total_float", label: "deltaTotalFloat", kind: "duration", task: "total_float" },
   {
     column: "unit_disbursement",
     label: "deltaUnitDisbursement",

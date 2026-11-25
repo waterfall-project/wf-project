@@ -18,8 +18,6 @@ L-25, on examples drawn from those written by hand:
   revision in progress, refused; ``project_exit_version_name_required.json`` and
   ``project_exit_version_name_taken.json``, the exit that marks it without a version name, or
   under one a marked revision bears already, refused as ``markRevision`` refuses them;
-- ``project_code_invalid.json``, a project created under a code that bears a slash, the one
-  separator of the WBS element that bears it (WF-CRE-0020);
 - ``project_participant.json``, the witness read by a participant who holds the permissions of its
   project manager: the commands reserved to the project managers listed unavailable, the quality
   named (WF-IHM-0090, WF-PRJ-0060); ``project_rescue.json``, the witness read, in a counterfactual
@@ -478,17 +476,6 @@ def examples() -> dict[str, JsonObject]:
             f"le champ désigné et la révision qui le porte nommée, comme `markRevision` ; rien "
             f"n'est écrit (WF-CYC-0090, WF-REV-0020).",
             name_taken("/current_revision/version_name", NAME_TAKEN_CORRELATION),
-        ),
-        "project_code_invalid.json": mocktext.example(
-            f"Un projet créé sous le code « {INVALID_CODE} » : refusé, le code désigné, la barre "
-            f"oblique étant le seul séparateur de l'élément d'OTP, qui porte le code projet "
-            f"suivi du code sous-projet ; rien n'est écrit (WF-PRJ-0010, WF-CRE-0020).",
-            _refusal(
-                "/code",
-                "PROJECT_CODE_INVALID",
-                CODE_CORRELATION,
-                {"forbidden_characters": ["/"]},
-            ),
         ),
         "project_participant.json": mocktext.example(
             f"Le projet témoin lu par {participant}, participante pour le pilotage, qui porte "

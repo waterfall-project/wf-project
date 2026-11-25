@@ -34,7 +34,7 @@
  */
 import { Contrast, Zap } from "lucide-react";
 
-import { GanttAxis, GanttCell, GanttZoom } from "@/components/gantt/gantt";
+import { GanttAxis, GanttCell, GanttRunCell, GanttZoom } from "@/components/gantt/gantt";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
@@ -299,6 +299,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       // No column of the contract, nor a value shown: the cell draws the row of the task.
       value: () => undefined,
       render: (node) => <GanttCell row={node} />,
+      runCell: (before) => <GanttRunCell before={before} />,
       axis: (width) => <GanttAxis width={width} />,
       corner: () => <GanttZoom />,
     },
