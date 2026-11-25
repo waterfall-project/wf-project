@@ -895,9 +895,9 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 		$(call run-logged,witness,$(WITNESS_LOG),> $(WITNESS_LOG) 2>&1) && \
 		E2E_CONTRACT_PROXY=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
 		E2E_SERVICE_DATABASE=$$($(COMPOSE_SERVICE) ps --quiet postgres) && \
-		E2E_SERVICE_CACHE=$$($(COMPOSE_SERVICE) ps --quiet redis) && \
-		E2E_SERVICE_DIRECTORY=$$($(COMPOSE_SERVICE) ps --quiet openldap) && \
-		E2E_SERVICE_WORKER=$$($(COMPOSE_SERVICE) ps --quiet worker) && \
+		E2E_SERVICE_CACHE=$$($(COMPOSE_SERVICE) ps -a --quiet redis) && \
+		E2E_SERVICE_DIRECTORY=$$($(COMPOSE_SERVICE) ps -a --quiet openldap) && \
+		E2E_SERVICE_WORKER=$$($(COMPOSE_SERVICE) ps -a --quiet worker) && \
 		WATERFALL_API_ADDRESS=http://127.0.0.1:$(WATERFALL_PROXY_PORT) && \
 		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
 		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \

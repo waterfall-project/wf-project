@@ -80,16 +80,6 @@ function startAgain(id: string): Promise<void> {
   return untilHealthy(id);
 }
 
-/** Stop a component, for a path that does something while it is stopped; `startAgain` after. */
-export function stop(component: Stoppable): void {
-  execFileSync("docker", ["stop", "--time", "10", container(component)], { stdio: "ignore" });
-}
-
-/** Start a component again, and wait until it is healthy. */
-export function start(component: Stoppable): Promise<void> {
-  return startAgain(container(component));
-}
-
 /**
  * Empty Redis, every database of it, as a restart of it with nothing kept would: the sessions of
  * the front and the queue of the tasks are gone (WF-ARC-0040-A). The password is the one Redis
@@ -99,7 +89,7 @@ export function emptyCache(): void {
   const id = container("cache");
   const redis = (...command: string[]): string =>
     execFileSync("docker", ["exec", id, "redis-cli", ...command], { encoding: "utf8" }).trim();
-  // `redis-cli` exits 0 on an error reply (`NOAUTH`, `ERR`): the reply is what says it worked. DBSIZE is not read: the platform writes there again at once.
+  // `redis-cli` exits 0 on an error reply (`NOAUTH`, `ERR`): the reply is what says it worked.
   const flushed = redis("FLUSHALL");
   if (flushed !== "OK") {
     throw new Error(`FLUSHALL did not empty Redis: ${flushed}`);
