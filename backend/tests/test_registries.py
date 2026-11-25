@@ -133,6 +133,7 @@ REGISTERED = {
     "projects.opening_main": [f"{PLANNING}.skeleton.opening_main_with_tasks"],
     CLOSING: [
         "history:waterfall.core.history.interface.closing.close_history",
+        "evaluations:waterfall.core.exchanges.interface.abandoning.expire_revision_deposits",
         f"content:{PLANNING}.closing.delete_nodes",
     ],
     "exchanges.formats": [f"ms_project_schedule:{PLANNING}.msproject.MsProjectFormat"],

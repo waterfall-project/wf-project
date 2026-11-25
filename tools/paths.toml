@@ -131,6 +131,8 @@ paths = [
     # (US-2450, PLC-06).
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
+    # The command of Docker tried again when ghcr.io does not answer, which build-keycloak plays.
+    "tools/src/wftools/retried.py",
     "tools/src/wftools/heavyturns.py",
     "tools/src/wftools/marks.py",
 ]
@@ -240,6 +242,7 @@ paths = [
     "deploy/e2e/**",
     "tools/src/wftools/e2eimage.py",
     "tools/src/wftools/registry.py",
+    "tools/src/wftools/retried.py",
     # The parts of the paths, spread by the seconds they took (US-1910).
     "tools/src/wftools/e2eparts.py",
     # The launcher the Makefile starts the slots by, and the slots that run its heavy checks
@@ -306,6 +309,7 @@ paths = [
     "deploy/e2e/**",
     "tools/src/wftools/e2eimage.py",
     "tools/src/wftools/registry.py",
+    "tools/src/wftools/retried.py",
     # What spreads the parts of the paths by their measured durations (US-1910).
     "tools/src/wftools/e2eparts.py",
     # The launcher the Makefile starts the slots by, and the slots that run its heavy checks
@@ -743,6 +747,7 @@ paths = [
     "fixtures/api/resource_role_hours_refused.json",
     "fixtures/api/import_remaining_ambiguous_label.json",
     "fixtures/api/import_remaining_duplicate_lineage.json",
+    "fixtures/api/import_remaining_unknown_subproject.json",
     "fixtures/api/project_exit_terminal.json",
     "fixtures/api/project_exit_lost_in_progress.json",
     "fixtures/api/project_exit_unconfirmed.json",

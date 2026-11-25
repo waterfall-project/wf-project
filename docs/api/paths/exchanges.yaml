@@ -504,6 +504,7 @@
               actual_costs_unknown_elements: { $ref: ../../../fixtures/api/import_actual_costs_unknown_elements.json }
               remaining_ambiguous_label: { $ref: ../../../fixtures/api/import_remaining_ambiguous_label.json }
               remaining_duplicate_lineage: { $ref: ../../../fixtures/api/import_remaining_duplicate_lineage.json }
+              remaining_unknown_subproject: { $ref: ../../../fixtures/api/import_remaining_unknown_subproject.json }
               remaining_completed_task: { $ref: ../../../fixtures/api/import_remaining_completed_task.json }
               apply_refused_permission: { $ref: ../../../fixtures/api/import_apply_refused_permission.json }
               actual_costs_task_purged: { $ref: ../../../fixtures/api/import_actual_costs_task_purged.json }

@@ -443,13 +443,18 @@ cause = "hypothèse : la construction d'une image tire apt faute de cache de cou
 # Le miroir des images sur ghcr.io (`ghcr.io/waterfall-project/mirror/…`) : le pull d'une image
 # échoue à la résolution de la référence, avant tout téléchargement, par `docker pull` ou par la
 # construction d'une image qui en part (BuildKit, sans « failed to resolve reference ») (#4894).
+# Depuis US-3270b, `wftools.retried` rejoue la commande (4 essais, pauses de 20, 40 et 60 s) : ce qui
+# reste est l'échec d'après tous les essais, que `wftools.retried: ghcr.io did not answer, in 4
+# attempts` suit, après le dernier message de Docker, que le motif reconnaît. Le motif est
+# `UNREACHABLE` de tools/src/wftools/retried.py, mot pour mot : ce qui y est rejoué est reconnu ici
+# (tools/tests/test_retried.py les compare).
 [[known]]
 class = "infrastructure"
 family = "ghcr.io, miroir des images"
 issue = "#4894"
-message = '''(?:failed to resolve reference "ghcr\.io/waterfall-project/mirror/|failed to do request: Head "https://ghcr\.io/v2/waterfall-project/mirror/)[^\n]*(?:dial tcp|i/o timeout|connection (?:refused|reset)|no such host)'''
+message = '''ghcr\.io[^\n]*(?:dial tcp[^\n]*(?:i/o timeout|connection (?:refused|reset)|no such host)|TLS handshake timeout|Client\.Timeout exceeded|unexpected EOF)'''
 frequency = "2 passages le 2026-11-24 : service / paths (4/4) (45392474366), service / paths (1/4) (45460308679)"
-cause = "établie : le registre ghcr.io est injoignable depuis le runner, `dial tcp … i/o timeout` au bout de 60 s ; `make e2e-service` ne finit pas de tirer `node:26-alpine`"
+cause = "établie : le registre ghcr.io est injoignable depuis le runner, `dial tcp … i/o timeout` au bout de 60 s ; `make e2e-service` ne finit pas de tirer `node:26-alpine`. Depuis US-3270b, la commande est rejouée quatre fois (`wftools.retried`) : l'échec qui reste est celui d'un registre injoignable pendant tous les essais"
 
 # Le délai d'un job, dépassé : la chaîne trop longue, que US-1910 raccourcit.
 
