@@ -23,6 +23,7 @@ from sqlalchemy import select, update
 
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.interface import (
+    lines_outside_bases,
     node_revisions,
     node_rows,
     outside_bases,
@@ -42,22 +43,24 @@ if TYPE_CHECKING:
 def category_is_employed(session: Session, category_ids: Collection[UUID]) -> frozenset[UUID]:
     """Give, of the categories given, those a line of an estimate employs, in any revision.
 
-    A line of the base of a differential employs nothing (US-3050).
+    A line of the base of a differential employs nothing (US-3050). One statement, which joins the
+    lines no base holds (``lines_outside_bases``): every line of the platform read into the service,
+    the own estimates whole with their bases among them, cost the list of the categories a second
+    on the witness (US-3070/L3b, #4912).
     """
     if not category_ids:
         return frozenset()
-    rows = session.execute(
-        select(EstimateLine.project_id, EstimateLine.node_id, EstimateLine.cost_category_id).where(
-            EstimateLine.cost_category_id.in_(list(category_ids))
+    held = lines_outside_bases()
+    found = session.scalars(
+        select(EstimateLine.cost_category_id)
+        .join(
+            held,
+            (held.c.project_id == EstimateLine.project_id)
+            & (held.c.node_id == EstimateLine.node_id),
         )
-    ).all()
-    by_project: dict[UUID, list[tuple[UUID, UUID]]] = {}
-    for project_id, node, category in rows:
-        by_project.setdefault(project_id, []).append((node, category))
-    found: set[UUID] = set()
-    for project_id, held in by_project.items():
-        kept = outside_bases(session, project_id, [node for node, _ in held])
-        found |= {category for node, category in held if node in kept}
+        .where(EstimateLine.cost_category_id.in_(list(category_ids)))
+        .distinct()
+    )
     return frozenset(found)
 
 

@@ -41,6 +41,7 @@ from waterfall.core.planning.interface import (
     Holding,
     refused_at,
     reschedule,
+    revision_line_nodes,
     revision_lines,
     structures_of,
 )
@@ -121,16 +122,19 @@ def projected_rate(amount: Decimal, inflation_rate: Decimal, years: tuple[int, i
 
 
 def labour_categories(session: Session, project_id: UUID, revision_id: UUID) -> frozenset[UUID]:
-    """Give the categories the labour lines of a revision employ, its bases left out (US-3050)."""
-    nodes = list(revision_lines(session, project_id, revision_id, bases=False))
-    if not nodes:
-        return frozenset()
+    """Give the categories the labour lines of a revision employ, its bases left out (US-3050).
+
+    One statement, which joins the lines of the revision (``revision_line_nodes``): their nodes
+    listed and sent back cost each reading of a revision a third of a second on the witness, its
+    own estimates whole (US-3070/L3b, #4912).
+    """
+    held = revision_line_nodes(project_id, revision_id)
     return frozenset(
         session.scalars(
             select(EstimateLine.cost_category_id)
+            .join(held, held.c.node_id == EstimateLine.node_id)
             .where(
                 EstimateLine.project_id == project_id,
-                EstimateLine.node_id.in_(nodes),
                 EstimateLine.resource_role_id.is_not(None),
             )
             .distinct()

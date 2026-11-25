@@ -57,7 +57,11 @@ from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tallying import provision_lines
 from waterfall.core.planning.tree import LINE, read_tree
 from waterfall.core.planning.writing import writing
-from waterfall.core.revisions.interface import holds_its_lineages, not_a_base
+from waterfall.core.revisions.interface import (
+    holds_its_lineages,
+    not_a_base,
+    structures_but_bases,
+)
 from waterfall.platform.database import among
 from waterfall.platform.errors import (
     NOT_FOUND,
@@ -246,6 +250,48 @@ def revision_lines(
     if not bases:
         criteria.append(not_a_base(Node.structure_id, project_id, revision_id))
     return dict(session.execute(select(Node.id, Node.lineage_id).where(*criteria)).all())
+
+
+def revision_line_nodes(project_id: UUID, revision_id: UUID) -> Subquery:
+    """Give the lines of a revision but those of the bases of its differentials, as a subquery.
+
+    Its column ``node_id``: what the estimate joins to its own lines to read what they employ, or
+    when they were last written, in one statement, the nodes never leaving the database. The own
+    estimates of the risks are whole in the current revision, each as large as the project: a list
+    of their nodes sent back to the database cost every reading of a revision a third of a second
+    on the witness (US-3070/L3b, #4912). Its lines are those ``revision_lines`` gives without the
+    bases.
+    """
+    return (
+        select(Node.id.label("node_id"))
+        .where(
+            Node.project_id == project_id,
+            Node.revision_id == revision_id,
+            Node.kind == LINE,
+            not_a_base(Node.structure_id, project_id, revision_id),
+        )
+        .subquery()
+    )
+
+
+def lines_outside_bases() -> Subquery:
+    """Give the lines of every project no base of a differential holds, as a subquery (US-3050).
+
+    Its columns ``project_id`` and ``node_id``: what a question of employment across the projects
+    joins to the lines it reads, in one statement (US-3070/L3b). The structures that are no base are
+    joined rather than judged line by line: a judgement correlated to the project of each line is
+    replayed for every line of every revision.
+    """
+    kept = structures_but_bases()
+    return (
+        select(Node.project_id.label("project_id"), Node.id.label("node_id"))
+        .join(
+            kept,
+            (kept.c.project_id == Node.project_id) & (kept.c.structure_id == Node.structure_id),
+        )
+        .where(Node.kind == LINE)
+        .subquery()
+    )
 
 
 def outside_bases(

@@ -10,8 +10,9 @@ the base of a differential, which its reading compares it to (``differential_bas
 differential of a base, by which a refusal that concerns a task of the base names the task of the
 differential (``base_differential``, #4213); the conditions that a column of structures names no
 base (``not_a_base``), which what counts the nodes or the lines of a revision or of a project leaves
-out, and only structures that hold their lineages alone (``holds_its_lineages``), which a reading
-by lineage reads; whether a structure is read against its base (``read_against_base``), a
+out, the structures but the bases across the projects (``structures_but_bases``), and only
+structures that hold their lineages alone (``holds_its_lineages``), which a reading by lineage
+reads; whether a structure is read against its base (``read_against_base``), a
 differential or the own estimate of a risk whole (EP-30); whether a differential is up to date
 (``differential_up_to_date``), which the loader of the witness asks before a merge (US-2560/L2);
 and, at the end of the copy of a revision, the state of each differential it took up, up to date or
@@ -31,7 +32,7 @@ from waterfall.core.revisions.tables import CostStructure
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from sqlalchemy import ColumnElement, SQLColumnExpression
+    from sqlalchemy import ColumnElement, SQLColumnExpression, Subquery
     from sqlalchemy.orm import Session
 
     from waterfall.core.revisions.interface.revisions import RevisionCopy
@@ -79,6 +80,20 @@ def not_a_base(
     if revision is not None:
         criteria.append(CostStructure.revision_id == revision)
     return structure.not_in(select(CostStructure.id).where(*criteria))
+
+
+def structures_but_bases() -> Subquery:
+    """Give every structure of every project but the bases of the differentials, as a subquery.
+
+    Its columns ``project_id`` and ``structure_id``: what a question across the projects joins to
+    the nodes it reads, where ``not_a_base`` correlated to the project of each node would be judged
+    again for every one (US-3070/L3b).
+    """
+    return (
+        select(CostStructure.project_id.label("project_id"), CostStructure.id.label("structure_id"))
+        .where(CostStructure.kind != BASE)
+        .subquery()
+    )
 
 
 def holds_its_lineages(

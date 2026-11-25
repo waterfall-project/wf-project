@@ -34,8 +34,7 @@ from waterfall.core.estimate.lining import (
     planned_value_at,
 )
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.planning.interface import revision_lines
-from waterfall.platform.database import among
+from waterfall.core.planning.interface import revision_line_nodes
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -59,12 +58,10 @@ def lines_stamp(session: Session, project_id: UUID, revision_id: UUID) -> LinesS
     differentials, which no indicator reads (US-3050): a re-estimate, a rate or an inflation that
     prices a line again writes its ``updated_at`` without passing by a grid.
     """
-    nodes = list(revision_lines(session, project_id, revision_id, bases=False))
-    if not nodes:
-        return LinesStamp(0, None)
+    held = revision_line_nodes(project_id, revision_id)
     count, last = session.execute(
-        select(func.count(), func.max(EstimateLine.updated_at)).where(
-            EstimateLine.project_id == project_id, among(EstimateLine.node_id, nodes)
-        )
+        select(func.count(), func.max(EstimateLine.updated_at))
+        .join(held, held.c.node_id == EstimateLine.node_id)
+        .where(EstimateLine.project_id == project_id)
     ).one()
     return LinesStamp(count, last)

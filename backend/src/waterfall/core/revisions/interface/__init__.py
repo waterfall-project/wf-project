@@ -50,6 +50,7 @@ from waterfall.core.revisions.interface.bases import (
     holds_its_lineages,
     not_a_base,
     read_against_base,
+    structures_but_bases,
 )
 
 # ``closing`` (US-1380/L1): what the later modules do before a revision is marked or abandoned.
@@ -413,6 +414,7 @@ __all__ = [
     "structure_in_revision",
     "structure_phase_conditions",
     "structure_rescheduled",
+    "structures_but_bases",
     "submit_marking",
     "submit_merge",
     "update_rates",

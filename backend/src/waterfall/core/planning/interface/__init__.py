@@ -266,6 +266,9 @@ from waterfall.core.planning.interface.lines import (
     lines_of_structures as lines_of_structures,
 )
 from waterfall.core.planning.interface.lines import (
+    lines_outside_bases as lines_outside_bases,
+)
+from waterfall.core.planning.interface.lines import (
     new_line_node as new_line_node,
 )
 from waterfall.core.planning.interface.lines import (
@@ -282,6 +285,9 @@ from waterfall.core.planning.interface.lines import (
 )
 from waterfall.core.planning.interface.lines import (
     revision_bears as revision_bears,
+)
+from waterfall.core.planning.interface.lines import (
+    revision_line_nodes as revision_line_nodes,
 )
 from waterfall.core.planning.interface.lines import (
     revision_lines as revision_lines,

@@ -43,7 +43,7 @@ from waterfall.core.estimate.tables import (
     RevisionRate,
     RevisionRole,
 )
-from waterfall.core.planning.interface import revision_lines
+from waterfall.core.planning.interface import revision_line_nodes
 from waterfall.core.resource_settings.interface import (
     CalendarFilters,
     CalendarSort,
@@ -181,12 +181,11 @@ def _employed(
 
     The bases of its differentials left out, which employ nothing (US-3050).
     """
-    nodes = list(revision_lines(session, project_id, revision_id, bases=False))
-    if not nodes:
-        return frozenset(), frozenset()
+    held = revision_line_nodes(project_id, revision_id)
     rows = session.execute(
         select(EstimateLine.cost_category_id, EstimateLine.resource_role_id)
-        .where(EstimateLine.project_id == project_id, EstimateLine.node_id.in_(nodes))
+        .join(held, held.c.node_id == EstimateLine.node_id)
+        .where(EstimateLine.project_id == project_id)
         .distinct()
     ).all()
     categories = frozenset(category for category, _ in rows)
