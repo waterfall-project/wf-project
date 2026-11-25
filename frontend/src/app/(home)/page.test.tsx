@@ -55,7 +55,10 @@ vi.mock("@/components/projects/project-list-view", async (original) => {
     },
   };
 });
-// `redirect` as Next has it, which the tests of the home that leads nowhere watch.
+// `redirect` as Next has it, which the tests of the home that leads nowhere watch. The count is
+// proven by a mutation (#3131, US-3030): a `redirect("/")` added to the path of an account without
+// a role fails the tests of that path — thrown, by the error of Next; caught on its way, by the
+// count alone, the HTML being the same.
 const redirected = vi.hoisted(() => ({ calls: 0 }));
 vi.mock("next/navigation", async (original) => {
   const actual = await original<typeof import("next/navigation")>();

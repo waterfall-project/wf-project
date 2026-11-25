@@ -27,7 +27,7 @@ import type { ReactNode } from "react";
 import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
-import { formatLocale } from "@/i18n/format";
+import { formatConjunction } from "@/i18n/format";
 
 import { useBreakdownCommands, useBreakdownRows } from "./breakdown-commands";
 import { useContributorRows } from "./contributor-commands";
@@ -148,7 +148,7 @@ function BreakdownGrid({
       totalsCaption={() =>
         retained.length === 0
           ? t(shown.length === 0 && !filtered ? "noOrderItem" : "noneRetained")
-          : new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(retained)
+          : formatConjunction(retained, locale)
       }
       query={query}
       preferences={preferences}

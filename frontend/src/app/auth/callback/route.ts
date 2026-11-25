@@ -19,6 +19,18 @@
  * page and goes nowhere by itself (`requestBearer`), where any other screen opened without a
  * session leads to it. A sign-in that succeeds forgets that cookie.
  *
+ * A return that is no refusal is not treated as one (#3070): the page of the realm left open in
+ * another tab, when a sign-in ended in another one, comes back with `temporarily_unavailable` and
+ * `authentication_expired` — the browser is signed in at the realm. That return, and it alone,
+ * both parameters exact, touches no cookie but that of its own sign-in: it does not forget the
+ * session opened since in the other tab, which is no session it replaced, and leaves no cookie of a
+ * refusal. It leads to the screen its request aimed at, where that session serves; without one, the
+ * screen leads to the sign-in by itself, once (WF-SEC-0020): a request made anew, which the realm
+ * answers with a code, its page or a refusal — never with this error, which it gives only to a
+ * gesture on a page of its own whose request is over —, so that nothing loops. The silent sign-in
+ * of a sign-out shows no page, and comes back as before whatever it brings: closing the sessions
+ * is what it is for.
+ *
  * The sign-out of a session the front lost (`signOut`, #689) comes back here from its silent
  * sign-in: its token closes the sessions of the account on all its workstations
  * (`closeMySessions`, WF-SEC-0020), the front forgets those it keeps, and the browser goes on to
@@ -88,10 +100,27 @@ async function closeEverywhere(signedIn: SignedIn, spent: string): Promise<Respo
   return redirect(LOGIN_ROUTE, spent);
 }
 
+/**
+ * Whether a return is that of a page of the realm left open while the sign-in ended in another tab
+ * (#3070): no refusal, the browser signed in at the realm. Both parameters exact, or it is one.
+ */
+function isOutdated(search: string): boolean {
+  const query = new URLSearchParams(search);
+  return (
+    query.get("error") === "temporarily_unavailable" &&
+    query.get("error_description") === "authentication_expired"
+  );
+}
+
 /** Exchange the code of a return; the browser leads where the sign-in ends. */
 async function returned(search: string, state: string, signIn: SignIn): Promise<Response> {
   const spent = spentSignInCookie(state);
   const signedIn = await identityProvider().exchange(search, state, signIn.nonce, signIn.verifier);
+  if (signedIn === undefined && !signIn.signOut && isOutdated(search)) {
+    // Outdated, not refused: the session opened in the other tab stays, and the screen aimed at
+    // serves it, or leads to the sign-in by itself (#3070).
+    return redirect(signIn.target, spent);
+  }
   if (signedIn === undefined) {
     // Refused: home, which offers the sign-in — or, signing out, the sign-in, nothing left to close.
     // A short cookie says so, for home not to lead to the sign-in by itself (#2914).
