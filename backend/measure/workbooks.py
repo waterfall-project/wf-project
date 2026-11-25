@@ -15,10 +15,11 @@ printing a JSON line by point:
   the reader of an estimate — or by openpyxl alone (``--reader openpyxl``), what a vector costs
   behind the bound that refuses it —, each point in a fresh process: the peak resident size, and
   in another process the peak ``tracemalloc`` sees, which misses what libxml2 allocates;
-- ``budget [<name>...]``: the budget of the parts openpyxl holds whole (#4924, option 2) that each
-  workbook of ``COMBINATIONS`` takes, the peak of its reading in a fresh process, by openpyxl alone
-  or by the reader of an estimate, and the mebibytes a unit of the budget costs, against which its
-  ceiling is read;
+- ``counts [<name>...]``: the elements and the attributes of the parts openpyxl parses into a tree
+  that each workbook of ``CHECKED`` holds, as the bound of the elements counts them since US-3190/L3
+  (#4924), the mebibytes these parts declare, and the peak of its reading in a fresh process, by
+  the reader of an estimate or by openpyxl alone: each list of ``styles.xml`` with items as Excel
+  writes them at its bound, and the workbooks of US-3190b, are read under the bound;
 - ``preread``: the time the judgment of the archive takes before openpyxl opens a workbook, on the
   export of 10 000 lines and the extraction of 18 000 lines: the opening by the opener, less the
   opening by openpyxl alone, the best of a few runs;
@@ -51,7 +52,6 @@ import multiprocessing
 import posixpath
 import re
 import resource
-import string
 import sys
 import time
 import zipfile
@@ -61,7 +61,7 @@ from decimal import Decimal
 from functools import partial
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from actual_costs_import_support import extraction, line
 from estimate_import_support import workbook as estimate_workbook
@@ -69,6 +69,7 @@ from lxml import etree
 from openpyxl import load_workbook
 from remaining_import_support import workbook as remaining_workbook
 from workbook_bombs import (
+    ATTRIBUTED,
     READERS,
     STRINGS,
     STYLES,
@@ -102,7 +103,6 @@ from waterfall.core.estimate.excel.model import (
 )
 from waterfall.core.estimate.excel.writer import write_workbook
 from waterfall.core.exchanges.interface import (
-    LARGEST_TREES,
     MOST_CELLS,
     MOST_COLUMNS,
     MOST_ELEMENTS,
@@ -233,9 +233,6 @@ _ATTRIBUTE = b'<b a="' + b"a" * 190 + b'"/>'
 _TEXT = b"<b>" + b"a" * 190 + b"</b>"
 _LONG_TEXT = b"<b>" + b"a" * (8 * 1024 - 7) + b"</b>"
 _FOREIGN = b"<x/>"
-# An element of 52 empty attributes, one by letter: what libxml2 builds a node of each for, in 5
-# bytes each.
-_ATTRIBUTES = b"<b " + b" ".join(b'%c=""' % c for c in string.ascii_letters.encode()) + b"/>"
 # The first tab of the base, which the reader of an estimate reads: its header.
 _READ_TAB = "xl/worksheets/sheet1.xml"
 
@@ -332,32 +329,22 @@ def trees(content: bytes) -> dict[str, int]:
     return {name: sizes[name] for name in (*_FIXED_TREES, *sorted(named)) if name in sizes}
 
 
-def budget(content: bytes) -> float:
-    """Give the budget the parts openpyxl holds whole take, as lxml counts them (US-3190/L3).
+def counted(content: bytes) -> int:
+    """Give what the bound of the elements counts of the parts openpyxl parses into a tree.
 
-    The formula the author decided on 2026-11-25 (#4924, option 2), whose ceiling is measured: the
-    share of its bound each list of ``styles.xml`` takes, its items counted as in ``vectors``;
-    the share of ``MOST_ELEMENTS`` the nodes of the parts parsed into a tree take; the share of
-    ``LARGEST_TREES`` the bytes of these parts and of the theme take.
+    The nodes of the trees lxml builds of them — elements, comments, instructions —, and the
+    attributes of their elements, one an element (US-3190/L3, #4924); the theme, which openpyxl
+    keeps as bytes, apart.
     """
-    held = trees(content)
     with zipfile.ZipFile(BytesIO(content)) as archive:
-        nodes = sum(
-            sum(1 for _ in etree.fromstring(archive.read(name), hardened_parser()).iter())
-            for name in held
+        return sum(
+            sum(
+                1 + (len(node.attrib) if isinstance(node.tag, str) else 0)
+                for node in etree.fromstring(archive.read(name), hardened_parser()).iter()
+            )
+            for name in trees(content)
             if name != THEME
         )
-        styles = etree.fromstring(archive.read(STYLES), hardened_parser())
-    shares = 0.0
-    for listing, most in STYLE_LISTS.items():
-        found = styles.find(f"{_MAIN}{listing}")
-        items = (
-            sum(1 for _ in found.iter()) - 1
-            if listing == "colors" and found is not None
-            else _children(found)
-        )
-        shares += items / most
-    return shares + nodes / MOST_ELEMENTS + sum(held.values()) / LARGEST_TREES
 
 
 def _local(tag: object) -> str:
@@ -558,54 +545,41 @@ def mixed(
     return stuffed(content, STYLES, b"</font>", b"<b/>", stuffing) if stuffing else content
 
 
-# The workbooks the ceiling of the budget is measured on (US-3190/L3, #4924, option 2): each list
-# alone at its bound, the ``dxfs`` at the 22 000 decided; the small elements of US-3190b, bare or
-# with attributes; the two combinations of the question (``q1`` with 22 000 ``dxf``, not the 23 000
-# asked, past that bound); three lists at a third of their bound; mixtures of rich items and of
-# ``<b/>``.
-COMBINATIONS: dict[str, Callable[[], bytes]] = {
-    "rich-dxfs-22000": lambda: mixed({"dxfs": 22_000}),
-    "rich-cellXfs-40000": lambda: mixed({"cellXfs": 40_000}),
-    "rich-cellStyleXfs-60000": lambda: mixed({"cellStyleXfs": 60_000}),
-    "rich-cellStyles-65490": lambda: mixed({"cellStyles": 65_490}),
-    "b-650000": lambda: mixed({}, stuffing=650_000),
-    "b-1000000": lambda: mixed({}, stuffing=1_000_000),
-    "b-1090000": lambda: mixed({}, stuffing=1_090_000),
-    "x-under-the-workbook-1090000": lambda: stuffed(
-        _base(), WORKBOOK, b"</workbook>", b"<x/>", 1_090_000
+# The workbooks the count of the attributes is checked on (US-3190/L3, #4924, decided by the author
+# on 2026-11-25): each list of ``styles.xml`` with items as Excel writes them, alone at its bound;
+# the workbooks of US-3190b at 1 000 000 elements; the combination ``q1`` of the question, whose
+# peak the objective names; and the 28 000 ``<b/>`` of 52 empty attributes the count refuses.
+CHECKED: dict[str, Callable[[], bytes]] = {
+    **{
+        f"rich-{listing}-{most}": partial(mixed, {listing: most})
+        for listing, most in STYLE_LISTS.items()
+    },
+    "b-in-a-font-1000000": lambda: mixed({}, stuffing=1_000_000),
+    "x-under-the-workbook-1000000": lambda: stuffed(
+        _base(), WORKBOOK, b"</workbook>", b"<x/>", 1_000_000
     ),
-    "b-val-in-a-font-1000000": lambda: stuffed(
-        _base(), STYLES, b"</font>", b'<b val="1"/>', 1_000_000
+    "q1": lambda: mixed(
+        {"dxfs": STYLE_LISTS["dxfs"]},
+        {"cellXfs": STYLE_LISTS["cellXfs"], "cellStyleXfs": STYLE_LISTS["cellStyleXfs"]},
     ),
     "b-of-52-attributes-in-a-font-28000": lambda: stuffed(
-        _base(), STYLES, b"</font>", _ATTRIBUTES, 28_000
-    ),
-    "q1": lambda: mixed({"dxfs": 22_000}, {"cellXfs": 40_000, "cellStyleXfs": 60_000}),
-    "q2": lambda: mixed({"dxfs": 20_000}, stuffing=400_000),
-    "rich-thirds": lambda: mixed({"dxfs": 7_333, "cellXfs": 13_333, "cellStyleXfs": 20_000}),
-    "rich-dxfs-15000-b-300000": lambda: mixed({"dxfs": 15_000}, stuffing=300_000),
-    "rich-dxfs-3000-b-900000": lambda: mixed({"dxfs": 3_000}, stuffing=900_000),
-    "rich-cellXfs-15000-b-700000": lambda: mixed({"cellXfs": 15_000}, stuffing=700_000),
-    "rich-cellStyles-65490-dxfs-10000": lambda: mixed({"cellStyles": 65_490, "dxfs": 10_000}),
-    "empty-xfs-b-300000": lambda: mixed(
-        {}, {"cellXfs": 40_000, "cellStyleXfs": 60_000}, stuffing=300_000
+        _base(), STYLES, b"</font>", ATTRIBUTED, 28_000
     ),
 }
 
 
-def _budgets(arguments: argparse.Namespace) -> None:
+def _counts(arguments: argparse.Namespace) -> None:
     base = _base()
-    for name in arguments.names or COMBINATIONS:
-        content = COMBINATIONS[name]()
-        spent = budget(content)
-        read = fresh(arguments.reader, base, content)
-        rise = cast("float", read["rise_mib"])
+    for name in arguments.names or CHECKED:
+        content = CHECKED[name]()
+        elements = counted(content)
         _write(
             {
                 "workbook": name,
-                "budget": round(spent, 3),
-                **read,
-                "mib_a_unit": round(rise / spent, 1),
+                "counted": elements,
+                "under_the_bound": elements <= MOST_ELEMENTS,
+                "tree_mib": round(sum(trees(content).values()) / _MEBIBYTE, 2),
+                **fresh(arguments.reader, base, content),
             }
         )
 
@@ -687,17 +661,17 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="the reader of an estimate, or openpyxl alone, behind the bounds",
     )
     sweep.set_defaults(run=_sweep)
-    budgets = commands.add_parser(
-        "budget", help="the budget and the peak of the reading of combinations of the lists"
+    counts = commands.add_parser(
+        "counts", help="the elements and attributes counted, and the peak, of the workbooks checked"
     )
-    budgets.add_argument("names", nargs="*", metavar="name", help=", ".join(COMBINATIONS))
-    budgets.add_argument(
+    counts.add_argument("names", nargs="*", metavar="name", help=", ".join(CHECKED))
+    counts.add_argument(
         "--reader",
         choices=["estimate", "openpyxl"],
-        default="openpyxl",
-        help="openpyxl alone, behind the bounds, or the reader of an estimate",
+        default="estimate",
+        help="the reader of an estimate, behind the bounds, or openpyxl alone",
     )
-    budgets.set_defaults(run=_budgets)
+    counts.set_defaults(run=_counts)
     preread = commands.add_parser("preread", help="the time the judgment of the archive takes")
     preread.add_argument("--runs", type=int, default=5)
     preread.set_defaults(run=_preread)

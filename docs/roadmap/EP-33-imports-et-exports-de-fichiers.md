@@ -491,7 +491,7 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
   soit jamais refusé (les items d'une liste sont ses enfants ; ceux de `colors`, les couleurs de ses
   listes, comptées avec elles) ; 10 000 noms définis. Trois de ces listes sont ramenées par
   US-3190/L3 pour tenir, avec des items comme Excel les écrit, sous la borne des octets : `dxfs`
-  25 000, `cellXfs` 40 000, `cellStyleXfs` 60 000. La pré-lecture les compte et refuse avant
+  22 000, `cellXfs` 40 000, `cellStyleXfs` 60 000. La pré-lecture les compte et refuse avant
   l'ouverture. Les listes de `styles.xml` et les noms définis se comptent par nom local, enfants
   directs de la racine du membre, comme openpyxl les lit, commentaires et instructions de
   traitement compris (openpyxl en fait des items) ; une partie qu'openpyxl lit et qui déclare un
@@ -676,25 +676,21 @@ pour la liste la plus lourde : 65 490 `dxf` de 16 éléments, soit 1 047 935 él
 US-3190/L3 (#4914, #4915, #4935) borne ensuite les octets des membres lus en arbre et les éléments
 étrangers, sur la mesure (processus neuf, `VmHWM`). Décisions de l'auteur du 2026-11-25, après
 mesure : la liste `dxfs` riche à 65 490 entrées coûte à elle seule 484 Mio, et l'objectif de
-mémoire l'emporte. Aucun classeur accepté ne dépasse 192 Mio de crête pour une lecture. Les membres
-lus en arbre sont bornés à 7,5 Mio décompressés (option A). Le critère d'US-3190b est amendé :
-chaque liste riche passe à sa borne, ramenée au besoin, et celle de `dxfs` descend à 22 000 (le
-témoin en a 5). La borne de 1 100 000 éléments reste, pour les petits éléments. Les éléments
-étrangers sont bornés à 100 000 au total (option F1), comptés sur tous les onglets, lus ou non, et
-sous `<sst>`. Dans un onglet, est étranger tout ce qui est hors des `row` de `sheetData` et de
-leurs `c` ; sous `<sst>`, tout ce qui n'est ni un `si` ni dans un `si`. Les descendants d'une `c`
-ont une borne par ligne (65 536), car `v` et `f` atteignent légitimement 20 000 000 à la borne des
-cellules. Écartée : 24 Mio, qui garde la liste `dxfs` d'Excel mais annonce ≈ 512 Mio par lecture.
-Les bornes tiennent liste par liste, mais des combinaisons acceptées dépassaient l'objectif
-(`cellXfs`, `cellStyleXfs` et `dxf` riches : 213 Mio). L'auteur a donc ajouté un budget commun
-(2026-11-25) : la pré-lecture refuse un classeur dont la somme des fractions consommées (items de
-chaque liste bornée, éléments, octets des membres lus en arbre) dépasse un plafond mesuré, ≈ 2,1.
-Un item compte aussi comme élément et comme octets, si bien que le plafond n'est pas 1 : une unité
-coûte au plus ≈ 85 Mio, marge de 5 % comprise, et l'additivité tient à 5 % près. La borne de
-`dxfs`, d'abord ≈ 25 000, est ramenée à 22 000 pour y tenir ; 1 000 000 `<b/>` passent toujours.
-Écartées : une borne commune aux seules listes de styles (elle ignore les éléments hors liste),
-une borne d'octets abaissée, un objectif relevé à ≈ 220 Mio, le plafond à 1 (tout se resserre
-d'environ 2,4 fois), et un modèle linéaire en Mio (lié au coût par objet d'openpyxl).
+mémoire l'emporte. Les membres lus en arbre sont bornés à 7,5 Mio décompressés (option A). Le
+critère d'US-3190b est amendé : chaque liste riche passe à sa borne, ramenée au besoin, et celle de
+`dxfs` descend à 22 000 (≈ 25 000 d'abord ; le témoin en a 5). La borne de 1 100 000 éléments
+reste, pour les petits éléments, et chaque attribut y compte pour un élément, sans pondération
+(commentaire 7167527861) : 28 000 `<b/>` à 52 attributs vides, ≈ 1 480 000, montaient la crête de
+342 Mio sous toutes les bornes, et sont refusés. Chaque liste riche à sa borne et 1 000 000 `<b/>`
+passent encore. Les éléments étrangers sont bornés à 100 000 au total (option F1), comptés sur tous
+les onglets, lus ou non, et sous `<sst>`. Dans un onglet, est étranger tout ce qui est hors des
+`row` de `sheetData` et de leurs `c` ; sous `<sst>`, tout ce qui n'est ni un `si` ni dans un `si`.
+Les descendants d'une `c` ont une borne par ligne (65 536), car `v` et `f` atteignent légitimement
+20 000 000 à la borne des cellules. Écartée : 24 Mio, qui garde la liste `dxfs` d'Excel mais
+annonce ≈ 512 Mio par lecture. L'objectif, redit par l'auteur : ≈ 192 Mio de crête par vecteur
+borné ; les combinaisons acceptées vont jusqu'à ≈ 205 Mio mesurés, au plus ≈ 220 Mio. Une borne
+calculée à l'avance ne garantit pas une crête exacte : les bornes d'US-3190 sont une défense en
+profondeur, et la garantie dure est reportée à EP-39 (#4946).
 
 **Hors périmètre.** La limite de mémoire du service dans le chart (EP-13, EP-39) ; la colonne
 absente d'un onglet (US-3200).

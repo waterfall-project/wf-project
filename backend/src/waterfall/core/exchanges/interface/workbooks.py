@@ -69,24 +69,26 @@ The items bounded are not all openpyxl builds: it parses ``styles.xml``, ``workb
 content types, the relations, the properties, a chartsheet and its drawings and charts whole, into a
 tree, and each element costs it a node, in an item or out of any list — 25 kB of ``<b/>`` in a font
 held 543 MiB (#4862). So the reading counts the elements of every member, comments and instructions
-included, and once the parts openpyxl parses into a tree are found as it finds them, their elements
-are added up: past ``MOST_ELEMENTS`` in all, the workbook is refused before it is opened
-(US-3190b). The tabs and the shared strings, which openpyxl reads as a stream and the other bounds
-hold, are left out, unless openpyxl parses them into a tree by another way; the theme too, which it
-keeps as bytes.
+included, and their attributes, one an element — 28 000 ``<b/>`` of 52 empty attributes each held
+342 MiB more (US-3190/L3) —, and once the parts openpyxl parses into a tree are found as it finds
+them, these counts are added up: past ``MOST_ELEMENTS`` in all, the workbook is refused before it is
+opened (US-3190b). The tabs and the shared strings, which openpyxl reads as a stream and the other
+bounds hold, are left out, unless openpyxl parses them into a tree by another way; the theme too,
+which it keeps as bytes.
 
-What a node costs grows with its attributes and its text: 900 000 ``<b a="…"/>`` in a font pass
-the count, and held 660 MiB more (#4914). So the bytes these parts declare, and the theme's, are
-added up too — the reading has checked that none inflates past what it declares —: past
-``LARGEST_TREES``, the workbook is refused before it is opened (US-3190/L3). And openpyxl's stream
-of a tab, or of the shared strings, frees a row, a string, once read, and keeps every other element
-(#4915): the reading counts, in every member, the elements out of any row and those out of any
-string, and once the tabs are found as openpyxl finds them — the targets of the relations of the
-workbook its sheets name, read or not, as the opening parses each — and the shared strings by their
-content type, the first of the tabs and the second of the shared strings are added up: past
-``MOST_FOREIGN``, the workbook is refused before it is opened. The elements the cells of a row hold,
-which the stream frees with the row, are bounded by row, ``MOST_CELL_ELEMENTS``, in every member as
-the rows are: a row in a row and all it holds count to the outermost, freed last.
+What a node costs grows with the length of its attributes and of its text: 900 000 ``<b a="…"/>`` in
+a font passed the count, and held 660 MiB more (#4914); 500 000 of them, or 900 000 ``<b>…</b>``,
+still pass it. So the bytes these parts declare, and the theme's, are added up too — the reading has
+checked that none inflates past what it declares —: past ``LARGEST_TREES``, the workbook is refused
+before it is opened (US-3190/L3). And openpyxl's stream of a tab, or of the shared strings, frees a
+row, a string, once read, and keeps every other element (#4915): the reading counts, in every
+member, the elements out of any row and those out of any string, and once the tabs are found as
+openpyxl finds them — the targets of the relations of the workbook its sheets name, read or not, as
+the opening parses each — and the shared strings by their content type, the first of the tabs and
+the second of the shared strings are added up: past ``MOST_FOREIGN``, the workbook is refused before
+it is opened. The elements the cells of a row hold, which the stream frees with the row, are bounded
+by row, ``MOST_CELL_ELEMENTS``, in every member as the rows are: a row in a row and all it holds
+count to the outermost, freed last.
 
 A reader then materialises the tabs its format reads, and those alone, by the ``bounded_rows`` of
 the workbook opened: a row of more than ``MOST_COLUMNS`` columns, as openpyxl gives them — the width
@@ -151,12 +153,20 @@ MOST_CELLS = 10_000_000
 MOST_STRINGS = 1_000_000
 MOST_STRING_ELEMENTS = 65_536
 LONGEST_TEXT = 32 * 1024 * 1024
+# The objective of the bounds that follow (US-3190/L3, #4924, redone by the author on 2026-11-25):
+# some 192 MiB of peak for a reading, by vector bounded, each measured alone in a fresh process
+# (VmHWM, ``python -m measure.workbooks``); the combinations accepted go to some 205 MiB measured,
+# ``dxfs``, ``cellXfs`` and ``cellStyleXfs`` together, 220 at most. A bound counted ahead does not
+# hold a peak exact, which depends on what libxml2 and openpyxl build of each construction: these
+# bounds are a defence in depth, and the hard guarantee is left to EP-39 (#4946).
+#
 # The items of each list of ``styles.xml``: the limits of Excel, so that a workbook Excel writes is
 # never refused, but for the three lists whose items as Excel writes them would not hold in
 # ``LARGEST_TREES`` at that limit (US-3190/L3, #4914, decided by the author on 2026-11-25): each at
-# its limit lowered, a ``dxf`` some 310 bytes, a format of a cell 190, of a named style 130 (the
-# prototypes of the specification hold 5 ``dxf`` at most, 20 formats of a cell). ``colors``, the
-# colours its lists hold, counted with them. The defined names of ``workbook.xml``.
+# its limit lowered, a ``dxf`` some 310 bytes, a format of a cell 190, of a named style 130, and the
+# ``dxfs`` lowered further, to 22 000, 158 MiB (the prototypes of the specification hold 5 ``dxf``
+# at most, 20 formats of a cell). ``colors``, the colours its lists hold, counted with them. The
+# defined names of ``workbook.xml``.
 STYLE_LISTS: Mapping[str, int] = MappingProxyType(
     {
         "numFmts": 1_000,
@@ -168,22 +178,24 @@ STYLE_LISTS: Mapping[str, int] = MappingProxyType(
         "cellStyleXfs": 60_000,
         "cellXfs": 40_000,
         "cellStyles": 65_490,
-        "dxfs": 25_000,
+        "dxfs": 22_000,
     }
 )
 MOST_NAMES = 10_000
 # The elements of the parts openpyxl parses into a tree, in all (US-3190b, decided by the author on
-# 2026-11-24, #4862, set at 1 100 000 on 2026-11-25, option a1). What a node costs openpyxl grows
-# with what it builds of it, measured by the peak of a fresh process (VmHWM, US-3190/L3): an empty
-# ``<b/>`` in a font some 130 bytes, an element of a ``dxf`` as Excel writes it some 480. This bound
-# holds the small elements, which ``LARGEST_TREES`` does not see: 1 000 000 ``<b/>``, 4 MB, 124 MiB.
+# 2026-11-24, #4862, set at 1 100 000 on 2026-11-25, option a1), and their attributes, one an
+# element, which libxml2 builds a node of each for (US-3190/L3, decided by the author on 2026-11-25:
+# 28 000 ``<b/>`` of 52 empty attributes, under every other bound, held 342 MiB more). What a node
+# costs openpyxl grows with what it builds of it, measured by the peak of a fresh process (VmHWM,
+# US-3190/L3): an empty ``<b/>`` in a font some 125 bytes, an element of a ``dxf`` as Excel writes
+# it some 290, its attributes counted. This bound holds the small elements, which ``LARGEST_TREES``
+# does not see: 1 000 000 ``<b/>``, 4 MB, 120 MiB; the ``dxfs`` at their bound count 572 282.
 MOST_ELEMENTS = 1_100_000
 # The bytes inflated of the parts openpyxl holds whole — those it parses into a tree, and the theme
 # it keeps as bytes —, in all (US-3190/L3, #4914, decided by the author on 2026-11-25, option A):
-# what an element costs grows with its attributes and its text, which the bound of the elements
-# does not see. The heaviest a byte, the ``dxfs`` as Excel writes them, some 25 MiB a MiB: 184 MiB
-# at their bound, under the 192 MiB a reading may peak at. The workbooks of the witness hold some
-# 41 kB.
+# what an element costs grows with the length of its attributes and of its text, which the bound of
+# the elements does not see. The heaviest a byte, the ``dxfs`` as Excel writes them, some 24 MiB a
+# MiB: 158 MiB at their bound of 22 000, 6.5 MiB. The workbooks of the witness hold some 41 kB.
 LARGEST_TREES = 15 * 1024 * 1024 // 2
 # The elements of the tabs out of their rows, and of the shared strings out of their strings, in all
 # (US-3190/L3, #4915, option F1): openpyxl's stream frees a row, a string, once read, and keeps all
@@ -351,7 +363,8 @@ class _Tally(_Target):
     an item of (``NestedSequence``); a list in a list is an item of the first. The items of a list
     met twice add up. Whether the member declares a document type, under which an entity left
     unresolved is one more child to openpyxl and none to the reading. Its elements, comments and
-    instructions included, each a node of the tree openpyxl may parse of it. The elements a row
+    instructions included, each a node of the tree openpyxl may parse of it, and their attributes,
+    one an element, which libxml2 builds a node of each for. The elements a row
     holds past its cells, at any depth, the rows in it included, counted to the outermost row open,
     which openpyxl's stream holds until it reads that row and frees with it; the elements out of any
     row, and out of any string, which it keeps as it reads a tab or the shared strings — its
@@ -385,10 +398,10 @@ class _Tally(_Target):
         msg = f"{self.name!r} holds more than {most} {what}"
         raise WorkbookOutOfBoundsError(msg)
 
-    def start(self, tag: str, _attributes: dict[str, str], /) -> None:
+    def start(self, tag: str, attributes: dict[str, str], /) -> None:
         """Count an element: as a cell, a row, a string, an element of one, an item of a list."""
         self.started = True
-        self.elements += 1
+        self.elements += 1 + len(attributes)
         self.depth += 1
         if self.open_rows or tag == _ROW:
             self._count_rows(tag)

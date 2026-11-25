@@ -27,6 +27,7 @@ size of the memory of a fresh process, ``VmHWM``, which sees what libxml2 alloca
 import gc
 import multiprocessing
 import re
+import string
 import time
 import tracemalloc
 import warnings
@@ -416,6 +417,10 @@ RICH_DXF = (
     b"</border></dxf>"
 )
 RICH_DXF_ELEMENTS = 16
+# An element of 52 empty attributes, one by letter, which libxml2 builds a node of each for: 264
+# bytes, 53 to the count of the elements (US-3190/L3, #4924). 28 000 of them in a font, 7 MiB under
+# the bound of the bytes and 28 000 elements bare of their attributes, held 342 MiB more.
+ATTRIBUTED = b"<b " + b" ".join(b'%c=""' % c for c in string.ascii_letters.encode()) + b"/>"
 # An item of each list as Excel writes it, as the prototypes of the specification hold them, the
 # fullest of each (US-3190/L3): a format of currency, a bold font of a theme colour, a solid fill, a
 # border of four thin sides, a format of a cell that applies all of them and aligns it, a named

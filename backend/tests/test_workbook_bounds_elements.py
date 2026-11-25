@@ -5,13 +5,15 @@
 openpyxl parses ``styles.xml``, ``workbook.xml``, the content types, the relations, the properties,
 a chartsheet and its drawings and charts whole, into a tree: each element costs it a node, in a list
 bounded by US-3190/L2b or out of any — 25 kB of ``<b/>`` in a font held 543 MiB. The reading ahead
-of the opener counts them, and past 1 100 000 in all the workbook is refused before it is opened,
-``FILE_FORMAT_UNREADABLE``. What a node costs grows with its attributes and its text, which the
-count does not see: 900 000 ``<b a="…"/>`` held 660 MiB more (#4914). So the bytes these parts
-declare, and the theme's, which openpyxl keeps as bytes, are bounded too, at 7.5 MiB in all, and
-each list of ``styles.xml`` with items as Excel writes them is read at its bound, which the bytes
-lowered for three of them. The tabs and the shared strings, which openpyxl reads as a stream, are
-left to their own bounds (``test_workbook_bounds_vectors``, ``test_workbook_bounds_foreign``).
+of the opener counts them, and their attributes, one an element — 28 000 ``<b/>`` of 52 empty
+attributes held 342 MiB more (US-3190/L3) —: past 1 100 000 in all the workbook is refused before it
+is opened, ``FILE_FORMAT_UNREADABLE``. What a node costs grows with the length of its attributes and
+of its text, which the count does not see: 900 000 ``<b a="…"/>`` held 660 MiB more (#4914). So the
+bytes these parts declare, and the theme's, which openpyxl keeps as bytes, are bounded too, at 7.5
+MiB in all, and each list of ``styles.xml`` with items as Excel writes them is read at its bound,
+which the bytes lowered for three of them. The tabs and the shared strings, which openpyxl reads as
+a stream, are left to their own bounds (``test_workbook_bounds_vectors``,
+``test_workbook_bounds_foreign``).
 
 The memory is the peak resident size of a fresh process, ``VmHWM`` (``resident``), as for the other
 vectors.
@@ -26,6 +28,7 @@ from lxml import etree
 from test_workbook_bounds import PROTOTYPES, READINGS, UNREADABLE
 from test_workbook_bounds_vectors import WITHIN
 from workbook_bombs import (
+    ATTRIBUTED,
     CALM,
     MEBIBYTE,
     STYLES,
@@ -53,8 +56,9 @@ from waterfall.platform.errors import UnprocessableError
 REFUSAL = f"the parts openpyxl parses into a tree hold more than {MOST_ELEMENTS} elements"
 # The workbooks of #4862: elements out of any list, in a font of ``styles.xml`` or under the root
 # of ``workbook.xml``; each member, and where they go in it. Refused: 5 000 000 of them, and
-# 1 200 000, which put the total just past the bound. Read: 1 000 000, which the bound of 1 100 000
-# (decided on 2026-11-25, option a1) holds.
+# 1 200 000, which put the total just past the bound, and the 28 000 ``<b/>`` of 52 attributes,
+# counted with them (US-3190/L3, decided by the author on 2026-11-25). Read: 1 000 000, which the
+# bound of 1 100 000 (decided on 2026-11-25, option a1) holds.
 FONT_B = (STYLES, b"</font>", b"<b/>")
 WORKBOOK_X = (WORKBOOK, b"</workbook>", b"<x/>")
 SWOLLEN: dict[str, tuple[str, bytes, bytes, int]] = {
@@ -62,26 +66,30 @@ SWOLLEN: dict[str, tuple[str, bytes, bytes, int]] = {
     "b-in-a-font-just-past": (*FONT_B, 1_200_000),
     "x-under-the-workbook-5M": (*WORKBOOK_X, 5_000_000),
     "x-under-the-workbook-just-past": (*WORKBOOK_X, 1_200_000),
+    "attributes-in-a-font": (STYLES, b"</font>", ATTRIBUTED, 28_000),
 }
 HELD: dict[str, tuple[str, bytes, bytes, int]] = {
     "b-in-a-font-1M": (*FONT_B, 1_000_000),
     "x-under-the-workbook-1M": (*WORKBOOK_X, 1_000_000),
 }
-# The workbooks of #4914: 900 000 elements in a font, under ``MOST_ELEMENTS``, each with an
-# attribute of 190 characters, or a text of as many: some 180 MB, under the 200 MiB declared.
+# The workbooks of #4914: elements in a font, under ``MOST_ELEMENTS``, each with an attribute of 190
+# characters, or a text of as many: 900 000 of a text, 180 MB, under the 200 MiB declared; 500 000
+# of an attribute, 100 MB, the 900 000 of #4914 counting their attributes past the elements.
 BYTES_SWOLLEN: dict[str, tuple[str, bytes, bytes, int]] = {
-    "attribute-in-a-font": (STYLES, b"</font>", b'<b a="' + b"a" * 190 + b'"/>', 900_000),
+    "attribute-in-a-font": (STYLES, b"</font>", b'<b a="' + b"a" * 190 + b'"/>', 500_000),
     "text-in-a-font": (STYLES, b"</font>", b"<b>" + b"a" * 190 + b"</b>", 900_000),
 }
 BYTES_REFUSAL = f"the parts openpyxl holds whole declare more than {LARGEST_TREES} bytes"
 # The lists of ``styles.xml`` with items as Excel writes them, each at its bound, each read alone in
-# a fresh process: ``make measure-workbooks`` (``rich-<list>``, VmHWM) measured the heaviest,
-# ``dxfs`` at 25 000, at 184 MiB; ``cellXfs`` at 40 000, 155; ``cellStyleXfs`` at 60 000, 139;
-# ``cellStyles`` at 65 490, 57; the others under 5. Read one after the other in one process, they
-# rose to 200 MiB, what the earlier reads leave held. The plafond is the objective of the design, no
-# workbook accepted past 192 MiB for a reading: some 4 % over the heaviest. These 192 MiB, and the
-# figures measured, are the rise above the process warmed on the base (``resident``), which starts
-# at some 123 MiB: not its VmHWM in absolute terms.
+# a fresh process: ``python -m measure.workbooks counts`` (``rich-<list>``, VmHWM) measured the
+# heaviest, ``dxfs`` at 22 000, at 158 MiB; ``cellXfs`` at 40 000, 150; ``cellStyleXfs`` at
+# 60 000, 135; ``cellStyles`` at 65 490, 53; the others under 2. Their attributes counted as
+# elements, ``dxfs`` count the most, 572 282 of the 1 100 000. Read one after the other in one
+# process, they rose to 200 MiB with ``dxfs`` at 25 000, what the earlier reads leave held: each is
+# read alone. The plafond is the objective of the design, some 192 MiB of peak by vector bounded,
+# some 20 % over the heaviest. These 192 MiB, and the figures measured, are the rise above the
+# process warmed on the base (``resident``), which starts at some 123 MiB: not its VmHWM in absolute
+# terms.
 RICH_ORDER = (
     "colors",
     "numFmts",
@@ -144,11 +152,18 @@ def _never_opened(*_: object, **__: object) -> None:
     raise AssertionError(msg)
 
 
-def _nodes(content: bytes, parts: tuple[str, ...]) -> int:
-    """Give the nodes of the trees lxml builds of ``parts``: elements, comments, instructions."""
+def _nodes(content: bytes, parts: tuple[str, ...], *, attributes: bool = True) -> int:
+    """Give the nodes of the trees lxml builds of ``parts``: elements, comments, instructions.
+
+    And the attributes of their elements, one a node, as the bound counts them, unless not
+    ``attributes``.
+    """
     with zipfile.ZipFile(BytesIO(content)) as archive:
         return sum(
-            sum(1 for _ in etree.fromstring(archive.read(part)).iter())
+            sum(
+                1 + (len(node.attrib) if attributes and isinstance(node.tag, str) else 0)
+                for node in etree.fromstring(archive.read(part)).iter()
+            )
             for part in parts
             if part in archive.namelist()
         )
@@ -227,13 +242,28 @@ def test_each_list_of_styles_with_items_as_excel_writes_them_is_read_at_its_boun
 
 @pytest.mark.story("US-3190")
 def test_the_dxfs_of_excel_at_their_bound_take_the_most_of_the_bytes() -> None:
-    # The bound of ``dxfs``, lowered from 65 490 to 25 000 (decided by the author on 2026-11-25,
-    # option A): 25 000 dxf of 16 elements hold the most of the 7.5 MiB, and 1 000 more pass them.
+    # The bound of ``dxfs``, lowered from 65 490 to some 25 000 for the 7.5 MiB, then to 22 000
+    # (decided by the author on 2026-11-25): 22 000 dxf of 16 elements and 10 attributes hold the
+    # most of the bytes and the most of the elements of any list, under both bounds; 4 000 more pass
+    # the bytes.
     rich = styled_richly(_base("estimate"), "dxfs", STYLE_LISTS["dxfs"])
-    assert STYLE_LISTS["dxfs"] == 25_000
-    assert LARGEST_TREES * 0.95 < _held_bytes(rich, PARTS) < LARGEST_TREES
-    richer = styled_richly(_base("estimate"), "dxfs", STYLE_LISTS["dxfs"] + 1_000)
+    assert STYLE_LISTS["dxfs"] == 22_000
+    assert LARGEST_TREES * 0.85 < _held_bytes(rich, PARTS) < LARGEST_TREES
+    assert MOST_ELEMENTS / 2 < _nodes(rich, PARTS) < MOST_ELEMENTS
+    richer = styled_richly(_base("estimate"), "dxfs", STYLE_LISTS["dxfs"] + 4_000)
     assert _held_bytes(richer, PARTS) > LARGEST_TREES
+
+
+@pytest.mark.story("US-3190")
+def test_the_attributes_of_an_element_count_as_elements(monkeypatch: pytest.MonkeyPatch) -> None:
+    # « … au-delà de laquelle l'import échoue avant l'ouverture sur `FILE_FORMAT_UNREADABLE` » :
+    # 28 000 ``<b/>`` of 52 empty attributes, under the bytes and under the elements bare of their
+    # attributes, are refused on the elements, their attributes counted one an element.
+    content = _swollen("estimate", "attributes-in-a-font")
+    assert _nodes(content, PARTS, attributes=False) < MOST_ELEMENTS // 30
+    assert _held_bytes(content, PARTS) < LARGEST_TREES
+    assert _nodes(content, PARTS) > MOST_ELEMENTS
+    assert REFUSAL in _refused_unopened(content, monkeypatch)
 
 
 @pytest.mark.story("US-3190")
