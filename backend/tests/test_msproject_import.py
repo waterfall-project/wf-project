@@ -8,9 +8,9 @@ reads it —, then applied, and the structure read back. The tests of the corpus
 database, are in ``test_msproject_corpus.py``.
 """
 
-import time
+import itertools
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -30,9 +30,7 @@ from waterfall.api.authentication import Services
 from waterfall.core.planning.msproject import (
     calendar_of,
     calendars_of,
-    constants_of,
     read_project,
-    recognised,
 )
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.tree import read_links, read_tree
@@ -290,7 +288,6 @@ def test_a_file_saved_by_ms_project_is_imported_with_its_tasks_links_and_dates(
     calendars = calendars_of(project)
     for (_, task), each in zip(kept, project.tasks, strict=True):
         calendar = calendar_of(project, calendars, each)
-        assert calendar is not None
         assert each.start is not None
         assert each.finish is not None
         assert dates(task) == (calendar.instant(each.start), calendar.instant(each.finish))
@@ -549,6 +546,65 @@ def test_a_reimport_matches_by_lineage_then_by_uid_and_keeps_only_the_started_ab
     assert (after["Tâche E"][1].external_id, after["Lot A"][1].external_id) == ("5", "1")
 
 
+@pytest.mark.requirement("WF-INTF-0040-A")
+def test_a_file_that_defines_the_field_of_the_lineages_never_matches_a_row_by_its_uid(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # [US-3170] A row without a lineage the structure knows is added in such a file, even when its
+    # UID is a task's; in a file without that field, the same row is matched by its UID.
+    opened(api, stage)
+    imported(api, stage, worker, planning(task(1, "A"), task(2, "B")))
+    lineage = by_label(stage)["A"][0].lineage_id
+
+    def declared(alias: str) -> str:
+        return (
+            "<ExtendedAttributes><ExtendedAttribute><FieldID>188743731</FieldID>"
+            f"<FieldName>Text1</FieldName><Alias>{alias}</Alias></ExtendedAttribute>"
+            "</ExtendedAttributes>"
+        )
+
+    def carrying(value: object) -> str:
+        return (
+            f"<ExtendedAttribute><FieldID>188743731</FieldID><Value>{value}</Value>"
+            "</ExtendedAttribute>"
+        )
+
+    unknown, known = carrying(uuid4()), carrying(lineage)
+    # The alias the user renamed in MS Project still declares the field, by its identifier.
+    for alias, besides in itertools.product(("Waterfall.lineage", "Mine"), ("", unknown)):
+        reworked = planning(
+            task(1, "A", besides=known),
+            task(2, "B revue", besides=besides),
+            besides=declared(alias),
+        )
+        named = [
+            (each["change"], each["label"])
+            for each in analysed(api, stage, worker, reworked)["report"]["differences"]
+        ]
+        assert sorted(named) == [("added", "B revue"), ("removed", "B")]
+    report = analysed(api, stage, worker, planning(task(1, "A"), task(2, "B revue")))["report"]
+    assert [(each["change"], each["label"]) for each in report["differences"]] == [
+        ("updated", "B revue")
+    ]
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+def test_the_first_pass_takes_the_lineages_before_any_row_falls_back_on_a_uid(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # [US-3170] In a file without the field of the lineages, a row whose UID is a task's, that
+    # comes before the row bearing that task's GUID, does not take it: the GUID is matched first.
+    opened(api, stage)
+    imported(api, stage, worker, planning(task(1, "A"), task(2, "B"), task(3, "C")))
+    before = by_label(stage)
+    guid = f"<GUID>{before['C'][0].lineage_id}</GUID>"
+    reworked = planning(task(3, "Neuve"), task(1, "A"), task(2, "B"), task(9, "C", besides=guid))
+    applied(api, stage, worker, analysed(api, stage, worker, reworked))
+    after = by_label(stage)
+    assert after["C"][0].id == before["C"][0].id
+    assert after["Neuve"][0].id != before["C"][0].id
+
+
 @pytest.mark.requirement("WF-RIS-0060-A")
 def test_a_task_issued_from_a_risk_matched_by_its_lineage_keeps_the_risk_it_comes_from(
     api: ContractClient, stage: Scene, worker: Worker
@@ -689,244 +745,3 @@ def test_an_order_item_task_moved_out_of_its_package_after_the_report_fails_the_
     assert failed["status"] == "failed"
     assert failed["task"]["problem"]["code"] == "ORDER_ITEM_OUTSIDE_WORK_PACKAGE"
     assert [(node.id, node.parent_id, dates(each)) for node, each in tasks(stage)] == before
-
-
-@pytest.mark.requirement("WF-PLA-0150-A")
-def test_a_planning_of_sixteen_years_is_rejected_by_the_report_naming_its_task(
-    api: ContractClient, stage: Scene, worker: Worker
-) -> None:
-    # « Un import MS Project dont le planning s'étend sur seize ans est rejeté au compte rendu. »
-    opened(api, stage)
-    sixteen_years = Timing(duration=f"PT{16 * 366 * 24}H0M0S", unit="8")
-    found = analysed(api, stage, worker, planning(task(1, "Exploitation", timing=sixteen_years)))
-    assert found["report"]["refusals"] == [
-        {
-            "code": "PROJECT_HORIZON_EXCEEDED",
-            "params": {"task": {"node_id": None, "label": "Exploitation"}},
-        }
-    ]
-    assert found["report"]["date_mismatches"] == []
-
-
-@pytest.mark.requirement("WF-PLA-0050-A")
-def test_a_task_the_file_makes_a_milestone_over_a_started_subtask_is_rejected(
-    api: ContractClient, stage: Scene, worker: Worker
-) -> None:
-    # « Une tâche feuille de durée nulle ne peut recevoir de sous-tâche » (#1772): the file
-    # makes « Jalon » a milestone, and the import keeps its started subtask under it.
-    opened(api, stage)
-    imported(api, stage, worker, planning(task(1, "Jalon"), task(2, "Essais", level=2)))
-    found = by_label(stage)
-    set_progress(stage, str(found["Essais"][0].id), "started", date(2026, 11, 2))
-    at_once = Timing(finish=f"{MONDAY}T08:00:00", duration="PT0H0M0S")
-    report = imported(api, stage, worker, planning(task(1, "Jalon", timing=at_once)))
-    named = {"lineage_id": str(found["Jalon"][0].lineage_id), "label": "Jalon"}
-    assert report["rejected"] == [
-        {"sheet": None, "row": 1, "code": "MILESTONE_HAS_NO_SUBTASK", "params": named}
-    ]
-    assert [each["change"] for each in report["differences"]] == ["kept"]
-    after = by_label(stage)
-    assert after["Essais"][0].parent_id == after["Jalon"][0].id
-
-
-@pytest.mark.requirement("WF-PLA-0160-A")
-def test_a_file_of_other_constants_is_signalled_and_keeps_its_durations_in_their_unit(
-    api: ContractClient, stage: Scene, worker: Worker
-) -> None:
-    # « Un fichier MS Project dont les constantes ou le calendrier diffèrent de ceux de
-    # l'installation est signalé au compte rendu ; importé en gardant les durées, une tâche de
-    # « 2 j » saisie à 7 h par jour vaut deux jours, soit seize heures avec les valeurs par
-    # défaut ; » Seven hours a day, on the calendar of the installation: in calendar gap by its
-    # constants alone, which ``unit_constants`` gives and ``calendar_gap`` never leaves without its
-    # rule (#3129). « 1 sem » of thirty-five hours stays a week.
-    opened(api, stage)
-    week = link(1, lag=35 * 600, unit=9)
-    content = planning(
-        task(1, "Câblage", timing=Timing(duration="PT14H0M0S")),
-        task(2, "Essais", besides=week),
-        minutes=(420, 2100),
-    )
-    report = imported(api, stage, worker, content)
-    assert report["unit_constants"] == {
-        "file": {"hours_per_day": "7", "hours_per_week": "35", "days_per_month": "20"},
-        "installation": {"hours_per_day": "8", "hours_per_week": "40", "days_per_month": "20"},
-    }
-    gap = report["calendar_gap"]
-    assert gap is not None
-    assert (gap["duration_rule"], gap["tasks"]) == ("keep_durations", [])
-    cabling = by_label(stage)["Câblage"][1]
-    assert (cabling.duration_value.normalize(), cabling.duration_unit) == (Decimal(2), "d")
-    assert links(stage) == {("Câblage", "Essais", "finish_to_start", Decimal(1), "w")}
-
-
-@pytest.mark.requirement("WF-PLA-0160-A")
-@pytest.mark.requirement("WF-QUA-0080-A")
-def test_the_report_of_the_planning_of_other_constants_signals_the_difference(
-    api: ContractClient, stage: Scene, worker: Worker
-) -> None:
-    # « Un fichier MS Project dont les constantes ou le calendrier diffèrent de ceux de
-    # l'installation est signalé au compte rendu » : the file 10 of the corpus carries 7 hours a
-    # day, 35 a week and 20 days a month; the installation 8, 40 and 20. Its « Standard » of six
-    # hours a day is not the default calendar either: the file is in calendar gap.
-    seven_hours_a_day(stage)
-    report = analysed(api, stage, worker, corpus("10-other-constants.xml"))["report"]
-    assert report["unit_constants"] == {
-        "file": {"hours_per_day": "7", "hours_per_week": "35", "days_per_month": "20"},
-        "installation": {"hours_per_day": "8", "hours_per_week": "40", "days_per_month": "20"},
-    }
-    assert report["calendar_gap"] is not None
-    assert report["calendar_gap"]["project_calendar"]["weekly_hours"]["monday"] == "6"
-    assert report["refusals"] == []
-
-
-@pytest.mark.requirement("WF-INTF-0080-A")
-def test_a_task_without_a_label_or_with_too_long_a_one_is_rejected_its_subtasks_rising(
-    api: ContractClient, stage: Scene, worker: Worker
-) -> None:
-    # A rejected line is named by its row, the others apply: the subtask of a task the file
-    # would create without a label rises to its parent.
-    opened(api, stage)
-    content = planning(
-        task(1, " "), task(2, "Câblage", level=2), task(3, "x" * 301), task(4, "Essais")
-    )
-    report = imported(api, stage, worker, content)
-    assert report["rejected"] == [
-        {"sheet": None, "row": 1, "code": "VALUE_REQUIRED", "params": {}},
-        {"sheet": None, "row": 3, "code": "VALUE_TOO_LONG", "params": {"max_length": 300}},
-    ]
-    assert (report["read_count"], report["unchanged_count"]) == (4, 0)
-    assert [(node.parent_id, task.label) for node, task in tasks(stage)] == [
-        (None, "Câblage"),
-        (None, "Essais"),
-    ]
-
-
-@pytest.mark.requirement("WF-PLA-0040-A")
-def test_a_summary_the_file_makes_a_leaf_takes_its_duration_and_keeps_its_state(
-    api: ContractClient, stage: Scene, worker: Worker
-) -> None:
-    # « Une récapitulative qui perd sa dernière subordonnée devient une tâche feuille en mode
-    # automatique […], conserve son état. » Its started subtask moves out of it.
-    opened(api, stage)
-    imported(api, stage, worker, planning(task(1, "Études"), task(2, "Conception", level=2)))
-    set_progress(stage, str(by_label(stage)["Conception"][0].id), "started", date(2026, 11, 2))
-    report = imported(
-        api,
-        stage,
-        worker,
-        planning(task(1, "Études", timing=Timing(duration="PT16H0M0S")), task(2, "Conception")),
-    )
-    assert [(each["label"], each["fields"]) for each in report["differences"]] == [
-        ("Études", ["duration"]),
-        ("Conception", ["parent"]),
-    ]
-    studies = by_label(stage)["Études"][1]
-    assert (studies.progress, studies.duration_value, studies.duration_unit) == (
-        "started",
-        Decimal(2),
-        "d",
-    )
-
-
-@pytest.mark.requirement("WF-PLA-0030-A")
-def test_a_file_whose_links_close_a_loop_fails_its_analysis(
-    api: ContractClient, stage: Scene, worker: Worker
-) -> None:
-    opened(api, stage)
-    loop = planning(task(1, "A", besides=link(2)), task(2, "B", besides=link(1)))
-    response = opening(api, stage, loop)
-    assert response.status_code == 202, response.text
-    run(worker)
-    failed = read(api, stage, response.json()["import_id"])
-    assert failed["status"] == "failed"
-    problem = failed["task"]["problem"]
-    assert problem["code"] == "LINK_CYCLE"
-    assert sorted(each["label"] for each in problem["params"]["cycle"]) == ["A", "B"]
-
-
-@pytest.mark.requirement("WF-INTF-0040-A")
-def test_a_file_that_is_no_planning_of_ms_project_is_refused_at_the_opening(
-    api: ContractClient, stage: Scene
-) -> None:
-    opened(api, stage)
-    response = opening(api, stage, b'<?xml version="1.0"?><Workbook xmlns="urn:other"/>')
-    assert refusal(response) == (
-        422,
-        "FILE_FORMAT_UNREADABLE",
-        {"expected_format": "ms_project_schedule"},
-    )
-
-
-@pytest.mark.requirement("WF-INTF-0040-A")
-def test_a_file_whose_head_is_read_and_its_body_not_fails_its_analysis(
-    api: ContractClient, stage: Scene, worker: Worker
-) -> None:
-    opened(api, stage)
-    broken = b'<Project xmlns="http://schemas.microsoft.com/project"><Tasks><Task>'
-    response = opening(api, stage, broken)
-    assert response.status_code == 202, response.text
-    run(worker)
-    failed = read(api, stage, response.json()["import_id"])
-    assert failed["status"] == "failed"
-    assert failed["task"]["problem"]["code"] == "FILE_FORMAT_UNREADABLE"
-    assert failed["task"]["problem"]["params"] == {"expected_format": "ms_project_schedule"}
-
-
-@pytest.mark.parametrize(
-    ("head", "known"),
-    [
-        (b'<Project xmlns="http://schemas.microsoft.com/project">', True),
-        (
-            (
-                b'\xef\xbb\xbf<?xml version="1.0"?>\n<!-- saved -->\n'
-                b'<p:Project xmlns:p="http://schemas.microsoft.com/project/2007">'
-            ),
-            True,
-        ),
-        (b'<p:Project xmlns="http://schemas.microsoft.com/project">', False),
-        (b'<Project xmlns="urn:other">', False),
-        (b"<Projects/>", False),
-        (b"PK\x03\x04", False),
-        (b"<!---->" * 500 + b"<x", False),
-        (b"<?a?>" * 800 + b"<x", False),
-        (b"<!---->" * 500 + b'<Project xmlns="http://schemas.microsoft.com/project">', True),
-    ],
-)
-@pytest.mark.requirement("WF-INTF-0040-A")
-def test_the_head_of_a_planning_is_a_project_of_the_namespace_of_ms_project(
-    head: bytes, known: bool
-) -> None:
-    started = time.monotonic()
-    assert recognised(head) is known
-    assert time.monotonic() - started < 1  # no backtracking on a head of 4 096 bytes
-
-
-@pytest.mark.requirement("WF-PLA-0010-A")
-def test_a_calendar_of_the_file_takes_the_days_it_does_not_list_from_its_base() -> None:
-    # A night shift ends at midnight, the twenty-fourth hour; a calendar based on it sets one day.
-    night = (
-        "<WeekDay><DayType>{day}</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime>"
-        "<FromTime>20:00:00</FromTime><ToTime>00:00:00</ToTime></WorkingTime></WorkingTimes>"
-        "</WeekDay>"
-    )
-    calendars = (
-        "<Calendars><Calendar><UID>1</UID><Name>Nuit</Name><IsBaseCalendar>1</IsBaseCalendar>"
-        f"<WeekDays>{''.join(night.format(day=day) for day in range(1, 8))}</WeekDays></Calendar>"
-        "<Calendar><UID>2</UID><Name>Sans lundi</Name><BaseCalendarUID>1</BaseCalendarUID>"
-        "<WeekDays><WeekDay><DayType>2</DayType><DayWorking>0</DayWorking></WeekDay></WeekDays>"
-        "</Calendar></Calendars>"
-    )
-    content = (
-        f'<Project xmlns="http://schemas.microsoft.com/project">{calendars}<Tasks/></Project>'
-    ).encode()
-    project = read_project(content).project
-    resolved = calendars_of(project)
-    assert resolved[1].calendar.week == (Decimal(4),) * 7
-    assert resolved[2].calendar.week == (Decimal(0), *(Decimal(4),) * 6)
-    assert resolved[1].instant(datetime.fromisoformat(f"{MONDAY}T22:00:00")) == instant(MONDAY, "2")
-    defaults = constants_of(project)
-    assert (defaults.hours_per_day, defaults.hours_per_week, defaults.days_per_month) == (
-        Decimal(8),
-        Decimal(40),
-        Decimal(20),
-    )

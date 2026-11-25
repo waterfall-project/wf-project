@@ -204,23 +204,21 @@ def test_a_creation_without_a_label_is_refused(api: ContractClient, stage: Scene
         assert session.scalar(select(func.count()).select_from(Project)) == 1
 
 
-@pytest.mark.requirement("WF-PRJ-0010-A")
-@pytest.mark.parametrize("code", ["/  ", "/", "PRJ/001", "  /", "a/ "])
-def test_a_code_that_holds_a_slash_is_refused_whatever_else_it_holds(
-    api: ContractClient, stage: Scene, code: str
+@pytest.mark.story("US-3270")
+def test_a_code_that_holds_a_slash_is_written_at_the_creation_and_the_modification(
+    api: ContractClient, stage: Scene
 ) -> None:
-    # #1658: « /  » is both blank and a bearer of the barre oblique, and receives the one refusal
-    # the contract gives it, the barre oblique first; on the creation and on the modification.
-    expected = [("/code", "PROJECT_CODE_INVALID", {"forbidden_characters": ["/"]})]
-    created = api.post(PROJECTS, headers=stage.manager.headers, json={"label": "A", "code": code})
-    assert (created.status_code, faults(created)) == (422, expected)
+    # Propre à l'US : le code d'un projet peut porter une barre oblique, et des points ;
+    # ``PROJECT_CODE_INVALID`` tombe (#3966). Un code d'une barre oblique et de blancs n'est pas
+    # blanc : il s'écrit tel qu'envoyé.
+    created = create(api, stage.manager, code="A.ABC.26001/1")
+    assert created["code"] == "A.ABC.26001/1"
     changed = api.patch(
         f"{PROJECTS}/{stage.project['project_id']}",
         headers=stage.manager.headers,
-        json={"code": code, "lock_version": 1},
+        json={"code": "/  ", "lock_version": 1},
     )
-    assert (changed.status_code, faults(changed)) == (422, expected)
-    assert changed.json()["code"] == "VALIDATION_FAILED"
+    assert (changed.status_code, changed.json()["code"]) == (200, "/  ")
 
 
 @pytest.mark.requirement("WF-PRJ-0010-A")

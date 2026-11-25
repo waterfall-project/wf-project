@@ -5,7 +5,7 @@
 ``0008`` let the role of the service write a task, read it and update it, but delete none. The
 task ``purge`` of the worker deletes the tasks ended for longer than the retention of their result,
 ``background_task_retention_days`` (§4.4.1, WF-DAT-0080), the report of a reading of the accounts
-going with its task (``0044``): the role of the service receives ``DELETE`` on ``background_task``,
+going with its task (``0048``): the role of the service receives ``DELETE`` on ``background_task``,
 and loses it again at the downgrade. Only the right changes; no row is written.
 """
 
@@ -16,8 +16,8 @@ from alembic import op
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-revision: str = "0045"
-down_revision: str | None = "0044"
+revision: str = "0049"
+down_revision: str | None = "0048"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

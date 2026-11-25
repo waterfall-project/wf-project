@@ -101,6 +101,16 @@ describe("the imports on the screen of a project without revision", () => {
     expect(report).toBeLessThan(page.indexOf('aria-label="Import a file"'));
   });
 
+  it("says the import its address names is gone, without pointing to a list the screen has not [US-3280]", async () => {
+    server.answers = {
+      ...server.answers,
+      [IMPORT_READ]: { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    const page = text(await projectAt({ import: IMPORT }));
+    expect(page).toContain("The import the address names no longer exists");
+    expect(page).not.toContain("listed below");
+  });
+
   it("says on the import of actual costs unavailable the columns without a label, with the way to the correspondence, reading it once [WF-REF-0190-A]", async () => {
     server.answers = {
       ...server.answers,
@@ -257,6 +267,18 @@ describe("the screen of a project that has a revision leads to it", () => {
 
   it("to the revision in progress, not to the one the address names, which the path replaces [WF-IHM-0010-A]", async () => {
     expect(await leadsTo({ revision_id: REFERENCE })).toBe(`${WITNESS}/revisions/${CURRENT}`);
+  });
+
+  it("sends an import gone, which the address names, to the exchanges of the revision, whose list says it [US-3280]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/imports/{import_id}": {
+        problem: { code: "NOT_FOUND", status: 404 },
+      },
+    };
+    expect(await leadsTo({ import: IMPORT })).toBe(
+      `${WITNESS}/revisions/${CURRENT}/exchanges?import=${IMPORT}`,
+    );
   });
 
   it("sends the report of an import its address names to the exchanges of the revision, which shows it [WF-IHM-0010-A]", async () => {

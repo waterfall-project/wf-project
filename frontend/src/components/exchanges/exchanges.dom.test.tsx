@@ -650,7 +650,7 @@ describe("the report of an import", () => {
     await waitFor(() => {
       expect(client.calls).toHaveLength(1);
     });
-    window.history.replaceState(null, "", `${START}&import=01926f3a-7c00-7000-8000-000000000a10`);
+    window.history.replaceState(null, "", `${START}&import=01926f3a-7c00-7000-8000-000000000a09`);
     answer.release();
     await waitFor(() => {
       expect(abandon).toHaveAttribute("aria-busy", "false");
@@ -758,7 +758,7 @@ describe("the report of an import", () => {
     serve({});
     const held = open(report(example("import_remaining_subproject_held") as Import));
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
-      "3Cette ligne ne peut pas quitter ce sous-projet",
+      "4Cette ligne ne peut pas quitter ce sous-projet",
     );
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
       "« Poste de commande »",
@@ -766,7 +766,7 @@ describe("the report of an import", () => {
     held.unmount();
     open(report(example("import_remaining_ambiguous_label") as Import));
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
-      "3Ce libellé est porté par plusieurs tâches",
+      "4Ce libellé est porté par plusieurs tâches",
     );
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
       "Libellé lu : « Mise en service », porté par les tâches « Mise en service » et « Mise en service ».",
@@ -793,12 +793,12 @@ describe("the report of an import", () => {
 
   it("names the element of work breakdown a line of actual cost is rejected for [WF-CRE-0020-A]", () => {
     serve({});
-    open(report(example("import_actual_costs_wbs_invalid") as Import));
+    open(report(example("import_actual_costs_dotted_code") as Import));
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
-      "5L’élément d’OTP de la ligne n’a pas la forme attendue",
+      "3L’élément d’OTP de la ligne n’est ni le code du projet ni celui de l’un de ses sous-projets.",
     );
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
-      "Élément d’OTP lu : « /SP-CAB ».",
+      "Élément d’OTP lu : « A.ABC.26002/10001 ».",
     );
   });
 

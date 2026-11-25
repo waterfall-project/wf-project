@@ -138,7 +138,7 @@ describe("the grid of the actual costs", () => {
       "10",
       "21/04/2026",
       `1${NARROW}800,00`,
-      "Hors sous-projetSP-CAB",
+      "Hors sous-projet",
       "Suivie",
     ]);
     // Each column kept from the file, under the name the file gives it, as imported.
@@ -189,22 +189,31 @@ describe("the grid of the actual costs", () => {
     expect(cellsOf("AV-2026-0388")[3]).toHaveTextContent("-200,00");
   });
 
-  it("shows a line whose sub-project is unknown as charged to the project alone, with the code its OTP element gave [WF-CRE-0020-A]", () => {
+  it("shows a line charged to the project alone as outside any sub-project, with no code [WF-CRE-0020-A]", () => {
     render(costsGrid(costsOf("actual_costs")));
-    const codes: readonly (readonly [string, string])[] = [
-      ["FA-2026-0412", "SP-CAB"],
-      ["AV-2026-0388", "SP-CAB"],
-      ["FA-2026-0301", "SP-AUT"],
-      ["FA-2026-0295", "SP-REC"],
-    ];
-    for (const [number, code] of codes) {
-      expect(cellsOf(number)[4]).toHaveTextContent(`Hors sous-projet${code}`);
+    for (const number of ["FA-2026-0412", "AV-2026-0388", "FA-2026-0301", "FA-2026-0295"]) {
+      expect(cellsOf(number)[4]).toHaveTextContent(/^Hors sous-projet$/);
     }
   });
 
   it("names the sub-project of a line by its code and its label, as the server resolves them [WF-CRE-0020-A]", () => {
     render(costsGrid(costsOf("actual_costs_subproject")));
-    expect(cellsOf("FA-2026-0521")[4]).toHaveTextContent("SP-CMDPoste de commande");
+    expect(cellsOf("FA-2026-0521")[4]).toHaveTextContent("PRJ-001/SP-CMDPoste de commande");
+  });
+
+  it("cuts a code of a hundred characters within the column, and gives it whole by its title [WF-PRJ-0050-A] [US-3270]", () => {
+    // The code the reprise of the codes gives: the project's, a slash, the former code (#4896).
+    const code = `PRJ-001/${"SP-".padEnd(92, "X")}`;
+    expect(code).toHaveLength(100);
+    const costs = costsOf("actual_costs_subproject");
+    const long = costs.items.map((line) => ({ ...line, subproject_code: code }));
+    render(costsGrid({ ...costs, items: long }));
+    const shown = within(cellsOf("FA-2026-0521")[4] ?? grid()).getByText(code);
+    expect(shown).toHaveAttribute("title", code);
+    // The width bound is what leaves the label its place; jsdom does not measure the layout.
+    expect(shown).toHaveClass("truncate", "max-w-3/5", "shrink-0");
+    // The label keeps its place beside the code cut.
+    expect(cellsOf("FA-2026-0521")[4]).toHaveTextContent(`${code}Poste de commande`);
   });
 
   it("keeps an excluded line visible, said excluded in words, with the reason of its exclusion [WF-CRE-0030-A]", () => {

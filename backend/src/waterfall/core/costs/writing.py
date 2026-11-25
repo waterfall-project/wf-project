@@ -59,7 +59,7 @@ class Written(Protocol):
 
     @property
     def subproject_code(self) -> str | None:
-        """The code of subproject the WBS element bears, none without a subproject part."""
+        """The code of the subproject the WBS element is, none for the code of the project."""
         ...
 
     @property
@@ -93,7 +93,7 @@ def held_lines(
 class Placed:
     """Where a line is written: its project, its identifier if new, its subproject, its import.
 
-    The subproject is the one its code names: none for a code no subproject bears, or no code.
+    The subproject is the one whose code the line bears, none for a line of the project alone.
     """
 
     project_id: UUID

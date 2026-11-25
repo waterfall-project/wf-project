@@ -61,25 +61,25 @@ export function CostLineCell({ line }: { readonly line: CostRow }) {
 }
 
 /**
- * Render the sub-project of a line: its code and its label, or « no sub-project » — followed by
- * the code the OTP element gave, kept and shown when it matches no sub-project (WF-CRE-0020).
+ * Render the sub-project of a line: its code and its label, or « no sub-project » for a line
+ * charged to the project alone, whose OTP element is the code of the project (WF-CRE-0020).
  */
 export function SubprojectCell({ line }: { readonly line: CostRow }) {
   const t = useTranslations("enums.SubprojectFilter");
   // A line charged to the project alone has no sub-project to name: the label says so.
   if (line.subproject_label === null) {
-    return (
-      <span className="flex min-w-0 gap-1.5">
-        <span className="truncate text-muted-foreground italic">{t("unassigned")}</span>
-        {line.subproject_code === null ? null : (
-          <span className="shrink-0 font-medium">{line.subproject_code}</span>
-        )}
-      </span>
-    );
+    return <span className="truncate text-muted-foreground italic">{t("unassigned")}</span>;
   }
+  // A code may run to a hundred characters (WF-PRJ-0050, US-3270): cut within three fifths of the
+  // cell, leaving room for the label, and given whole by its title (#4896).
   return (
     <span className="flex min-w-0 gap-1.5">
-      <span className="shrink-0 font-medium">{line.subproject_code}</span>
+      <span
+        className="max-w-3/5 shrink-0 truncate font-medium"
+        title={line.subproject_code ?? undefined}
+      >
+        {line.subproject_code}
+      </span>
       <span className="truncate">{line.subproject_label}</span>
     </span>
   );

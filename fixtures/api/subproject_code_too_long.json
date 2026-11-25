@@ -1,11 +1,11 @@
 {
-  "summary": "Un sous-projet créé sous le code ESSAIS-MISE-EN-SERVICE-LIGNE-002, de trente-deux caractères quand le nom d'un onglet du fichier de reste à engager en admet trente et un : refusé, le code désigné par son motif, la borne de son champ nommée (max_length), que le formulaire dit au champ ; rien n'est écrit (WF-PRJ-0050, WF-ARC-0110).",
+  "summary": "Un sous-projet créé sous le code PRJ-001/ESSAIS-ET-MISE-EN-SERVICE-DE-LA-LIGNE-DE-CONDITIONNEMENT-002-POSTE-DE-COMMANDE-ARMOIRES-A1-A2, de cent un caractères quand le code d'un sous-projet en admet cent : refusé, le code désigné par son motif, la borne de son champ nommée (max_length), que le formulaire dit au champ ; rien n'est écrit (WF-PRJ-0050, WF-ARC-0110, #3966).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "code": "VALIDATION_FAILED",
     "status": 422,
     "fields": [
-      {"pointer":"/code","code":"VALUE_TOO_LONG","params":{"max_length":31}}
+      {"pointer":"/code","code":"VALUE_TOO_LONG","params":{"max_length":100}}
     ],
     "correlation_id": "01926f3a-7c00-7000-8000-000000001669"
   }

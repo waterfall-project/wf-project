@@ -200,10 +200,11 @@ test("imports the actual costs of a project the run creates, then excludes a lin
     const seeded = await seedPlanning(page, browser, calls, manager, "Coûts importés");
     const code = await bringInProgress(page, calls, seeded);
     // A subproject of the project, so that one line is charged to it and the others to the project
-    // alone (WF-CRE-0020).
+    // alone (WF-CRE-0020). Its code is the whole WBS element of its lines: the service compares the
+    // element to the code of the project and to those of its subprojects, whole.
     const made = await calls.post(`${API}/projects/${seeded.ids.project}/subprojects`, {
       headers: seeded.headers,
-      data: { code: "10001", label: "Lot câblage" },
+      data: { code: `${code}/10001`, label: "Lot câblage" },
     });
     expect(made.status(), "POST subprojects").toBe(201);
     await importActualCosts(calls, seeded, [
@@ -218,6 +219,10 @@ test("imports the actual costs of a project the run creates, then excludes a lin
     const grid = page.getByRole("grid", { name: "Coûts réels" });
     const lines = grid.getByRole("row", { name: /FA-000\d/ });
     await expect(lines).toHaveCount(4, { timeout: WORKING });
+    // The line of the element `<code>/10001` is charged to the sub-project of that code, shown whole
+    // (US-3270); the others, whose element is the code of the project, to no sub-project.
+    await expect(grid.getByRole("row", { name: /FA-0004/ })).toContainText(`${code}/10001`);
+    await expect(grid.getByRole("row", { name: /FA-0001/ })).not.toContainText(`${code}/10001`);
     const totals = page.getByRole("region", { name: "Totaux des lignes retenues" });
     await expect(totals).toHaveText(
       /^Totaux des lignes retenues\s*Périmètre suivi\s*1\s360,50\s€\s*Exclu du périmètre suivi\s*0,00\s€\s*Total général\s*1\s360,50\s€\s*Dernier import/,

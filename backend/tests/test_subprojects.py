@@ -4,13 +4,12 @@
 
 ``listSubprojects``, ``createSubproject``, ``updateSubproject`` and ``deleteSubproject`` on projects
 created through the service, every answer checked against the contract: the code unique in the
-project, even under two creations at once, the codes a tab refuses and the reserved names under
-their variants (#1502), the commands and the refusal that names the first condition lacking, the
-deletion for good, and the subprojects the witness loads.
+project, even under two creations at once, free but for the code of the project (#3966), the
+commands and the refusal that names the first condition lacking, the deletion for good, and the
+subprojects the witness loads.
 """
 
 import json
-import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
@@ -175,79 +174,153 @@ def test_the_same_code_in_two_projects_is_not_a_collision(
     assert answer.status_code == 201, answer.text
 
 
+FORTY = "Lot 4 - Ligne d'essais, armoires, câbles"
+"""A code of forty characters, beyond the 31 of the name of a tab (WF-PRJ-0050-A)."""
+
+
 @pytest.mark.requirement("WF-PRJ-0050-A")
 @pytest.mark.parametrize(
-    ("code", "forbidden"),
-    [("SP/01", ["/"]), ("A:B*C", [":", "*"]), ("[x]?", ["[", "]", "?"]), ("a\\b\\c", ["\\"])],
+    "code",
+    [
+        "A.ABC.26001/10001",
+        "Synthèse",
+        FORTY,
+        "Hors sous-projet",
+        "A:B*C[x]?\\d",
+        "x" * 100,
+    ],
 )
-def test_a_code_with_a_character_a_tab_refuses_is_refused_naming_each_once(
-    api: ContractClient, stage: Scene, code: str, forbidden: list[str]
-) -> None:
-    refused = add(api, stage, code)
-    assert refused.status_code == 422
-    assert faults(refused) == [
-        ("/code", "SUBPROJECT_CODE_INVALID", {"forbidden_characters": forbidden})
-    ]
-    assert stored(stage) == 0
-
-
-RESERVED = [
-    ("Synthèse", "Synthèse"),
-    ("synthèse", "Synthèse"),
-    ("SYNTHÈSE", "Synthèse"),
-    ("Synthèse ", "Synthèse"),
-    ("  Synthèse", "Synthèse"),
-    ("Synthèse ", "Synthèse"),
-    (unicodedata.normalize("NFD", "Synthèse"), "Synthèse"),
-    (unicodedata.normalize("NFD", "SYNTHÈSE"), "Synthèse"),
-    ("Hors sous-projet", "Hors sous-projet"),
-    ("hors sous-projet", "Hors sous-projet"),
-    ("Hors  sous-projet", "Hors sous-projet"),
-    ("Hors sous-projet", "Hors sous-projet"),
-    ("HORS \t SOUS-PROJET ", "Hors sous-projet"),
-]
+def test_a_free_code_is_created_as_it_is_sent(api: ContractClient, stage: Scene, code: str) -> None:
+    # « Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de quarante caractères se
+    # crée » : le code est libre, jusqu'à 100 caractères — une barre oblique, un caractère qu'un
+    # onglet refuse, le nom d'un onglet de Waterfall —, et s'écrit tel qu'envoyé (#3966). L'onglet
+    # du fichier de reste à engager est d'US-3270/L3.
+    assert len(FORTY) == 40
+    created = made(api, stage, code)
+    assert created["code"] == code
+    listed = api.get(path(stage), headers=stage.manager.headers)
+    assert [item["code"] for item in listed.json()] == [code]
 
 
 @pytest.mark.requirement("WF-PRJ-0050-A")
-@pytest.mark.parametrize(("code", "name"), RESERVED)
-def test_a_reserved_name_is_refused_whatever_its_case_blanks_and_unicode_form(
-    api: ContractClient, stage: Scene, code: str, name: str
-) -> None:
-    refused = add(api, stage, code)
-    assert refused.status_code == 422
-    assert faults(refused) == [("/code", "SUBPROJECT_CODE_INVALID", {"reserved_name": name})]
-    assert stored(stage) == 0
-
-
-@pytest.mark.requirement("WF-PRJ-0050-A")
-@pytest.mark.parametrize(("code", "name"), RESERVED[:1] + RESERVED[3:4] + RESERVED[8:9])
-def test_a_reserved_name_is_refused_at_the_change_as_at_the_creation(
-    api: ContractClient, stage: Scene, code: str, name: str
-) -> None:
-    created = made(api, stage, "SP-1")
-    refused = api.patch(
-        path(stage, created["subproject_id"]),
-        headers=stage.manager.headers,
-        json={"code": code, "label": "Poste", "lock_version": 0},
-    )
-    assert refused.status_code == 422
-    assert faults(refused) == [("/code", "SUBPROJECT_CODE_INVALID", {"reserved_name": name})]
-
-
-@pytest.mark.requirement("WF-PRJ-0050-A")
-@pytest.mark.parametrize("code", ["Synthese", "Synthèse 2", "Hors lot", "x" * 31])
-def test_a_code_that_names_a_tab_is_accepted(api: ContractClient, stage: Scene, code: str) -> None:
-    assert made(api, stage, code)["code"] == code
-
-
-@pytest.mark.requirement("WF-PRJ-0050-A")
-def test_a_code_of_more_than_thirty_one_characters_is_refused_with_its_bound(
+def test_a_code_of_more_than_a_hundred_characters_is_refused_with_its_bound(
     api: ContractClient, stage: Scene
 ) -> None:
-    refused = add(api, stage, "x" * 32)
+    refused = add(api, stage, "x" * 101)
     assert refused.status_code == 422
-    assert faults(refused) == [("/code", "VALUE_TOO_LONG", {"max_length": 31})]
+    assert faults(refused) == [("/code", "VALUE_TOO_LONG", {"max_length": 100})]
     assert stored(stage) == 0
+
+
+def coded_project(api: ContractClient, stage: Scene, code: str) -> dict[str, Any]:
+    """Give the project of the scene the code given, as its manager does; give what is answered."""
+    changed = api.patch(
+        f"{PROJECTS}/{stage.project['project_id']}",
+        headers=stage.manager.headers,
+        json={"code": code, "lock_version": stage.project["lock_version"]},
+    )
+    assert changed.status_code == 200, changed.text
+    return changed.json()
+
+
+@pytest.mark.requirement("WF-PRJ-0050-A")
+def test_the_code_of_the_project_is_refused_to_a_subproject_created_or_recoded(
+    api: ContractClient, stage: Scene
+) -> None:
+    # « La création d'un sous-projet dont le code est celui du projet est refusée. » : de même son
+    # recodage, comparé en entier, sans paramètre ; rien n'est écrit (#3966).
+    coded_project(api, stage, "A.ABC.26001")
+    refused = add(api, stage, "A.ABC.26001")
+    assert (refused.status_code, refused.json()["code"]) == (422, "VALIDATION_FAILED")
+    assert faults(refused) == [("/code", "SUBPROJECT_CODE_INVALID", {})]
+    assert stored(stage) == 0
+    created = made(api, stage, "A.ABC.26001/10001")
+    recoded = api.patch(
+        path(stage, created["subproject_id"]),
+        headers=stage.manager.headers,
+        json={"code": "A.ABC.26001", "label": "Poste", "lock_version": 0},
+    )
+    assert (recoded.status_code, faults(recoded)) == (
+        422,
+        [("/code", "SUBPROJECT_CODE_INVALID", {})],
+    )
+    # Compared whole, without the blanks at the ends, as the WBS element of a line is compared to
+    # both: a code that differs from the project's by such blanks alone is the project's.
+    for blanked in ("A.ABC.26001 ", " A.ABC.26001"):
+        assert faults(add(api, stage, blanked)) == [("/code", "SUBPROJECT_CODE_INVALID", {})]
+    # A code that begins as the project's is free.
+    listed = api.get(path(stage), headers=stage.manager.headers).json()
+    assert [(item["code"], item["lock_version"]) for item in listed] == [
+        ("A.ABC.26001/10001", 0),
+    ]
+
+
+@pytest.mark.requirement("WF-PRJ-0050-A")
+def test_two_codes_that_differ_by_their_blanks_at_the_ends_alone_do_not_share_a_project(
+    api: ContractClient, stage: Scene
+) -> None:
+    # « La création de deux sous-projets de même code dans un même projet est refusée. » : « X » et
+    # « X  » seraient un même élément d'OTP (#3966) ; refusés à la création comme au recodage, le
+    # premier nommé ; un code stocké garde ses blancs, et se recode vers lui-même sans eux.
+    first = made(api, stage, " SP-CMD ")
+    assert first["code"] == " SP-CMD "
+    taken = {
+        "conflicting_object_id": first["subproject_id"],
+        "conflicting_object_label": "Poste de commande",
+    }
+    refused = add(api, stage, "SP-CMD", "Essais")
+    assert (refused.status_code, faults(refused)) == (409, [("/code", "ALREADY_EXISTS", taken)])
+    other = made(api, stage, "SP-2", "Deux")
+    recoded = api.patch(
+        path(stage, other["subproject_id"]),
+        headers=stage.manager.headers,
+        json={"code": "SP-CMD\t", "label": "Deux", "lock_version": 0},
+    )
+    assert (recoded.status_code, faults(recoded)) == (409, [("/code", "ALREADY_EXISTS", taken)])
+    trimmed = api.patch(
+        path(stage, first["subproject_id"]),
+        headers=stage.manager.headers,
+        json={"code": "SP-CMD", "label": "Poste", "lock_version": 0},
+    )
+    assert trimmed.status_code == 200, trimmed.text
+    assert (trimmed.json()["code"], trimmed.json()["lock_version"]) == ("SP-CMD", 1)
+    assert stored(stage) == 2
+
+
+@pytest.mark.requirement("WF-PRJ-0050-A")
+def test_a_project_recoded_to_the_code_of_one_of_its_subprojects_is_refused(
+    api: ContractClient, stage: Scene
+) -> None:
+    # Le recodage d'un projet vers le code de l'un de ses sous-projets est refusé comme la
+    # création d'un sous-projet au code du projet, sur ``/code``, sans paramètre (#3966) ; le code
+    # d'un sous-projet d'un autre projet ne le gêne pas.
+    made(api, stage, "SP-CMD")
+    project = api.get(f"{PROJECTS}/{stage.project['project_id']}", headers=stage.manager.headers)
+    refused = api.patch(
+        f"{PROJECTS}/{stage.project['project_id']}",
+        headers=stage.manager.headers,
+        json={"code": "SP-CMD", "lock_version": project.json()["lock_version"]},
+    )
+    assert (refused.status_code, faults(refused)) == (
+        422,
+        [("/code", "SUBPROJECT_CODE_INVALID", {})],
+    )
+    again = api.get(f"{PROJECTS}/{stage.project['project_id']}", headers=stage.manager.headers)
+    assert (again.json()["code"], again.json()["lock_version"]) == (
+        project.json()["code"],
+        project.json()["lock_version"],
+    )
+    # Compared without the blanks at the ends, as the WBS element of a line is compared to both.
+    blanked = api.patch(
+        f"{PROJECTS}/{stage.project['project_id']}",
+        headers=stage.manager.headers,
+        json={"code": " SP-CMD", "lock_version": project.json()["lock_version"]},
+    )
+    assert (blanked.status_code, faults(blanked)) == (
+        422,
+        [("/code", "SUBPROJECT_CODE_INVALID", {})],
+    )
+    assert coded_project(api, stage, "SP-CMD/1")["code"] == "SP-CMD/1"
 
 
 @pytest.mark.requirement("WF-PRJ-0050-A")
@@ -261,19 +334,6 @@ def test_an_empty_or_blank_code_or_label_is_refused_field_by_field(
     ]
     blank = add(api, stage, "   ")
     assert faults(blank) == [("/code", "VALUE_REQUIRED", {})]
-
-
-@pytest.mark.requirement("WF-PRJ-0050-A")
-def test_a_forbidden_code_and_an_empty_label_are_both_named_in_one_refusal(
-    api: ContractClient, stage: Scene
-) -> None:
-    refused = add(api, stage, "A/B", "")
-    assert refused.status_code == 422
-    assert faults(refused) == [
-        ("/code", "SUBPROJECT_CODE_INVALID", {"forbidden_characters": ["/"]}),
-        ("/label", "VALUE_REQUIRED", {}),
-    ]
-    assert stored(stage) == 0
 
 
 @pytest.mark.requirement("WF-PRJ-0050-A")

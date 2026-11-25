@@ -50,6 +50,26 @@ describe("le compte rendu de la survenance", () => {
     expect(row).toHaveTextContent(/Fin/);
   });
 
+  it("ne dit aucune rangée de moins ni ne déplace le focus pour un compte rendu court, lu en entier [US-3280] [WF-INTF-0080-A]", () => {
+    shown(REDATING);
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText(/rangées/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Tout afficher" })).toBeNull();
+    expect(document.body).toHaveFocus();
+  });
+
+  it("rend toutes les rangées d'un tableau d'écarts non limité, sans bouton [US-3280] [WF-INTF-0080-A]", () => {
+    const [difference] = REPORT.differences;
+    if (difference === undefined) {
+      throw new Error("the example has no difference");
+    }
+    shown({ ...REPORT, differences: Array.from({ length: 250 }, () => difference) });
+    const table = screen.getByRole("table", { name: /écarts/i });
+    expect(within(table).getAllByRole("row")).toHaveLength(251);
+    expect(screen.queryByRole("button", { name: "Tout afficher" })).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   it("signale un devis propre qui commence avant le jour de la déclaration, sans le refuser [US-2640] [WF-IHM-0020-A]", () => {
     shown(REDATING);
     expect(screen.getByRole("note")).toHaveTextContent(/commence le 2 mars 2026, avant le jour/);

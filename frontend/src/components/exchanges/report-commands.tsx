@@ -74,6 +74,7 @@ function ConfirmForm({
 }) {
   const t = useTranslations("exchanges.report");
   const track = useTrackTask();
+  const router = useRouter();
   const confirm = useRef<HTMLButtonElement>(null);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   // Busy from the press to the answer, and lifted in the very update that tells it — not a
@@ -90,18 +91,25 @@ function ConfirmForm({
     if (waiting) {
       return;
     }
-    const command = () => applyFileImport(projectId, importId);
     setBusy(true);
-    void command()
+    void applyFileImport(projectId, importId)
       .catch(rejectedWrite())
       .then((result) => {
         setBusy(false);
         if (result.kind === "done") {
-          track(result.data, { command, subject: filename, aim: applyAim(importId) });
+          // Handed over without its command: the application does not run again — a failed import
+          // has lost its file, and the service refuses it still (WF-IHM-0080) —, so the tracker
+          // tells the failure with its motive and sends the user back to this screen.
+          track(result.data, { subject: filename, aim: applyAim(importId) });
           onClose();
           onApplied(result.data.task_id);
         } else {
           setOutcome(result);
+          if (result.kind === "conflict") {
+            // A definitive refusal (409): the import is no longer the one the screen read, which
+            // is read anew, as the choice of the rule of the durations does.
+            router.refresh();
+          }
         }
       });
   };

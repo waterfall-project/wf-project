@@ -1,0 +1,22 @@
+{
+  "summary": "Variante contrefactuelle de import_remaining_analysed : les « Borniers » comptés par mille, une quantité de 1 000, et le fichier qui porte leur débours restant à 1 234,56. L'import garde la quantité et écrit le débours unitaire, arrondi au centime, le coefficient d'inflation du « Câblage des armoires », consommé en 2026, année de référence de la révision 102, valant 1 : le montant écrit est 1 230,00, que le compte rendu signale avec le montant saisi ; une ligne dont le montant se divise juste ne l'est pas (WF-INTF-0120, #4428).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a13",
+    "kind": "remaining",
+    "filename": "reste-a-engager-cablage.xlsx",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000201",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
+    "status": "analysed",
+    "created_at": "2026-06-03T09:30:05Z",
+    "expires_at": "2026-06-04T09:31:00Z",
+    "report": {"format_version":"1","read_count":3,"unchanged_count":0,"rejected":[],"refusals":[],"differences":[{"change":"updated","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000653","label":"Raccordement des borniers","fields":["hours"]},{"change":"updated","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000654","label":"Borniers","fields":["unit_disbursement"]}],"ignored":[{"kind":"provision_lines","count":1,"labels":["Provision — Risque de reprise du câblage"]}],"completed_tasks":[],"date_mismatches":[],"signals":[{"lineage_id":"01926f3a-7c00-7000-8000-000000000654","label":"Borniers","column":"unit_disbursement","code":"AMOUNT_ROUNDED","params":{"typed_amount":"1234.56","written_amount":"1230.00"}}],"requires_confirmation_reasons":[],"unknown_wbs_elements":[],"unit_constants":null,"calendar_gap":null},
+    "task": {"task_id":"01926f3a-7c00-7000-8000-000000000930","kind":"import_analysis","status":"succeeded","progress":100,"submitted_at":"2026-06-03T09:30:05Z","finished_at":"2026-06-03T09:31:00Z","problem":null,"result_url":null},
+    "available_commands": [
+      {"command":"apply","is_available":true,"missing_conditions":[]},
+      {"command":"abandon","is_available":true,"missing_conditions":[]}
+    ]
+  }
+}

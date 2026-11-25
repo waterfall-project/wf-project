@@ -10,7 +10,8 @@ row (WF-DAT-0010). A marking deletes nothing.
 
 Declared by US-1380/L1; filled by US-1380/L2: the facets of the later kinds are deleted by their
 hooks first, then the nodes, whose facet task, links and children follow by the keys that cascade
-inside a current revision. The inscriptions follow the lineage, which the project keeps.
+inside a current revision. The inscriptions of the lineages no node holds any more go too
+(US-3340): one a marked revision still holds keeps its own.
 
 The nodes of a structure that goes with its owner — the own estimate of a risk deleted
 (``delete_structure_nodes``, US-2590/L1) — are kept whole by its owner first, for the undoing of
@@ -23,10 +24,11 @@ from typing import TYPE_CHECKING
 from sqlalchemy import delete, select
 
 from waterfall.core.history.interface import Restoring
+from waterfall.core.planning.inscriptions import delete_orphan_inscriptions
 from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.restoring import bring_back
 from waterfall.core.planning.snapshotting import taken
-from waterfall.core.planning.tables import Node
+from waterfall.core.planning.tables import Node, Task
 from waterfall.core.planning.tree import read_tree
 from waterfall.core.planning.writing import facts_of
 
@@ -105,8 +107,12 @@ def restore_structure_nodes(
 def _delete_where(session: Session, project_id: UUID, scope: ColumnElement[bool]) -> None:
     """Delete the nodes of a project a scope retains, their facets first."""
     where = (Node.project_id == project_id, scope)
+    lineages = set(
+        session.scalars(select(Node.lineage_id).join(Task, Task.node_id == Node.id).where(*where))
+    )
     for kind, hooks in facets().items():
         held = session.scalars(select(Node.id).where(*where, Node.kind == kind)).all()
         if held:
             hooks.delete(session, project_id, held)
     session.execute(delete(Node).where(*where).execution_options(synchronize_session=False))
+    delete_orphan_inscriptions(session, project_id, lineages)

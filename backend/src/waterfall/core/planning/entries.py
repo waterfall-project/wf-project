@@ -151,14 +151,18 @@ def finish_after(
 ) -> WorkInstant:
     """Give the finish of a manual task that lasts a duration from its start (WF-PLA-0160).
 
-    In units of work, on its calendar, hour after hour; in elapsed units, without a calendar.
+    In units of work, on its calendar, hour after hour; in elapsed units, without a calendar, on
+    the day they reach, their hours bounded to the hours of work of that day, as the engine
+    finishes the same duration in automatic mode (#4412): ten elapsed hours from a Monday's first
+    hour of work on a calendar of eight finish on the Monday at 8, not at 10, hours the contract's
+    ``WorkInstant`` does not hold.
     """
     hours = duration.hours(constants)
     if hours == 0:
         return start
     origin = Moment.of(start)
     if duration.is_elapsed:
-        return origin.elapsed(hours).instant()
+        return calendar.bounded(origin.elapsed(hours)).instant()
     return calendar.moment(calendar.count(origin) + hours, finish=True).instant()
 
 

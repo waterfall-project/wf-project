@@ -220,7 +220,7 @@ def backup_of(database: Database, task_id: UUID, verification: str) -> None:
                 is_retained=False,
                 object_key=f"backups/{task_id}.tar",
                 application_version="0.3.0",
-                schema_revision="0045",
+                schema_revision="0049",
                 task_id=task_id,
             )
         )

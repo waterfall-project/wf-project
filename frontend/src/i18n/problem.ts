@@ -16,10 +16,9 @@
  * by their labels and codes — a project without one by its label alone (WF-PLA-0010) —, the task of a
  * lot and those of its posts a write would move out of its subtree (`work_package_task`,
  * `order_item_tasks`, WF-PLA-0170) by their labels, the lines and the projects beyond a few
- * counted, the notice listing them, the characters a code of a sub-project cannot bear and the
- * reserved name it bears (`forbidden_characters`, `reserved_name`, WF-PRJ-0050), the sub-project a line of a started task does not leave
+ * counted, the notice listing them, the sub-project a line of a started task does not leave
  * (`subproject`, WF-PRJ-0050) by its label, what a line imported is rejected for as the file bears it (`value`, `label`
- * and `tasks`, `wbs_element`, `project_code`, `rows`); a state without its enumeration,
+ * and `tasks`, `wbs_element`, `rows`); a state without its enumeration,
  * or of an enumeration the catalogue does not know, adds nothing. A parameter that names nothing a
  * reader knows — an identifier, a lock version — adds nothing, but why a task would have no
  * working hour: the calendar of its one role, which has no hour, or those of its roles, which never
@@ -414,12 +413,21 @@ const DETAILS: readonly Reader[] = [
   ({ subproject }) =>
     subproject === undefined ? undefined : ["subproject", { label: subproject.label }],
   // What a line of a file imported is rejected for, named as the file bears it: the value it holds
-  // that no object has (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `value`), the
-  // label that several tasks share, with those tasks (`AMBIGUOUS_TASK_LABEL`, `label`, `tasks`,
-  // WF-INTF-0120), the element of work breakdown, and the project code it bears
-  // (`WBS_ELEMENT_INVALID`, `WBS_ELEMENT_OUTSIDE_PROJECT`, WF-CRE-0020), and the ranks of the other
-  // lines of the same document and item (`DUPLICATE_COST_LINE`, `rows`, WF-INTF-0080).
-  ({ value }) => (typeof value === "string" ? ["unknown_value", { value }] : undefined),
+  // that no object has (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `value`) —
+  // for a sheet of the remaining to commit, the code read at its head, which the user declares,
+  // and the sheet, where he finds the line (`subproject_code`, absent when the head has none,
+  // WF-INTF-0120, #4898) —, the label that several tasks share, with those tasks
+  // (`AMBIGUOUS_TASK_LABEL`, `label`, `tasks`, WF-INTF-0120), the element of work breakdown read
+  // whole (`WBS_ELEMENT_OUTSIDE_PROJECT`, WF-CRE-0020), and the ranks of the other lines of the same
+  // document and item (`DUPLICATE_COST_LINE`, `rows`, WF-INTF-0080).
+  ({ value, subproject_code }) => {
+    if (typeof value !== "string") {
+      return undefined;
+    }
+    return typeof subproject_code === "string" && subproject_code !== ""
+      ? ["unknown_subproject_code", { sheet: value, code: subproject_code }]
+      : ["unknown_value", { value }];
+  },
   ({ label, tasks }, _label, locale, say) => {
     const named = itemsOf(tasks, isLabelled).map((task) => say("taskName", { label: task.label }));
     return typeof label === "string" && named.length > 0
@@ -428,8 +436,6 @@ const DETAILS: readonly Reader[] = [
   },
   ({ wbs_element }) =>
     typeof wbs_element === "string" ? ["wbs_element", { element: wbs_element }] : undefined,
-  ({ project_code }) =>
-    typeof project_code === "string" ? ["project_code", { code: project_code }] : undefined,
   ({ rows }, _label, locale) => {
     const ranks = itemsOf(rows, (row): row is number => typeof row === "number");
     return ranks.length === 0
@@ -444,24 +450,15 @@ const DETAILS: readonly Reader[] = [
     const named = told === undefined ? undefined : label(told.list, state);
     return told === undefined || named === undefined ? undefined : [told.detail, { state: named }];
   },
-  // Why a code cannot name the tab of a sub-project: the characters it bears that a tab cannot, or
-  // the name it bears that is reserved, as the server gives them (`SUBPROJECT_CODE_INVALID`,
-  // WF-PRJ-0050).
-  ({ forbidden_characters }) => {
-    const characters = itemsOf(
-      forbidden_characters,
-      (item): item is string => typeof item === "string",
-    );
-    return characters.length === 0
-      ? undefined
-      : ["forbidden_characters", { characters: characters.join(" ") }];
-  },
-  ({ reserved_name }) =>
-    typeof reserved_name === "string" ? ["reserved_name", { name: reserved_name }] : undefined,
   ({ max_columns }) =>
     typeof max_columns === "number" ? ["max_columns", { max_columns }] : undefined,
   ({ minimum }, _label, locale) => bound("minimum", minimum, locale),
-  ({ maximum }, _label, locale) => bound("maximum", maximum, locale),
+  // The ceiling of the deposits of an import, whose condition already says « fewer than twenty »:
+  // told as what it bounds, not as a value (`pending_uploads_below_limit`, US-3240, #4854).
+  ({ maximum, missing_condition }, _label, locale) =>
+    missing_condition === "pending_uploads_below_limit"
+      ? bound("maximum", maximum, locale, "pendingUploadsMaximum")
+      : bound("maximum", maximum, locale),
   ({ component }, label) => {
     const name = label("enums.PlatformComponent", component);
     return name === undefined ? undefined : ["component", { component: name }];
@@ -488,8 +485,17 @@ const DETAILS: readonly Reader[] = [
   // The columns required that a file of actual costs lacks, each with the labels the correspondence
   // declares for it (`FILE_FORMAT_UNREADABLE`, WF-REF-0190, WF-INTF-0070).
   ({ missing_columns = [] }, label, locale, say) => {
-    const named = missing_columns.flatMap(({ column, labels }) => {
-      const name = label("enums.ActualCostSourceColumn", column);
+    const named = missing_columns.flatMap((missing) => {
+      // An estimate or a remaining to commit: the header as the format writes it, and its sheet.
+      if (missing.header !== undefined) {
+        return [
+          missing.sheet === undefined
+            ? say("declaredLabel", { label: missing.header })
+            : say("missingHeader", { header: missing.header, sheet: missing.sheet }),
+        ];
+      }
+      const { column, labels = [] } = missing;
+      const name = column === undefined ? undefined : label("enums.ActualCostSourceColumn", column);
       if (name === undefined) {
         return [];
       }
@@ -517,8 +523,25 @@ const DETAILS: readonly Reader[] = [
  * `ALREADY_EXISTS`, the holder of a value, which the form says at its field.
  */
 const OWN: Readonly<
-  Partial<Record<ProblemText["code"], (params: Readonly<Params>) => Detail | undefined>>
+  Partial<
+    Record<ProblemText["code"], (params: Readonly<Params>, locale: Locale) => Detail | undefined>
+  >
 > = {
+  // The amount a line of a remaining to commit carries in the file and the one the import writes
+  // (`AMOUNT_ROUNDED`, `ImportSignal`, WF-INTF-0120), both as the contract gives them.
+  AMOUNT_ROUNDED: ({ typed_amount, written_amount }, locale) =>
+    typeof typed_amount === "string" &&
+    DECIMAL.test(typed_amount) &&
+    typeof written_amount === "string" &&
+    DECIMAL.test(written_amount)
+      ? [
+          "amount_rounded",
+          {
+            typed: formatDecimal(typed_amount, locale),
+            written: formatDecimal(written_amount, locale),
+          },
+        ]
+      : undefined,
   UNDO_CONFLICT: ({ conflicting_object_label: label }) =>
     typeof label === "string" && label !== "" ? ["conflicting_object", { label }] : undefined,
 };
@@ -531,12 +554,17 @@ const DECIMAL = /^-?\d+(\.\d+)?$/;
  * of the contract written in the language of the reader; nothing for any other value — a date, which
  * the filter of a period says by itself.
  */
-function bound(key: "minimum" | "maximum", value: unknown, locale: Locale): Detail | undefined {
+function bound(
+  key: "minimum" | "maximum",
+  value: unknown,
+  locale: Locale,
+  sentence: "pendingUploadsMaximum" | typeof key = key,
+): Detail | undefined {
   if (typeof value === "number") {
-    return [key, { [key]: value }];
+    return [sentence, { [key]: value }];
   }
   return typeof value === "string" && DECIMAL.test(value)
-    ? [key, { [key]: formatDecimal(value, locale) }]
+    ? [sentence, { [key]: formatDecimal(value, locale) }]
     : undefined;
 }
 
@@ -593,7 +621,7 @@ export function problemMessage(
       pointer: field.pointer,
     })),
   ];
-  const own = OWN[problem.code]?.(problem.params ?? {});
+  const own = OWN[problem.code]?.(problem.params ?? {}, locale);
   const details = [
     ...every.flatMap(({ params, pointer }) =>
       DETAILS.map((detail) => detail(params, label, locale, say, names, pointer)),

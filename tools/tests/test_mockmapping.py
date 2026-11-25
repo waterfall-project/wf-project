@@ -381,18 +381,20 @@ def test_the_report_names_a_column_neither_read_nor_kept() -> None:
 
 
 @pytest.mark.requirement("WF-CRE-0020-A")
-def test_the_wbs_element_of_a_line_is_the_code_of_the_project_then_that_of_its_subproject() -> None:
-    # « Sur le projet de code A.ABC.26001, une ligne d'élément A.ABC.26001/10001 est imputée au
-    # sous-projet 10001 » : the witness's elements carry its code, then a slash and the code of
-    # the subproject, with no prefix before the code (C-373).
+def test_the_wbs_element_of_a_line_is_the_code_of_the_project_or_of_its_subproject() -> None:
+    # « Sur le projet de code A.ABC.26001, qui porte le sous-projet de code A.ABC.26001/10001, une
+    # ligne d'élément A.ABC.26001 est importée et imputée au seul projet, et une ligne d'élément
+    # A.ABC.26001/10001 est imputée à ce sous-projet. » : the witness's elements are compared whole,
+    # each the code of the project or that of a subproject of it, which bears the code of the
+    # project, a slash and its former code, as the reprise wrote it (#3966).
     code = fixture("project")["code"]
     known = {entry["code"]: entry["subproject_id"] for entry in fixture("subprojects")}
+    assert all(each.startswith(f"{code}/") for each in known)
     for line in mockcosts.lines():
         element = mockcosts.wbs_element(line)
-        project, _, subproject = element.partition("/")
-        assert project == code, element
-        assert (subproject or None) == line.code, element
-        assert mockcosts.imputed(line) == known.get(subproject), element
+        assert element == (code if line.code is None else line.code), element
+        assert element == code or element in known, element
+        assert mockcosts.imputed(line) == known.get(element), element
 
 
 @pytest.mark.requirement("WF-CRE-0020-A")
@@ -404,9 +406,9 @@ def test_no_example_names_a_wbs_element_with_the_former_prefix() -> None:
 
 @pytest.mark.requirement("WF-CRE-0020-A")
 def test_the_analysed_import_names_the_element_of_the_subproject_of_the_control_station() -> None:
-    # The summary says the credit note's element now carries the code of the project, a slash and
-    # the code of the subproject of the control station, as the generator forms it.
-    line = next(line for line in mockcosts.lines() if line.code == "SP-CMD")
+    # The summary says the credit note's element is now the code of the subproject of the control
+    # station, the code of the project, a slash and its former code, as the generator forms it.
+    line = next(line for line in mockcosts.lines() if line.code == "PRJ-001/SP-CMD")
     summary = json.loads(
         (mockwitness.FIXTURES / "import_actual_costs_analysed.json").read_text(encoding="utf-8")
     )["summary"]

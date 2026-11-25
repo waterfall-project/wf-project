@@ -83,8 +83,8 @@ def dated(number: str, code: str | None, amount: str, day: date) -> CostLineLoad
 def test_the_actual_costs_until_a_day_sum_the_tracked_lines_of_a_scope_dated_by_then(
     api: ContractClient, stage: Scene
 ) -> None:
-    # The lines of the whole project, of the project alone — no subproject part, or a code no
-    # subproject bears —, or of a subproject, dated on or before the day; a credit diminishes the
+    # The lines of the whole project, of the project alone — the element of the project, no code
+    # (#3966) —, or of a subproject, dated on or before the day; a credit diminishes the
     # sum (« Une ligne de montant négatif est acceptée et diminue le coût réel. »), an excluded
     # line enters it not, nor a line of another project.
     project = UUID(stage.project["project_id"])
@@ -103,11 +103,11 @@ def test_the_actual_costs_until_a_day_sum_the_tracked_lines_of_a_scope_dated_by_
             dated("A", "SP-1", "1000.00", date(2026, 3, 31)),
             dated("B", "SP-1", "-200.00", date(2026, 4, 15)),
             dated("C", None, "300.00", date(2026, 4, 1)),
-            dated("D", "SP-9", "50.00", date(2026, 4, 30)),
+            dated("D", None, "50.00", date(2026, 4, 30)),
             dated("E", "SP-1", "700.00", date(2026, 4, 2)),
         ],
     )
-    load_import(stage, elsewhere, [dated("A", "SP-1", "9999.00", date(2026, 3, 1))])
+    load_import(stage, elsewhere, [dated("A", None, "9999.00", date(2026, 3, 1))])
     with stage.owner.begin() as connection:
         connection.execute(
             update(CostLine)
@@ -156,11 +156,11 @@ def test_the_sums_by_subproject_until_a_day_give_each_scope_its_sum_in_one_state
             dated("A", "SP-1", "1000.00", date(2026, 3, 31)),
             dated("B", "SP-1", "-200.00", date(2026, 4, 15)),
             dated("C", None, "300.00", date(2026, 4, 1)),
-            dated("D", "SP-9", "50.00", date(2026, 4, 30)),
+            dated("D", None, "50.00", date(2026, 4, 30)),
             dated("E", "SP-1", "700.00", date(2026, 4, 2)),
         ],
     )
-    load_import(stage, elsewhere, [dated("A", "SP-1", "9999.00", date(2026, 3, 1))])
+    load_import(stage, elsewhere, [dated("A", None, "9999.00", date(2026, 3, 1))])
     with stage.owner.begin() as connection:
         connection.execute(
             update(CostLine)
@@ -190,7 +190,7 @@ def test_the_actual_cost_by_subproject_sums_the_tracked_lines_the_project_alone_
     api: ContractClient, stage: Scene
 ) -> None:
     # « Les lignes de coût imputées au seul projet forment un ensemble hors sous-projet » : a line
-    # without a code, or with one no subproject bears, is under ``unassigned``; an excluded line
+    # without a code — the element of the project — is under ``unassigned``; an excluded line
     # enters nothing, a credit diminishes, a subproject without a line is absent, and the lines of
     # another project are not counted.
     project = UUID(stage.project["project_id"])
@@ -213,11 +213,11 @@ def test_the_actual_cost_by_subproject_sums_the_tracked_lines_the_project_alone_
             dated("A", "SP-1", "1000.00", date(2026, 3, 31)),
             dated("B", "SP-1", "-200.00", date(2026, 4, 15)),
             dated("C", None, "300.00", date(2026, 4, 1)),
-            dated("D", "SP-9", "50.00", date(2026, 4, 30)),
+            dated("D", None, "50.00", date(2026, 4, 30)),
             dated("E", "SP-1", "700.00", date(2026, 4, 2)),
         ],
     )
-    load_import(stage, elsewhere, [dated("A", "SP-1", "9999.00", date(2026, 3, 1))])
+    load_import(stage, elsewhere, [dated("A", None, "9999.00", date(2026, 3, 1))])
     with stage.owner.begin() as connection:
         connection.execute(
             update(CostLine)

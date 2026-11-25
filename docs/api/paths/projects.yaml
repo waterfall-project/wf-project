@@ -136,15 +136,14 @@
           `VALIDATION_FAILED`, `fields` designating each field: `/label` empty, `VALUE_REQUIRED`
           (WF-PRJ-0080), or longer than the schema allows, `VALUE_TOO_LONG`; `/client` empty,
           `VALUE_REQUIRED`, or longer than the schema allows, `VALUE_TOO_LONG` (WF-PRJ-0080);
-          `/code` empty, `VALUE_REQUIRED`, made only of whitespace, `VALIDATION_FAILED`,
-          containing a slash, `PROJECT_CODE_INVALID`, or longer than the schema allows,
-          `VALUE_TOO_LONG` (`ProjectCode`, WF-PRJ-0010, WF-CRE-0020).
+          `/code` empty, `VALUE_REQUIRED`, made only of whitespace, `VALIDATION_FAILED`, or
+          longer than the schema allows, `VALUE_TOO_LONG` (`ProjectCode`, WF-PRJ-0010,
+          WF-CRE-0020). A code may bear a slash and dots (`A.ABC.26001`; #3966).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               refused: { $ref: ../../../fixtures/api/project_creation_refused.json }
-              code_invalid: { $ref: ../../../fixtures/api/project_code_invalid.json }
               code_blank: { $ref: ../../../fixtures/api/project_code_blank.json }
               fields_too_long: { $ref: ../../../fixtures/api/project_fields_too_long.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
@@ -257,13 +256,16 @@
           WF-DAT-0100, #2305); `/label` or
           `/client` empty, `VALUE_REQUIRED`, or longer than the schema allows,
           `VALUE_TOO_LONG` (WF-PRJ-0080); `/code` refused as at creation (`ProjectCode`,
-          WF-PRJ-0010, WF-CRE-0020). Nothing is written.
+          WF-PRJ-0010, WF-CRE-0020), or equal to the code of one of the subprojects of the
+          project, compared whole, `SUBPROJECT_CODE_INVALID`, without a parameter — a subproject
+          never bears the code of its project (WF-PRJ-0050; #3966). Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               rates_out_of_range: { $ref: ../../../fixtures/api/project_rates_out_of_range.json }
               rate_precision: { $ref: ../../../fixtures/api/project_rate_precision.json }
+              code_of_subproject: { $ref: ../../../fixtures/api/project_code_of_subproject.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -684,9 +686,11 @@
     summary: Create a subproject
     description: >-
       A subproject of the current project (WF-PRJ-0050), through the project's `update` command,
-      reserved to its project managers (WF-PRJ-0060). The actual cost lines that already carried
-      its code are charged to it at once (WF-CRE-0020): the response states it
-      (`has_actual_costs`).
+      reserved to its project managers (WF-PRJ-0060). Its code is free, compared whole, and never
+      the code of the project (`DeclaredSubprojectCode`). Its creation charges no actual cost line
+      to it: a line whose WBS element is its code was rejected at its import, the report naming
+      the element (`ImportReport.unknown_wbs_elements`), and only the reimport of the extraction
+      charges it (WF-CRE-0020; #3966).
     tags: [projects]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -725,19 +729,17 @@
         description: >-
           `VALIDATION_FAILED`, `fields` designating each field: `/code` or `/label` empty,
           `VALUE_REQUIRED`, or longer than the schema allows, `VALUE_TOO_LONG` —
-          `fields[].params.max_length` at `31` for `/code`, at `300` for `/label`, the bound
-          of the field —; `/code` containing a forbidden
-          character or equal to a reserved name, regardless of case, `SUBPROJECT_CODE_INVALID`,
-          `fields[].params.forbidden_characters` or `fields[].params.reserved_name` naming it:
-          the code names the subproject's tab in the remaining to commit file
-          (`DeclaredSubprojectCode`, WF-PRJ-0050). Nothing is written.
+          `fields[].params.max_length` at `100` for `/code`, at `300` for `/label`, the bound
+          of the field —; `/code` equal to the code of the project, compared whole,
+          `SUBPROJECT_CODE_INVALID`, without a parameter (`DeclaredSubprojectCode`, WF-PRJ-0050;
+          #3966). A code may bear a slash, a character a tab refuses or the name of a tab that
+          Waterfall writes. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
-              code_invalid: { $ref: ../../../fixtures/api/subproject_code_invalid.json }
-              code_reserved: { $ref: ../../../fixtures/api/subproject_code_reserved.json }
               code_too_long: { $ref: ../../../fixtures/api/subproject_code_too_long.json }
+              code_of_project: { $ref: ../../../fixtures/api/subproject_code_of_project.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -749,8 +751,9 @@
       A subproject of the current project (WF-PRJ-0050), as its `update` command states
       (`Subproject.available_commands`): its code and its label, at any time, whether actual costs
       are charged or not. A recoding changes the imputation of no actual cost line: the lines
-      imputed to the subproject stay imputed to it (WF-DAT-0060); those that awaited the former
-      code or the new one move only at their reimport (WF-CRE-0020, WF-INTF-0140).
+      imputed to the subproject stay imputed to it (WF-DAT-0060), and a line moves only at its
+      reimport, its WBS element compared whole with the codes of that day (WF-CRE-0020,
+      WF-INTF-0140). Its code is never the code of the project (`DeclaredSubprojectCode`).
     tags: [projects]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -791,19 +794,17 @@
         description: >-
           `VALIDATION_FAILED`, `fields` designating each field: `/code` or `/label` empty,
           `VALUE_REQUIRED`, or longer than the schema allows, `VALUE_TOO_LONG` —
-          `fields[].params.max_length` at `31` for `/code`, at `300` for `/label`, the bound
-          of the field —; `/code` containing a forbidden
-          character or equal to a reserved name, regardless of case, `SUBPROJECT_CODE_INVALID`,
-          `fields[].params.forbidden_characters` or `fields[].params.reserved_name` naming it:
-          the code names the subproject's tab in the remaining to commit file
-          (`DeclaredSubprojectCode`, WF-PRJ-0050). Nothing is written.
+          `fields[].params.max_length` at `100` for `/code`, at `300` for `/label`, the bound
+          of the field —; `/code` equal to the code of the project, compared whole,
+          `SUBPROJECT_CODE_INVALID`, without a parameter (`DeclaredSubprojectCode`, WF-PRJ-0050;
+          #3966). A code may bear a slash, a character a tab refuses or the name of a tab that
+          Waterfall writes. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
-              code_invalid: { $ref: ../../../fixtures/api/subproject_code_invalid.json }
-              code_reserved: { $ref: ../../../fixtures/api/subproject_code_reserved.json }
               code_too_long: { $ref: ../../../fixtures/api/subproject_code_too_long.json }
+              code_of_project: { $ref: ../../../fixtures/api/subproject_code_of_project.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:

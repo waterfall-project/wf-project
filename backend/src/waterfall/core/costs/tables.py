@@ -32,10 +32,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from waterfall.platform.database import CODE_POINTS, Base, UtcDateTime, bounded
 
-# The bounds of a document number and of the code of a subproject read in a WBS element
-# (``ActualCostLine.subproject_code``, 50 characters whether or not a subproject bears it).
+# The bounds of a document number and of the code of the subproject a line is imputed to
+# (``ActualCostLine.subproject_code``), the bound of the code of a subproject (#3966).
 DOCUMENT_NUMBER_LENGTH = 200
-SUBPROJECT_CODE_LENGTH = 50
+SUBPROJECT_CODE_LENGTH = 100
 # The four counts of an import (``CostImport``).
 COUNTS = ("created_count", "updated_count", "unchanged_count", "rejected_count")
 # What a JSON value holds: an object whose values are texts, an array whose elements are texts.
@@ -91,12 +91,12 @@ class CostImport(Base):
 class CostLine(Base):
     """A line of the actual costs of a project, by its document and its item (WF-CRE-0010).
 
-    Its subproject is the one its code names in its project, null for a line without a subproject
-    part or with a code no subproject bears, which keeps its code (WF-CRE-0020). An excluded line
-    may say why; a tracked one never does (WF-CRE-0030). Its columns kept are texts by their name.
-    An import inserts or updates it on its document and item, an exclusion updates it, and so does
-    an imputation to a subproject created: each advances its counter under the lock of the project,
-    which the key of the cache of the indicators reads (#3629).
+    Its subproject is the one whose code its WBS element is, compared whole, and its code that of
+    the subproject at its import; both null for a line whose element is the code of the project,
+    imputed to the project alone (WF-CRE-0020; #3966). An excluded line may say why; a tracked one
+    never does (WF-CRE-0030). Its columns kept are texts by their name. An import inserts or
+    updates it on its document and item, and an exclusion updates it: each advances its counter
+    under the lock of the project, which the key of the cache of the indicators reads (#3629).
     """
 
     __tablename__ = "cost_line"
@@ -125,9 +125,9 @@ class CostLine(Base):
         UniqueConstraint(
             "project_id", "document_number", "document_item", postgresql_nulls_not_distinct=True
         ),
-        # The reading by period and by subproject, and the imputation of the lines that wait for
-        # the code of a subproject created (EP-09, "Tables et migrations"): each index leads by the
-        # column the convention names it after, the project beside it.
+        # The reading by period, by subproject and by the code of the subproject (EP-09, "Tables et
+        # migrations"): each index leads by the column the convention names it after, the project
+        # beside it.
         Index(None, "project_id", "document_date"),
         Index(None, "subproject_id", "project_id"),
         Index(None, "subproject_code", "project_id"),

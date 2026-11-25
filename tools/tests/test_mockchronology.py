@@ -65,11 +65,11 @@ def test_the_writes_are_those_of_the_design_in_that_order() -> None:
     # opened, 100 designated, the code entered, 101 marked, 102 opened; no abandon. EP-07 adds the
     # update of the rates accepted on 101 (« Le chargeur du témoin »), and the designation of 100
     # succeeds: the project moves to In progress by the code entered (#2700); EP-09 the imports of
-    # costs, the exclusion of the reception of the customer and the expiry of the extraction of
-    # April replayed (see tools/tests/test_witness_costs.py); EP-08 the risks declared, reviewed,
-    # dismissed and occurred, the two amendments opened in the 101, the first merged, which marks
-    # it, the second updated in the 102 (US-2650/L1, see tools/tests/test_witness_risks.py).
-    costs = {"cost_import_applied", "cost_line_excluded", "import_expired"}
+    # costs and the exclusion of the reception of the customer (see
+    # tools/tests/test_witness_costs.py); EP-08 the risks declared, reviewed, dismissed and
+    # occurred, the two amendments opened in the 101, the first merged, which marks it, the second
+    # updated in the 102 (US-2650/L1, see tools/tests/test_witness_risks.py).
+    costs = {"cost_import_applied", "cost_line_excluded"}
     assert [
         (w["kind"], w.get("revision", w.get("risk_id", "")[-3:] or None))
         for w in _writes()
@@ -114,7 +114,6 @@ def test_each_write_has_the_fields_of_its_kind() -> None:
         "state_transition": {"kind", "project", "from", "to"},
         "cost_import_applied": {"kind", "project", "cost_import_id"},
         "cost_line_excluded": {"kind", "project", "document", "item", "reason"},
-        "import_expired": {"kind", "project", "import_id"},
         "risk_declared": {"kind", "project", "risk_id"},
         "risk_reviewed": {"kind", "project", "risk_id", "probability", "state"},
         "risk_occurred": {"kind", "project", "risk_id"},

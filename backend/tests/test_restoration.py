@@ -470,7 +470,7 @@ def test_a_backup_of_an_earlier_revision_is_migrated_before_the_role_of_the_serv
     # The backup is taken at 0012, which lacks the reports of the readings of the accounts (0013);
     # the installation is then brought to the head. The restoration keeps, replaces, migrates, and
     # only then writes back: the rights kept name that table, which the migrations make again.
-    # The rotation, which reads the schedule of the backups (0047), is not what is tried here.
+    # The rotation, which reads the schedule of the backups (0051), is not what is tried here.
     subject = f"subject-{uuid4()}"
     held = role(installation.database, "Sauvegardes", permissions=("backups.read",))
     account(installation.database, "Martin", "Claire", roles=(held,), idp_subject=subject)

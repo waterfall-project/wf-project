@@ -113,18 +113,6 @@ class CostLineExcluded(_Strict):
     reason: str
 
 
-class ImportExpired(_Strict):
-    """An import of the exchanges, analysed, that expired without being applied.
-
-    Written by the slice of the costs (``witness.costs``): analysed at the instant of its event,
-    expired the day after.
-    """
-
-    kind: Literal["import_expired"]
-    project: str
-    import_id: UUID
-
-
 class RiskDeclared(_Strict):
     """A risk declared in the revision in progress, as ``witness_risks.json`` describes it.
 
@@ -203,7 +191,6 @@ type Write = Annotated[
     | RateUpdateApplied
     | CostImportApplied
     | CostLineExcluded
-    | ImportExpired
     | RiskDeclared
     | RiskReviewed
     | RiskOccurred

@@ -8,10 +8,10 @@ changed, which a writing of the retention or of the copy alone does not move. Th
 for the row there, the date of its last writing, which is what the timing was dated by until then.
 
 In one step, by decided exception to "Migrations : deux temps" (``docs/dev/sql.md``, #4375): the
-column is added, filled and required at once, where an update would else have the code of 0047 —
+column is added, filled and required at once, where an update would else have the code of 0051 —
 which writes the row without it, at a restoration (``replace_by_kept``) — fail beside the
-migrated database. No installation runs that code: 0046 and 0047, which create the schedule, are
-in no release, neither ``main`` nor a tag, and arrive with this one. A release that holds 0047
+migrated database. No installation runs that code: 0050 and 0051, which create the schedule, are
+in no release, neither ``main`` nor a tag, and arrive with this one. A release that holds 0051
 alone would ask for the two steps.
 """
 
@@ -23,8 +23,8 @@ from alembic import op
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-revision: str = "0048"
-down_revision: str | None = "0047"
+revision: str = "0052"
+down_revision: str | None = "0051"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -30,9 +30,9 @@ A line is:
 - ``cost_line_id``, ``document_number``, ``document_item``, ``document_date``, ``amount``: its
   identifier, its document, its item (``null`` without), its date of document and its signed
   amount, a string;
-- ``subproject_code``, ``subproject_id``: the code its element of the work breakdown structure
-  carries, and the subproject it is imputed to (``null`` when the project has none of that code,
-  WF-CRE-0020);
+- ``subproject_code``, ``subproject_id``: the code of the subproject it is imputed to, its
+  element of the work breakdown structure compared whole, and that subproject (both ``null`` for
+  a line of the project alone, WF-CRE-0020; #3966);
 - ``passthrough``: the columns kept of the file, by their names;
 - ``created_by_cost_import_id``, ``updated_by_cost_import_ids``: the import that brought it, and
   those that brought it again, updated, in their order (WF-CRE-0010);
@@ -67,20 +67,6 @@ def import_id(entry: CostImport) -> str:
 def exchange_id(entry: CostImport) -> str:
     """Return the identifier of the import of the exchanges that applied an import."""
     return hex_identifier(entry.exchange)
-
-
-def expired_exchange_id() -> str:
-    """Return the identifier of the extraction of April replayed, analysed and expired.
-
-    The only import of costs of the exchanges that was not applied (``imports.json``); the journal
-    keeps nothing of it.
-    """
-    [expired] = [
-        item["import_id"]
-        for item in fixture("imports")["items"]
-        if item["kind"] == "actual_costs" and item["status"] == "expired"
-    ]
-    return cast("str", expired)
 
 
 def _filenames() -> dict[str, str]:

@@ -4,20 +4,21 @@
 
 Regime "revised", partitioned by project as the cost structures (WF-DAT-0050): the nodes of a
 structure, one collection for its two facets (``kind``, the task here, the estimate line by EP-07,
-whose facet is a table of its module), the facet task, and the links between tasks. Regime
-"project": the named timelines of a project and the inscriptions of the tasks, by their lineage, to
-a timeline or to the time/time tracking of a milestone. The reading of a structure of a marked
-revision, kept (``structure_reading``, EP-26, US-2270): partitioned by project as the content of a
-revision, but under no rule of immutability, since it is made again.
+whose facet is a table of its module), the facet task, the links between tasks, and the tasks in
+manual mode each link in conflict cannot satisfy (EP-32). Regime "project": the named timelines of
+a project and the inscriptions of the tasks, by their lineage, to a timeline or to the time/time
+tracking of a milestone. The reading of a structure of a marked revision, kept
+(``structure_reading``, EP-26, US-2270): partitioned by project as the content of a revision, but
+under no rule of immutability, since it is made again.
 
 Every key refuses (``RESTRICT``), but inside a current revision, where the §4.4.1 lets the deletion
-cascade: the facet follows its node, a link either of its tasks, a node its structure and its
-parent, an inscription its timeline. A marked revision deletes nothing: the triggers of the
-migration refuse any write of a row of a marked revision before any cascade, owner included, as
-they do for the cost structures. The order of a node among its siblings is its ``rank``, unique
-under its parent by kind — the roots, whose parent is null, included —, checked at the end of the
-statement so that a renumbering of the siblings passes; ``position`` and ``row_number`` are
-computed at the reading.
+cascade: the facet follows its node, a link either of its tasks, a conflict its link and its task,
+a node its structure and its parent, an inscription its timeline. A marked revision deletes
+nothing: the triggers of the migration refuse any write of a row of a marked revision before any
+cascade, owner included, as they do for the cost structures. The order of a node among its
+siblings is its ``rank``, unique under its parent by kind — the roots, whose parent is null,
+included —, checked at the end of the statement so that a renumbering of the siblings passes;
+``position`` and ``row_number`` are computed at the reading.
 """
 
 from datetime import date, datetime
@@ -280,6 +281,8 @@ class TaskLink(Base):
         CheckConstraint(_in("link_type", LINK_TYPES), name="link_type_known"),
         CheckConstraint(_in("lag_unit", LAG_UNITS), name="lag_unit_known"),
         UniqueConstraint("structure_id", "predecessor_id", "successor_id", "project_id"),
+        # The key the conflicts of the link follow, so that they stay in its structure (0044).
+        UniqueConstraint("project_id", "id", "structure_id"),
         Index(None, "predecessor_id"),
         Index(None, "successor_id"),
         {"postgresql_partition_by": BY_PROJECT},
@@ -295,6 +298,34 @@ class TaskLink(Base):
     lag_value: Mapped[Decimal] = mapped_column(Numeric)
     lag_unit: Mapped[str] = mapped_column(Text)
     in_conflict: Mapped[bool] = mapped_column(Boolean)
+
+
+class TaskLinkConflict(Base):
+    """A task in manual mode a link in conflict cannot satisfy (WF-PLA-0020; EP-32, US-3300).
+
+    The successor of the link, or a subordinate in manual mode of a summary successor (#3984):
+    written by the engine with ``TaskLink.in_conflict``, which a link bears as soon as it has a row
+    here. It follows the deletion of its link and of its task inside a current revision.
+    """
+
+    __tablename__ = "task_link_conflict"
+    __table_args__ = (
+        _in_revision(),
+        ForeignKeyConstraint(
+            ["project_id", "link_id", "structure_id"],
+            ["task_link.project_id", "task_link.id", "task_link.structure_id"],
+            ondelete="CASCADE",
+        ),
+        _in_structure("node_id"),
+        Index(None, "node_id"),
+        {"postgresql_partition_by": BY_PROJECT},
+    )
+
+    project_id: Mapped[UUID] = mapped_column(primary_key=True)
+    link_id: Mapped[UUID] = mapped_column(primary_key=True)
+    node_id: Mapped[UUID] = mapped_column(primary_key=True)
+    revision_id: Mapped[UUID]
+    structure_id: Mapped[UUID]
 
 
 class Timeline(Stamped):

@@ -163,6 +163,12 @@ STANDARD = MsCalendar(
     ),
 )
 
+
+def carrying_lineages(project: MsProject) -> MsProject:
+    """Give the planning as the reader gives it back once written, its lineages declared."""
+    return replace(project, lineage_declared=any(task.lineage for task in project.tasks))
+
+
 # The planning of the file, as the reader gives it.
 PLANNING = MsProject(
     start=at("2026-03-02T08:00:00"),
@@ -232,6 +238,7 @@ PLANNING = MsProject(
             ),
         ),
     ),
+    lineage_declared=True,
 )
 
 
@@ -269,7 +276,7 @@ def test_a_planning_read_then_written_is_read_back_the_same() -> None:
 
     again = read_project(written)
 
-    assert again.project == PLANNING
+    assert again.project == carrying_lineages(PLANNING)
     assert again.ignored == (
         Ignored("calendars", 2, ("Standard", "Four hours")),
         Ignored("date_constraints", 1, ("Build",)),
@@ -428,7 +435,7 @@ def test_a_planning_with_every_constraint_link_lag_format_milestones_and_manual_
     written = write_project(FULL)
 
     assert schema.validate(etree.fromstring(written, hardened_parser())), schema.error_log
-    assert read_project(written).project == FULL
+    assert read_project(written).project == carrying_lineages(FULL)
 
 
 @pytest.mark.requirement("WF-QUA-0080-A")
@@ -594,7 +601,7 @@ def test_a_planning_with_manual_tasks_written_is_valid_against_the_schema(
     written = write_project(BY_HAND)
 
     assert schema.validate(etree.fromstring(written, hardened_parser())), schema.error_log
-    assert read_project(written).project == BY_HAND
+    assert read_project(written).project == carrying_lineages(BY_HAND)
 
 
 def _manual_file(manual: str, besides: str) -> bytes:
@@ -723,6 +730,48 @@ def test_a_lineage_is_found_by_the_field_when_its_alias_was_renamed() -> None:
     tasks = read_project(content).project.tasks
 
     assert [task.lineage for task in tasks] == [DESIGN, None]
+
+
+def _declaring_file(alias: str | None, value: str | None) -> bytes:
+    definition = (
+        ""
+        if alias is None
+        else "<ExtendedAttributes><ExtendedAttribute><FieldID>188743731</FieldID>"
+        f"<Alias>{alias}</Alias></ExtendedAttribute></ExtendedAttributes>"
+    )
+    attribute = (
+        ""
+        if value is None
+        else f"<ExtendedAttribute><FieldID>188743731</FieldID><Value>{value}</Value>"
+        "</ExtendedAttribute>"
+    )
+    return (
+        f'<Project xmlns="http://schemas.microsoft.com/project">{definition}'
+        f"<Tasks><Task><UID>1</UID><OutlineLevel>1</OutlineLevel>{attribute}</Task></Tasks></Project>"
+    ).encode()
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+@pytest.mark.parametrize(
+    ("alias", "value", "declared"),
+    [
+        ("Waterfall.lineage", None, True),
+        ("Mine", str(DESIGN), True),
+        ("Lot", "Phase 1", False),
+        ("Lot", None, False),
+        (None, str(DESIGN), False),
+        (None, None, False),
+    ],
+    ids=["alias", "renamed", "text1-of-another-tool", "text1-empty", "no-definition", "absent"],
+)
+def test_a_file_declares_the_lineages_by_the_alias_or_by_a_field_holding_identifiers(
+    alias: str | None, value: str | None, declared: bool
+) -> None:
+    # « Pas de repli par UID dans un fichier qui déclare le champ des lignées » : Text1, which
+    # users alias for their own ends, declares it only if a task holds an identifier in it.
+    content = _declaring_file(alias, value)
+
+    assert read_project(content).project.lineage_declared is declared
 
 
 @pytest.mark.requirement("WF-QUA-0080-A")

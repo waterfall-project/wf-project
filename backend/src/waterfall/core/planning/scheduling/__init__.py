@@ -30,6 +30,9 @@ from waterfall.core.planning.scheduling.engine import (
     HORIZON_YEARS as HORIZON_YEARS,
 )
 from waterfall.core.planning.scheduling.engine import (
+    counted_bounds as counted_bounds,
+)
+from waterfall.core.planning.scheduling.engine import (
     horizon_of as horizon_of,
 )
 from waterfall.core.planning.scheduling.engine import (

@@ -46,7 +46,7 @@ from waterfall.api.authentication import Services
 from waterfall.core.cost_settings.interface import set_hourly_rate
 from waterfall.core.cost_settings.tables import HourlyRate
 from waterfall.core.estimate.remaining.analysing import same_cell
-from waterfall.core.estimate.remaining.excel.layout import tab_subprojects
+from waterfall.core.estimate.remaining.excel.layout import tab_names, tab_subprojects
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
 from waterfall.core.exchanges import running
 from waterfall.core.exchanges.tables import ImportReport
@@ -164,21 +164,25 @@ def test_a_cell_is_the_one_exported_at_the_digits_a_spreadsheet_keeps() -> None:
 
 
 @pytest.mark.requirement("WF-INTF-0120-A")
-def test_the_tabs_are_named_by_the_codes_of_the_subprojects_as_the_writer_names_them() -> None:
+def test_a_tab_is_the_subproject_of_the_code_at_its_head_not_the_one_its_name_says() -> None:
     first, second = UUID(int=1), UUID(int=2)
-    tabs = tab_subprojects({"SP/1": first, "sp-2": second})
-    assert tabs == {"SP_1": first, "sp-2": second, "Hors sous-projet": None}
+    heads = {"Mon lot": "SP/1", "SP/1": "sp-2", "Hors": "", "Titre": None, "Autre": "SP-9"}
+    tabs = tab_subprojects(heads, {"SP/1": first, "sp-2": second})
+    assert tabs == {"Mon lot": first, "SP/1": second, "Hors": None}
 
 
-@pytest.mark.requirement("WF-INTF-0120-A")
+@pytest.mark.requirement("WF-PRJ-0050-A")
 def test_two_codes_that_come_to_one_tab_name_get_distinct_tabs_in_the_order_of_the_codes() -> None:
-    # ``SP/1`` is written ``SP_1``, which is the code of another subproject: the rule is the
-    # writer's (``layout``), which the export names its tabs with (US-1630/L4).
-    slash, underscore = UUID(int=1), UUID(int=2)
-    tabs = tab_subprojects({"SP_1": underscore, "SP/1": slash})
-    assert list(tabs.values()) == [slash, underscore, None]
-    assert len({name.casefold() for name in tabs}) == 3
-    assert tabs["SP_1"] == slash
+    # ``SP/1`` is written ``SP_1``, which is the code of another subproject, and ``Synthèse`` is a
+    # fixed tab: the rule is the writer's (``layout``), numbered, the first code keeping the name.
+    names = tab_names(["SP_1", "SP/1", "Synthèse", "sp_1"])
+    assert names == {
+        "SP/1": "SP_1",
+        "SP_1": "SP_1 (2)",
+        "Synthèse": "Synthèse (2)",
+        "sp_1": "sp_1 (3)",
+        "": "Hors sous-projet",
+    }
 
 
 # --- The lines known, absent, created -------------------------------------------------------------
@@ -301,7 +305,7 @@ def test_a_line_without_a_lineage_is_created_at_a_budget_of_nought_under_the_tas
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
     found = report(api, stage, import_id)
     assert [each["change"] for each in found["differences"]] == ["added"]
-    assert codes(found) == [(8, STATE), (9, "UNKNOWN_TASK")]
+    assert codes(found) == [(9, STATE), (10, "UNKNOWN_TASK")]
     assert found["rejected"][0]["sheet"] == OUTSIDE
     assert found["rejected"][0]["params"] == {
         "missing_condition": "task_not_completed",
@@ -323,8 +327,9 @@ def test_a_line_without_a_lineage_is_created_at_a_budget_of_nought_under_the_tas
 def test_a_task_whose_lines_the_file_sets_to_nought_is_completed_at_the_date_of_the_review(
     api: ContractClient, stage: Scene, worker: Worker, scene: Rows
 ) -> None:
-    # « Une tâche démarrée dont toutes les lignes du fichier portent zéro est terminée à la date
-    # de la revue ; une tâche non démarrée dont les lignes sont laissées telles quelles reste non
+    # « Une tâche démarrée dont toutes les lignes, celles absentes du fichier comprises, sont à zéro
+    # après l'import, et dont le fichier en met au moins une à zéro, est terminée à la date de la
+    # revue ; une tâche non démarrée dont les lignes sont laissées telles quelles reste non
     # réestimée. » The wiring started, its two lines at nought; the tests, not started, their
     # bench at nought — their cables already are —; the acceptance left as it is.
     tree = scene.tree
@@ -359,7 +364,7 @@ def test_a_task_the_file_completes_without_a_date_of_review_rejects_its_lines_se
     rows[2][4] = 0
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks(), None))
     found = report(api, stage, import_id)
-    assert codes(found) == [(4, "COMPLETION_DATE_REQUIRED")]
+    assert codes(found) == [(5, "COMPLETION_DATE_REQUIRED")]
     assert (found["completed_tasks"], found["differences"]) == ([], [])
 
 
@@ -392,7 +397,7 @@ def test_a_line_placed_in_another_tab_changes_subproject_unless_it_received_actu
     import_id = analysed(api, stage, worker, workbook({"SP-1": [moved], OUTSIDE: rows}))
     found = report(api, stage, import_id)
     assert [(each["sheet"], each["row"], each["code"]) for each in found["rejected"]] == [
-        (OUTSIDE, 3, "SUBPROJECT_HAS_ACTUAL_COSTS")
+        (OUTSIDE, 4, "SUBPROJECT_HAS_ACTUAL_COSTS")
     ]
     named = found["rejected"][0]["params"]["subproject"]
     assert named == {"subproject_id": subproject, "label": "Lot 1"}
@@ -648,25 +653,25 @@ def test_lines_without_a_lineage_citing_an_ambiguous_unknown_or_hourless_designa
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
     found = report(api, stage, import_id)
     assert codes(found) == [
-        (7, "AMBIGUOUS_TASK_LABEL"),
-        (8, "UNKNOWN_RESOURCE_ROLE"),
-        (9, "TASK_WITHOUT_WORKING_HOURS"),
-        (10, "UNKNOWN_TASK"),
+        (8, "AMBIGUOUS_TASK_LABEL"),
+        (9, "UNKNOWN_RESOURCE_ROLE"),
+        (10, "TASK_WITHOUT_WORKING_HOURS"),
+        (11, "UNKNOWN_TASK"),
     ]
     by_row = {each["row"]: each["params"] for each in found["rejected"]}
     tests = task_named(scene.tree, "Essais")
-    assert by_row[7] == {
+    assert by_row[8] == {
         "label": "Essais",
         "tasks": [
             {"lineage_id": tests["lineage_id"], "label": "Essais"},
             {"lineage_id": twin["lineage_id"], "label": "Essais"},
         ],
     }
-    assert by_row[8] == {"value": "Inconnu"}
+    assert by_row[9] == {"value": "Inconnu"}
     wiring = task_named(scene.tree, "Câblage")
-    assert by_row[9]["tasks"] == [{"lineage_id": wiring["lineage_id"], "label": "Câblage"}]
-    assert {each["code"] for each in by_row[9]["resource_roles"]} == {"ING", "WE"}
-    assert by_row[10] == {"value": "Absente"}
+    assert by_row[10]["tasks"] == [{"lineage_id": wiring["lineage_id"], "label": "Câblage"}]
+    assert {each["code"] for each in by_row[10]["resource_roles"]} == {"ING", "WE"}
+    assert by_row[11] == {"value": "Absente"}
     assert found["differences"] == []
 
 
@@ -674,17 +679,21 @@ def test_lines_without_a_lineage_citing_an_ambiguous_unknown_or_hourless_designa
 def test_a_line_in_a_tab_that_is_no_subproject_is_rejected_naming_the_tab(
     api: ContractClient, stage: Scene, worker: Worker, scene: Rows
 ) -> None:
-    # « un onglet […] de sous-projet inconnu rejette ses lignes » (UNKNOWN_SUBPROJECT, params.value)
+    # « un onglet […] de sous-projet inconnu rejette ses lignes » (UNKNOWN_SUBPROJECT, params.value
+    # the tab, params.subproject_code the code its head bears, the tab's name here; #4898)
     rows = scene.exported()
     import_id = analysed(
         api, stage, worker, workbook({OUTSIDE: rows[:3], "Lot fantôme": rows[3:]}, scene.tasks())
     )
     found = report(api, stage, import_id)
     assert [(each["sheet"], each["row"], each["code"]) for each in found["rejected"]] == [
-        ("Lot fantôme", 2, "UNKNOWN_SUBPROJECT"),
         ("Lot fantôme", 3, "UNKNOWN_SUBPROJECT"),
+        ("Lot fantôme", 4, "UNKNOWN_SUBPROJECT"),
     ]
-    assert found["rejected"][0]["params"] == {"value": "Lot fantôme"}
+    assert found["rejected"][0]["params"] == {
+        "value": "Lot fantôme",
+        "subproject_code": "Lot fantôme",
+    }
     assert (found["read_count"], found["unchanged_count"]) == (5, 3)
 
 
@@ -698,7 +707,7 @@ def test_a_figure_in_the_column_of_the_other_kind_is_refused_as_its_entry_refuse
     rows[0][4], rows[1][3] = 5, 3
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
     found = report(api, stage, import_id)
-    assert codes(found) == [(2, "FIELD_NOT_ACCEPTED"), (3, "FIELD_NOT_ACCEPTED")]
+    assert codes(found) == [(3, "FIELD_NOT_ACCEPTED"), (4, "FIELD_NOT_ACCEPTED")]
     assert [each["params"] for each in found["rejected"]] == [
         {"header": "Débours restant"},
         {"header": "Jours restants"},
@@ -716,7 +725,7 @@ def test_a_line_known_of_a_completed_task_is_rejected_though_unchanged_and_left_
     set_progress(stage, acceptance["node_id"], "completed", STARTED_ON)
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: scene.exported()}, scene.tasks()))
     found = report(api, stage, import_id)
-    assert codes(found) == [(6, STATE)]
+    assert codes(found) == [(7, STATE)]
     assert found["rejected"][0]["params"] == {
         "missing_condition": "task_not_completed",
         "tasks": [{"lineage_id": acceptance["lineage_id"], "label": "Réception"}],
@@ -776,7 +785,7 @@ def test_a_review_date_before_the_start_of_a_task_started_rejects_the_lines_that
     early = date(YEAR - 1, 12, 31)
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks(), early))
     found = report(api, stage, import_id)
-    assert codes(found) == [(2, "VALUE_OUT_OF_RANGE"), (3, "VALUE_OUT_OF_RANGE")]
+    assert codes(found) == [(3, "VALUE_OUT_OF_RANGE"), (4, "VALUE_OUT_OF_RANGE")]
     for each in found["rejected"]:
         assert each["params"] == {
             "minimum": str(STARTED_ON),
@@ -797,7 +806,7 @@ def test_a_review_date_that_is_no_date_is_rejected_as_such_and_not_read_as_absen
     rows[2][4] = 0
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks(), written))
     found = report(api, stage, import_id)
-    assert codes(found) == [(4, "DATE_INVALID")]
+    assert codes(found) == [(5, "DATE_INVALID")]
     assert found["rejected"][0]["params"]["value"] == str(written)
     assert (found["completed_tasks"], found["differences"]) == ([], [])
 
@@ -954,7 +963,7 @@ def test_a_copy_the_reader_rejects_is_refused_as_it_is_and_the_line_it_names_is_
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
     found = report(api, stage, import_id)
     assert [each["code"] for each in found["rejected"]] == ["NUMBER_INVALID"]
-    assert found["rejected"][0]["row"] == len(rows) + 1
+    assert found["rejected"][0]["row"] == len(rows) + 2
     applied(api, stage, worker, import_id)
     assert row_of(stage, node).reestimated_amount == before
 
@@ -969,14 +978,14 @@ def test_a_lineage_that_two_rows_carry_rejects_both_and_leaves_its_line_as_it_is
     copied = list(rows[1])
     copied[4] = 77
     rows.append(copied)
-    last = len(rows) + 1
+    last = len(rows) + 2
     node = line_named(scene.tree, "Fournitures")["node_id"]
     before = row_of(stage, node)
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
     found = report(api, stage, import_id)
-    assert codes(found) == [(3, "DUPLICATE_LINEAGE"), (last, "DUPLICATE_LINEAGE")]
+    assert codes(found) == [(4, "DUPLICATE_LINEAGE"), (last, "DUPLICATE_LINEAGE")]
     assert found["rejected"][0]["params"] == {"lines": [{"sheet": OUTSIDE, "row": last}]}
-    assert found["rejected"][1]["params"] == {"lines": [{"sheet": OUTSIDE, "row": 3}]}
+    assert found["rejected"][1]["params"] == {"lines": [{"sheet": OUTSIDE, "row": 4}]}
     assert found["differences"] == []
     applied(api, stage, worker, import_id)
     after = row_of(stage, node)

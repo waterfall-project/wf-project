@@ -10,7 +10,9 @@ temps"; EP-09, "La préparation des imports hors verrou et la lecture figée"). 
 format: they find the one of a kind (``ExchangeKind``) in their registry, filled by the module that
 serves it at the import of its interface — the planning for ``ms_project_schedule`` (US-1430), EP-07
 and EP-09 for theirs —, and read of the file only the header the format asks for
-(``Format.header_length``).
+(``Format.header_length``). The header is parsed before the lock of the project, out of any
+transaction (``parse_head``), and judged under it (US-3190/L2, #4419): a workbook read does not hold
+the writes of the project.
 
 The deposit of a file (``uploadFile``: ``deposit``), the opening of an import (``open_import``:
 the header by the format, the conditions, the task of the analysis), its reading and its list
@@ -33,6 +35,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import defer
 
 from waterfall.core.exchanges import running
 from waterfall.core.exchanges.judgments import (
@@ -68,6 +71,7 @@ from waterfall.core.exchanges.states import (
     status_read,
 )
 from waterfall.core.exchanges.tables import ImportReport
+from waterfall.core.exchanges.unchanged import judge_unchanged, written_at_request
 from waterfall.core.projects.interface import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
@@ -79,7 +83,9 @@ from waterfall.core.revisions.interface import aimed_structure, last_marked_revi
 from waterfall.platform.database import unique_violated
 from waterfall.platform.errors import (
     NOT_FOUND,
+    STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
+    ConflictError,
     FieldError,
     NotFoundError,
     PayloadTooLargeError,
@@ -89,7 +95,15 @@ from waterfall.platform.errors import (
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.registry import Registry
 from waterfall.platform.tasks import PROJECT, BackgroundTask, submit
-from waterfall.platform.uploads import IMPORT, FileUpload, Whole, record_whole
+from waterfall.platform.uploads import (
+    IMPORT,
+    MOST_PENDING,
+    FileUpload,
+    Whole,
+    expire_uploads,
+    pending_imports,
+    record_whole,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -109,6 +123,7 @@ type ExchangeKind = Literal["ms_project_schedule", "estimate", "remaining", "act
 
 FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
 FILE_TOO_LARGE = "FILE_TOO_LARGE"
+PENDING_UPLOADS_BELOW_LIMIT = "pending_uploads_below_limit"
 UPLOAD_PURPOSE_MISMATCH = "UPLOAD_PURPOSE_MISMATCH"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 VALUE_REQUIRED = "VALUE_REQUIRED"
@@ -120,17 +135,24 @@ LONGEST_NAME = 255
 UPLOAD_INDEX = "uq_import_report_upload_id"
 
 
-class Format[Prepared](Protocol):
+class Format[Prepared, Parsed](Protocol):
     """What reads, analyses, prepares and applies a file of a kind of import.
 
-    ``header_length`` is the number of bytes of the head of the file ``read_header`` receives;
+    ``header_length`` is the number of bytes of the head of the file ``parse_header`` receives;
     ``scope`` what an import of the kind writes; ``reading`` the permission to consult the function
     the kind is of (``planning.read`` for a planning, ``estimate.read`` for an estimate…), without
     which the imports of the kind do not exist for the caller (404; #2473); ``permission`` the
     permission it asks of who opens, applies or abandons it — and of its requester again when its
     task runs —, the quality of contributor with it (``planning.write`` for a planning).
-    ``read_header`` refuses a head it does not recognise, by a typed exception (422
-    ``FILE_FORMAT_UNREADABLE``, ``expected_format``, ``expected_version``). ``judge`` refuses an
+    The header is read in two steps (US-3190/L2). ``parse_header`` parses the head of a file before
+    the opening takes the lock of the project, reading nothing of the database. The refusals of
+    format it knows — a head it does not recognise, a file damaged or beyond the bounds — are kept
+    in what it gives, ``Parsed``, never raised, as is what the second step needs of the head; a
+    defect it does not know still raises. ``Parsed`` is typed inside each format only: the registry
+    holds ``Format[Any, Any]``, and erases it. ``judge_header`` judges that under the lock, at the
+    place the contract gives the refusal in the order of ``openImport``, raising it then by a typed
+    exception (422 ``FILE_FORMAT_UNREADABLE``, ``expected_format``, ``expected_version``) — and
+    judging what depends on the database, the mapping of the actual costs. ``judge`` refuses an
     import of the kind on the state of the project or of the structure aimed at, by the condition
     the contract names after those of the exchanges (409 ``project_before_in_progress`` for an
     estimate of the main structure, ``actual_cost_mapping_complete`` for the actual costs), or
@@ -163,8 +185,12 @@ class Format[Prepared](Protocol):
     permission: str
     judged_first: bool
 
-    def read_header(self, session: Session, head: bytes) -> None:
-        """Refuse the head of a file this format does not recognise."""
+    def parse_header(self, head: bytes) -> Parsed:
+        """Parse the head of a file, before any lock: a refusal is kept, never raised."""
+        ...
+
+    def judge_header(self, session: Session, parsed: Parsed) -> None:
+        """Refuse, under the lock of the project, a head the format does not recognise."""
         ...
 
     def judge(self, session: Session, target: ImportTarget) -> None:
@@ -225,6 +251,18 @@ class HeadToRead:
 
     object_key: str
     length: int
+
+
+@dataclass(frozen=True, slots=True)
+class ParsedHead:
+    """The head of a deposited file as the format of its kind parsed it, before any lock.
+
+    ``parsed`` is what ``Format.parse_header`` gave, which ``judge_header`` judges under the lock
+    of the project: wrapped, so that a format whose parse gives ``None`` when it recognises the head
+    is not taken for a file the storage lost.
+    """
+
+    parsed: object
 
 
 @dataclass(frozen=True, slots=True)
@@ -297,10 +335,10 @@ class ImportRefused:
 
 
 # The format of each kind of import, in the order of their registration.
-_FORMATS: Registry[tuple[ExchangeKind, Format[Any]]] = Registry("exchanges.formats")
+_FORMATS: Registry[tuple[ExchangeKind, Format[Any, Any]]] = Registry("exchanges.formats")
 
 
-def register_format(kind: ExchangeKind, form: Format[Any]) -> Callable[[], None]:
+def register_format(kind: ExchangeKind, form: Format[Any, Any]) -> Callable[[], None]:
     """Add the format of a kind of import; give its withdrawal; refused if the kind has one."""
     if kind in formats():
         msg = f"the kind {kind} has a format already"
@@ -308,17 +346,17 @@ def register_format(kind: ExchangeKind, form: Format[Any]) -> Callable[[], None]
     return _FORMATS.register((kind, form))
 
 
-def formats() -> Mapping[ExchangeKind, Format[Any]]:
+def formats() -> Mapping[ExchangeKind, Format[Any, Any]]:
     """Give the format of each kind of import registered, by kind."""
     return dict(_FORMATS.entries())
 
 
-def _format_named(kind: str) -> Format[Any] | None:
+def _format_named(kind: str) -> Format[Any, Any] | None:
     """Give the format of a kind read from a row or a request, ``None`` if no module serves it."""
     return next((form for named, form in _FORMATS.entries() if named == kind), None)
 
 
-def _format_of(kind: str) -> Format[Any]:
+def _format_of(kind: str) -> Format[Any, Any]:
     """Give the format of a kind; a kind no module serves is a file no format recognises (422)."""
     form = _format_named(kind)
     if form is None:
@@ -337,7 +375,7 @@ def _readable(kind: str, viewer: Viewer) -> bool:
 
 
 def _judge_acting(
-    session: Session, project_id: UUID, form: Format[Any], confirmer: Confirmer
+    session: Session, project_id: UUID, form: Format[Any, Any], confirmer: Confirmer
 ) -> None:
     """Judge who acts on an import of a kind: the reading of the kind, then its permission.
 
@@ -353,8 +391,10 @@ def judge_deposit(purpose: str, filename: str | None, size_bytes: int) -> None:
     """Refuse a file deposited for an import before it is kept, nothing written.
 
     A backup is deposited by parts, never here (422 ``/purpose``, ``UPLOAD_PURPOSE_MISMATCH``); a
-    file beyond 10 MiB is refused (413 ``FILE_TOO_LARGE``); an empty file, or one without a name or
-    with a name longer than a deposit keeps, is refused on ``/file`` (422).
+    file beyond 10 MiB is refused (413 ``FILE_TOO_LARGE``); an empty file, or one without a name,
+    is refused on ``/file`` (422 ``VALUE_REQUIRED``), as a name longer than a deposit keeps
+    (``VALUE_TOO_LONG``, ``max_length`` as every ``VALUE_TOO_LONG``, #4732) and a name that holds
+    the NUL character, refused as every text that holds it (``VALIDATION_FAILED``; BEX-08, #4426).
     """
     if purpose != IMPORT:
         mismatch = FieldError("/purpose", UPLOAD_PURPOSE_MISMATCH)
@@ -364,8 +404,29 @@ def judge_deposit(purpose: str, filename: str | None, size_bytes: int) -> None:
     if not filename or size_bytes == 0:
         raise UnprocessableError(VALIDATION_FAILED, fields=(FieldError("/file", VALUE_REQUIRED),))
     if len(filename) > LONGEST_NAME:
-        too_long = FieldError("/file", VALUE_TOO_LONG, {"maximum": LONGEST_NAME})
+        too_long = FieldError("/file", VALUE_TOO_LONG, {"max_length": LONGEST_NAME})
         raise UnprocessableError(VALIDATION_FAILED, fields=(too_long,))
+    if "\x00" in filename:
+        nul = FieldError("/file", VALIDATION_FAILED)
+        raise UnprocessableError(VALIDATION_FAILED, fields=(nul,))
+
+
+def judge_room(session: Session, act: Act) -> None:
+    """Refuse a deposit to an account that keeps as many pending as it may (409), nothing written.
+
+    A deposit is pending while no import used it and it has not expired: an import that opens on
+    one, or the purge that deletes one at its term, frees a place. Counted without a lock, before
+    the file is written (US-3240, #4423): the bound guards against a loop, and is no invariant.
+    """
+    if act.author is None:
+        msg = "a file is deposited by an account"
+        raise ValueError(msg)
+    # A NULL in a NOT IN list would empty it: the column is NOT NULL today, and the count
+    # does not rely on it.
+    used = select(ImportReport.upload_id).where(ImportReport.upload_id.is_not(None))
+    if pending_imports(session, act.author, act.at, used) >= MOST_PENDING:
+        conflict = {"missing_condition": PENDING_UPLOADS_BELOW_LIMIT, "maximum": MOST_PENDING}
+        raise ConflictError(STATE_FORBIDS_OPERATION, conflict)
 
 
 def deposit(
@@ -416,6 +477,41 @@ def head_to_read(session: Session, upload_id: UUID, kind: str, act: Act) -> Head
     return HeadToRead(row.object_key, form.header_length)
 
 
+def parse_head(kind: str, head: bytes) -> ParsedHead | None:
+    """Parse the head of a deposited file by the format of its kind, out of any transaction.
+
+    The slow part of the header — a workbook opened, its first rows read — holds no lock nor
+    connection; ``open_import`` judges what it gives under the lock of the project (#4419).
+    ``None`` for a kind no format serves, which the opening refuses before it looks at the head.
+    """
+    form = _format_named(kind)
+    return None if form is None else ParsedHead(form.parse_header(head))
+
+
+def kept_refusal(check: Callable[[bytes], None], head: bytes) -> UnprocessableError | None:
+    """Give the refusal ``check`` raises on a head, kept for its judgment; ``None`` if it passes.
+
+    What a format's ``parse_header`` gives when its reader refuses by raising (422).
+    """
+    try:
+        check(head)
+    except UnprocessableError as refusal:
+        return kept(refusal)
+    return None
+
+
+def kept(refusal: UnprocessableError) -> UnprocessableError:
+    """Give a refusal without its trace, to be kept until it is raised under the lock.
+
+    The traceback of a refusal, and the exception it was raised in the midst of, hold the frames
+    that held the bytes of the workbook: a refusal kept has none, and is raised afresh.
+    """
+    refusal.__traceback__ = None
+    refusal.__context__ = None
+    refusal.__cause__ = None
+    return refusal
+
+
 def _judge_period(opening: ImportOpening) -> None:
     """Refuse an extracted period whose end precedes its start (422 ``/period_to``)."""
     start, end = opening.period_from, opening.period_to
@@ -447,19 +543,22 @@ def open_import(
     session: Session,
     queue: TaskQueue,
     opening: ImportOpening,
-    head: bytes | None,
+    head: ParsedHead | None,
     confirmer: Confirmer,
 ) -> ImportView:
     """Open an import of a file deposited, and deposit the task of its analysis (``openImport``).
 
-    Under the lock of the project, in the order of the contract: a kind no format serves (422), the
-    reading of the kind (404, #2473), its permission and the quality of contributor (403), an
-    inverted period (422), a terminal project (409 ``project_not_terminal``), a deposit unknown,
-    expired, used already or another's (404), made for a restoration (422 ``/upload_id``), a
-    structure the revision does not hold (404), the condition of a remaining to commit's phase
-    (409 ``project_in_progress``, ``Format.judged_first``; #2796), a task writing in the project,
-    the permission to create the revision the import would create (409), the conditions of the
-    kind (409), then the head of the file the format does not recognise (422
+    ``head`` is the head of the deposited file as the format of ``opening.kind`` parsed it, before
+    this transaction (``parse_head``); ``None`` when there was none to read. Under the lock of the
+    project, in the order of the contract: a kind no format serves (422), the reading of the kind
+    (404, #2473), its permission and the quality of contributor (403), an inverted period (422), a
+    terminal project (409 ``project_not_terminal``), a deposit unknown, expired, used already or
+    another's (404), made for a restoration (422 ``/upload_id``), a structure the revision does not
+    hold (404), the condition of a remaining to commit's phase (409 ``project_in_progress``,
+    ``Format.judged_first``; #2796), a task writing in the project, the permission to create the
+    revision the import would create (409), the conditions of the kind (409), then the head of the
+    file, judged by the format on what it parsed: for the actual costs the mapping first (409
+    ``actual_cost_mapping_complete``), then a head the format does not recognise (422
     ``FILE_FORMAT_UNREADABLE``). The import is written ``analysing``, the task of its analysis
     deposited in the transaction; it writes in the current revision, or in none yet
     (``revision_id`` null), the application creating it (WF-INTF-0090).
@@ -484,7 +583,7 @@ def open_import(
     if head is None:
         # The storage lost the file of a deposit its row still names: it is no deposit any more.
         raise NotFoundError(NOT_FOUND)
-    form.read_header(session, head)
+    form.judge_header(session, head.parsed)
     row = _inserted(session, _opened(opening, upload, target, standing, act.at))
     payload = {IMPORT_KEY: str(row.id)}
     if target.revision_id is not None:
@@ -559,7 +658,9 @@ def _read(session: Session, row: ImportReport, now: datetime) -> str:
 def _view(session: Session, row: ImportReport, viewer: Viewer | None, read: str) -> ImportView:
     """Describe an import as it is ``read``, with the commands of ``viewer`` if one is given.
 
-    The commands are listed to the holder of the permission of the kind (WF-IHM-0090).
+    The commands are listed to the holder of the permission of the kind (WF-IHM-0090). Without a
+    ``viewer``, as in a list, the report is not read — the row was loaded without it — and the view
+    carries none (US-3250).
     """
     commands: tuple[CommandAvailability, ...] = ()
     form = _format_named(row.kind)
@@ -580,7 +681,7 @@ def _view(session: Session, row: ImportReport, viewer: Viewer | None, read: str)
         status=read,
         created_at=row.created_at,
         expires_at=expiry_read(read, row.expires_at),
-        report=row.report,
+        report=None if viewer is None else row.report,
         task_id=row.task_id,
         commands=commands,
     )
@@ -605,7 +706,8 @@ def list_imports(
     """List a page of the imports of a project, the latest opened first (``listImports``).
 
     Only the imports of the kinds ``viewer`` consults are listed, and counted (#2473). Each is read
-    as ``getImport`` reads it, its expiry and the end of its task judged at ``now``.
+    as ``getImport`` reads it, its expiry and the end of its task judged at ``now``; its report is
+    not loaded, a list not saying it (US-3250).
     """
     limit, offset = page.limit, page.offset
     kinds = [kind for kind in formats() if _readable(kind, viewer)]
@@ -613,6 +715,7 @@ def list_imports(
     total = session.scalar(select(func.count()).select_from(ImportReport).where(kept)) or 0
     rows = session.execute(
         select(ImportReport, BackgroundTask.status)
+        .options(defer(ImportReport.report))
         .outerjoin(BackgroundTask, BackgroundTask.id == ImportReport.task_id)
         .where(kept)
         .order_by(ImportReport.created_at.desc(), ImportReport.id.desc())
@@ -658,6 +761,8 @@ def abandon_import(
     row.status = "abandoned"
     # An abandoned import keeps an expiry: that of its report, or the instant of its abandonment.
     row.expires_at = row.expires_at or act.at
+    # The deposit it employed never becomes free again, whatever the purge does of the import.
+    expire_uploads(session, [row.upload_id], act.at)
     session.flush()
     remove_once_committed(session, files, row.object_key)
 
@@ -682,8 +787,10 @@ def apply_import(
     reading of its kind (404, #2473), its permission and the quality of contributor (403); an
     import no longer ``analysed`` — applied or being applied, abandoned, expired, failed, refused —
     (409 ``import_awaiting_decision``), the import unchanged; then a report that rejects the whole
-    file (409 ``import_file_accepted``), and the conditions of the opening judged again, those of
-    the exchanges then those of the kind (409), and the structure aimed at, which the current
+    file (409 ``import_file_accepted``), a structure written since the analysis (409
+    ``import_structure_unchanged``, US-3210, read under the lock of the project: the task judges it
+    again under the lock of the structure), and the conditions of the opening judged again, those
+    of the exchanges then those of the kind (409), and the structure aimed at, which the current
     revision may no longer hold (404). A condition that passes — a background task of the project,
     the permission to create the revision the import would create (``PASSING``) — refuses it and
     leaves it ``analysed``, its file kept: it is applied again once the condition holds, without a
@@ -712,6 +819,9 @@ def apply_import(
         if lacking:
             raise refused(lacking[0])
         standing = Standing(project_id, lock_project(session, project_id), form.scope)
+        if form.scope == "structure":
+            current = standing.facts.current_revision_id
+            judge_unchanged(session, row, written_at_request(session, row, current))
 
         def judge_format() -> None:
             form.judge(session, _applied_target(session, row, standing))
@@ -764,6 +874,8 @@ def set_duration_rule(
         payload[REVISION_KEY] = revision
     row.duration_rule = rule
     row.report = None
+    # The new analysis keeps the counter it reads; the one of the last is set aside (US-3210).
+    row.structure_lock_version = None
     row.status = "analysing"
     row.analysed_at = None
     row.expires_at = None

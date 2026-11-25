@@ -3,7 +3,7 @@
 """The schedules, the external copy of a backup, the tests of a restoration (EP-13, US-2910).
 
 ``backup_schedule`` and ``identity_sync_schedule`` hold one row each — written at their shipped
-values by ``0047``, a migration of data of its own —: when the platform backs itself up, how many
+values by ``0051``, a migration of data of its own —: when the platform backs itself up, how many
 backups it keeps and where it copies them (WF-ADM-0170, WF-EXP-0050), and when it reads the
 accounts of the identity provider (WF-ADM-0070). A location keeps at least as many copies as the
 platform keeps backups. ``backup`` receives the latest copy of each out of the platform, and
@@ -12,7 +12,7 @@ platform keeps backups. ``backup`` receives the latest copy of each out of the p
 The role of the service reads each schedule and changes it, but inserts or deletes none; inserts
 and reads a test, which nothing changes; and receives on ``backup`` the change — its mark, the
 outcome of its copy — and the deletion of the rotation (WF-ADM-0170), which ``0010`` left to EP-13.
-The kinds of the tasks that copy a backup and test a restoration are ``0044``'s.
+The kinds of the tasks that copy a backup and test a restoration are ``0048``'s.
 
 The new columns of ``backup`` are null, and its new constraints admit every row it holds: the table
 holds a few hundred rows, which the checks read at once.
@@ -28,8 +28,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.schema import SchemaItem
 
-revision: str = "0046"
-down_revision: str | None = "0045"
+revision: str = "0050"
+down_revision: str | None = "0049"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

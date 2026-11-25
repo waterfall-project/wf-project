@@ -19,13 +19,15 @@ since it judged the import (``exchanges.running._judged``), in its transaction; 
 locked after them, and the writer has no stack. A marking or an abandonment, which lock the
 revision before the project, wait for the task, and it never waits for them holding the structure.
 
-The lines are written by the functions of the planning, in the transaction of the task: the lines
-removed first, one write each — a role that leaves a task never takes its hours —; then those the
-file gives another task, those it changes and those it creates, in one write of the tree
-(``write_lines``), its structure redated once: written a line at a time, two lines of a task that
-exchange their roles, or a line moved under a task whose other line changes its role, would pass
-through a task without an hour the end does not leave, which the engine refuses. The lines moved
-go after the lines of their task, those created after them. A line created is priced as the entry
+The lines are written by the function of the planning, in the transaction of the task: those the
+report removes, those the file gives another task, those it changes and those it creates, in one
+write of the tree (``write_lines``), its structure redated once (US-3220, #4422). Written a line at
+a time, two lines of a task that exchange their roles, or a line moved under a task whose other
+line changes its role, would pass through a task without an hour the end does not leave, which the
+engine refuses; and a deletion a write each would replay the engine once per line removed — every
+line of the structure, for a file without « ID ligne » —, the structure locked all along. The
+lines removed go first, as their deletion takes them; the lines moved go after the lines of their
+task, those created after them. A line created is priced as the entry
 prices it, its budgeted amount nought on a project that has a reference revision (WF-DEV-0020); a
 line changed keeps its lineage and its budgeted amount. The writer has no session of sign-in: the
 undo history receives nothing (WF-IHM-0110); it names the task that applies, which does not suspend
@@ -41,8 +43,6 @@ from waterfall.core.planning.interface import (
     LinesWrite,
     Place,
     Writer,
-    delete_node,
-    node_versions,
     write_lines,
 )
 from waterfall.core.revisions.interface import structure_facts
@@ -84,13 +84,9 @@ def apply(
     found = importing.analyse(session, held, read, confirmed)
     judged_again(found, confirmed.rejected)
     place = Place(project_id, revision_id, structure_id)
-    writer = Writer(act, None, target.running)
-    for node in found.removed:
-        version = node_versions(session, project_id, (node,))[node]
-        delete_node(session, place, node, version, writer)
-    lines = _lines(held, found.planned)
-    if lines.moved or lines.changed or lines.created:
-        write_lines(session, place, lines, writer)
+    lines = _lines(held, found.planned, found.removed)
+    if lines.removed or lines.moved or lines.changed or lines.created:
+        write_lines(session, place, lines, Writer(act, None, target.running))
 
 
 def confirmed_by(report: Mapping[str, Any]) -> importing.Confirmed:
@@ -115,8 +111,8 @@ def judged_again(found: Analysis, rejected: frozenset[tuple[str, int]]) -> None:
             raise UnprocessableError(each["code"], each["params"])
 
 
-def _lines(held: Aimed, planned: list[Planned]) -> LinesWrite:
-    """Give what the lines accepted write: moved under their task, changed, created."""
+def _lines(held: Aimed, planned: list[Planned], removed: list[UUID]) -> LinesWrite:
+    """Give what the lines write: those removed, and those accepted moved, changed, created."""
     moved: dict[UUID, list[UUID]] = {}
     changed: dict[UUID, Callable[[FacetWrite], None]] = {}
     created: list[tuple[UUID, object]] = []
@@ -130,7 +126,10 @@ def _lines(held: Aimed, planned: list[Planned]) -> LinesWrite:
         if set(each.fields) - {PARENT}:
             changed[current.node_id] = _change(HoursJudged(each.entry))
     return LinesWrite(
-        {task_id: tuple(nodes) for task_id, nodes in moved.items()}, changed, tuple(created)
+        {task_id: tuple(nodes) for task_id, nodes in moved.items()},
+        changed,
+        tuple(created),
+        tuple(removed),
     )
 
 

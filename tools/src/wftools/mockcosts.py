@@ -140,10 +140,10 @@ def lines() -> tuple[CostLine, ...]:
 
 
 def imputed(line: CostLine) -> str | None:
-    """Return the subproject a line is imputed to: the one of its code, if the project has it.
+    """Return the subproject a line is imputed to: the one of its code, none for the project alone.
 
-    A line without a subproject part, or whose code no subproject of the project carries, is
-    imputed to the project alone; the latter keeps its code (WF-CRE-0020).
+    The code is that of a subproject of the project, the element of the line compared whole; a line
+    without a code has the code of the project for element (WF-CRE-0020; #3966).
     """
     known = {entry["code"]: entry["subproject_id"] for entry in fixture("subprojects")}
     return None if line.code is None else known.get(line.code)
@@ -172,11 +172,11 @@ def _project() -> tuple[str, str]:
 def wbs_element(line: CostLine) -> str:
     """Return the element of the work breakdown structure the file of the ERP gives a line.
 
-    The code of the project, then, for a line with a subproject part, a slash and the code of the
-    subproject: the slash alone parts the two codes (WF-CRE-0020, C-373).
+    The code of the subproject it is imputed to, or the code of the project for a line of the
+    project alone: the element is compared whole (WF-CRE-0020; #3966).
     """
     _, code = _project()
-    return code if line.code is None else f"{code}/{line.code}"
+    return code if line.code is None else line.code
 
 
 def _passthrough(line: CostLine) -> dict[str, str]:
@@ -218,6 +218,8 @@ def cost_line(line: CostLine) -> JsonObject:
 
 
 EXCLUDED_TODAY = 0xC01
+STUDIES_INVOICE = 0xC06
+"""The invoice of the detailed studies, of the project alone (``mockwitnesscosts``)."""
 """The line the exclusion written today takes out of the tracked scope: the cables of the desk."""
 
 EXCLUSION_REASON = "Câbles d'un autre projet, à réimputer"
@@ -432,8 +434,8 @@ def invoiced(invoices: Sequence[CostLine]) -> str:
 def spread() -> tuple[CostLine, ...]:
     """Return the lines written by hand whose document holds other items: one invoice, in order.
 
-    The invoice of the safety controller, spread over two elements of the work breakdown
-    structure in two items of the same document, gives two lines (WF-INTF-0140, D-4).
+    The invoice of the safety controller, in two items of the same document, gives two lines
+    (WF-INTF-0140, D-4).
     """
     documents = [line.document for line in COSTS]
     return tuple(line for line in COSTS if documents.count(line.document) > 1)
@@ -444,13 +446,11 @@ def _spread_said() -> str:
     found = spread()
     [credit] = [line for line in COSTS if line.item is None]
     return (
-        f"La facture {found[0].document} de l'automate, ventilée sur "
-        f"{mocktext.count(len(found))} éléments d'OTP, "
-        + mocktext.listed([wbs_element(line) for line in found])
-        + f", donne {mocktext.count(len(found))} lignes, ses postes "
+        f"La facture {found[0].document} de l'automate, ventilée en "
+        f"{mocktext.count(len(found))} postes, "
         + mocktext.listed([cast("str", line.item) for line in found])
-        + ", chacune identifiée par la pièce et son poste ; l'avoir "
-        f"{credit.document} n'a pas de poste."
+        + f", donne {mocktext.count(len(found))} lignes, chacune identifiée par la pièce et son "
+        f"poste ; l'avoir {credit.document} n'a pas de poste."
     )
 
 
@@ -458,11 +458,11 @@ def _summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     today = mocktext.day(TODAY.date())
     witness = cast("JsonObject", found["actual_costs"])
     totals = cast("JsonObject", witness["totals"])
-    unknown = sorted({line.code for line in COSTS if line.code and imputed(line) is None})
+    alone = [line for line in COSTS if line.code is None]
     excluded = [line for line in COSTS if line.excluded is not None]
     [credit] = [line for line in COSTS if line.amount < 0]
     [screens] = [line for line in COSTS if imputed(line) == SUBPROJECT_CONTROL]
-    [studies] = [line for line in COSTS if line.code is None]
+    studies = _line(STUDIES_INVOICE)
     page = cast("list[JsonObject]", cast("JsonObject", found["actual_costs_page"])["items"])
     return {
         "actual_costs": (
@@ -473,14 +473,10 @@ def _summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             + ", ".join(f"« {line.text} », exclue du périmètre suivi," for line in excluded)
             + f" reste consultable. La facture des études de détail, {studies.document}, "
             f"{_amount(studies.amount)} datés du {mocktext.day(studies.on)}, jour où elles se "
-            f"terminent, n'a pas de partie sous-projet dans son élément d'OTP, "
-            f"{wbs_element(studies)}, comme leur ligne de devis : elle est imputée au seul "
-            "projet. Les codes de sous-projet "
-            + ", ".join(unknown)
-            + ", lus dans l'élément d'OTP — "
-            + ", ".join(sorted({wbs_element(line) for line in COSTS if line.code in unknown}))
-            + " —, ne sont ceux d'aucun sous-projet du projet : ces lignes sont "
-            "imputées au seul projet, hors sous-projet, et présentées avec leur code ; "
+            f"terminent, porte pour élément d'OTP le code du projet, {wbs_element(studies)}, "
+            "comme leur ligne de devis n'a pas de sous-projet : elle est imputée au seul projet, "
+            f"comme les {mocktext.count(len(alone) - 1)} autres lignes de cet élément, hors "
+            "sous-projet et sans code ; "
             f"{screens.document}, sous {wbs_element(screens)}, est imputée au sous-projet Poste "
             f"de commande. {_spread_said()} {invoiced(drawn())} Les colonnes conservées du "
             "fichier, celles que déclare la correspondance de l'extraction, sont celles de toutes "

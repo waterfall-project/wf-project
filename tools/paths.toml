@@ -131,6 +131,8 @@ paths = [
     # (US-2450, PLC-06).
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
+    # The command of Docker tried again when ghcr.io does not answer, which build-keycloak plays.
+    "tools/src/wftools/retried.py",
     "tools/src/wftools/heavyturns.py",
     "tools/src/wftools/marks.py",
 ]
@@ -253,6 +255,7 @@ paths = [
     "deploy/e2e/**",
     "tools/src/wftools/e2eimage.py",
     "tools/src/wftools/registry.py",
+    "tools/src/wftools/retried.py",
     # The parts of the paths, spread by the seconds they took (US-1910).
     "tools/src/wftools/e2eparts.py",
     # The search of the secrets and of the story of an identifier in the logs, which the paths play
@@ -422,6 +425,7 @@ paths = [
     "deploy/e2e/**",
     "tools/src/wftools/e2eimage.py",
     "tools/src/wftools/registry.py",
+    "tools/src/wftools/retried.py",
     # What spreads the parts of the paths by their measured durations (US-1910).
     "tools/src/wftools/e2eparts.py",
     # The launcher the Makefile starts the slots by, and the slots that run its heavy checks
@@ -517,7 +521,10 @@ by = "make fixtures"
 # tools/tests/test_mockrefusals.py), and those the contract declared without a code, a condition
 # nor an example (wftools.mockdeclared, held by tools/tests/test_mockdeclared.py), and those the
 # service served undeclared (wftools.mockservedrefusals, held by
-# tools/tests/test_mockservedrefusals.py), and the examples
+# tools/tests/test_mockservedrefusals.py), and the examples of the contract of the exchanges that
+# EP-33 changes (wftools.mockimportfindings, held by tools/tests/test_mockimportfindings.py), and
+# those of the WBS element compared whole and of the free subproject code (wftools.mockfreecodes,
+# held by tools/tests/test_mockfreecodes.py), and the examples
 # of the majors of the review of the 2026-10-31 (wftools.mockreview, held by
 # tools/tests/test_mockreview.py), and the chronology of the witness the loader of the projects
 # reads (wftools.mockchronology, held by tools/tests/test_mockchronology.py), and its tasks the
@@ -789,7 +796,6 @@ paths = [
     "fixtures/api/project_exit_revision_required.json",
     "fixtures/api/project_exit_version_name_required.json",
     "fixtures/api/project_exit_version_name_taken.json",
-    "fixtures/api/project_code_invalid.json",
     "fixtures/api/project_participant.json",
     "fixtures/api/project_rescue.json",
     "fixtures/api/project_background_task_running.json",
@@ -855,9 +861,9 @@ paths = [
     "fixtures/api/access_roles_date_invalid.json",
     "fixtures/api/resource_role_calendar_unknown.json",
     "fixtures/api/resource_role_hours_refused.json",
-    "fixtures/api/import_actual_costs_wbs_invalid.json",
     "fixtures/api/import_remaining_ambiguous_label.json",
     "fixtures/api/import_remaining_duplicate_lineage.json",
+    "fixtures/api/import_remaining_unknown_subproject.json",
     "fixtures/api/project_exit_terminal.json",
     "fixtures/api/project_exit_lost_in_progress.json",
     "fixtures/api/project_exit_unconfirmed.json",
@@ -951,6 +957,17 @@ paths = [
     "fixtures/api/import_duration_rule_applied.json",
     "fixtures/api/import_apply_refused_permission.json",
     "fixtures/api/import_remaining_completed_task.json",
+    "fixtures/api/import_apply_structure_changed.json",
+    "fixtures/api/file_upload_permission_missing.json",
+    "fixtures/api/file_upload_pending_limit.json",
+    "fixtures/api/file_upload_filename_nul.json",
+    "fixtures/api/import_actual_costs_task_purged.json",
+    "fixtures/api/import_estimate_column_missing.json",
+    "fixtures/api/import_remaining_column_missing.json",
+    "fixtures/api/import_remaining_amount_rounded.json",
+    "fixtures/api/import_actual_costs_unknown_elements.json",
+    "fixtures/api/subproject_code_of_project.json",
+    "fixtures/api/project_code_of_subproject.json",
     "fixtures/api/users_by_access_role.json",
     "fixtures/api/users_without_access_role.json",
     "fixtures/api/users_search.json",

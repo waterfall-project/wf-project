@@ -30,14 +30,16 @@ The estimate asks the planning, of the nodes of its lines, their revision (``nod
 their structure with their row number in it (``node_rows``): a subproject that lines bear is named
 by them (WF-DAT-0080).
 
-An import of an estimate writes the lines it moves, changes and creates in one write of the tree
-(``write_lines``): a write a line at a time would pass through structures the file does not give —
-two lines of a task that exchange their roles leave it, between the two writes, without an hour —,
-which the engine refuses (WF-PLA-0010).
+An import of an estimate writes the lines it removes, moves, changes and creates in one write of
+the tree (``write_lines``): a write a line at a time would pass through structures the file does
+not give — two lines of a task that exchange their roles leave it, between the two writes, without
+an hour —, which the engine refuses (WF-PLA-0010); and a removal a write each would replay the
+engine once per line, the structure locked all along (US-3220, #4422).
 
 Declared by US-1380/L1; filled by US-1490/L3 (EP-07, "Les points d'extension"); the deletion, the
 move and the places of the lines by US-1490/L4; the counters of nodes an import reads before each
-of its deletions (``node_versions``) and the write of its lines (``write_lines``) by US-1550/L3.
+of its deletions (``node_versions``) and the write of its lines (``write_lines``) by US-1550/L3;
+the lines it removes entered in that write by US-3220.
 """
 
 from dataclasses import dataclass
@@ -45,14 +47,19 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import exists, select, update
 
-from waterfall.core.planning.carrying import bearing, refuse_completed, refuse_completed_on
+from waterfall.core.planning.carrying import (
+    bearing,
+    refuse_completed,
+    refuse_completed_on,
+    refuse_provision,
+)
 from waterfall.core.planning.interface.facets import (
     FacetCreation,
     FacetWrite,
     facets,
 )
+from waterfall.core.planning.shaping import deleted, stamp
 from waterfall.core.planning.shaping import place as put_in_place
-from waterfall.core.planning.shaping import stamp
 from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tallying import provision_lines
 from waterfall.core.planning.tree import LINE, read_tree
@@ -106,12 +113,14 @@ class LinesWrite:
 
     ``moved`` the lines given another task, by the task that receives them, in their order;
     ``changed`` the lines whose facet is written, each with what writes it; ``created`` the lines
-    created, each by its task and what its facet sends (``FacetCreation.entry``), in their order.
+    created, each by its task and what its facet sends (``FacetCreation.entry``), in their order;
+    ``removed`` the lines deleted, none of them moved nor changed (US-3220), none by default.
     """
 
     moved: Mapping[UUID, tuple[UUID, ...]]
     changed: Mapping[UUID, Callable[[FacetWrite], None]]
     created: tuple[tuple[UUID, object], ...]
+    removed: tuple[UUID, ...] = ()
 
 
 def lines_of(
@@ -574,26 +583,37 @@ def _facet_written[N: NodeColumns, T: TaskColumns](
 
 
 def write_lines(session: Session, place: Place, lines: LinesWrite, writer: Writer) -> NodesWritten:
-    """Write the lines of an import, moved, changed and created, in one write of the tree.
+    """Write the lines of an import, removed, moved, changed and created, in one write of the tree.
 
     Under the lock of the structure: a line it does not hold is not found (404), a task that is
-    none refused (``UNKNOWN_TASK``), a line moved from a completed task of the main structure or
-    written under one refused (409 ``task_not_completed``). The lines moved go after those that
-    stay under the task that receives them, in the order given, the lines created after them; the
-    facet of each line changed, then created, writes what it sends under its task as the moves
-    leave it. Nothing is judged across lines before the end — the hooks of the kind do not judge
-    the lines moved (``FacetHooks.moved``) —: the caller has judged, under the lock of the
-    structure, the structure the whole write leaves, which the engine replays once (WF-PLA-0010).
-    The counters are not read: the caller holds that lock since it read the structure. The entry
-    of the history is named a paste, which writes several lines; an import keeps none (WF-IHM-0110).
+    none refused (``UNKNOWN_TASK``), a line removed or moved from a completed task of the main
+    structure, or written under one, refused (409 ``task_not_completed``), and a provision line of
+    the main structure removed refused, as its deletion is (409 ``line_not_provision``, #4007).
+    The lines removed go first, as their deletion takes a line (``delete_node``): their facets by
+    the hooks of their kind, their nodes; a line bears no node, as the guard that refuses a task
+    among them (``NOT_FOUND``) sees to, so no provision passes to another task, and no summary is
+    left without subordinate. The lines moved go after those that stay
+    under the task that receives them, in the order given, the lines created after them; the facet
+    of each line changed, then created, writes what it sends under its task as the removals and
+    the moves leave it. Nothing is judged across lines before the end — the hooks of the kind do
+    not judge the lines moved (``FacetHooks.moved``) —: the caller has judged, under the lock of
+    the structure, the structure the whole write leaves, which the engine replays once
+    (WF-PLA-0010, US-3220). The counters are not read: the caller holds that lock since it read
+    the structure. The entry of the history is named a paste, which writes several lines; an
+    import keeps none (WF-IHM-0110).
     """
     hooks = facets()[LINE]
     created = [(new_id(), task_id, entry) for task_id, entry in lines.created]
     moving = [node for nodes in lines.moved.values() for node in nodes]
-    named = tuple(dict.fromkeys((*moving, *lines.changed, *(node for node, _, _ in created))))
+    removed = list(dict.fromkeys(lines.removed))
+    if not {*moving, *lines.changed}.isdisjoint(removed):
+        msg = "a line removed is neither moved nor changed"
+        raise ValueError(msg)
+    kept = tuple(dict.fromkeys((*moving, *lines.changed, *(node for node, _, _ in created))))
+    named = (*removed, *kept)
     with writing(session, place, writer, ("paste", named)) as write:
         tree, act = write.tree, writer.act
-        lined = [*moving, *lines.changed]
+        lined = [*removed, *moving, *lines.changed]
         if not all(each in tree.nodes and each not in tree.tasks for each in lined):
             raise NotFoundError(NOT_FOUND)
         former = {parent for each in lined if (parent := tree.nodes[each].parent_id) is not None}
@@ -601,9 +621,14 @@ def write_lines(session: Session, place: Place, lines: LinesWrite, writer: Write
         for task_id in receiving:
             _judge_bearer(write, task_id)
         refuse_completed(write, former)
-        places = _places(tree, lines.moved)
-        ranks = {task_id: _last_rank(tree, task_id, places) for task_id in receiving}
+        for each in removed:
+            refuse_provision(write, each)
+        gone = frozenset(removed)
+        places = _places(tree, lines.moved, gone)
+        ranks = {task_id: _last_rank(tree, task_id, places, gone) for task_id in receiving}
         write.before(named)
+        if removed:
+            deleted(session, place.project_id, tree, removed)
         put_in_place(write, places, places)
         for node_id, apply in lines.changed.items():
             parent = tree.nodes[node_id].parent_id
@@ -618,14 +643,17 @@ def write_lines(session: Session, place: Place, lines: LinesWrite, writer: Write
             _created(write, (node_id, task_id, ranks[task_id]), hooks, entry)
         redated = write.redate(None, None, (*former, *receiving))
         write.after(named)
-        return redated.written(named, former)
+        return redated.written(kept, former)
 
 
 def _places(
-    tree: Tree, moved: Mapping[UUID, tuple[UUID, ...]]
+    tree: Tree, moved: Mapping[UUID, tuple[UUID, ...]], removed: Collection[UUID]
 ) -> dict[UUID, tuple[UUID | None, int]]:
-    """Give the parent and the rank of each line moved, after the lines that stay under its task."""
-    leaving = {node for nodes in moved.values() for node in nodes}
+    """Give the parent and the rank of each line moved, after the lines that stay under its task.
+
+    ``removed`` the lines the write deletes, which stay under no task.
+    """
+    leaving = {*removed, *(node for nodes in moved.values() for node in nodes)}
     places: dict[UUID, tuple[UUID | None, int]] = {}
     for task_id, nodes in moved.items():
         staying = [tree.nodes[each].rank for each in tree.lines(task_id) if each not in leaving]
@@ -636,9 +664,18 @@ def _places(
     return places
 
 
-def _last_rank(tree: Tree, task_id: UUID, places: Mapping[UUID, tuple[UUID | None, int]]) -> int:
-    """Give the last rank of the lines a task bears once the lines moved are placed."""
-    staying = (tree.nodes[each].rank for each in tree.lines(task_id) if each not in places)
+def _last_rank(
+    tree: Tree,
+    task_id: UUID,
+    places: Mapping[UUID, tuple[UUID | None, int]],
+    removed: Collection[UUID],
+) -> int:
+    """Give the last rank of the lines a task bears once the lines removed and moved have gone."""
+    staying = (
+        tree.nodes[each].rank
+        for each in tree.lines(task_id)
+        if each not in places and each not in removed
+    )
     arrived = (rank for parent, rank in places.values() if parent == task_id)
     return max((*staying, *arrived), default=0)
 
