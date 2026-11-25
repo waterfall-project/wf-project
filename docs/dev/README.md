@@ -6103,15 +6103,16 @@ The paths that depend on what the service does not do yet, or does not serve, ar
 against it, being untagged; each is still played against the fake back, by `chromium`. What depends
 on the clock: nothing in the reference, whose dates are those of the loading (WF-DAT-0070) and which
 the paths do not wait for. On a screen the service does not serve: the opening, from `/`, of the
-portfolio in `navigation.spec.ts`, lifted by **EP-11**, and that of the status screen of the system,
-lifted by **EP-13** (`getSystemStatus`, #2307). The administration, for its part, is read under
+portfolio in `navigation.spec.ts`, lifted by **EP-11**. The status of the system, served by EP-13
+(`getSystemStatus`, #2307), is read and opened on both sides, like the administration, under
 `@administration` (the account of the run holds there not the role "Manager" but « Administrateur
 (parcours) »): the paths of `admin.spec.ts` that read are `@shared @administration`. Not replayed
 are those of `admin.spec.ts` that write — the backups (start, keep, restore), the schedule of the
 backups, the accounts and the roles: each writes a single object of the installation, or asks for
 `users.write` or `access_roles.write`, which the account of `@administration` lacks, and which the
-paths of `frontend/e2e/service/` (`backups.spec.ts`, `accounts.spec.ts`, `roles.spec.ts`) prove as
-the administrator of the installation. The home is served since US-0920/L2 and plays on both sides
+paths of `frontend/e2e/service/` (`backups.spec.ts`, `accounts.spec.ts`, `roles.spec.ts`, and
+`administrator-path.spec.ts`, which carries WF-INTF-0030-A) prove as the administrator of the
+installation. The home is served since US-0920/L2 and plays on both sides
 (`projects.spec.ts`, and the icon of the tab in `navigation.spec.ts`), as do the screens of a
 project since US-1000 (among them, in `navigation.spec.ts`, the move from the settings to the
 lifecycle). Since EP-08, plays on both sides in `navigation.spec.ts` the way back to the previous project from a

@@ -5146,7 +5146,8 @@ l'administration, sous `@administration` (le compte de la course n'y porte pas l
 (lancer, garder, restaurer), l'horaire des sauvegardes, les comptes et les rôles : chacun écrit un
 objet unique de l'installation, ou demande `users.write` ou `access_roles.write`, que le compte de
 `@administration` n'a pas, et que les parcours de `frontend/e2e/service/` (`backups.spec.ts`,
-`accounts.spec.ts`, `roles.spec.ts`) éprouvent sous l'administrateur de l'installation. L'accueil
+`accounts.spec.ts`, `roles.spec.ts`, et `administrator-path.spec.ts`, qui porte WF-INTF-0030-A)
+éprouvent sous l'administrateur de l'installation. L'accueil
 est servi depuis US-0920/L2 et se joue des deux côtés (`projects.spec.ts`, et l'icône de l'onglet de
 `navigation.spec.ts`), de même que les écrans d'un projet depuis US-1000 (dont, dans
 `navigation.spec.ts`, le passage des paramètres au cycle de vie). Depuis EP-08, se joue des deux côtés, dans
