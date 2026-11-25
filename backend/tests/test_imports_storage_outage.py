@@ -40,13 +40,11 @@ from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.platform.keycloak_admin import KeycloakAdmin
-from waterfall.platform.storage import Bucket, unavailable
+from waterfall.platform.storage import Bucket, ObjectStream, unavailable
 from waterfall.platform.tasks import BackgroundTask, RetriedError
 from waterfall.worker.runner import MAX_ATTEMPTS, Worker
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
@@ -74,20 +72,30 @@ class Outage(Bucket):
         super().__init__(bucket.client, bucket.name)
         self.outage: str | None = None
 
-    def stream(self, key: str) -> Iterator[bytes]:
+    def stream(self, key: str) -> ObjectStream:
         """Read as the bucket does, unless the storage is down: at the opening, or after a chunk."""
         if self.outage == "opening":
             raise unavailable()
         if self.outage == "defect":
             raise RuntimeError(DEFECT)
         chunks = super().stream(key)
-        return chunks if self.outage is None else self.broken(chunks)
+        return chunks if self.outage is None else Broken(chunks)
 
-    @staticmethod
-    def broken(chunks: Iterator[bytes]) -> Iterator[bytes]:
+
+class Broken(ObjectStream):
+    """The stream of an object that gives its first chunk, then loses its connection."""
+
+    def __init__(self, opened: ObjectStream) -> None:
+        super().__init__(opened.body, opened.length, opened.key)
+        self.given = False
+
+    def __next__(self) -> bytes:
         """Give the first chunk, then the error of a connection lost in the middle of the body."""
-        yield next(chunks)
-        raise ResponseStreamingError(error="the connection was lost")
+        if self.given:
+            self.close()
+            raise ResponseStreamingError(error="the connection was lost")
+        self.given = True
+        return super().__next__()
 
 
 @pytest.fixture
