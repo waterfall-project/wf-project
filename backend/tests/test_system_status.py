@@ -640,6 +640,31 @@ def test_a_space_without_its_capacity_is_not_presented_and_none_measured_says_no
     assert fullest([space("database", 0, 0)]) == {"used_bytes": 0, "available_bytes": 0}
 
 
+@pytest.mark.story("US-2880")
+def test_the_front_is_not_a_component_of_the_screen_but_its_stop_is_an_alert_of_it(
+    contract: OpenAPI,
+    platform: Services,
+    prometheus: TestPrometheus,
+    viewer: dict[str, str],
+) -> None:
+    # Proper to US-2880 (#4297, #4504): the front serves the screen and does not present itself
+    # among its components, even when Prometheus collects it; the alert of its stop, which the rule
+    # raises with component="front", is in the alerts of the screen, naming it.
+    collected(prometheus)
+    stopped = datetime(2026, 6, 3, 0, 52, tzinfo=UTC)
+    prometheus.fires("component_unavailable", stopped, component="front", severity="alert")
+    status = read(screen_on(contract, platform, prometheus), viewer)
+    assert "front" not in by_component(status)
+    assert status["alerts"] == [
+        {
+            "code": "component_unavailable",
+            "since": "2026-06-03T00:52:00Z",
+            "severity": "alert",
+            "params": {"component": "front"},
+        }
+    ]
+
+
 @pytest.mark.story("US-2890")
 def test_an_alert_the_contract_does_not_name_is_not_presented() -> None:
     # Proper to US-2890: a rule an operator adds is Prometheus's, not the screen's; a zone the
