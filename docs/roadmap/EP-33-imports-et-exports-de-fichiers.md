@@ -307,6 +307,18 @@ tranchés par l'auteur le 2026-11-24 :
 - #4904 — contrat : aucun exemple d'un import refusé ni d'une tâche d'application échouée →
   reporté à EP-38.
 
+Constats relevés à la livraison d'US-3190b, d'US-3270b et d'US-3270/L3b, tranchés par l'auteur le
+2026-11-25 :
+
+- #4914, #4915 — back : sous la borne d'éléments, le coût d'un élément (ses attributs, son texte)
+  n'est pas borné (660 Mio) ; les éléments étrangers d'un onglet ou de `sharedStrings.xml` passent
+  les bornes (≈ 257 Mio) → US-3190/L3 : une borne des octets des membres lus en arbre, et le
+  comptage en flux des éléments étrangers, aux valeurs mesurées ;
+- #4916 — outil : le rejeu et l'entrée connue de `ghcr.io` reconnaissent aussi un push →
+  élargissement assumé, la même panne d'infrastructure ; l'entrée reformulée par US-3270/L6 ;
+- #4919 — outil : les exemples du reste à engager numérotent leurs lignes depuis la ligne 2 →
+  US-3270/L6, sur `REMAINING_FIRST_ROW`.
+
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
 qui réalisera #3966, à nommer par le cadreur ») → US-3270.
@@ -646,7 +658,12 @@ en entier avant de le couper (L1). La pré-lecture en flux des membres XML est d
 versionne ses scripts de mesure et sa fabrique de classeurs démesurés (des classeurs engendrés,
 ceux des tests et du témoin, aucun autre). US-3190b (#4862, ajouté le 2026-11-24) borne en plus
 les éléments des membres qu'openpyxl lit en arbre, hors des onglets et de `sharedStrings.xml` :
-1 000 000 au total.
+1 000 000 au total. Décision de l'auteur du 2026-11-25 (question d'US-3190b) : le critère « un
+`styles.xml` au maximum d'Excel passe » se lit liste par liste. Chaque liste à sa borne, avec des
+items comme Excel les écrit, passe. Toutes les listes riches pleines à la fois, qu'aucun fichier
+réel ne porte (≈ 1 600 000 éléments), ne passent pas. US-3190/L3 (#4914, #4915) borne ensuite les
+octets des membres lus en arbre et les éléments étrangers des onglets et de `sharedStrings.xml`,
+sur la mesure : aucun classeur accepté au-delà de la crête des tests de L2b.
 
 **Hors périmètre.** La limite de mémoire du service dans le chart (EP-13, EP-39) ; la colonne
 absente d'un onglet (US-3200).
@@ -1050,7 +1067,9 @@ journal, par projet.
 
 US-3270/L3b (ajouté le 2026-11-24) : le rejet `UNKNOWN_SUBPROJECT` porte le code lu en tête
 (#4898), le code du sous-projet se tronque dans l'écran des coûts réels (#4896), et le guide Python
-reçoit la variante « règle de comparaison écrite deux fois » (#4899).
+reçoit la variante « règle de comparaison écrite deux fois » (#4899). US-3270/L6 (ajouté le
+2026-11-25) : l'entrée `ghcr.io` assume le push (#4916), et les exemples du reste à engager
+numérotent leurs lignes depuis la ligne 3 (#4919).
 
 **Hors périmètre.** L'export du devis selon l'annexe B (#4399, EP-31) ; les noms d'onglet du devis
 (#3371), que le nom tiré du code règle pour le reste à engager.
