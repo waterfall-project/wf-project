@@ -288,7 +288,7 @@ tranchés par l'auteur le 2026-11-24 :
 
 - #4862 — back : un `styles.xml` ou un `workbook.xml` qui porte des millions d'éléments hors des
   items bornés passe les bornes (543 Mio pour 25 Ko) → US-3190b : la pré-lecture compte tous les
-  éléments des membres qu'openpyxl lit en arbre, et refuse au-delà de 1 000 000 au total ;
+  éléments des membres qu'openpyxl lit en arbre, et refuse au-delà de 1 100 000 au total ;
 - #4881 — tests : le journal lu pendant son écriture, sur un caractère UTF-8 coupé — clos sans
   suite, le journal JSON échappe tout caractère non ASCII ;
 - #4885 — back : un import emporté par la cascade d'une structure ou d'une révision libère encore
@@ -658,10 +658,11 @@ en entier avant de le couper (L1). La pré-lecture en flux des membres XML est d
 versionne ses scripts de mesure et sa fabrique de classeurs démesurés (des classeurs engendrés,
 ceux des tests et du témoin, aucun autre). US-3190b (#4862, ajouté le 2026-11-24) borne en plus
 les éléments des membres qu'openpyxl lit en arbre, hors des onglets et de `sharedStrings.xml` :
-1 000 000 au total. Décision de l'auteur du 2026-11-25 (question d'US-3190b) : le critère « un
+1 100 000 au total. Décisions de l'auteur du 2026-11-25 (questions d'US-3190b) : le critère « un
 `styles.xml` au maximum d'Excel passe » se lit liste par liste. Chaque liste à sa borne, avec des
 items comme Excel les écrit, passe. Toutes les listes riches pleines à la fois, qu'aucun fichier
-réel ne porte (≈ 1 600 000 éléments), ne passent pas. US-3190/L3 (#4914, #4915) borne ensuite les
+réel ne porte (≈ 1 600 000 éléments), ne passent pas. La borne, d'abord de 1 000 000, est relevée
+pour la liste la plus lourde : 65 490 `dxf` de 16 éléments, soit 1 047 935 éléments. US-3190/L3 (#4914, #4915) borne ensuite les
 octets des membres lus en arbre et les éléments étrangers des onglets et de `sharedStrings.xml`,
 sur la mesure : aucun classeur accepté au-delà de la crête des tests de L2b.
 
