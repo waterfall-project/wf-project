@@ -323,7 +323,9 @@ par l'auteur le 2026-11-25 :
   plafonds.
 - #4929 — outil : les fichiers de couverture parallèles du back (`.coverage.<hôte>.pid…`) ne sont
   pas ignorés par git, et un commit de L6 en a embarqué 67 → US-3270/L6b : `.coverage.*` dans
-  `.gitignore` ; l'historique d'`epic/EP-33` n'est pas réécrit.
+  `.gitignore` ; l'historique d'`epic/EP-33` n'est pas réécrit ;
+- #4946 — back, déploiement : la lecture d'un classeur importé n'a pas de plafond de mémoire dur
+  (relevé à la mesure d'US-3190/L3) → reporté à EP-39, avec la limite de mémoire du service.
 
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
@@ -682,16 +684,16 @@ sous `<sst>`. Dans un onglet, est étranger tout ce qui est hors des `row` de `s
 leurs `c` ; sous `<sst>`, tout ce qui n'est ni un `si` ni dans un `si`. Les descendants d'une `c`
 ont une borne par ligne (65 536), car `v` et `f` atteignent légitimement 20 000 000 à la borne des
 cellules. Écartée : 24 Mio, qui garde la liste `dxfs` d'Excel mais annonce ≈ 512 Mio par lecture.
-Les bornes tiennent liste par liste, mais des combinaisons acceptées dépassaient l'objectif
-(`cellXfs`, `cellStyleXfs` et `dxf` riches : 213 Mio). L'auteur a donc ajouté un budget commun
-(2026-11-25) : la pré-lecture refuse un classeur dont la somme des fractions consommées (items de
-chaque liste bornée, éléments, octets des membres lus en arbre) dépasse un plafond mesuré, ≈ 2,1.
-Un item compte aussi comme élément et comme octets, si bien que le plafond n'est pas 1 : une unité
-coûte au plus ≈ 85 Mio, marge de 5 % comprise, et l'additivité tient à 5 % près. La borne de
-`dxfs`, d'abord ≈ 25 000, est ramenée à 22 000 pour y tenir ; 1 000 000 `<b/>` passent toujours.
-Écartées : une borne commune aux seules listes de styles (elle ignore les éléments hors liste),
-une borne d'octets abaissée, un objectif relevé à ≈ 220 Mio, le plafond à 1 (tout se resserre
-d'environ 2,4 fois), et un modèle linéaire en Mio (lié au coût par objet d'openpyxl).
+Les bornes tiennent liste par liste, mais la mesure a trouvé d'autres vecteurs : des combinaisons
+de listes (≈ 205 Mio), puis des attributs qu'aucune borne ne comptait (28 000 `<b/>` à 52 attributs
+vides : 342 Mio). Une borne calculée à l'avance ne garantit pas une crête exacte, car la mémoire
+dépend de la façon dont libxml2 et openpyxl représentent chaque construction. Décision de l'auteur
+du 2026-11-25 : chaque attribut compte comme un élément dans la borne de 1 100 000, et l'objectif
+est redit, ≈ 192 Mio par vecteur borné, au plus ≈ 220 Mio pour les combinaisons. Les bornes sont
+une défense en profondeur ; la garantie dure, une lecture sous une limite de mémoire imposée par
+le système, est reportée à EP-39 (#4946). Écartés : un budget commun des listes, des éléments et
+des octets, sous un plafond mesuré (il comptait deux fois les items et ignorait les attributs), une
+borne d'octets abaissée, et un modèle linéaire en Mio (lié au coût par objet d'openpyxl).
 
 **Hors périmètre.** La limite de mémoire du service dans le chart (EP-13, EP-39) ; la colonne
 absente d'un onglet (US-3200).
