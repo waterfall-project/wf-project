@@ -92,6 +92,11 @@ from waterfall.core.planning.msproject.translation import (
     lag_of as lag_of,
 )
 
+# ``translation`` (US-3210b, #4826): the constants of the installation as the export writes them.
+from waterfall.core.planning.msproject.translation import (
+    written_constants as written_constants,
+)
+
 # ``tree``: the namespaces of MSPDI.
 from waterfall.core.planning.msproject.tree import (
     NAMESPACE as NAMESPACE,

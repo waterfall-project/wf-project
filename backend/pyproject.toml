@@ -115,8 +115,10 @@ typeCheckingMode = "strict"
 pythonVersion = "3.14"
 include = ["src", "tests", "measure"]
 # The tests share what ``tests/conftest.py`` holds; the measure (``measure/``, beside the package, US-2210)
-# is imported by its tests and by itself from the root of the back.
-extraPaths = ["src", "tests", "."]
+# is imported by its tests and by itself from the root of the back; the tools (``../tools/src``, as
+# pytest's ``pythonpath``) are read by the tests that compare an example of the contract to the
+# service (US-3270/L6).
+extraPaths = ["src", "tests", ".", "../tools/src"]
 # The models engendered from the contract are written by a tool, not by us.
 exclude = ["src/waterfall/api/contract/models.py"]
 # `# type: ignore` is not honoured: a type error is fixed, never silenced (US-0050).

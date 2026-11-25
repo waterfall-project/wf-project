@@ -18,7 +18,8 @@ structure (WF-CRE-0020, US-0701/L7); and the export of a revision of another pro
 unknown one (WF-ADM-0110). An import says the structure, the revision and the period its opening
 received (``opened_on``, I-08). And a remaining to commit that brings every line of two tasks to
 zero, which its report names completed on the date of the review the file bears (WF-INTF-0120,
-WF-INTF-0130; US-0703/L7).
+WF-INTF-0130; US-0703/L7). And a remaining to commit whose tab, renamed, bears at its head a code no
+subproject bears: its lines rejected, naming the tab and the code (WF-INTF-0120; #4898).
 """
 
 from datetime import date
@@ -156,16 +157,25 @@ TAB = SUBPROJECT_TESTS
 """The tab of the file the two lines are placed in: the tests and the commissioning."""
 
 
-def tab_name(subproject: str) -> str:
-    """Return the name of the tab of a subproject, as the file names it: its code (ANNEXE B).
+TAB_REFUSED = frozenset(":\\/?*[]")
+"""The characters Excel refuses in the name of a tab, each replaced by an underscore."""
+TAB_LENGTH = 31
+"""The longest name of a tab."""
 
-    The code of a subproject is bounded so that it names a tab (`DeclaredSubprojectCode`,
-    WF-PRJ-0050; EP-16/US-0610); its label is not.
+
+def tab_name(subproject: str) -> str:
+    """Return the name of the tab of a subproject, as the file names it: drawn from its code.
+
+    The code is free (`DeclaredSubprojectCode`, WF-PRJ-0050; #3966): each character a tab refuses
+    is replaced by an underscore, and the name cut to 31 characters, as the service draws it
+    (``sheet_name``, annex B) — the witness's codes, of the code of the project, a slash and an
+    older code, are short and do not collide.
     """
-    [name] = [
+    [code] = [
         entry["code"] for entry in fixture("subprojects") if entry["subproject_id"] == subproject
     ]
-    return cast("str", name)
+    name = "".join("_" if each in TAB_REFUSED else each for each in cast("str", code))
+    return name[:TAB_LENGTH]
 
 
 IMPORTED = (N.COMMISSIONING_LINE, N.LABOUR)
@@ -175,6 +185,10 @@ station, which received the invoice of the screens."""
 
 FIRST_ROW = 2
 """The row of the first line of a tab, under its headings."""
+
+REMAINING_FIRST_ROW = 3
+"""The row of the first line of a tab of a remaining to commit: its head, with the code of the
+subproject, takes the first row, its headings the second, so its lines start at the third."""
 
 HELD_IMPORT, HELD_IMPORT_TASK = hex_identifier(0xA17), universe(947)
 
@@ -210,7 +224,7 @@ def import_report(nodes: dict[int, Node]) -> JsonObject:
     """
     rejected: list[JsonValue] = []
     differences: list[JsonValue] = []
-    for row, number in enumerate(IMPORTED, start=FIRST_ROW):
+    for row, number in enumerate(IMPORTED, start=REMAINING_FIRST_ROW):
         line = nodes[number]
         refusal = held_refusal(nodes, line, TAB, pasted=False)
         if refusal is not None:
@@ -237,6 +251,7 @@ def import_report(nodes: dict[int, Node]) -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": [],
+        "unknown_wbs_elements": [],
         "unit_constants": None,
         "calendar_gap": None,
     }
@@ -295,7 +310,7 @@ def import_remaining_duplicate_lineage() -> JsonObject:
     imported["created_at"], task["submitted_at"] = LINEAGE_SUBMITTED, LINEAGE_SUBMITTED
     task["finished_at"], imported["expires_at"] = LINEAGE_ANALYSED, LINEAGE_EXPIRES
     sheet = tab_name(TAB)
-    first, second = FIRST_ROW + 1, FIRST_ROW + 2
+    first, second = REMAINING_FIRST_ROW, REMAINING_FIRST_ROW + 1
     rejected: list[JsonValue] = [
         {
             "sheet": sheet,
@@ -308,6 +323,47 @@ def import_remaining_duplicate_lineage() -> JsonObject:
     report["rejected"] = rejected
     report["read_count"] = len(cast("list[JsonValue]", report["differences"])) + len(rejected)
     report["unchanged_count"] = 0
+    return imported
+
+
+# --- A remaining to commit whose tab, renamed, bears an unknown code at its head ---------------
+
+UNKNOWN_TAB, UNKNOWN_CODE = "Essais sur site", "PRJ-001/SP-MES"
+"""The tab of IMPORTED renamed in the spreadsheet, and the code its head bears, no subproject's."""
+
+UNKNOWN_IMPORT, UNKNOWN_IMPORT_TASK = hex_identifier(0xA33), universe(956)
+UNKNOWN_SUBMITTED, UNKNOWN_ANALYSED, UNKNOWN_EXPIRES = (
+    "2026-06-03T10:47:05Z",
+    "2026-06-03T10:48:00Z",
+    "2026-06-04T10:48:00Z",
+)
+"""The import and its task, and when it was opened today, analysed, and until when it applies."""
+
+
+def import_remaining_unknown_subproject() -> JsonObject:
+    """Return the remaining of IMPORTED in a tab renamed whose head bears an unknown code (#4898).
+
+    The subproject of a tab is the one of the code at its head, whatever its name (WF-INTF-0120):
+    a code no subproject bears designates none, and each line of the tab is rejected, naming the
+    tab, where the user finds it, and the code, which they declare.
+    """
+    imported = import_remaining_subproject_held()
+    task = cast("JsonObject", imported["task"])
+    report = cast("JsonObject", imported["report"])
+    imported["import_id"], task["task_id"] = UNKNOWN_IMPORT, UNKNOWN_IMPORT_TASK
+    imported["created_at"], task["submitted_at"] = UNKNOWN_SUBMITTED, UNKNOWN_SUBMITTED
+    task["finished_at"], imported["expires_at"] = UNKNOWN_ANALYSED, UNKNOWN_EXPIRES
+    rejected: list[JsonValue] = [
+        {
+            "sheet": UNKNOWN_TAB,
+            "row": row,
+            "code": "UNKNOWN_SUBPROJECT",
+            "params": {"value": UNKNOWN_TAB, "subproject_code": UNKNOWN_CODE},
+        }
+        for row in range(REMAINING_FIRST_ROW, REMAINING_FIRST_ROW + len(IMPORTED))
+    ]
+    report["rejected"], report["differences"] = rejected, []
+    report["read_count"], report["unchanged_count"] = len(rejected), 0
     return imported
 
 
@@ -418,6 +474,7 @@ def completing_report(nodes: dict[int, Node]) -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": [],
+        "unknown_wbs_elements": [],
         "unit_constants": None,
         "calendar_gap": None,
     }
@@ -579,10 +636,10 @@ def cost_report(entry: CostImport) -> JsonObject:
     Each line whose document and item were not yet imported is added, each one already imported
     and brought back updated, both named by their document and their item (WF-INTF-0140, D-4);
     the lines it brings back as they were are counted unchanged; each line of another project the
-    journal counts is rejected, its element named as the file carries it, with the code of project
-    read (WF-CRE-0020), last in the file. The witness does not say which columns an update
-    changes: an updated line names none. A code of subproject no subproject of the project
-    carries is kept, and asks for an explicit confirmation, as the lines of another project do.
+    journal counts is rejected, its element named as the file carries it, alone (WF-CRE-0020),
+    last in the file, and named once with the number of its lines (``unknown_wbs_elements``,
+    #3966), which asks for an explicit confirmation. The witness does not say which columns an
+    update changes: an updated line names none.
     """
     added = brought(entry, created=True)
     updated = brought(entry, created=False)
@@ -593,7 +650,7 @@ def cost_report(entry: CostImport) -> JsonObject:
             "sheet": None,
             "row": first + offset,
             "code": "WBS_ELEMENT_OUTSIDE_PROJECT",
-            "params": {"wbs_element": f"{code}/{OUTSIDE_SUBPROJECT}", "project_code": code},
+            "params": {"wbs_element": f"{code}/{OUTSIDE_SUBPROJECT}"},
         }
         for offset in range(entry.rejected)
     ]
@@ -601,9 +658,12 @@ def cost_report(entry: CostImport) -> JsonObject:
         *(_difference(line, "added") for line in added),
         *(_difference(line, "updated") for line in updated),
     ]
+    unknown: list[JsonValue] = (
+        [{"wbs_element": f"{code}/{OUTSIDE_SUBPROJECT}", "line_count": len(rejected)}]
+        if rejected
+        else []
+    )
     reasons: list[JsonValue] = ["lines_outside_project"] if rejected else []
-    if unknown_codes([*added, *updated]):
-        reasons.append("unknown_subproject")
     return {
         "format_version": None,
         "read_count": len(differences) + entry.unchanged + len(rejected),
@@ -616,6 +676,7 @@ def cost_report(entry: CostImport) -> JsonObject:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": reasons,
+        "unknown_wbs_elements": unknown,
         "unit_constants": None,
         "calendar_gap": None,
     }
@@ -624,13 +685,6 @@ def cost_report(entry: CostImport) -> JsonObject:
 def april_report() -> JsonObject:
     """Return the report of the extraction of April, as its analysis presented it."""
     return cost_report(APRIL)
-
-
-def unknown_codes(added: Sequence[CostLine]) -> list[str]:
-    """Return the codes of subproject of lines no subproject of the project carries, once each."""
-    return sorted(
-        {line.code for line in added if line.code is not None and mockcosts.imputed(line) is None}
-    )
 
 
 def import_actual_costs_first() -> JsonObject:
@@ -682,13 +736,6 @@ def _april_said() -> str:
         for line in added
     )
     [rejected] = report["rejected"]
-    codes = unknown_codes(added)
-    confirmed = "des lignes d'un autre projet"
-    if codes:
-        confirmed += (
-            f", et le code de sous-projet {', '.join(codes)}, qu'aucun sous-projet du projet "
-            "ne porte"
-        )
     return (
         f"L'extraction d'avril, {mockcosts.period_said(APRIL)}, déposée le "
         f"{mocktext.day(date(2026, 5, 4))} à {mocktext.hour(APRIL_SUBMITTED)} et analysée à "
@@ -696,10 +743,11 @@ def _april_said() -> str:
         f"application à {mocktext.hour(stamp(APRIL.event.instant))} (imports, cost_imports) : "
         f"{report['read_count']} lignes lues ; {len(added)} lignes nouvelles ajoutées, chacune "
         f"désignée par sa pièce et son poste — {named} — ; à la ligne {rejected['row']}, "
-        f"l'élément d'OTP « {rejected['params']['wbs_element']} », d'un autre projet, rejeté et "
-        f"nommé avec le code projet lu, {rejected['params']['project_code']}, que le journal "
-        f"compte parmi les lignes rejetées. L'application demande une confirmation explicite : "
-        f"{confirmed} (WF-CRE-0020, WF-CRE-0050, WF-INTF-0140, WF-INTF-0080)."
+        f"l'élément d'OTP « {rejected['params']['wbs_element']} », ni le code du projet ni "
+        f"celui de l'un de ses sous-projets, rejeté, nommé au compte rendu avec le nombre de ses "
+        f"lignes, et que le journal compte parmi les lignes rejetées. L'application demande une "
+        f"confirmation explicite pour cette ligne (WF-CRE-0020, WF-CRE-0050, WF-INTF-0140, "
+        f"WF-INTF-0080)."
     )
 
 
@@ -745,12 +793,22 @@ def examples() -> dict[str, JsonObject]:
             imported,
         ),
         "import_remaining_duplicate_lineage.json": mocktext.example(
-            f"Une variante du reste à engager importé aujourd'hui : les lignes {FIRST_ROW + 1} et "
-            f"{FIRST_ROW + 2} de l'onglet « {tab_name(TAB)} » portent la même lignée, une ligne "
-            f"copiée dans le tableur : toutes deux rejetées, aucune préférée, chacune nommant "
-            f"l'autre ; la ligne de la révision que cette lignée désigne est laissée telle quelle "
-            f"(WF-INTF-0100, WF-INTF-0120, #2798).",
+            "Une variante du reste à engager importé aujourd'hui : les lignes "
+            f"{REMAINING_FIRST_ROW} et {REMAINING_FIRST_ROW + 1} de l'onglet « {tab_name(TAB)} » "
+            "portent la même lignée, une ligne "
+            "copiée dans le tableur : toutes deux rejetées, aucune préférée, chacune nommant "
+            "l'autre ; la ligne de la révision que cette lignée désigne est laissée telle quelle "
+            "(WF-INTF-0100, WF-INTF-0120, #2798).",
             import_remaining_duplicate_lineage(),
+        ),
+        "import_remaining_unknown_subproject.json": mocktext.example(
+            f"Une variante du reste à engager importé aujourd'hui : l'onglet « {tab_name(TAB)} », "
+            f"renommé « {UNKNOWN_TAB} » dans le tableur, porte en tête le code « {UNKNOWN_CODE} », "
+            f"qu'aucun sous-projet du projet ne porte : ses lignes {REMAINING_FIRST_ROW} et "
+            f"{REMAINING_FIRST_ROW + 1} sont rejetées, chacune nommant l'onglet, où l'utilisateur "
+            f"la retrouve, et le code lu en tête, qu'il déclare ; aucune ligne ne change de "
+            f"sous-projet (WF-INTF-0120, WF-INTF-0080, #4898).",
+            import_remaining_unknown_subproject(),
         ),
         "import_actual_costs_first.json": mocktext.example(
             _april_said(), import_actual_costs_first()

@@ -75,17 +75,17 @@ if TYPE_CHECKING:
 
 # The project manager of the witness, Camille Martin, who applies the imports and excludes the line.
 MANAGER = UUID("01926f3a-7c00-7000-8000-000000000301")
-# The extraction of April replayed, analysed at the event 23, expired the day after.
+# The extraction of April replayed, analysed at the event 23, expired the day after: the purge
+# deletes it in the pass that finds it so, and the witness loads nothing of it (US-3250).
 EXPIRED = UUID("01926f3a-7c00-7000-8000-000000000a12")
 ANALYSED = 23
 # The reception of the customer, excluded at the event 18 for its reason.
 RECEPTION = UUID("01926f3a-7c00-7000-8000-000000000c04")
 EXCLUDED = 18
 REASON = "Réception du client, non budgétée"
-# The imports of the chronology that write nothing yet: the planning abandoned (event 22, EP-06)
-# and the estimate analysed (event 25, EP-07 and EP-08).
+# The import of the chronology that writes nothing yet: the estimate analysed (event 25, EP-07 and
+# EP-08). The planning abandoned and the extraction expired are no longer listed (US-3250).
 UNLOADED_IMPORTS = {
-    "01926f3a-7c00-7000-8000-000000000a10": "ms_project_schedule",
     "01926f3a-7c00-7000-8000-000000000a11": "estimate",
 }
 COMMAND_POST = "01926f3a-7c00-7000-8000-000000000801"
@@ -173,32 +173,20 @@ def test_the_five_imports_of_costs_are_loaded_at_their_events_by_the_manager(
         assert report.analysed_at == report.expires_at - LIFETIME
         assert report.applied_at == row.imported_at
         assert zulu(report.created_at.isoformat()) == item["created_at"]
-    assert len(reports) == 6
+    assert len(reports) == 5
 
 
-@pytest.mark.requirement("WF-QUA-0040-A")
-def test_the_extraction_of_april_replayed_is_analysed_at_its_event_and_expired_the_day_after(
+@pytest.mark.requirement("WF-DAT-0080-A")
+def test_the_witness_keeps_no_import_the_purge_deletes_neither_expired_nor_abandoned(
     witness: Database,
 ) -> None:
-    analysed = example("import_actual_costs_analysed")
+    # The extraction of April replayed is not loaded, nor is any import expired or abandoned: the
+    # purge deletes them in the pass that finds them so, and the witness keeps nothing beyond it.
     with witness.transaction() as session:
         row = session.get(ImportReport, EXPIRED)
-        applied = session.scalar(
-            select(func.count())
-            .select_from(CostImport)
-            .where(CostImport.import_report_id == EXPIRED)
-        )
-    assert row is not None
-    assert applied == 0
-    assert (row.status, row.applied_at, row.task_id) == ("expired", None, None)
-    assert row.analysed_at == instant(ANALYSED)
-    assert row.expires_at == instant(ANALYSED) + LIFETIME
-    assert row.report == analysed["report"]
-    assert (row.filename, row.period_from, row.period_to) == (
-        analysed["filename"],
-        day(analysed["period_from"]),
-        day(analysed["period_to"]),
-    )
+        statuses = set(session.scalars(select(ImportReport.status)))
+    assert row is None
+    assert statuses.isdisjoint({"expired", "abandoned"})
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
@@ -276,11 +264,11 @@ def test_the_readings_of_the_costs_are_the_examples_audit_columns_included(
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
-def test_the_imports_read_are_the_six_of_the_actual_costs_of_the_example(
+def test_the_imports_read_are_the_five_of_the_actual_costs_of_the_example(
     api: ContractClient, witness: Database, realm: TestRealm, the_day: None
 ) -> None:
-    # The imports of the planning and of the estimate are not loaded (EP-06, EP-07, EP-08): the
-    # others are the example's, in its order, the extraction of April replayed read expired.
+    # The import of the estimate is not loaded (EP-07, EP-08): the others are the example's, in its
+    # order.
     del the_day
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/imports")
     expected = example("imports")
@@ -291,8 +279,24 @@ def test_the_imports_read_are_the_six_of_the_actual_costs_of_the_example(
         if each["import_id"] in UNLOADED_IMPORTS
     } == UNLOADED_IMPORTS
     assert deviations(body["items"], wanted) == set()
-    assert len(body["items"]) == 6
+    assert len(body["items"]) == 5
     assert body["meta"]["total"] == expected["meta"]["total"] - len(UNLOADED_IMPORTS)
+
+
+@pytest.mark.requirement("WF-DAT-0080-A")
+def test_each_import_of_the_witness_is_read_without_a_task_not_a_500(
+    api: ContractClient, witness: Database, realm: TestRealm, the_day: None
+) -> None:
+    # The imports of the witness never had a task: ``getImport`` answers 200, its task null, for
+    # each (US-3250); the example of the list is the answer of the service on them.
+    del the_day
+    listed = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/imports")["items"]
+    assert len(listed) == 5
+    for item in listed:
+        found = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/imports/{item['import_id']}")
+        assert found["task"] is None
+        assert found["status"] == "applied"
+        assert found["report"] is not None
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
@@ -478,7 +482,7 @@ def test_two_new_platforms_loaded_with_the_witness_hold_the_same_costs(
     install(owner)
     assert load(service_database_url) == 0
     assert identifying(witness) == first
-    assert [len(first[name]) for name in ("cost_import", "import", "cost_line")] == [5, 6, 28]
+    assert [len(first[name]) for name in ("cost_import", "import", "cost_line")] == [5, 5, 28]
 
 
 # An address of electronic mail, wherever it stands in a text.
@@ -581,20 +585,19 @@ def test_an_import_a_line_or_a_listing_the_description_lacks_is_refused_by_name(
     with pytest.raises(ValueError, match="names a line FA-2026-9999"):
         held.line("FA-2026-9999", "10")
     with pytest.raises(ValueError, match="lists no import"):
-        held.listing(EXPIRED, "applied")
+        held.listing(EXPIRED)
     with pytest.raises(ValueError, match="lists no import"):
-        held.listing(unknown, "expired")
+        held.listing(unknown)
 
 
 def loaded_import(**changed: Any) -> ImportLoad:
-    """Give the extraction of April replayed as the witness loads it, changed as said."""
+    """Give an extraction of April as the witness loads it, applied, changed as said."""
     analysed = instant(ANALYSED)
     values: dict[str, Any] = {
         "import_id": EXPIRED,
         "project_id": PRJ_001,
         "kind": "actual_costs",
         "filename": "couts-reels-2026-04-correction.xlsx",
-        "status": "expired",
         "period_from": None,
         "period_to": None,
         "report": {},
@@ -609,8 +612,8 @@ def loaded_import(**changed: Any) -> ImportLoad:
     ("load", "at", "author", "cause"),
     [
         (loaded_import(), instant(ANALYSED), None, "has no author"),
-        (loaded_import(), instant(ANALYSED) + LIFETIME, MANAGER, "instants"),
-        (loaded_import(status="applied"), instant(ANALYSED) + 2 * LIFETIME, MANAGER, "instants"),
+        (loaded_import(), instant(ANALYSED) - timedelta(seconds=1), MANAGER, "instants"),
+        (loaded_import(), instant(ANALYSED) + 2 * LIFETIME, MANAGER, "instants"),
         (
             loaded_import(created_at=instant(ANALYSED) + LIFETIME),
             instant(ANALYSED),
@@ -623,7 +626,7 @@ def test_an_import_of_the_witness_whose_author_or_instants_disagree_is_refused_u
     load: ImportLoad, at: datetime, author: UUID | None, cause: str
 ) -> None:
     # Refused before any write: no session is touched. Applied, its instant falls between its
-    # analysis, a day before its expiry, and that expiry; expired, it is the instant of its
-    # analysis; opened before it is analysed; by an account.
+    # analysis, a day before its expiry, and that expiry; opened before it is analysed; by an
+    # account.
     with pytest.raises(ValueError, match=cause):
         load_import(cast("Session", None), load, Act(author, at))

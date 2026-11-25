@@ -1017,8 +1017,8 @@ ActualCostSourceColumn:
   enum: [wbs_element, document_number, document_item, document_date, amount]
   description: >-
     A column that the actual cost import reads in the ERP extraction (WF-REF-0190,
-    appendix B), in the fixed order of the mapping: the WBS element, which carries the project
-    code optionally followed by a slash and the subproject code (WF-CRE-0020), the document
+    appendix B), in the fixed order of the mapping: the WBS element, the code of the project or
+    that of one of its subprojects, compared whole (WF-CRE-0020; #3966), the document
     number, the number of its item in the document, the document date and the amount. The item
     is optional, the other four are required (WF-REF-0190).
 

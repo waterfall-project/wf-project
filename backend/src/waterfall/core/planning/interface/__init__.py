@@ -23,7 +23,12 @@ they serve or explicitly (#2180).
 
 # ``closing`` (US-1380/L1; US-1380/L2): the nodes of a revision abandoned.
 # The registries the planning fills.
-from waterfall.core.exchanges.interface import register_exporter, register_format
+from waterfall.core.exchanges.interface import (
+    StructureGuard,
+    register_exporter,
+    register_format,
+    register_structure_guard,
+)
 
 # Beside the interface (US-1380/L2): the calendar applicable to a task, what a reading of the tree
 # retains, a duration and an instant of the engine, the frame of a write, the nodes as read.
@@ -654,6 +659,11 @@ from waterfall.core.planning.interface.structures import (
 from waterfall.core.planning.interface.structures import (
     StructureChange as StructureChange,
 )
+
+# ``structures`` (US-3210): the structure an import applies to, locked and judged unwritten.
+from waterfall.core.planning.interface.structures import (
+    hold_structure as hold_structure,
+)
 from waterfall.core.planning.interface.structures import (
     load_differential as load_differential,
 )
@@ -665,6 +675,9 @@ from waterfall.core.planning.interface.structures import (
 )
 from waterfall.core.planning.interface.structures import (
     structure_state as structure_state,
+)
+from waterfall.core.planning.interface.structures import (
+    unwritten_since_opening as unwritten_since_opening,
 )
 from waterfall.core.planning.interface.structures import (
     update_cost_structure as update_cost_structure,
@@ -868,6 +881,7 @@ register_attachments(
 register_opening_main_question(opening_main_with_tasks)
 register_main_task_question(structures_have_task)
 register_format("ms_project_schedule", MS_PROJECT_FORMAT)
+register_structure_guard(StructureGuard(hold_structure, unwritten_since_opening))
 register_exporter("ms_project_schedule", MS_PROJECT_EXPORTER)
 register_exporter("task_tree_image", TASK_TREE_EXPORTER)
 register_merge(merge_tasks)

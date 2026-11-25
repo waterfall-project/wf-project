@@ -2,20 +2,21 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """An import of the witness, written as its analysis and its end left it (US-1650/L2).
 
-The loader of the witness writes its imports through this function, not through the two steps:
-no file, no worker, in the one transaction of the command (EP-09, "Ce que le cadrage décide", "Le
+The loader of the witness writes its imports through this function, not through the two steps: no
+file, no worker, in the one transaction of the command (EP-09, "Ce que le cadrage décide", "Le
 chargeur du témoin"). ``load_import`` writes the row of an import at the identifier, the instants
-and the author the witness imposes, in the state it ended in — ``applied`` at the instant of the
-event, or ``expired``, its report outliving its decision —, with its report as its analysis
-presented it and the period it declared — an import of the project, as an extraction of the actual
-costs, which aims at no structure. It deposits nothing and submits no task: the row names no
+and the author the witness imposes, ``applied`` at the instant of the event, with its report as its
+analysis presented it and the period it declared — an import of the project, as an extraction of the
+actual costs, which aims at no structure. It deposits nothing and submits no task: the row names no
 deposit the storage holds, its key that of a deposit of its identifier, and no task (``task_id``
-null). The application of an import inscribes itself in the journal of audit; the
-witness keeps none of it, its journal the costs' (``load_cost_import``).
+null). The witness loads no import that the purge deletes, ``expired`` or ``abandoned``: it would
+keep, beyond its pass, what the pass deletes (WF-DAT-0080-A, US-3250). The application of an import
+inscribes itself in the journal of audit; the witness keeps none of it, its journal the costs'
+(``load_cost_import``).
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 from waterfall.core.exchanges.judgments import REPORT_LIFETIME
 from waterfall.core.exchanges.tables import ImportReport
@@ -37,19 +38,17 @@ UPLOADS = "uploads"
 
 @dataclass(frozen=True, slots=True)
 class ImportLoad:
-    """An import of the witness: its identifier, its project, its kind, its file, how it ended.
+    """An import of the witness, applied: its identifier, its project, its kind, its file.
 
-    ``status`` the state it ended in: ``applied``, or ``expired`` without being applied; its
-    period as it was declared, each bound possibly missing; its report as its analysis presented
-    it (``ImportReport`` of the contract); the instant it was opened, and the one its report
-    expired or expires at, twenty-four hours after its analysis.
+    Its period as it was declared, each bound possibly missing; its report as its analysis
+    presented it (``ImportReport`` of the contract); the instant it was opened, and the one its
+    report expires at, twenty-four hours after its analysis.
     """
 
     import_id: UUID
     project_id: UUID
     kind: ExchangeKind
     filename: str
-    status: Literal["applied", "expired"]
     period_from: date | None
     period_to: date | None
     report: Mapping[str, Any]
@@ -58,19 +57,18 @@ class ImportLoad:
 
 
 def load_import(session: Session, load: ImportLoad, act: Act) -> None:
-    """Write an import of the witness, in the state it ended in, by the author of ``act``.
+    """Write an import of the witness, applied, by the author of ``act``.
 
     Analysed twenty-four hours before its report expires; applied at the instant of ``act``, which
-    falls between its analysis and its expiry, or expired, the instant of ``act`` its analysis. A
-    load whose instants disagree, or without an author, is a defect of the description: it raises
-    ``ValueError``, nothing written. The base refuses an identifier held already.
+    falls between its analysis and its expiry. A load whose instants disagree, or without an
+    author, is a defect of the description: it raises ``ValueError``, nothing written. The base
+    refuses an identifier held already.
     """
     analysed_at = load.expires_at - REPORT_LIFETIME
-    applied = load.status == "applied"
     if act.author is None:
         message = f"the import {load.import_id} of the witness has no author"
         raise ValueError(message)
-    in_time = analysed_at <= act.at <= load.expires_at if applied else act.at == analysed_at
+    in_time = analysed_at <= act.at <= load.expires_at
     if load.created_at > analysed_at or not in_time:
         message = f"the instants of the import {load.import_id} of the witness disagree"
         raise ValueError(message)
@@ -86,14 +84,14 @@ def load_import(session: Session, load: ImportLoad, act: Act) -> None:
             revision_id=None,
             period_from=load.period_from,
             period_to=load.period_to,
-            status=load.status,
+            status="applied",
             report=dict(load.report),
             task_id=None,
             requested_by=act.author,
             created_at=load.created_at,
             analysed_at=analysed_at,
             expires_at=load.expires_at,
-            applied_at=act.at if applied else None,
+            applied_at=act.at,
         )
     )
     session.flush()

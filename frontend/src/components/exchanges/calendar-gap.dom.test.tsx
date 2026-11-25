@@ -135,6 +135,35 @@ describe("the report of an import in calendar gap", () => {
     expect(router.refresh).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps the radio on the rule chosen once the request is answered, then follows the rule of the screen read anew [US-3280] [WF-INTF-0080-A]", async () => {
+    const client = open(gapped(), {
+      [RULE]: { example: "import_duration_rule_set", status: 202 },
+      [TASK]: "task_import_succeeded",
+    });
+    await userEvent.click(KEEP_DATES());
+    await waitFor(() => {
+      expect(router.refresh).toHaveBeenCalledTimes(1);
+    });
+    // The answer is in, the screen not yet read anew (the refresh is faked): the choice stays.
+    expect(client.calls).toHaveLength(1);
+    expect(KEEP_DATES()).toBeChecked();
+    expect(KEEP_DURATIONS()).not.toBeChecked();
+    // The screen read anew carries the rule now in force, which the radio then follows.
+    const entry = gapped();
+    if (entry.report?.calendar_gap == null) {
+      throw new Error("the example has no calendar gap");
+    }
+    client.rerender({
+      ...entry,
+      report: {
+        ...entry.report,
+        calendar_gap: { ...entry.report.calendar_gap, duration_rule: "keep_dates" },
+      },
+    });
+    expect(KEEP_DATES()).toBeChecked();
+    expect(KEEP_DURATIONS()).not.toBeChecked();
+  });
+
   it("reads the screen again too when the new analysis fails [WF-INTF-0080-A]", async () => {
     open(gapped(), {
       [RULE]: { example: "import_duration_rule_set", status: 202 },

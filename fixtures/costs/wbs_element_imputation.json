@@ -1,7 +1,8 @@
 {
-  "summary": "Sur le projet de code A.ABC.26001, une ligne d'élément A.ABC.26001 est imputée au seul projet ; une ligne d'élément 10001, une d'élément A.ABC.26002 et une d'élément vide sont rejetées, nommées par leur élément (WF-CRE-0020).",
+  "summary": "Sur le projet de code A.ABC.26001, qui porte le sous-projet de code A.ABC.26001/10001, une ligne d'élément A.ABC.26001 est imputée au seul projet et une d'élément A.ABC.26001/10001 à ce sous-projet ; une ligne d'élément A.ABC.26001/10002, une d'élément 10001, une d'élément A.ABC.26002 et une d'élément vide sont rejetées, nommées par leur élément (WF-CRE-0020).",
   "examples": ["WF-CRE-0020-A#327d63bf4748", "WF-CRE-0020-A#80d94ea6d2fe"],
   "project_code": "A.ABC.26001",
   "project_element": "A.ABC.26001",
-  "rejected_elements": ["10001", "A.ABC.26002", ""]
+  "subproject_code": "A.ABC.26001/10001",
+  "rejected_elements": ["A.ABC.26001/10002", "10001", "A.ABC.26002", ""]
 }

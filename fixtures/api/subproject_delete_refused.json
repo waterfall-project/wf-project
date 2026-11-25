@@ -1,5 +1,5 @@
 {
-  "summary": "La suppression de la réception sur site, aussitôt créée : refusée, la facture FA-2026-0295 lui étant imputée dès sa création (WF-CRE-0020) — la seule condition qui manque à sa commande delete, aucune révision marquée ne le citant ; rien n'est écrit (WF-PRJ-0050, WF-IHM-0090).",
+  "summary": "La suppression de la réception sur site, créée aujourd'hui, dans une variante contrefactuelle où le réimport d'une extraction dont la facture FA-2026-0295 porte pour élément d'OTP son code lui a imputé cette facture — sa création n'en impute aucune (WF-CRE-0020, #3966) : refusée, la seule condition qui manque à sa commande delete, aucune révision marquée ne la citant ; rien n'est écrit (WF-PRJ-0050, WF-IHM-0090).",
   "value": {
     "code": "STATE_FORBIDS_OPERATION",
     "status": 409,

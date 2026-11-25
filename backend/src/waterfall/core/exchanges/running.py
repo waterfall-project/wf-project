@@ -11,8 +11,10 @@ the lock of the import, of the current revision and of the project, judges again
 permission of the kind and the quality of contributor, as they stand now —, the state of the project
 and the conditions of the kind; refused, the import is ``refused``. It then creates the current
 revision if there is none, by the rules of ``createRevision`` (``open_revision_by_task``,
-WF-INTF-0090), and the format applies the report with the model prepared to the structure, under its
-lock: a refusal of the format, or anything that breaks, fails the import. Applied, the import is
+WF-INTF-0090), judges under the lock of the structure it writes that it is the one the report
+read (``import_structure_unchanged``, US-3210) — refused otherwise —, and the format applies the
+report with the model prepared to the structure, under its lock: a refusal of the format, or
+anything that breaks, fails the import. Applied, the import is
 inscribed in the journal (WF-SEC-0030); the undo history receives nothing (WF-IHM-0110). The file is
 deleted once the transaction is committed, whatever the end. The file is read and prepared before
 any lock is taken: nothing slow is done under a lock (python.md). A file the format refuses at the
@@ -23,6 +25,10 @@ Either fails by ``UndoneError``: the worker undoes the work of the task — noth
 written (WF-INTF-0080) —, then writes the end of the import in its place, ``failed`` or
 ``refused``, and fails the task with its cause. A worker stopped during either leaves the
 database unchanged, the import where it stood; the task runs again from the start (WF-ARC-0090).
+So is a file the storage does not give — out of reach at the opening of the stream or in the middle
+of it —: the import stays as it stands, its file in place, and the task runs again by its attempts;
+spent, the import is ``failed`` and the task names the component (US-3260). Only a file gone fails
+the import at once.
 """
 
 from dataclasses import dataclass, replace
@@ -51,6 +57,7 @@ from waterfall.core.exchanges.records import (
 )
 from waterfall.core.exchanges.states import rule_of
 from waterfall.core.exchanges.tables import ImportReport
+from waterfall.core.exchanges.unchanged import counter_read, hold_written, judge_unchanged
 from waterfall.core.projects.interface import (
     lock_project,
     project_code,
@@ -72,7 +79,8 @@ from waterfall.platform.audit import (
 )
 from waterfall.platform.database import frozen_reading, utc_now
 from waterfall.platform.errors import ServiceError
-from waterfall.platform.tasks import UndoneError
+from waterfall.platform.storage import MissingObjectError, unavailable
+from waterfall.platform.tasks import RetriedError, UndoneError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -86,7 +94,7 @@ if TYPE_CHECKING:
     from waterfall.platform.tasks import Task
 
     # What finds the format of a kind of import, ``None`` if no module serves the kind.
-    type Formats = Callable[[str], Format[Any] | None]
+    type Formats = Callable[[str], Format[Any, Any] | None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,12 +105,23 @@ class Requester:
     judge: Judge
 
 
-def _content(files: Bucket, key: str) -> bytes:
-    """Read the file of an import whole from the storage, by chunks: 10 MiB at most."""
-    return b"".join(files.stream(key))
+def _content(files: Bucket, key: str, import_id: UUID, status: str) -> bytes:
+    """Read the file of an import whole from the storage, by chunks: 10 MiB at most.
+
+    Only a file that is no longer there fails the import (``MissingObjectError``); any other error
+    of the reading — the opening of the stream or the chunks, which the platform does not all say
+    (#4427) — is the storage out of reach: the import stays as it stands, its file in place,
+    and the task runs again, failing on its last attempt with the component named (US-3260).
+    """
+    try:
+        return b"".join(files.stream(key))
+    except MissingObjectError as error:
+        raise _undone(error, import_id, status, files) from error
+    except Exception as error:
+        raise _stalled(unavailable(), import_id, status, files) from error
 
 
-def _format(formats: Formats, kind: str) -> Format[Any]:
+def _format(formats: Formats, kind: str) -> Format[Any, Any]:
     """Give the format of a kind; one withdrawn since the opening fails the task (500)."""
     form = formats(kind)
     if form is None:
@@ -118,13 +137,15 @@ def analyse(
 
     An import that no longer awaits this analysis — abandoned meanwhile, or of a later task — is
     left as it stands, nothing written. The format reads in a transaction of its own, frozen at its
-    first read: the structure, its tree and its links as they stood together (#2679). What is read
+    first read: the structure, its tree and its links as they stood together (#2679), and the
+    counter of the structure with them, which the application compares (US-3210). What is read
     before the block — the row of the import, its revision and structure aimed at — is the import's
     own, not the project's: it is read in the session of the task, which the block cannot see, to
     decide whether to analyse at all, and the format reads the project only inside the block. The
     report is written under the lock of the import, read again under it: an abandonment that came
     during the analysis wins. An analysis that fails — the file gone, the format refusing or
-    breaking — fails the import, its file deleted.
+    breaking — fails the import, its file deleted; a storage that does not answer does not
+    (US-3260).
     """
     import_id = UUID(task.payload[IMPORT_KEY])
     row = session.get(ImportReport, import_id)
@@ -135,9 +156,13 @@ def analyse(
     target = ImportTarget(row.project_id, aimed, row.structure_id, duration_rule=_rule(row))
     try:
         form = _format(formats, row.kind)
-        content = _content(files, row.object_key)
+        content = _content(files, row.object_key, import_id, "analysing")
         with frozen_reading(session) as frozen:
             report = dict(form.analyse(frozen, target, content))
+            # The counter of the structure read, in the same frozen transaction (US-3210).
+            counter = counter_read(frozen, target) if form.scope == "structure" else None
+    except UndoneError:
+        raise
     except Exception as error:
         raise _undone(error, import_id, "analysing", files) from error
     row = locked_import(session, import_id)
@@ -147,6 +172,7 @@ def analyse(
     row.report = report
     # The rule the report was computed under, kept only for a report in calendar gap (US-2000).
     row.duration_rule = rule_of(report)
+    row.structure_lock_version = counter
     row.status = "analysed"
     row.analysed_at = now
     row.expires_at = now + REPORT_LIFETIME
@@ -166,6 +192,15 @@ def _undone(error: Exception, import_id: UUID, status: str, files: Bucket) -> Un
         end_without_writing(session, import_id, status, "failed", files)
 
     return UndoneError(error, trace)
+
+
+def _stalled(error: Exception, import_id: UUID, status: str, files: Bucket) -> RetriedError:
+    """Leave an import as it stands, its task to run again; on its last attempt, fail it."""
+
+    def trace(session: Session) -> None:
+        end_without_writing(session, import_id, status, "failed", files)
+
+    return RetriedError(error, trace)
 
 
 def _refusal(error: Exception, import_id: UUID, files: Bucket) -> UndoneError:
@@ -190,9 +225,11 @@ def apply(
     if found is None or found.status != "applying" or found.task_id != task.task_id:
         return None
     try:
-        content = _content(files, found.object_key)
+        content = _content(files, found.object_key, import_id, "applying")
         form = _format(formats, found.kind)
         prepared = _Prepared.of(form, content)
+    except UndoneError:
+        raise
     except Exception as error:
         raise _undone(error, import_id, "applying", files) from error
     row = locked_import(session, import_id)
@@ -228,7 +265,7 @@ class _Prepared:
     refusal: ServiceError | None
 
     @classmethod
-    def of(cls, form: Format[Any], content: bytes) -> _Prepared:
+    def of(cls, form: Format[Any, Any], content: bytes) -> _Prepared:
         """Have a format read a file, holding no lock; keep its refusal for the application.
 
         A refusal of the file (``FILE_FORMAT_UNREADABLE``, a ``ServiceError``) waits for the
@@ -249,14 +286,15 @@ class _Prepared:
 
 
 def _judged(
-    session: Session, row: ImportReport, form: Format[Any], requester: Requester, task: Task
+    session: Session, row: ImportReport, form: Format[Any, Any], requester: Requester, task: Task
 ) -> ImportTarget:
     """Judge an import again as its task runs, then give what it writes; or raise the refusal.
 
     The requester's reading of the kind, then its permission, and its quality of contributor first,
     as they stand now (WF-ARC-0100); then, under the lock of the current revision, then of the
     project — the order of the locks of EP-04 —, the state of the project, and the revision created
-    if there is none, under its own rules; then the conditions of the kind on what it writes.
+    if there is none, under its own rules; then, under the lock of the structure written, that it is
+    the one the report read (US-3210); then the conditions of the kind on what it writes.
     """
     project_id = row.project_id
     requester.judge(session, project_id, form.reading)
@@ -298,7 +336,8 @@ def _judged(
         task.task_id,
         partial(form.judge, session, provisional) if form.judged_first else None,
     )
-    if current is None:
+    opened = current is None
+    if opened:
         # The opening shares the lock of the reference while this one holds the lock of the
         # project, against the order "reference, then project" (#2510). Safe as long as no holder
         # of the reference waits for the lock of a project (``share_reference``): the change that
@@ -311,9 +350,22 @@ def _judged(
     target = ImportTarget(
         project_id, current, aimed_by(session, row, current), task.task_id, import_id=row.id
     )
+    _judge_unchanged(session, row, None if opened else target.structure_id)
     if not form.judged_first:
         form.judge(session, target)
     return target
+
+
+def _judge_unchanged(session: Session, row: ImportReport, written: UUID | None) -> None:
+    """Judge again, under the lock of the structure written, that it is the one the report read.
+
+    The structure is locked as the format's write locks it, after the revision and the project:
+    a write of its tree waits for the task, or the task for it, and sees what it did (US-3210).
+    ``written`` is ``None`` for the revision the task opened itself, which is not compared.
+    """
+    if written is not None:
+        hold_written(session, row.project_id, written)
+    judge_unchanged(session, row, written)
 
 
 def _inscribe(session: Session, row: ImportReport, act: Act) -> None:

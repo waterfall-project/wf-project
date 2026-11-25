@@ -21,7 +21,7 @@ import { readRiskOccurrenceReport } from "@/api/actions/risks";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
-import { Differences } from "@/components/exchanges/import-report";
+import { Differences } from "@/components/exchanges/report-tables";
 import { useCurrency } from "@/currency/context";
 import { formatMoney, formatPlanningDate } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";

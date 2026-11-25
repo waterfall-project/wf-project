@@ -8,8 +8,8 @@ A project is created by the holder of the permission to create one (``project_cr
 other operation names the project and is judged by ``RequiresProject``: the permission of the
 settings of the project and the quality of the caller on it, which the module of the projects
 reads (WF-ADM-0110, WF-PRJ-0060). The list holds the projects the caller may open and no other.
-The code of a project is judged by the validation of the body, to name the barre oblique alone
-when a code holds it, however blank the rest (``PROJECT_CODE_INVALID``, #1658).
+The code of a project bears any character, a slash and dots included (WF-PRJ-0010, WF-CRE-0020;
+#3966): only blank, or too long, it is refused by the validation of the body.
 """
 
 from datetime import UTC
@@ -19,7 +19,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import AfterValidator, AwareDatetime, Field
-from pydantic_core import PydanticCustomError
 from sqlalchemy.orm import Session
 
 from waterfall.api.actors import actor_ref
@@ -69,26 +68,17 @@ CREATE = "project_create"
 DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
 CODE_LENGTH = 50
-# The one separator of the element of the ERP that bears the code (WF-CRE-0020).
-FORBIDDEN_IN_CODE = "/"
-PROJECT_CODE_INVALID = "PROJECT_CODE_INVALID"
 # The fields of an update that are never null (a null sent is refused), and the other ones, which
 # a null empties; the contract types ``order_received_on`` and ``client`` so (WF-PRJ-0080).
 NEVER_NULL = ("label", "inflation_rate", "win_probability")
 
 
 def _checked(code: str) -> str:
-    """Refuse a code that holds the barre oblique, however blank the rest; or a blank one.
+    """Refuse a blank code.
 
-    The barre oblique comes first (contract, ``ProjectCode``, D-07); a code made of blanks only is
-    refused as any blank label is, and an empty one before, by the bounds of its length.
+    A code made of blanks only is refused as any blank label is, and an empty one before, by the
+    bounds of its length (``ProjectCode``).
     """
-    if FORBIDDEN_IN_CODE in code:
-        raise PydanticCustomError(
-            PROJECT_CODE_INVALID,
-            "a project code holds a character that separates the element of the ERP",
-            {"forbidden_characters": [FORBIDDEN_IN_CODE]},
-        )
     if not code.strip():
         message = "a project code is not blank"
         raise ValueError(message)
@@ -96,7 +86,7 @@ def _checked(code: str) -> str:
 
 
 # ``ProjectCode`` of the contract, judged field by field: the generated model gives one refusal
-# to a pattern that fails, where the contract names three.
+# to a pattern that fails, where the contract names two (empty, blank).
 Code = Annotated[str, Field(min_length=1, max_length=CODE_LENGTH), AfterValidator(_checked)]
 
 

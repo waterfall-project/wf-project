@@ -49,8 +49,9 @@ the lock of the structure, so that the application judges again what the analysi
   a main structure left without a task while it bears the provision line of a risk
   (``PROVISION_WITHOUT_TASK``, the risks named; WF-RIS-0010, #4011), the task of an order item
   outside the subtree of that of its work package (``ORDER_ITEM_OUTSIDE_WORK_PACKAGE``, the main
-  structure alone), and a planning beyond fifteen years (``PROJECT_HORIZON_EXCEEDED``,
-  WF-PLA-0150), whose dates are then not compared.
+  structure alone), a planning beyond fifteen years (``PROJECT_HORIZON_EXCEEDED``,
+  WF-PLA-0150), and a task left without an hour in its week (``TASK_WITHOUT_WORKING_HOURS``,
+  WF-PLA-0010, #4799), whose dates are then not compared.
 """
 
 from dataclasses import dataclass, field
@@ -70,8 +71,10 @@ from waterfall.core.planning.dating import (
     LINK_FORBIDDEN,
     MANUAL,
     PROJECT_HORIZON_EXCEEDED,
+    TASK_WITHOUT_WORKING_HOURS,
     constants_of,
     duration_of,
+    roles_named,
 )
 from waterfall.core.planning.entries import decimal_text
 from waterfall.core.planning.interface.facets import calendars_of
@@ -104,6 +107,7 @@ from waterfall.core.planning.scheduling import (
     LinkForbiddenError,
     Schedule,
     Structure,
+    TaskWithoutWorkingHoursError,
     WorkInstant,
     decimal_of,
     schedule,
@@ -267,23 +271,39 @@ class Plan:
 
 
 def _matched(project: MsProject, tree: Tree) -> list[Row]:
-    """Match each task of the file: by its lineage, then by its ``UID``, else created."""
+    """Match each task of the file, in two passes, else created (#3337).
+
+    The first pass takes, in the order of the file, each row whose lineage is one of the structure.
+    The second falls back on the ``UID`` (``external_id``) among the tasks the first left, for the
+    rows without such a lineage; but not in a file that defines the field of the lineages: it is an
+    export of Waterfall, whose ``UID`` are ranks, and a row without a known lineage is a task the
+    user added.
+    """
     by_lineage = {tree.nodes[each].lineage_id: each for each in tree.order if each in tree.tasks}
     by_external: dict[str, UUID] = {}
     for each in tree.order:
         external = tree.tasks[each].external_id if each in tree.tasks else None
         if external is not None:
             by_external.setdefault(external, each)
+    found: dict[int, UUID] = {}
     taken: set[UUID] = set()
+    for number, task in enumerate(project.tasks, start=1):
+        node_id = None if task.lineage is None else by_lineage.get(task.lineage)
+        if node_id is not None and node_id not in taken:
+            found[number] = node_id
+            taken.add(node_id)
     rows: list[Row] = []
     for number, task in enumerate(project.tasks, start=1):
-        found = None if task.lineage is None else by_lineage.get(task.lineage)
-        if found is None or found in taken:
-            found = by_external.get(str(task.uid))
-        if found is not None and found not in taken:
-            taken.add(found)
-            old = tree.tasks[found]
-            rows.append(Row(number, task, found, old, tree.nodes[found].lineage_id))
+        node_id = found.get(number)
+        if node_id is None and not project.lineage_declared:
+            node_id = by_external.get(str(task.uid))
+            if node_id in taken:
+                node_id = None
+            elif node_id is not None:
+                taken.add(node_id)
+        if node_id is not None:
+            old = tree.tasks[node_id]
+            rows.append(Row(number, task, node_id, old, tree.nodes[node_id].lineage_id))
         else:
             rows.append(Row(number, task, new_id(), None, None))
     return rows
@@ -432,7 +452,7 @@ def _facets(
     for row in plan.rows:
         task = row.task
         dated_on = calendar_of(project, calendars, task)
-        if dated_on is not None and task.start is not None and task.finish is not None:
+        if task.start is not None and task.finish is not None:
             row.file_dates = (dated_on.instant(task.start), dated_on.instant(task.finish))
         if row.dropped or _rejected(plan, row):
             continue
@@ -442,7 +462,7 @@ def _facets(
 def _facet(
     plan: Plan,
     row: Row,
-    read: tuple[Constants, FileCalendar | None],
+    read: tuple[Constants, FileCalendar],
     file_children: set[int],
 ) -> Facet:
     """Give the facet of a row: a summary automatic, a leaf in its mode and its unit."""
@@ -468,7 +488,7 @@ def _facet(
         # A leaf started or completed does not become a milestone (WF-PLA-0050): it keeps its
         # duration, which the report, the engine replayed and the application all read.
         duration = duration_of(row.old)
-    if not manual or row.file_dates is None or dated_on is None:
+    if not manual or row.file_dates is None:
         return Facet(task.name, description, AUTOMATIC, duration)
     calendar = plan.calendars[row.node_id]
     start, finish = row.file_dates
@@ -549,11 +569,12 @@ def _first_start(project: MsProject) -> date | None:
     return min(starts, default=None)
 
 
-def _replayed(plan: Plan, constants: UnitConstants) -> None:
+def _replayed(session: Session, plan: Plan, constants: UnitConstants) -> None:
     """Replay the engine on the structure the import leaves; refuse it beyond the horizon.
 
     A loop of links, or a link between a summary and its subordinate, which MS Project refuses
-    too, fails the analysis by the engine's code, the tasks named by their label.
+    too, fails the analysis by the engine's code, the tasks named by their label. A task left
+    without an hour in its week refuses the file (``_hourless``); its dates are not computed.
     """
     if not plan.order or plan.start is None:
         return
@@ -568,11 +589,31 @@ def _replayed(plan: Plan, constants: UnitConstants) -> None:
         raise UnprocessableError(LINK_CYCLE, {"cycle": cycle}) from None
     except LinkForbiddenError:
         raise UnprocessableError(LINK_FORBIDDEN) from None
+    except TaskWithoutWorkingHoursError as idle:
+        plan.refusals.append(_hourless(session, plan, idle.task_id))
+        return
     beyond = plan.schedule.horizon_exceeded_by
     if beyond is not None:
         node = None if beyond not in plan.aimed.tree.nodes else str(beyond)
         named = {"node_id": node, "label": plan.label_of(beyond)}
         plan.refusals.append({"code": PROJECT_HORIZON_EXCEEDED, "params": {"task": named}})
+
+
+def _hourless(session: Session, plan: Plan, task_id: UUID) -> Json:
+    """Give the refusal of a task whose calendar grants no hour, the task and its roles named.
+
+    The task by its lineage and its label, as the report names its objects: the lineage null for
+    a task the file creates, which bears no labour line yet, hence no role; a task matched with
+    the roles of its labour lines — as ``dated`` names them (US-3330; #4799).
+    """
+    lineage = plan.lineage_of(task_id)
+    roles = [] if lineage is None else roles_named(session, plan.aimed.project_id, task_id)
+    named = {
+        "lineage_id": None if lineage is None else str(lineage),
+        "label": plan.label_of(task_id),
+    }
+    params = {"resource_roles": roles, "tasks": [named]}
+    return {"code": TASK_WITHOUT_WORKING_HOURS, "params": params}
 
 
 def _named(plan: Plan, node_id: UUID) -> Json:
@@ -685,7 +726,7 @@ def plan_import(
     _links(plan, file_constants)
     items = work_breakdown_items(session, aimed.project_id)
     _strays(plan, items)
-    _replayed(plan, constants)
+    _replayed(session, plan, constants)
     return plan, items
 
 

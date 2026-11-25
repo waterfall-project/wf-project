@@ -68,8 +68,14 @@ def workbook(
     tasks: dict[str, str] | None = None,
     review: Any = REVIEW,
     version: Any = 1,
+    heads: dict[str, str | None] | None = None,
 ) -> bytes:
-    """Write a workbook of the format: « Synthèse », its review in B9, « Tâches », the tabs."""
+    """Write a workbook of the format: « Synthèse », its review in B9, « Tâches », the tabs.
+
+    The head of a tab (row 1) says the code of its subproject, the one the tab is named by unless
+    ``heads`` gives another (``None``: a head without a code, as a file exported before the code
+    came to it); « Hors sous-projet » says so. The row of the headers is row 2.
+    """
     book = Workbook()
     summary = book.active
     assert summary is not None
@@ -83,6 +89,13 @@ def workbook(
         listed.append([entry, lineage])
     for name, rows in tabs.items():
         sheet = book.create_sheet(name)
+        head = (heads or {}).get(name, name)
+        if head == "Hors sous-projet":
+            sheet.append(["Hors sous-projet"])
+        elif head is None:
+            sheet.append(["Lot sans code"])
+        else:
+            sheet.append(["Code du sous-projet", head])
         sheet.append(HEADERS)
         for row in rows:
             sheet.append(row)

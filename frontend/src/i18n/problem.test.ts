@@ -297,6 +297,77 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("names the header a remaining to commit lacks, with its sheet, and the one an actual cost extraction lacks without [WF-INTF-0070-A]", () => {
+    const missing = fromExample("import_remaining_column_missing", {
+      code: "FILE_FORMAT_UNREADABLE",
+      params: {
+        expected_format: "remaining",
+        expected_version: "1",
+        missing_columns: [{ header: "Débours restant", sheet: "PRJ-001_SP-CMD" }],
+      },
+    });
+    expect(say(missing, "en")).toContain(
+      "Required column missing from the file: \u201CDébours restant\u201D (sheet \u201CPRJ-001_SP-CMD\u201D).",
+    );
+    expect(say(missing, "fr")).toContain(
+      "Colonne exigée absente du fichier\u00A0: \u00AB\u00A0Débours restant\u00A0\u00BB (onglet \u00AB\u00A0PRJ-001_SP-CMD\u00A0\u00BB).",
+    );
+    const noSheet: ProblemText = {
+      code: "FILE_FORMAT_UNREADABLE",
+      params: { missing_columns: [{ header: "Quantité" }] },
+    };
+    expect(say(noSheet, "en")).toContain("missing from the file: \u201CQuantité\u201D.");
+  });
+
+  it("[US-3200] names each column an estimate lacks with its sheet, sheet by sheet, the format and the version being those of the refusal [WF-INTF-0070-A]", () => {
+    const missing = fromExample("import_estimate_column_missing", {
+      code: "FILE_FORMAT_UNREADABLE",
+      params: {
+        expected_format: "estimate",
+        expected_version: "1",
+        missing_columns: [
+          { header: "Heures", sheet: "PRJ-001_SP-CMD" },
+          { header: "ID ligne", sheet: "PRJ-001_SP-CMD" },
+          { header: "Quantité", sheet: "PRJ-001_SP-ESS" },
+          { header: "Débours unitaire", sheet: "PRJ-001_SP-ESS" },
+        ],
+      },
+    });
+    expect(say(missing, "en")).toBe(
+      "The file format cannot be read. Expected format: Estimate. Expected version: 1. Required columns missing from the file: \u201CHeures\u201D (sheet \u201CPRJ-001_SP-CMD\u201D), \u201CID ligne\u201D (sheet \u201CPRJ-001_SP-CMD\u201D), \u201CQuantité\u201D (sheet \u201CPRJ-001_SP-ESS\u201D) and \u201CDébours unitaire\u201D (sheet \u201CPRJ-001_SP-ESS\u201D).",
+    );
+    expect(say(missing, "fr")).toBe(
+      "Le format du fichier est illisible. Format attendu\u00A0: Devis. Version attendue\u00A0: 1. Colonnes exigées absentes du fichier\u00A0: \u00AB\u00A0Heures\u00A0\u00BB (onglet \u00AB\u00A0PRJ-001_SP-CMD\u00A0\u00BB), \u00AB\u00A0ID ligne\u00A0\u00BB (onglet \u00AB\u00A0PRJ-001_SP-CMD\u00A0\u00BB), \u00AB\u00A0Quantité\u00A0\u00BB (onglet \u00AB\u00A0PRJ-001_SP-ESS\u00A0\u00BB) et \u00AB\u00A0Débours unitaire\u00A0\u00BB (onglet \u00AB\u00A0PRJ-001_SP-ESS\u00A0\u00BB).",
+    );
+  });
+
+  it("[US-3280] tells a sheet and a header that bear a brace and an apostrophe as they are, in both languages (#4787)", () => {
+    const missing: ProblemText = {
+      code: "FILE_FORMAT_UNREADABLE",
+      params: {
+        expected_format: "estimate",
+        expected_version: "1",
+        missing_columns: [{ header: "Coût d'achat {HT}", sheet: "Devis d'avril {A}" }],
+      },
+    };
+    expect(say(missing, "en")).toContain(
+      "\u201CCoût d'achat {HT}\u201D (sheet \u201CDevis d'avril {A}\u201D)",
+    );
+    expect(say(missing, "fr")).toContain(
+      "\u00AB\u00A0Coût d'achat {HT}\u00A0\u00BB (onglet \u00AB\u00A0Devis d'avril {A}\u00A0\u00BB)",
+    );
+  });
+
+  it("says the amount of the file and the amount written of a line rounded [WF-INTF-0120-A]", () => {
+    const rounded: ProblemText = {
+      code: "AMOUNT_ROUNDED",
+      params: { typed_amount: "1234.56", written_amount: "1230.00" },
+    };
+    expect(say(rounded, "en")).toContain("Amount in the file: 1,234.56; amount written: 1,230.00.");
+    expect(say(rounded, "fr")).toMatch(/montant écrit\s: 1\s230,00\./);
+    expect(say({ code: "AMOUNT_ROUNDED" }, "en")).not.toContain("Amount in the file");
+  });
+
   it("labels every column of the contract in both catalogues, so that none is dropped from a refusal unheard [WF-REF-0190-A]", () => {
     const columns = Object.keys(SOURCE_COLUMNS).sort();
     for (const locale of ["en", "fr"] as const) {
@@ -429,8 +500,8 @@ describe("the sentence of a refusal", () => {
         { code: "UNKNOWN_TASK", params: { value: "Essais de compatibilité électromagnétique" } },
         { code: "UNKNOWN_RESOURCE_ROLE", params: { value: "Soudeur (SOUD)" } },
       ],
-      import_actual_costs_wbs_invalid: [
-        { code: "WBS_ELEMENT_INVALID", params: { wbs_element: "/SP-CAB" } },
+      import_actual_costs_dotted_code: [
+        { code: "WBS_ELEMENT_OUTSIDE_PROJECT", params: { wbs_element: "A.ABC.26002/10001" } },
       ],
       import_remaining_ambiguous_label: [
         {
@@ -465,11 +536,11 @@ describe("the sentence of a refusal", () => {
     expect(say(rejection("import_analysed", 1), "en")).toContain(
       "Value read in the file: “Soudeur (SOUD)”.",
     );
-    expect(say(rejection("import_actual_costs_wbs_invalid"), "fr")).toContain(
-      "Élément d’OTP lu\u00A0: «\u00A0/SP-CAB\u00A0».",
+    expect(say(rejection("import_actual_costs_dotted_code"), "fr")).toContain(
+      "Élément d’OTP lu\u00A0: «\u00A0A.ABC.26002/10001\u00A0».",
     );
-    expect(say(rejection("import_actual_costs_wbs_invalid"), "en")).toContain(
-      "Work breakdown element read: “/SP-CAB”.",
+    expect(say(rejection("import_actual_costs_dotted_code"), "en")).toContain(
+      "Work breakdown element read: “A.ABC.26002/10001”.",
     );
     expect(say(rejection("import_remaining_ambiguous_label"), "fr")).toContain(
       "Libellé lu\u00A0: «\u00A0Mise en service\u00A0», porté par les tâches «\u00A0Mise en service\u00A0» et «\u00A0Mise en service\u00A0».",
@@ -483,21 +554,39 @@ describe("the sentence of a refusal", () => {
     expect(say(rejection("import_actual_costs_duplicate_line", 1), "en")).toContain(
       "Other line of the file with the same document and item: 4.",
     );
-    // The code of the project a code of work breakdown is outside of, and several other lines.
-    expect(
-      say(
-        {
-          code: "WBS_ELEMENT_OUTSIDE_PROJECT",
-          params: { wbs_element: "P9-SP", project_code: "P9" },
-        },
-        "fr",
-      ),
-    ).toContain(
-      "Élément d’OTP lu\u00A0: «\u00A0P9-SP\u00A0». Code projet lu\u00A0: «\u00A0P9\u00A0».",
-    );
+    // A document and item found on several other lines names all their ranks, joined by "et".
     expect(say({ code: "DUPLICATE_COST_LINE", params: { rows: [4, 6, 7] } }, "fr")).toContain(
       "Autres lignes du fichier de même pièce et de même poste\u00A0: 4, 6 et 7.",
     );
+  });
+
+  it("names the code read at the head of a sheet that no sub-project bears, and the sheet, in the rejection of its lines [WF-INTF-0120-A] [US-3270]", () => {
+    // The sheet renamed in the spreadsheet: the code at its head is what the user declares (#4898).
+    const unknown = {
+      code: "UNKNOWN_SUBPROJECT",
+      params: { value: "Essais sur site", subproject_code: "PRJ-001/SP-MES" },
+    } as const;
+    expect(example("import_remaining_unknown_subproject")).toMatchObject({
+      report: { rejected: [unknown, unknown] },
+    });
+    expect(say(unknown, "fr")).toBe(
+      "Sous-projet inconnu. Code lu en tête de l’onglet «\u00A0Essais sur site\u00A0»\u00A0: " +
+        "«\u00A0PRJ-001/SP-MES\u00A0», qu’aucun sous-projet du projet ne porte.",
+    );
+    expect(say(unknown, "en")).toContain(
+      "Code read at the head of the sheet “Essais sur site”: “PRJ-001/SP-MES”, which no subproject of the project bears.",
+    );
+    // A head without a code names the value read, as before: the sheet.
+    expect(say({ code: "UNKNOWN_SUBPROJECT", params: { value: "Essais sur site" } }, "fr")).toBe(
+      "Sous-projet inconnu. Valeur lue dans le fichier\u00A0: «\u00A0Essais sur site\u00A0».",
+    );
+    // A head whose code is empty is a head without a code.
+    expect(
+      say(
+        { code: "UNKNOWN_SUBPROJECT", params: { value: "Essais sur site", subproject_code: "" } },
+        "fr",
+      ),
+    ).toBe("Sous-projet inconnu. Valeur lue dans le fichier\u00A0: «\u00A0Essais sur site\u00A0».");
   });
 
   it("says the day without a working hour in the language of the reader, from the refusal of a start or of a finish [WF-PLA-0020-A]", () => {
@@ -602,42 +691,6 @@ describe("the sentence of a refusal", () => {
     expect(say(reduced, "fr")).toBe(
       "Une tâche porte un lot ou un poste, jamais les deux. Ce lot ou ce poste est déjà porté par une autre tâche.",
     );
-  });
-
-  it("says why a code cannot name the tab of a sub-project: the characters it bears, or its reserved name [WF-PRJ-0050-A]", () => {
-    // La création d'un sous-projet de code « SP/01 » ou « Synthèse » est refusée.
-    const { fields } = fromExample("subproject_code_invalid", {
-      code: "VALIDATION_FAILED",
-      fields: [
-        {
-          pointer: "/code",
-          code: "SUBPROJECT_CODE_INVALID",
-          params: { forbidden_characters: ["/"] },
-        },
-      ],
-    });
-    expect(say({ code: "SUBPROJECT_CODE_INVALID", fields }, "fr")).toBe(
-      "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager. Caractères interdits dans le code\u00A0: /.",
-    );
-    const reserved = fromExample("subproject_code_reserved", {
-      code: "VALIDATION_FAILED",
-      fields: [
-        {
-          pointer: "/code",
-          code: "SUBPROJECT_CODE_INVALID",
-          params: { reserved_name: "Synthèse" },
-        },
-      ],
-    });
-    expect(say(reserved, "fr")).toMatch(/ «\u00A0Synthèse\u00A0» est un nom réservé/);
-    expect(say(reserved, "en")).toMatch(/ “Synthèse” is a reserved name/);
-    // Neither a list of characters that is empty, nor a name that is no text, says anything.
-    expect(
-      say(
-        { code: "SUBPROJECT_CODE_INVALID", params: { forbidden_characters: [], reserved_name: 3 } },
-        "en",
-      ),
-    ).toBe("This code cannot name the tab of the subproject in the estimate-to-complete file.");
   });
 
   it("says the minimum a value falls short of", () => {

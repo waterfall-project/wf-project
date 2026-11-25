@@ -231,7 +231,8 @@ def test_service_up_prints_the_log_of_the_control_when_the_platform_does_not_sta
 ) -> None:
     """US-1130: `up --detach` shows no log; a start that fails prints the refusal, if any."""
     workstation = Workstation(tmp_path)
-    done = workstation.make(workstation.main, "service-up", extra={"FAIL_CODE": "1"})
+    # The stand-in of uv would stand for wftools.retried, and play no docker: the command alone.
+    done = workstation.make(workstation.main, "service-up", "RETRIED=", extra={"FAIL_CODE": "1"})
     assert done.returncode != 0
     asked = docker_asked(workstation.logged())
     assert len(asked) == 2, asked

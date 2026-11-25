@@ -69,7 +69,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from wftools import mocktext, mockwitness, mockwitnesscostfile, mockwitnessrisksfile
+from wftools import mocktext, mockwitness, mockwitnessrisksfile
 from wftools.mockids import hex_identifier, universe
 from wftools.mockstructure import LABOUR_RATES
 from wftools.mockwitnesscosts import COSTS, JOURNAL
@@ -206,13 +206,6 @@ def _writes() -> dict[Event, list[JsonObject]]:
             }
             for line in COSTS
             if line.excluded is not None
-        ],
-        mockwitness.APRIL_EXTRACTION_REPLAYED: [
-            {
-                "kind": "import_expired",
-                **into,
-                "import_id": mockwitnesscostfile.expired_exchange_id(),
-            }
         ],
         **{
             entry.event: [

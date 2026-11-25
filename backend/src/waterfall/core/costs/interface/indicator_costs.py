@@ -5,11 +5,15 @@
 The number of the imports applied to the project and the last instant one was
 (``cost_import.imported_at``), the number of its lines of cost, the last instant one was written
 (``cost_line.updated_at``) and the sum of their counters (``cost_line.lock_version``, #3629): an
-import applied, a line excluded or reinstated, a line imputed to a subproject created change them,
-and with them the key of the indicators of the day (EP-10, "Le cache"); no write of the actual
-costs calls the cache. An import inserts its entry and none is ever deleted: their number grows at
-each import, in its transaction, where its instant, that of the start of its act, may be older than
-the last one committed. ``actual_costs_until`` and ``actual_cost_by_subproject`` serve the
+import applied, a line excluded or reinstated change them, and with them the key of the indicators
+of the day (EP-10, "Le cache"); no write of the actual costs calls the cache. The migration of the
+codes (0047, #3966) deletes the lines that waited for a subproject: the sum of the counters falls
+back, but their number falls too, below any number the project had since its last import — lines
+are added by imports alone, and the number of the imports never falls —, so the key it gives was
+never one of the project, and no entry kept before it is served after it. An import inserts its
+entry and none is ever deleted: their number grows at each import, in its transaction, where its
+instant, that of the start of its act, may be older than the last one committed.
+``actual_costs_until`` and ``actual_cost_by_subproject`` serve the
 indicators as they are (``tracked_costs``).
 """
 

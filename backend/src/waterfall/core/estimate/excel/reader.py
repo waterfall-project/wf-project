@@ -8,18 +8,17 @@ empty lines and the line of total of the table are ignored, a number is read in 
 a number written as text is rejected (``NUMBER_INVALID``), each line read and each rejection named
 by its tab and its Excel row number (WF-INTF-0070, WF-INTF-0080, WF-INTF-0100); « Tâches » gives
 the lineage of the task each entry names, and the header alone is read at the opening of an import
-(``check_header``, US-1550/L3). openpyxl reads, in
-``read_only`` mode and by values; nothing here touches a database or a session.
+(``check_header``, US-1550/L3). The workbook is opened by the opener of the exchanges, which
+refuses an archive beyond its bounds before openpyxl reads it, read-only and by values; only the
+tabs the format reads are materialised, each within its bounds of rows and columns
+(``opened_workbook``, ``bounded_rows``; US-3190). Nothing here touches a database or a session.
 """
 
 import math
 from dataclasses import dataclass
 from decimal import Decimal
-from io import BytesIO
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
-
-from openpyxl import load_workbook
 
 from waterfall.core.estimate.excel.writer import (
     FIXED_TABS,
@@ -27,11 +26,11 @@ from waterfall.core.estimate.excel.writer import (
     FORMAT_VERSION,
     TASKS,
 )
-from waterfall.core.exchanges.interface import DAMAGES
+from waterfall.core.exchanges.interface import DAMAGES, opened_workbook
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Mapping, Sequence
+    from collections.abc import Collection, Iterator, Mapping, Sequence
 
 FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
 NUMBER_INVALID = "NUMBER_INVALID"
@@ -43,8 +42,12 @@ FORMAT_LABEL = "Format"
 VERSION_LABEL = "Version"
 
 # The tabs that are not tabs of lines are the writer's fixed tabs: written for the reading, never
-# read as lines.
+# read as lines. Of them, the reading reads « Tâches » alone, and the header of the first tab.
 NOT_LINE_SHEETS = frozenset(FIXED_TABS)
+UNREAD_SHEETS = NOT_LINE_SHEETS - {TASKS}
+# The rows and the columns of the first tab its header is in: A1, B1, A2, B2.
+HEADER_ROWS = 2
+HEADER_COLUMNS = 2
 
 # The headers of the columns read; the other columns are written for the reader and ignored.
 TASK_HEADER = "Tâche"
@@ -70,6 +73,16 @@ _TEXT_HEADERS = (
 )
 _NUMBER_HEADERS = (QUANTITY_HEADER, HOURS_HEADER, DISBURSEMENT_HEADER, PAYMENT_DELAY_HEADER)
 _ALL_HEADERS = _TEXT_HEADERS + _NUMBER_HEADERS
+# The columns a tab of lines cannot lack, in the order of the writer: without them an import would
+# create or remove lines, or set amounts, on a column it cannot read (#4421).
+_REQUIRED_HEADERS = (
+    TASK_HEADER,
+    ROLE_OR_CATEGORY_HEADER,
+    QUANTITY_HEADER,
+    HOURS_HEADER,
+    DISBURSEMENT_HEADER,
+    LINEAGE_HEADER,
+)
 _READ_HEADERS = frozenset(_ALL_HEADERS)
 # A tab of lines is the one that carries both of these, on whichever row.
 _KEY_HEADERS = frozenset({TASK_HEADER, ROLE_OR_CATEGORY_HEADER})
@@ -114,9 +127,10 @@ class Rejection:
 class WorkbookRead:
     """What a workbook says: the lines read, tab by tab and row by row, and the rejections.
 
-    ``unread_sheets`` names the tabs that are not tabs of lines and are not fixed ones (no
-    "Tâche" and "Rôle ou catégorie" headers); ``missing_headers`` gives, by tab read, the headers
-    of the columns read that the tab lacks (their cells read as none). The policy is the analysis'.
+    ``unread_sheets`` names the tabs that are not fixed ones and carry no header read at all;
+    ``missing_headers`` gives, by tab with at least one header read, the headers of the columns
+    read that the tab lacks, "Tâche" and "Rôle ou catégorie" included (US-3200b); the opening
+    refuses the required ones, the rest is the analysis' policy.
     ``tasks`` gives, by the entry « Tâches » lists, the lineage of its task, as the workbook
     writes them (US-1550/L3): the analysis designates the task of a line by it.
     """
@@ -129,13 +143,45 @@ class WorkbookRead:
 
 
 def unreadable(
-    expected_format: str = FORMAT_KIND, expected_version: int = FORMAT_VERSION
+    expected_format: str = FORMAT_KIND,
+    expected_version: int = FORMAT_VERSION,
+    missing_columns: Sequence[Mapping[str, str]] = (),
 ) -> UnprocessableError:
-    """Build the refusal of a file that is no workbook of the format: the format is the slot's."""
-    return UnprocessableError(
-        FILE_FORMAT_UNREADABLE,
-        {"expected_format": expected_format, "expected_version": str(expected_version)},
-    )
+    """Build the refusal of a file that is no workbook of the format: the format is the slot's.
+
+    ``missing_columns`` names, when it is not empty, each column read a tab of lines lacks, by its
+    ``header`` and its ``sheet`` (``ProblemMissingColumn``; WF-INTF-0070, #4421).
+    """
+    params: dict[str, Any] = {
+        "expected_format": expected_format,
+        "expected_version": str(expected_version),
+    }
+    if missing_columns:
+        params["missing_columns"] = [dict(column) for column in missing_columns]
+    return UnprocessableError(FILE_FORMAT_UNREADABLE, params)
+
+
+def refuse_missing_columns(
+    missing: Mapping[str, tuple[str, ...]],
+    required: Sequence[str],
+    expected_format: str,
+    expected_version: int,
+) -> None:
+    """Refuse a workbook one of whose tabs of lines lacks a column the format cannot do without.
+
+    ``missing`` is what the reading found absent, by tab, in the order of the file; the refusal
+    names each column of ``required`` a tab lacks, tab by tab, then in the order of ``required``,
+    the format's. A header renamed is a column absent. The columns the format reads and can do
+    without (the label, the payment delay…) are left to the analysis (WF-INTF-0070, #4421).
+    """
+    columns = [
+        {"header": header, "sheet": sheet}
+        for sheet, absent in missing.items()
+        for header in required
+        if header in absent
+    ]
+    if columns:
+        raise unreadable(expected_format, expected_version, columns)
 
 
 def text(value: object) -> str | None:
@@ -183,6 +229,11 @@ def check_header_rows(
         raise unreadable(expected_format, version)
 
 
+def header_cells(sheet: Any) -> Iterator[tuple[Any, ...]]:
+    """Give the cells of the header of a tab, A1 to B2, whatever the width of the tab."""
+    return sheet.iter_rows(max_row=HEADER_ROWS, max_col=HEADER_COLUMNS, values_only=True)
+
+
 def check_header(
     content: bytes,
     format_name: str = FORMAT_NAME,
@@ -196,17 +247,26 @@ def check_header(
     slot's, as ``check_header_rows`` has them: the remaining to commit reads its header so too.
     """
     try:
-        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
-        try:
-            sheets = workbook.worksheets
-            rows = list(sheets[0].iter_rows(max_row=2, values_only=True)) if sheets else None
-        finally:
-            workbook.close()
+        with opened_workbook(content) as opened:
+            sheets = opened.worksheets
+            rows = opened.bounded_rows(header_cells(sheets[0])) if sheets else None
     except DAMAGES as error:
         raise unreadable(expected_format, version) from error
     if rows is None:
         raise unreadable(expected_format, version)
     check_header_rows(rows, format_name, version, expected_format)
+
+
+def check_workbook(content: bytes) -> None:
+    """Refuse a file that is no workbook of an estimate, or whose tab of lines lacks a column.
+
+    What the opening of an import reads before any lock (US-3200): the header, then the headers of
+    every tab of lines (``read_workbook``); the refusal names each column missing with its tab.
+    """
+    check_header(content)
+    refuse_missing_columns(
+        read_workbook(content).missing_headers, _REQUIRED_HEADERS, FORMAT_KIND, FORMAT_VERSION
+    )
 
 
 def task_entries(rows: Sequence[Sequence[object]]) -> dict[str, str]:
@@ -267,15 +327,19 @@ def _read_sheet(
 ) -> tuple[list[ReadLine], list[Rejection], dict[str, int] | None]:
     """Read the lines of a tab: none if no row carries the headers of a tab of lines.
 
-    The last item is the columns found, none for a tab that has no headers of lines.
+    The last item is the columns found: those of the row that carries both keys, else those of
+    the first row that carries any header read (no line is read then), none without any.
     """
     lines: list[ReadLine] = []
     rejected: list[Rejection] = []
     columns: dict[str, int] | None = None
+    partial: dict[str, int] | None = None
     for number, row in enumerate(rows, start=1):
         if columns is None:
             found = header_columns(row, _READ_HEADERS)
             columns = found if found.keys() >= _KEY_HEADERS else None
+            if columns is None and found and partial is None:
+                partial = found
             continue
         texts = {header: text(at(row, columns, header)) for header in _TEXT_HEADERS}
         raws = {header: at(row, columns, header) for header in _NUMBER_HEADERS}
@@ -311,32 +375,44 @@ def _read_sheet(
                 lineage=texts[LINEAGE_HEADER],
             )
         )
-    return lines, rejected, columns
+    return lines, rejected, columns or partial
 
 
 def load_sheets(
-    content: bytes, expected_format: str = FORMAT_KIND, expected_version: int = FORMAT_VERSION
+    content: bytes,
+    *,
+    unread: Collection[str] = UNREAD_SHEETS,
+    expected_format: str = FORMAT_KIND,
+    expected_version: int = FORMAT_VERSION,
 ) -> list[tuple[str, list[tuple[Any, ...]]]]:
-    """Open the workbook and read every tab; any damage of the file is ``FILE_FORMAT_UNREADABLE``.
+    """Open the workbook and read the tabs the format reads, in their order, each within bounds.
 
-    In ``read_only`` mode the XML of a tab is parsed while iterating, so both steps are guarded.
+    A tab of ``unread`` is not materialised: the first tab, its header rows alone, any other
+    left out. Any damage of the file, an archive beyond the bounds of the opener, or a tab read
+    beyond its rows or columns is ``FILE_FORMAT_UNREADABLE`` (US-3190). In ``read_only`` mode the
+    XML of a tab is parsed while iterating, so both steps are guarded.
     """
+    sheets: list[tuple[str, list[tuple[Any, ...]]]] = []
     try:
-        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
-        try:
-            return [(sheet.title, list(sheet.iter_rows(values_only=True))) for sheet in workbook]
-        finally:
-            workbook.close()
+        with opened_workbook(content) as opened:
+            for rank, sheet in enumerate(opened.worksheets):
+                if sheet.title not in unread:
+                    sheets.append(
+                        (sheet.title, opened.bounded_rows(sheet.iter_rows(values_only=True)))
+                    )
+                elif rank == 0:
+                    sheets.append((sheet.title, opened.bounded_rows(header_cells(sheet))))
     except DAMAGES as error:
         raise unreadable(expected_format, expected_version) from error
+    return sheets
 
 
 def read_workbook(content: bytes) -> WorkbookRead:
     """Read the workbook of an estimate: its header, then every tab of lines.
 
     Raises ``FILE_FORMAT_UNREADABLE`` (``expected_format``, ``expected_version``) for a file that
-    is no workbook, whose XML is damaged, or whose first tab does not say the format "Devis" and a
-    known version.
+    is no workbook, whose XML is damaged, beyond the bounds of the opener or with a tab read beyond
+    its rows or columns, or whose first tab does not say the format "Devis" and a known version.
     """
     sheets = load_sheets(content)
     if not sheets:

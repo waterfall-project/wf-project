@@ -50,17 +50,25 @@ class Requires:
     """The permissions an operation asks for, evaluated in their order before it runs.
 
     A permission to consult comes first: without it, the object of the operation does not exist
-    for the caller (404), whatever else it may hold.
+    for the caller (404), whatever else it may hold. ``one_of`` asks, after ``permissions``, for
+    one at least of its own, as ``RequiresProject`` does: the deposit of a file, which any of the
+    four permissions of an import opens (``uploadFile``, #4423); the first of all is named when
+    the caller holds none.
     """
 
-    __slots__ = ("permissions",)
+    __slots__ = ("one_of", "permissions")
 
-    def __init__(self, *permissions: str) -> None:
+    def __init__(self, *permissions: str, one_of: tuple[str, ...] = ()) -> None:
         self.permissions = permissions
+        self.one_of = one_of
 
     def __call__(self, actor: Acting) -> None:
         """Refuse the operation for the first permission the caller does not hold."""
-        for permission in self.permissions:
+        asked = self.permissions
+        if self.one_of:
+            held = (each for each in self.one_of if each in actor.permissions)
+            asked = (*asked, next(held, self.one_of[0]))
+        for permission in asked:
             require(actor, permission)
 
 

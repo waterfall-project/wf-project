@@ -244,10 +244,12 @@ describe("the screen of the imports and exports", () => {
     expect(calls(GET_REVISION)).toEqual([`/projects/${PROJECT}/revisions/${REVISION}?`]);
     expect(calls(IMPORTS)).toEqual([`/projects/${PROJECT}/imports?limit=50`]);
     expect(text(page)).toContain(
-      "Imports of the project File Kind Status Opened on devis-avenant-2-reprise-des-essais.xlsx Estimate Analysed couts-reels-2026-05.xlsx Actual costs Applied couts-reels-2026-04-correction.xlsx Actual costs Expired",
+      "Imports of the project File Kind Status Opened on devis-avenant-2-reprise-des-essais.xlsx Estimate Analysed couts-reels-2026-05.xlsx Actual costs Applied couts-reels-2026-04-reextraction.xlsx Actual costs Applied",
     );
     expect(links(page)).toContain(`${PATHNAME}?import=${IMPORT}`);
-    expect(text(page)).toContain("planning-poste-de-commande.xml MS Project planning Abandoned");
+    // No import expired or abandoned is listed: the purge deletes it (US-3250).
+    expect(text(page)).not.toContain("Abandoned");
+    expect(text(page)).not.toContain("Expired");
   });
 
   it("shows no note of the mock-up: the screen is served, its writes kept by the service", async () => {
@@ -319,11 +321,10 @@ describe("the screen of the imports and exports", () => {
   it("names the reasons a report asks an explicit confirmation for", async () => {
     server.answers = {
       ...server.answers,
-      [GET_IMPORT]: { example: "import_actual_costs_analysed", status: 200 },
+      [GET_IMPORT]: { example: "import_actual_costs_dotted_code", status: 200 },
     };
     const page = text(await exchangesAt({ import: IMPORT }));
-    expect(page).toContain("Explicit confirmation required Unknown subproject");
-    expect(page).toContain("No line rejected");
+    expect(page).toContain("Explicit confirmation required Lines outside the project");
   });
 
   it("names the fields a difference changes by the columns of its object, in the language of its reader [WF-ARC-0110-A]", async () => {
@@ -371,7 +372,7 @@ describe("the screen of the imports and exports", () => {
     expect(links(page)).toEqual(expect.arrayContaining([PATHNAME, `${PATHNAME}?offset=4`]));
     // The imports of the page lead to their report, on the same page of the list.
     expect(links(page)).toContain(
-      `${PATHNAME}?offset=2&amp;import=01926f3a-7c00-7000-8000-000000000a10`,
+      `${PATHNAME}?offset=2&amp;import=01926f3a-7c00-7000-8000-000000000a09`,
     );
   });
 
@@ -405,12 +406,20 @@ describe("the screen of the imports and exports", () => {
     expect(text(page)).toContain("Estimate Remaining to commit");
   });
 
-  it("is not found when the import the address names is not", async () => {
+  it("says the import the address names is gone, and lists the others, without an error page [US-3280]", async () => {
     server.answers = {
       ...server.answers,
       [GET_IMPORT]: { problem: { code: "NOT_FOUND", status: 404 } },
     };
-    await expect(exchangesAt({ import: IMPORT })).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
+    const page = await exchangesAt({ import: IMPORT });
+    expect(text(page)).toContain("The import the address names no longer exists");
+    expect(text(page)).toContain("The imports of the project are listed below.");
+    expect(text(page)).toContain("devis-avenant-2-reprise-des-essais.xlsx");
+    expect(page).not.toContain("Report of");
+  });
+
+  it("says nothing of a gone import when the address names none [US-3280]", async () => {
+    expect(text(await exchangesAt())).not.toContain("no longer exists");
   });
 
   it.each([

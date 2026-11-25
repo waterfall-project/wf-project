@@ -18,6 +18,7 @@ file of the manifest.
 
 import json
 import os
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -138,6 +139,11 @@ MISSING: dict[str, str] = {}
 DERIVED: dict[str, tuple[str, ...]] = {"06-manual-tasks.xml": ("Manuelle 4",)}
 
 
+def _carrying_lineages(project: MsProject) -> MsProject:
+    """Give the planning as the reader gives it back once written, its lineages declared."""
+    return replace(project, lineage_declared=any(task.lineage for task in project.tasks))
+
+
 def _ids(project: MsProject) -> dict[int, UUID]:
     """Give each task of a file an identifier of the engine, drawn from its ``UID``."""
     return {task.uid: uuid5(NAMESPACE_OID, str(task.uid)) for task in project.tasks}
@@ -155,6 +161,13 @@ def dated(file: str) -> tuple[MsProject, Schedule]:
     project = read_project((CORPUS / file).read_bytes()).project
     assert project.start is not None, f"{file} says no start"
     calendars = calendars_of(project)
+    # MS Project names the calendar of its project, and carries it: no file of the corpus is dated
+    # on the calendar the reader assumes of a file without one.
+    assert project.calendar_uid in calendars, f"{file} names no calendar it carries"
+    # Nor is any task: each one that names a calendar names one the file carries.
+    assert all(
+        each.calendar_uid is None or each.calendar_uid in calendars for each in project.tasks
+    ), f"{file} has a task naming a calendar it does not carry"
     constants = constants_of(project)
     parents = project.parents()
     summaries = {uid for uid in parents.values() if uid is not None}
@@ -162,7 +175,6 @@ def dated(file: str) -> tuple[MsProject, Schedule]:
     tasks: list[Task] = []
     for each in project.tasks:
         calendar = calendar_of(project, calendars, each)
-        assert calendar is not None, f"{file}: {each.name} has no calendar"
         frozen = each.manual or each.constraint in DATE_CONSTRAINTS
         manual = frozen and each.uid not in summaries
         assert not manual or (each.start is not None and each.finish is not None)
@@ -200,7 +212,6 @@ def mismatches(file: str) -> list[str]:
         if each.name in DERIVED.get(file, ()):
             continue
         calendar = calendar_of(project, calendars, each)
-        assert calendar is not None
         assert each.start is not None
         assert each.finish is not None
         placed = dates.tasks[ids[each.uid]]
@@ -271,7 +282,6 @@ def test_a_summary_in_manual_mode_is_dated_from_its_subordinates_not_at_the_file
         WorkInstant(date(2009, 11, 19), Decimal(3)),
     )
     calendar = calendar_of(project, calendars_of(project), summary)
-    assert calendar is not None
     assert summary.start is not None
     assert summary.finish is not None
     assert (calendar.instant(summary.start), calendar.instant(summary.finish)) == (
@@ -381,4 +391,4 @@ def test_each_planning_of_the_corpus_read_then_written_is_valid_against_the_sche
     written = write_project(project)
 
     assert schema.validate(etree.fromstring(written, hardened_parser())), schema.error_log
-    assert read_project(written).project == project
+    assert read_project(written).project == _carrying_lineages(project)

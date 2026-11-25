@@ -54,6 +54,7 @@ from waterfall.core.cost_settings.tables import HourlyRate
 from waterfall.core.estimate.entries import LineEntry
 from waterfall.core.estimate.interface.excel import EstimateFormat
 from waterfall.core.estimate.tables import RevisionRate
+from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.planning.interface import LinesWrite, Place, Writer, write_lines
 from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.tables import ResourceRole
@@ -222,8 +223,8 @@ def test_lines_of_labour_and_of_material_are_written_under_their_tasks_and_absen
     # « On importe un fichier qui comporte des lignes de main-d'œuvre et des lignes hors
     # main-d'œuvre. » ; « Chaque ligne se retrouve sous la tâche désignée, avec sa quantité, ses
     # heures ou son débours, son rôle et, le cas échéant, son sous-projet. » The import enters
-    # nothing in the undo history. Each of its two writes — the line absent deleted, the lines
-    # written — reads the tree once, a criterion of US-2250.
+    # nothing in the undo history. Its one write — the line absent deleted, the lines written
+    # (US-3220) — reads the tree once, a criterion of US-2250.
     tree, costs = held["tree"], held["costs"]
     answer = api.post(
         f"{PROJECTS}/{stage.project['project_id']}/subprojects",
@@ -243,7 +244,7 @@ def test_lines_of_labour_and_of_material_are_written_under_their_tasks_and_absen
     read = trees_read(monkeypatch)
     with listened() as sent:
         applied_now(api, stage, worker, import_id)
-    assert read.count == 2
+    assert read.count == 1
     # What the replay rests on holds on the application (``reshaped``, US-2250/L2, #3563).
     assert any(each.text.startswith("INSERT INTO node ") for each in sent)
     assert unkept(sent) == []
@@ -472,15 +473,42 @@ def test_a_line_entered_since_the_analysis_is_not_removed_by_the_application(
     api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
 ) -> None:
     # What is applied is the report the user read before confirming: a line entered since, absent
-    # from the file, was not announced removed, and stays.
+    # from the file, was not announced removed, and stays. The structure written since refuses the
+    # import from US-3210 on: the rule is tried on a report without the counter of its structure,
+    # analysed before it was kept, which applies without comparison.
     tree, costs = held["tree"], held["costs"]
     import_id = analysed_import(api, stage, worker, workbook(as_exported(held), held["tasks"]))
     assert read(api, stage, import_id)["report"]["differences"] == []
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(ImportReport)
+            .where(ImportReport.id == UUID(import_id))
+            .values(structure_lock_version=None)
+        )
     entered = Lines(tree).made(
         held["second"], quantity="1", cost_category_id=str(costs.material), unit_disbursement="5"
     )
     applied_now(api, stage, worker, import_id)
     assert entered["nodes"][0]["lineage_id"] in estimate_lines(tree.items())
+
+
+@pytest.mark.requirement("WF-ARC-0100-A")
+def test_a_line_entered_since_the_analysis_refuses_the_import_with_its_counter_kept(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
+) -> None:
+    # The twin of the test above, the counter of the report kept: « Entre l'analyse et la
+    # confirmation, aucune donnée du projet n'a changé. » The line entered since refuses the
+    # application (409 ``import_structure_unchanged``): the import is refused, nothing is written.
+    tree, costs = held["tree"], held["costs"]
+    import_id = analysed_import(api, stage, worker, workbook(as_exported(held), held["tasks"]))
+    Lines(tree).made(
+        held["second"], quantity="1", cost_category_id=str(costs.material), unit_disbursement="5"
+    )
+    before = tree.items()
+    answer = apply(api, stage, import_id)
+    assert refusal(answer) == (409, STATE, {"missing_condition": "import_structure_unchanged"})
+    assert read(api, stage, import_id)["status"] == "refused"
+    assert tree.items() == before
 
 
 @pytest.mark.requirement("WF-INTF-0080-A")

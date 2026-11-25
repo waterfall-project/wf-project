@@ -19,7 +19,21 @@ from typing import TYPE_CHECKING, Any
 import xlsxwriter
 from xlsxwriter.utility import xl_col_to_name, xl_rowcol_to_cell
 
-from waterfall.core.estimate.excel.model import Tab
+from waterfall.core.estimate.excel.figures import (
+    EMPTY,
+    TabFigures,
+    reference_index,
+    role_codes,
+    tab_figures,
+)
+from waterfall.core.estimate.excel.model import (
+    DISBURSEMENT,
+    KIND_NAMES,
+    KIND_ORDER,
+    LABOUR,
+    PROVISION,
+    Tab,
+)
 from waterfall.core.estimate.excel.names import sheet_name
 
 if TYPE_CHECKING:
@@ -42,14 +56,11 @@ FIXED_TABS = (PRESENTATION, SUMMARY, TASKS, PARAMETERS)
 PREPARED = 30
 # The lists of choice hold for far more rows than the table, which grows as one types.
 VALIDATED_ROWS = 1000
+# The row (from 0) of the first lot or tab of « Devis », under its header.
+SUMMARY_FIRST_ROW = 5
 # Excel refuses a footer of more than 255 characters.
 FOOTER_LIMIT = 255
 FOOTER_MARGIN = 30
-LABOUR = "Main-d’œuvre"
-DISBURSEMENT = "Hors main-d’œuvre"
-PROVISION = "Provision"
-KIND_NAMES = {"labour": LABOUR, "disbursement": DISBURSEMENT, "provision": PROVISION}
-KIND_ORDER = {LABOUR: 0, DISBURSEMENT: 1, PROVISION: 2}
 SYMBOLS = {"EUR": "€", "USD": "$", "GBP": "£"}
 PACKAGE = "waterfall.core.estimate.excel"
 LOGO = ("assets", "waterfall_logo.png")
@@ -194,6 +205,7 @@ class _TabRow:
     number: str
     label: str
     table: str
+    values: tuple[float, ...]  # what the formulas of its row give, column by column
 
 
 @dataclass(frozen=True)
@@ -218,6 +230,7 @@ class _Context:
     tables: tuple[str, ...]
     fmt: dict[str, Format]
     labels: _Labels
+    figures: tuple[TabFigures, ...]  # the value of each formula of a tab, in the order of the tabs
 
 
 def _labels(estimate: Estimate) -> _Labels:
@@ -407,7 +420,7 @@ def _line_formulas(table: str) -> dict[str, str]:
     return {
         "Description de la tâche": (
             f'=IF({cell("Tâche")}="","",IFERROR(INDEX(Taches[[Description]],'
-            f'MATCH({cell("Tâche")},Taches[[Entrée]],0)),""))'
+            f'MATCH({cell("Tâche")},Taches[[Entrée]],0))&"",""))'
         ),
         "Nature": lookup("Nature"),
         "Code comptable": lookup("Code comptable"),
@@ -440,13 +453,40 @@ def _table_names(tabs: tuple[Tab, ...]) -> tuple[str, ...]:
     return tuple(names)
 
 
+def _line_entry(labels: _Labels, line: Line) -> str:
+    """Give the text of the list of choice that designates the role or the category of a line."""
+    if line.role is not None:
+        return _entry(labels.roles[line.role], line.role)
+    code = line.category or ""
+    return _entry(labels.categories[code], code)
+
+
+def _tab_figures(
+    estimate: Estimate, labels: _Labels, tabs: tuple[Tab, ...]
+) -> tuple[TabFigures, ...]:
+    """Give the value of each formula of each tab: the lookups read the reference, not the sheet."""
+    reference = reference_index(_reference_rows(estimate))
+    descriptions: dict[str, str] = {}
+    for tab in tabs:
+        for task in tab.tasks:
+            descriptions.setdefault(_task_entry(task), task.description)
+    return tuple(
+        tab_figures(
+            reference,
+            descriptions,
+            (
+                (_task_entry(task), _line_entry(labels, line), line)
+                for task in tab.tasks
+                for line in task.lines
+            ),
+        )
+        for tab in tabs
+    )
+
+
 def _line_row(labels: _Labels, task: Task, line: Line) -> list[Any]:
     """Give the cells a line writes; the calculated columns stay empty."""
-    if line.role is not None:
-        entry = _entry(labels.roles[line.role], line.role)
-    else:
-        code = line.category or ""
-        entry = _entry(labels.categories[code], code)
+    entry = _line_entry(labels, line)
     values: dict[str, Any] = {
         "Tâche": _task_entry(task),
         "Rôle ou catégorie": entry,
@@ -470,7 +510,9 @@ def _write_lines_tab(sheet: Worksheet, ctx: _Context, position: int, lists: _Lis
     data = [_line_row(ctx.labels, task, line) for task in tab.tasks for line in task.lines]
     last = len(data) + PREPARED
     data += [[None] * len(LINE_HEADERS) for _ in range(PREPARED)]
+    figures = ctx.figures[position]
     columns: list[dict[str, Any]] = []
+    formats: dict[str, Format] = {}
     for header in LINE_HEADERS:
         spec: dict[str, Any] = {"header": header}
         if header in formulas:
@@ -482,6 +524,7 @@ def _write_lines_tab(sheet: Worksheet, ctx: _Context, position: int, lists: _Lis
                 if header == "Heures totales"
                 else fmt["grey"]
             )
+            formats[header] = spec["format"]
         elif header == "Montant Waterfall":
             spec["format"] = fmt["grey_money"]
         elif header in TEXT_HEADERS:
@@ -490,6 +533,7 @@ def _write_lines_tab(sheet: Worksheet, ctx: _Context, position: int, lists: _Lis
             # Declared in the table (Excel repairs a total it does not find), and naming the table:
             # LibreOffice does not read the short form « [Column] » that "sum" would write.
             spec["total_function"] = f"=SUBTOTAL(109,{table}[[{header}]])"
+            spec["total_value"] = figures.total(header)
         columns.append(spec)
     columns[0]["total_string"] = "Total"
     sheet.add_table(
@@ -506,6 +550,11 @@ def _write_lines_tab(sheet: Worksheet, ctx: _Context, position: int, lists: _Lis
         },
     )
     index = {header: position for position, header in enumerate(LINE_HEADERS)}
+    # The formulas stay, each with the value it gives: a spreadsheet that does not recalculate
+    # shows them (#4317). The prepared rows give the empty text, not 0.
+    for row, values in enumerate((*figures.lines, *([EMPTY] * PREPARED)), start=1):
+        for header, formula in formulas.items():
+            sheet.write_formula(row, index[header], formula, formats[header], values[header])
     for header, source, title, message in (
         ("Tâche", tasks_list, "Tâche", "Choisis une tâche de cet onglet (onglet Tâches)."),
         (
@@ -550,13 +599,8 @@ def _write_lines_tab(sheet: Worksheet, ctx: _Context, position: int, lists: _Lis
 
 def _summary_columns(estimate: Estimate) -> list[tuple[str, str, str]]:
     """Give the columns after « Niveau »: (header, kind, key)."""
-    natures = {nature.name: nature for nature in estimate.natures}
     columns = [("nature", nature.name, nature.name) for nature in estimate.natures]
-    seen: set[str] = set()
-    for category in estimate.categories:
-        if natures[category.nature].kind == "labour" and category.code not in seen:
-            seen.add(category.code)
-            columns.append(("hours", category.code, f"Heures {category.code}"))
+    columns += [("hours", code, f"Heures {code}") for code in role_codes(estimate.roles)]
     columns += [("total", "", "Total"), ("waterfall", "", "Montant Waterfall")]
     return [(header, kind, key) for kind, key, header in columns]
 
@@ -572,8 +616,73 @@ def _tab_formula(kind: str, key: str, table: str) -> str:
     return f"SUMIFS({table}[[Montant]],{table}[[Nature]],{_quote(key)})"
 
 
-def _write_summary(sheet: Worksheet, ctx: _Context) -> tuple[int, list[tuple[str, str, str]]]:
-    """Write « Devis »: a row per lot, per tab; give the row of the total and the columns."""
+def _tab_values(columns: list[tuple[str, str, str]], figures: TabFigures) -> tuple[float, ...]:
+    """Give what the formulas of a tab give in its row of the summary, « Inclus » being « Oui »."""
+    values: list[float] = []
+    for _, kind, key in columns:
+        if kind == "hours":
+            values.append(figures.hours_of(key))
+        elif kind == "total":
+            values.append(figures.total("Montant"))
+        elif kind == "waterfall":
+            values.append(figures.total("Montant Waterfall"))
+        else:
+            values.append(figures.amount_of(key))
+    return tuple(values)
+
+
+def _write_row(
+    sheet: Worksheet,
+    fmt: dict[str, Format],
+    columns: list[tuple[str, str, str]],
+    plan: list[_LotRow | _TabRow],
+    offset: int,
+) -> None:
+    """Write the row of a lot, summing the tabs that follow it, or the row of a tab."""
+    entry, row = plan[offset], SUMMARY_FIRST_ROW + offset
+    if isinstance(entry, _LotRow):
+        count = entry.tabs
+        sheet.write_string(row, 0, entry.number, fmt["lot"])
+        sheet.write(row, 1, entry.label, fmt["lot"])
+        sheet.write(row, 2, "", fmt["lot"])
+        sheet.write(row, 3, "lot", fmt["lot"])
+        of_lot = [
+            each for each in plan[offset + 1 : offset + 1 + count] if isinstance(each, _TabRow)
+        ]
+        for position, (_, kind, _) in enumerate(columns, start=4):
+            style = fmt["lot_hours"] if kind == "hours" else fmt["lot_money"]
+            # The tabs of the lot follow its row: the sum never holds the row of the lot.
+            formula = (
+                f"=SUM({xl_rowcol_to_cell(row + 1, position)}:"
+                f"{xl_rowcol_to_cell(row + count, position)})"
+                if count
+                else "=0"
+            )
+            value = sum(each.values[position - 4] for each in of_lot)
+            sheet.write_formula(row, position, formula, style, value)
+        return
+    sheet.write_string(row, 0, entry.number)
+    sheet.write(row, 1, entry.label)
+    sheet.write(row, 2, "Oui")
+    sheet.data_validation(row, 2, row, 2, {"validate": "list", "source": ["Oui", "Non"]})
+    sheet.write(row, 3, "onglet")
+    for position, (_, kind, key) in enumerate(columns, start=4):
+        style = fmt["hours"] if kind == "hours" else fmt["money"]
+        formula = f'=IF($C${row + 1}="Oui",{_tab_formula(kind, key, entry.table)},0)'
+        sheet.write_formula(row, position, formula, style, entry.values[position - 4])
+
+
+@dataclass(frozen=True)
+class _Summary:
+    """What « Devis » gives « Présentation »: its row of totals, its columns, their totals."""
+
+    total_row: int
+    columns: list[tuple[str, str, str]]
+    totals: list[float]
+
+
+def _write_summary(sheet: Worksheet, ctx: _Context) -> _Summary:
+    """Write « Devis »: a row per lot, per tab; give the row of the total and what it sums."""
     estimate, fmt = ctx.estimate, ctx.fmt
     sheet.write("A1", f"Devis — {estimate.project}", fmt["title"])
     sheet.write(
@@ -583,73 +692,56 @@ def _write_summary(sheet: Worksheet, ctx: _Context) -> tuple[int, list[tuple[str
     )
     columns = _summary_columns(estimate)
     header = ["N°", "Lot ou poste", "Inclus", "Niveau", *(column[0] for column in columns)]
-    top = 4
+    top = SUMMARY_FIRST_ROW - 1
     sheet.write_row(top, 0, header, fmt["head"])
     sheet.set_row(top, 32)
     plan: list[_LotRow | _TabRow] = []
-    tables = iter(ctx.tables)  # in the order of the tabs: the lots', then the one outside
+    # in the order of the tabs: the lots', then the one outside
+    tabs = iter(zip(ctx.tables, ctx.figures, strict=True))
+
+    def tab_row(number: str, label: str) -> _TabRow:
+        table, figures = next(tabs)
+        return _TabRow(number, label, table, _tab_values(columns, figures))
+
     for lot in estimate.lots:
         plan.append(_LotRow(lot.number, lot.label, len(lot.tabs)))
-        plan += [_TabRow(tab.number, tab.label, next(tables)) for tab in lot.tabs]
+        plan += [tab_row(tab.number, tab.label) for tab in lot.tabs]
     if estimate.outside_lot is not None:
-        outside = estimate.outside_lot
-        plan.append(_TabRow(outside.number, outside.label, next(tables)))
+        plan.append(tab_row(estimate.outside_lot.number, estimate.outside_lot.label))
     first = top + 1
     last = top + len(plan)
-    for offset, entry in enumerate(plan):
-        row = first + offset
-        number, label = entry.number, entry.label
-        if isinstance(entry, _LotRow):
-            count = entry.tabs
-            sheet.write_string(row, 0, number, fmt["lot"])
-            sheet.write(row, 1, label, fmt["lot"])
-            sheet.write(row, 2, "", fmt["lot"])
-            sheet.write(row, 3, "lot", fmt["lot"])
-            for position, (_, kind, _) in enumerate(columns, start=4):
-                style = fmt["lot_hours"] if kind == "hours" else fmt["lot_money"]
-                # The tabs of the lot follow its row: the sum never holds the row of the lot.
-                formula = (
-                    f"=SUM({xl_rowcol_to_cell(row + 1, position)}:"
-                    f"{xl_rowcol_to_cell(row + count, position)})"
-                    if count
-                    else "=0"
-                )
-                sheet.write_formula(row, position, formula, style)
-            continue
-        sheet.write_string(row, 0, number)
-        sheet.write(row, 1, label)
-        sheet.write(row, 2, "Oui")
-        sheet.data_validation(row, 2, row, 2, {"validate": "list", "source": ["Oui", "Non"]})
-        sheet.write(row, 3, "onglet")
-        for position, (_, kind, key) in enumerate(columns, start=4):
-            style = fmt["hours"] if kind == "hours" else fmt["money"]
-            formula = f'=IF($C${row + 1}="Oui",{_tab_formula(kind, key, entry.table)},0)'
-            sheet.write_formula(row, position, formula, style)
+    for offset in range(len(plan)):
+        _write_row(sheet, ctx.fmt, columns, plan, offset)
     total = last + 1
     sheet.write(total, 1, "Total", fmt["bold"])
     levels = f"$D${first + 1}:$D${last + 1}"
+    totals = [
+        sum(each.values[column] for each in plan if isinstance(each, _TabRow))
+        for column in range(len(columns))
+    ]
     for position, (_, kind, _) in enumerate(columns, start=4):
         cells = f"{xl_rowcol_to_cell(first, position)}:{xl_rowcol_to_cell(last, position)}"
         style = fmt["hours_bold"] if kind == "hours" else fmt["money_bold"]
-        sheet.write_formula(total, position, f'=SUMIFS({cells},{levels},"onglet")', style)
+        sheet.write_formula(
+            total,
+            position,
+            f'=SUMIFS({cells},{levels},"onglet")',
+            style,
+            totals[position - 4],
+        )
     sheet.set_column(0, 0, 6)
     sheet.set_column(1, 1, 30)
     sheet.set_column(2, 2, 7)
     sheet.set_column(3, 3, 7, None, {"hidden": True})
     sheet.set_column(4, len(header) - 1, 14)
     sheet.freeze_panes(top + 1, 2)
-    return total, columns
+    return _Summary(total, columns, totals)
 
 
-def _write_presentation(
-    sheet: Worksheet,
-    ctx: _Context,
-    total_row: int,
-    columns: list[tuple[str, str, str]],
-    mention: str,
-) -> None:
+def _write_presentation(sheet: Worksheet, ctx: _Context, summary: _Summary, mention: str) -> None:
     """Write « Présentation »: format and version first (A1-B2), then the project, the breakdown."""
     estimate, fmt = ctx.estimate, ctx.fmt
+    total_row, columns, totals = summary.total_row, summary.columns, summary.totals
     sheet.write("A1", "Format")
     sheet.write("B1", FORMAT_NAME)
     sheet.write("A2", "Version")
@@ -696,31 +788,42 @@ def _write_presentation(
         if column[1] == "nature"
     ]
     total_line = base + 2 + len(natures)
+    amounts = [totals[position - 4] for position, _ in natures]
+    grand_total = sum(amounts)
     for offset, (position, column) in enumerate(natures):
         row = base + 2 + offset
         sheet.write(row, 0, column[0])
         sheet.write_formula(
-            row, 1, f"={SUMMARY}!{xl_rowcol_to_cell(total_row, position)}", fmt["money"]
+            row,
+            1,
+            f"={SUMMARY}!{xl_rowcol_to_cell(total_row, position)}",
+            fmt["money"],
+            amounts[offset],
         )
         share = (
             f"=IF({xl_rowcol_to_cell(total_line, 1)}=0,0,"
             f"{xl_rowcol_to_cell(row, 1)}/{xl_rowcol_to_cell(total_line, 1)})"
         )
-        sheet.write_formula(row, 2, share, fmt["percent"])
+        part = 0 if grand_total == 0 else amounts[offset] / grand_total
+        sheet.write_formula(row, 2, share, fmt["percent"], part)
     sheet.write(total_line, 0, "Total", fmt["bold"])
     total_formula = (
         f"=SUM({xl_rowcol_to_cell(base + 2, 1)}:{xl_rowcol_to_cell(total_line - 1, 1)})"
         if natures
         else "=0"
     )
-    sheet.write_formula(total_line, 1, total_formula, fmt["money_bold"])
+    sheet.write_formula(total_line, 1, total_formula, fmt["money_bold"], grand_total)
     waterfall = next(
         position for position, column in enumerate(columns, start=4) if column[1] == "waterfall"
     )
     end = total_line + 2
     sheet.write(end, 0, "Montant Waterfall, inflation comprise", fmt["bold"])
     sheet.write_formula(
-        end, 1, f"={SUMMARY}!{xl_rowcol_to_cell(total_row, waterfall)}", fmt["money_bold"]
+        end,
+        1,
+        f"={SUMMARY}!{xl_rowcol_to_cell(total_row, waterfall)}",
+        fmt["money_bold"],
+        totals[waterfall - 4],
     )
     sheet.write(
         end + 1,
@@ -768,13 +871,15 @@ def write_workbook(estimate: Estimate) -> bytes:
     )
     book.set_calc_mode("auto")
     tabs, sheet_names = _name_tabs(estimate)
+    labels = _labels(estimate)
     ctx = _Context(
         estimate,
         tabs,
         sheet_names,
         _table_names(tabs),
         _text_formats(book, estimate.currency),
-        _labels(estimate),
+        labels,
+        _tab_figures(estimate, labels, tabs),
     )
     presentation = book.add_worksheet(PRESENTATION)
     summary = book.add_worksheet(SUMMARY)
@@ -786,9 +891,9 @@ def write_workbook(estimate: Estimate) -> bytes:
     lists = _Lists(roles_list, subprojects_list, _write_tasks(tasks, ctx))
     for position, sheet in enumerate(sheets):
         _write_lines_tab(sheet, ctx, position, lists)
-    total_row, columns = _write_summary(summary, ctx)
+    shown = _write_summary(summary, ctx)
     mention, footer = footer_text(estimate.company, estimate.exported_at)
-    _write_presentation(presentation, ctx, total_row, columns, mention)
+    _write_presentation(presentation, ctx, shown, mention)
     for sheet in book.worksheets():
         sheet.set_footer(f"&L&8{footer}&R&8Page &P / &N")
     presentation.activate()

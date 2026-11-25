@@ -3,7 +3,9 @@
 """The files deposited on the object storage, in transit (WF-DAT-0120): whole, or by parts (#350).
 
 A file of an import is deposited whole, in one request, under the bound of an import (EP-06):
-recorded completed, as one part (``record_whole``).
+recorded completed, as one part (``record_whole``). An account keeps twenty of them at most that no
+import used and that have not expired, counted before the file is written (``pending_imports``,
+US-3240, #4423): the storage keeps the backups too, and a loop of deposits would fill it.
 
 A backup copied out of a platform is deposited by parts, each under the bound of a request the
 front carries, which the object storage assembles: a deposit opens — the server says in how many
@@ -17,12 +19,18 @@ A restoration keeps the deposits of the installation, and gives them back in pla
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import BigInteger, CheckConstraint, Integer, Text, insert, select, update
+from sqlalchemy import BigInteger, CheckConstraint, Integer, Text, func, insert, select, update
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from waterfall.platform.database import Base, UtcDateTime
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from sqlalchemy import Select
 
 # The uses of a deposit, as the contract says them (``FileUploadPurpose``).
 PURPOSES = ("import", "external_backup")
@@ -37,6 +45,9 @@ LIFETIME = timedelta(hours=24)
 SMALLEST_PART = 5 * 1024**2
 LARGEST_PART = 10 * 1024**2
 MOST_PARTS = 10_000
+# How many deposits for an import an account keeps at most that no import used and that have not
+# expired: twenty, 200 MiB at the bound of a file of an import (US-3240, #4423).
+MOST_PENDING = 20
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -169,6 +180,38 @@ def record_whole(session: Session, upload_id: UUID, whole: Whole, at: datetime) 
         )
     )
     return session.get_one(FileUpload, upload_id)
+
+
+def pending_imports(session: Session, account: UUID, at: datetime, used: Select[UUID]) -> int:
+    """Count the deposits for an import ``account`` keeps unexpired at ``at``, none of ``used``.
+
+    ``used`` gives the deposits an import employed, which the module of the imports knows. The
+    count reads without a lock: two deposits at once may pass the bound by one, which guards against
+    a loop and is no invariant (US-3240). A deposit by parts, of a backup, is not counted.
+    """
+    pending = select(func.count()).where(
+        FileUpload.uploaded_by == account,
+        FileUpload.purpose == IMPORT,
+        FileUpload.expires_at > at,
+        FileUpload.id.not_in(used),
+    )
+    return session.scalar(pending) or 0
+
+
+def expire_uploads(session: Session, upload_ids: Sequence[UUID], at: datetime) -> None:
+    """Say the deposits `upload_ids` expired at `at`, those still alive: an import employed them.
+
+    A deposit an import employed never becomes free again (WF-DAT-0120): once that import is
+    abandoned or purged, no row names the deposit, and its expiry keeps it from being opened again
+    or counted by `pending_imports`. The deposit is then due: the purge pass deletes its row, the
+    one that follows an abandonment, or the next step of the pass that called this.
+    """
+    if upload_ids:
+        session.execute(
+            update(FileUpload)
+            .where(FileUpload.id.in_(upload_ids), FileUpload.expires_at > at)
+            .values(expires_at=at)
+        )
 
 
 def open_upload(session: Session, upload_id: UUID, at: datetime) -> FileUpload | None:

@@ -440,6 +440,24 @@ message = '''Failed to fetch https?://(?:deb\.debian\.org|apt\.postgresql\.org)/
 frequency = "aucun passage relevé du 2026-11-05 au 2026-11-12 ; source nommée par #3015"
 cause = "hypothèse : la construction d'une image tire apt faute de cache de couches, et la source ne répond pas ; dépendance absente de l'inventaire d'US-1900"
 
+# ghcr.io, au pull du miroir (`ghcr.io/waterfall-project/mirror/…`) comme au push des images du
+# projet (job `publish` d'`images.yml`, #4916) : une panne de connexion au registre, la même des
+# deux côtés. Le pull d'une image échoue à la résolution de la référence, avant tout téléchargement,
+# par `docker pull` ou par la construction d'une image qui en part (BuildKit, sans « failed to
+# resolve reference ») (#4894).
+# Depuis US-3270b, `wftools.retried` rejoue la commande (4 essais, pauses de 20, 40 et 60 s) : ce qui
+# reste est l'échec d'après tous les essais, que `wftools.retried: ghcr.io did not answer, in 4
+# attempts` suit, après le dernier message de Docker, que le motif reconnaît. Le motif est
+# `UNREACHABLE` de tools/src/wftools/retried.py, mot pour mot : ce qui y est rejoué est reconnu ici
+# (tools/tests/test_retried.py les compare).
+[[known]]
+class = "infrastructure"
+family = "ghcr.io, au pull du miroir comme au push des images"
+issue = "#4894"
+message = '''ghcr\.io[^\n]*(?:dial tcp[^\n]*(?:i/o timeout|connection (?:refused|reset)|no such host)|TLS handshake timeout|Client\.Timeout exceeded|unexpected EOF)'''
+frequency = "2 passages le 2026-11-24 : service / paths (4/4) (45392474366), service / paths (1/4) (45460308679)"
+cause = "établie : le registre ghcr.io est injoignable depuis le runner, au pull du miroir comme au push des images du projet (`publish` d'`images.yml`), `dial tcp … i/o timeout` au bout de 60 s ; `make e2e-service` ne finit pas de tirer `node:26-alpine`. Depuis US-3270b, la commande est rejouée quatre fois (`wftools.retried`) : l'échec qui reste est celui d'un registre injoignable pendant tous les essais"
+
 # Le délai d'un job, dépassé : la chaîne trop longue, que US-1910 raccourcit.
 
 [[known]]
@@ -554,3 +572,26 @@ test = 'e2e/service/installation\.setup\.ts:39\b'
 message = "getByRole\\('grid', \\{ name: 'Comptes utilisateurs' \\}\\)"
 frequency = "1 passage, avant la référence : le 2026-11-01 (41319278707, #1807) ; aucun du 2026-11-05 au 2026-11-12"
 cause = "établie : `GET /reference/org-nodes` (#1807), lu par `readOrFail`, répond 404 — le service ne le servait pas encore — et `notFound()` remplace la page ; corrigé dans la pull request avant sa fusion (db6a135e). Le parcours attend depuis le titre de l'écran des comptes, qui dit « Introuvable » à sa place"
+
+# Les tests de Keycloak qui échouent ensemble dans la file, sans que le lot touche Keycloak (#4779).
+[[known]]
+class = "known flakiness"
+family = "jeton du compte de service de Keycloak"
+issue = "#4779"
+job = '^keycloak / check$'
+test = 'tests/test_keycloak_authentication\.py:538\b'
+message = 'assert 2 == 1'
+runs = [45100723995]
+frequency = "1 passage, le 2026-11-23 (45100723995, #4776)"
+cause = "hypothèse : le jeton du compte de service, en cache d'un test à l'autre ou renouvelé sous un runner lent, est demandé deux fois"
+
+[[known]]
+class = "known flakiness"
+family = "jeton du compte de service de Keycloak"
+issue = "#4779"
+job = '^keycloak / check$'
+test = 'test_an_account_withdrawn_all_its_roles_is_refused_its_next_request_and_its_sessions_closed'
+message = 'Exception ignored while finalizing socket <ssl\.SSLSocket'
+runs = [45100723995]
+frequency = "1 passage, le 2026-11-23 (45100723995, #4776)"
+cause = "hypothèse : une connexion TLS vers Keycloak laissée ouverte par un test précédent est finalisée pendant celui-ci"

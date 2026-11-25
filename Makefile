@@ -197,6 +197,10 @@ full-only = $(if $(filter full,$(TIER)),$(1))
 # The coverage run executes the same tests: in the full tier it replaces the plain run.
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))
 WFTOOLS := uv run --frozen --project $(TOOLS) python -m wftools
+# A command of Docker that resolves the images of the mirror, tried again when ghcr.io does not answer
+# (#4894); `env` lets it be given variables first, as COMPOSE_SERVICE is. Never read the standard
+# output of a wrapped command (`$(shell …)`, a pipe): retried returns it on the standard error.
+RETRIED := $(WFTOOLS).retried -- env
 # A part of the paths of a shape the plan refuses (i/N, N >= 2) is refused as the Makefile is read
 # too, before the installation and the build of the front, whichever goal of the paths asks for it
 # (#3108): one guard for all of E2E_PATH_GOALS. Two things keep the value from a shell. SHARD_BAD
@@ -323,24 +327,24 @@ lint-docker: ## Lint the Dockerfiles
 # A start that fails prints the log of the control of the volume of PostgreSQL, which says nothing
 # unless it refuses the data of another major version (US-1130): `up --detach` shows no log.
 service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API, the worker and its schedule, the service of the restoration, Keycloak in HTTPS and its realm, OpenLDAP, Mailpit (needs the secrets of the guide, "Commandes")
-	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler keycloak keycloak-front-end openldap mailpit \
+	@$(RETRIED) $(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler keycloak keycloak-front-end openldap mailpit \
 		|| { rc=$$?; $(COMPOSE_SERVICE) logs --no-color --no-log-prefix postgres-volume >&2; exit $$rc; }
 	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate --no-deps keycloak-realm
-	@$(COMPOSE_SERVICE) up --build --detach --wait restore
+	@$(RETRIED) $(COMPOSE_SERVICE) up --build --detach --wait restore
 
 # The bootstrap of the platform (US-0420), once its realm is applied: the link of the first
 # administrator on the standard output, alone — its image built quietly first, and no terminal,
 # which would mix the logs in —, and nothing on an installation whose administrator has set a
 # password.
 service-install: ## Bootstrap the installation of the service platform, started, and print the link of its first administrator (WATERFALL_ADMIN_EMAIL, WATERFALL_DEFAULT_LANGUAGE, WATERFALL_CURRENCY, WATERFALL_COMPANY_NAME, WATERFALL_TIME_ZONE)
-	@$(COMPOSE_SERVICE) build --quiet install
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet install
 	@$(COMPOSE_SERVICE) run --rm --no-TTY install
 
 # The witness (EP-05), once the platform is bootstrapped: the examples of the contract written on it
 # by `waterfall-api load-witness`, as the role of the service; run again, it writes nothing.
 service-witness: ## Load the witness, the examples of the contract (fixtures/api and fixtures/witness), on the service platform, started and bootstrapped
-	@$(COMPOSE_SERVICE) build --quiet witness
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet witness
 	@$(COMPOSE_SERVICE) run --rm --no-TTY witness
 
 # The purge of what expired (EP-06, "La purge"), by hand: the verb the scheduler calls at each
@@ -375,6 +379,21 @@ measure-core-run: measure-fresh-witness
 	@cd $(BACK) && PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure $(if $(RUNS),--runs $(RUNS)) \
 		$(foreach part,$(ONLY),--only $(part)) $(if $(JSON),--json $(abspath $(JSON)))
 
+# The measure of the workbooks (US-3190/L2b, EP-33, "Les bornes des classeurs"): backend/measure/workbooks.py,
+# on workbooks it engenders alone (tests/workbook_bombs.py, the writers of the exports, the support of the
+# tests, the prototypes of the specification), each point of a sweep read in a fresh process. No database.
+# Without VECTOR, the vectors of the workbooks engendered, the time the judgment of the archive adds,
+# the members of each parsed into a tree and where the nodes of its tabs lie, and the peak of reading each
+# (US-3190/L3); VECTOR=<vector> COUNTS="<count>..." the peak of the reading along one vector. It takes
+# the workstation for itself alone, as measure-core does, and never fails on a figure.
+.PHONY: measure-workbooks
+measure-workbooks: ## Measure what a workbook engendered costs its reader (US-3190/L2b, L3), the workstation for itself alone: the vectors of the workbooks engendered, the time of the judgment of the archive, the members parsed into a tree, the peak of each; VECTOR=<vector> COUNTS="<count>..." the peak resident size along one vector, READER=openpyxl by openpyxl alone, behind the bounds
+	@cd $(BACK) && $(exclusive) PYTHONPATH=tests PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure.workbooks \
+		$(if $(VECTOR),sweep $(VECTOR) $(COUNTS) $(if $(READER),--reader $(READER)),books)
+	@$(if $(VECTOR),,cd $(BACK) && $(exclusive) PYTHONPATH=tests PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure.workbooks preread)
+	@$(if $(VECTOR),,cd $(BACK) && $(exclusive) PYTHONPATH=tests PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure.workbooks members)
+	@$(if $(VECTOR),,cd $(BACK) && $(exclusive) PYTHONPATH=tests PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure.workbooks peaks)
+
 # The witness freshly loaded, for a measure: the platform of the slot stopped and its data dropped,
 # started again, bootstrapped (its link discarded) and the witness loaded.
 $(call slot-export,measure-fresh-witness,$(SLOT_SERVICE))
@@ -382,7 +401,7 @@ measure-fresh-witness:
 	@echo 'The data of the service platform of this slot are dropped (service-down WATERFALL_RESET_DATA=yes).'
 	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
 	@$(MAKE) --no-print-directory service-up
-	@$(COMPOSE_SERVICE) build --quiet install witness
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet install witness
 	@$(COMPOSE_SERVICE) run --rm --no-TTY install > /dev/null
 	@$(COMPOSE_SERVICE) run --rm --no-TTY witness
 
@@ -427,7 +446,7 @@ lint-compose: ## Validate the Compose files
 	@docker compose -f deploy/compose/compose.test.yaml config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
-	@docker build --build-arg WATERFALL_MIRROR $(call build-cache-from,keycloak) --tag $(WATERFALL_KEYCLOAK_IMAGE) deploy/keycloak
+	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR $(call build-cache-from,keycloak) --tag $(WATERFALL_KEYCLOAK_IMAGE) deploy/keycloak
 
 # The cache of the builds of the images on GitHub Actions (type=gha, .github/actions/build-cache):
 # every build of an image reads it, under the name of the image (wftools.images); after a merge,
@@ -438,9 +457,9 @@ build-cache-from = --cache-from type=gha,scope=$(1)
 build-cache-to = --output type=cacheonly --cache-to type=gha,mode=max,scope=$(1) $(call build-cache-from,$(1))
 
 build-cache: ## Write the builds of the images front, waterfall and keycloak into the cache of GitHub Actions (images.yml)
-	@docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,front) frontend
-	@docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,waterfall) backend
-	@docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,keycloak) deploy/keycloak
+	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,front) frontend
+	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,waterfall) backend
+	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,keycloak) deploy/keycloak
 
 # The images the chain publishes (US-0430): front, waterfall and keycloak, under
 # ghcr.io/waterfall-project, tagged by the commit and the branch they are built from, and by the
@@ -474,7 +493,7 @@ production-trial: ## Start the production platform on the images of WATERFALL_IM
 # SSL_CERT_FILE: uv reads it too, and would trust no other authority to download Python or the
 # packages (#737). One of them restarts Keycloak, whose container is named to it (#852).
 test-keycloak: ## Start Keycloak on the service platform, apply its realm, and try it, the API that validates its tokens and the bootstrap included, measuring its administration client and the bootstrap (needs the secrets of service-up)
-	@$(COMPOSE_SERVICE) up --build --detach --wait keycloak keycloak-front-end openldap
+	@$(RETRIED) $(COMPOSE_SERVICE) up --build --detach --wait keycloak keycloak-front-end openldap
 	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate --no-deps keycloak-realm
 	@cd $(BACK) && uv sync --frozen
@@ -820,7 +839,7 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
-	@$(COMPOSE_SERVICE) build --quiet install witness
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet install witness
 	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
 		$(COMPOSE_SERVICE) run --rm --no-TTY witness && \
 		E2E_CONTRACT_PROXY=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
@@ -863,7 +882,7 @@ measure-run:
 	@echo 'The data of the service platform of this slot are dropped (service-down WATERFALL_RESET_DATA=yes).'
 	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
 	@$(MAKE) --no-print-directory service-up
-	@$(COMPOSE_SERVICE) build --quiet install witness
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet install witness
 	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
 		$(COMPOSE_SERVICE) run --rm --no-TTY witness && \
 		E2E_SERVICE_API=$$($(COMPOSE_SERVICE) ps --quiet api) && \
@@ -917,7 +936,7 @@ measure-version: export PRISM_VERSION := $(PRISM_VERSION)
 measure-version: measure-cache-present measure-secrets install-front $(call e2e-build) ## The report of the measures of a version (US-2300): on the witness loaded afresh, each operation of table 15 the service serves, measured by a browser under the load of fifty users played by k6, then the export, the import of 18,000 lines of actual costs and the marking, read at their tasks; takes the workstation alone; MEASURE_VERSION (that of frontend/package.json), MEASURE_PASSES=5, MEASURE_TASK_PASSES=3, MEASURE_VERSION_REPORT=<file> (frontend/.e2e/measures/<version>.json); the cost of the entry of the cache of the indicators is read in MEASURE_CACHE (frontend/.e2e/measure-core-indicators.json), which make measure-core ONLY=indicators JSON=<that file> writes first; needs the secrets of service-up and a browser
 	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
 	@$(MAKE) --no-print-directory service-up
-	@$(COMPOSE_SERVICE) build --quiet install witness
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet install witness
 	@$(COMPOSE_SERVICE) --profile load pull --quiet load
 	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
 		$(COMPOSE_SERVICE) run --rm --no-TTY witness && \

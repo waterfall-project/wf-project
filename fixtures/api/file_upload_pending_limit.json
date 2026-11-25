@@ -1,0 +1,10 @@
+{
+  "summary": "Un vingt et unième fichier déposé aujourd'hui pour un import par un compte qui en garde déjà 20 qu'aucun import n'a employés et qui n'ont pas expiré : refusé par la condition qui manque, le plafond nommé ; rien n'est écrit au stockage objet. Dès qu'un import en emploie un, ou qu'un dépôt expire et est supprimé, un nouveau dépôt passe (WF-DAT-0120, #4423).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"pending_uploads_below_limit","maximum":20},
+    "correlation_id": "01926f3a-7c00-7000-8000-f63a7c272b95"
+  }
+}

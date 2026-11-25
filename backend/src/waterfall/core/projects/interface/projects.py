@@ -49,6 +49,7 @@ from waterfall.core.projects.tables import (
     OrderItem,
     Project,
     ProjectStateTransition,
+    Subproject,
     WorkPackage,
 )
 from waterfall.core.resource_settings.interface import share_reference
@@ -83,6 +84,7 @@ type ProjectState = Literal["created", "pricing", "in_progress", "completed", "l
 
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 ALREADY_EXISTS = "ALREADY_EXISTS"
+SUBPROJECT_CODE_INVALID = "SUBPROJECT_CODE_INVALID"
 REFERENCE_INCOMPLETE = "REFERENCE_INCOMPLETE"
 # Who may import the actual costs of a project: its mapping is read for the command (WF-REF-0190).
 ACTUAL_COSTS_WRITE = "actual_costs.write"
@@ -664,6 +666,42 @@ def load_project(session: Session, load: ProjectLoad, act: Act) -> None:
     _create(session, load.draft, act, load.project_id, partitioned=True)
 
 
+def compared_code(code: str) -> str:
+    """Give a code as the WBS element of a line of cost is compared to it: without its blanks.
+
+    The element of a file is read without the blanks at its ends; a code is compared to it, and to
+    the other codes of its project, so too, so that a code that bears some is reached by the
+    element written without them, and two codes that differ by them alone never name one element
+    (WF-CRE-0020, WF-PRJ-0050; #3966). The code stored is the one sent.
+    """
+    return code.strip()
+
+
+def code_of_project_refused() -> UnprocessableError:
+    """Give the refusal of a subproject and its project that would share a code (422, ``/code``).
+
+    Without a parameter, whichever of the two is written: the WBS element of a line of cost is
+    compared whole to both, without their blanks at the ends, and would name the two (WF-PRJ-0050,
+    WF-CRE-0020; #3966).
+    """
+    return UnprocessableError(
+        VALIDATION_FAILED, fields=(FieldError("/code", SUBPROJECT_CODE_INVALID),)
+    )
+
+
+def _refuse_code_of_subproject(session: Session, project_id: UUID, code: str | None) -> None:
+    """Refuse to a project the code one of its subprojects bears, compared whole (422).
+
+    Without their blanks at the ends (``compared_code``); read under the lock of the project, which
+    every write of a subproject holds.
+    """
+    if code is None:
+        return
+    held = session.scalars(select(Subproject.code).where(Subproject.project_id == project_id))
+    if compared_code(code) in {compared_code(each) for each in held}:
+        raise code_of_project_refused()
+
+
 def _written_code(changed: Mapping[str, object]) -> str | None:
     """Give the code a change writes, ``None`` if it writes none."""
     code = changed.get("code")
@@ -705,8 +743,9 @@ def update_project(
     lock: refused if unknown (404), if the writer is no project manager of it any more (403, 404;
     ``require_project_manager``), at another version (412), if the probability is sent to a
     project that has reached In progress (409, ``project_before_in_progress``, which its command
-    says first), if it is terminal (409, ``project_not_terminal``), or if its new code is borne by
-    another project (409). A change that changes nothing writes nothing. On a terminal project the
+    says first), if it is terminal (409, ``project_not_terminal``), if its new code is that of one
+    of its subprojects (422 ``SUBPROJECT_CODE_INVALID``, #3966), or if it is borne by another
+    project (409). A change that changes nothing writes nothing. On a terminal project the
     probability is refused for ``project_before_in_progress``, not ``project_not_terminal``: a
     terminal project has reached In progress, and the condition of the probability is the one its
     own command names, where a terminal project lists no command at all. A code entered calls
@@ -741,6 +780,7 @@ def update_project(
     if project.state in TERMINAL:
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": PROJECT_NOT_TERMINAL})
     changed = {name: value for name, value in values.items() if getattr(project, name) != value}
+    _refuse_code_of_subproject(session, project.id, _written_code(changed))
     if changed:
         with _unique_code(session, project.id, _written_code(changed)):
             for name, value in changed.items():
