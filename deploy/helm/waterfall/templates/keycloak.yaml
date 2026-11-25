@@ -35,6 +35,7 @@ metadata:
     {{- include "waterfall.labels" (list . "keycloak") | nindent 4 }}
 spec:
   replicas: 1
+  {{- include "waterfall.oneByOne" . | nindent 2 }}
   selector:
     matchLabels:
       {{- include "waterfall.selector" (list . "keycloak") | nindent 6 }}
@@ -44,6 +45,7 @@ spec:
         {{- include "waterfall.selector" (list . "keycloak") | nindent 8 }}
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
+      {{- include "waterfall.drainGrace" . | nindent 6 }}
       initContainers:
         {{- include "waterfall.transportInit" (list . "keycloak" 1000 0) | nindent 8 }}
         {{- include "waterfall.waitForDatabase" (list . "keycloak" "keycloak" "WATERFALL_KEYCLOAK_DATABASE_PASSWORD") | nindent 8 }}
@@ -51,6 +53,7 @@ spec:
         - name: keycloak
           image: {{ include "waterfall.image" (list . "keycloak") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.drain" . | nindent 10 }}
           env:
             {{- include "waterfall.keycloakDatabase" . | nindent 12 }}
             # The administrator of the realm master, read at the first start alone.
