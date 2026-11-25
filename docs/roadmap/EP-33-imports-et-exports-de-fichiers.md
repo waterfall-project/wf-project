@@ -307,17 +307,23 @@ tranchés par l'auteur le 2026-11-24 :
 - #4904 — contrat : aucun exemple d'un import refusé ni d'une tâche d'application échouée →
   reporté à EP-38.
 
-Constats relevés à la livraison d'US-3190b, d'US-3270b et d'US-3270/L3b, tranchés par l'auteur le
-2026-11-25 :
+Constats relevés à la livraison d'US-3190b, d'US-3270b, d'US-3270/L3b et d'US-3270/L6, tranchés
+par l'auteur le 2026-11-25 :
 
 - #4914, #4915 — back : sous la borne d'éléments, le coût d'un élément (ses attributs, son texte)
   n'est pas borné (660 Mio) ; les éléments étrangers d'un onglet ou de `sharedStrings.xml` passent
   les bornes (≈ 257 Mio) → US-3190/L3 : une borne des octets des membres lus en arbre, et le
-  comptage en flux des éléments étrangers, aux valeurs mesurées ;
+  comptage en flux des éléments étrangers, aux valeurs mesurées (options A et F1, après mesure) ;
 - #4916 — outil : le rejeu et l'entrée connue de `ghcr.io` reconnaissent aussi un push →
   élargissement assumé, la même panne d'infrastructure ; l'entrée reformulée par US-3270/L6 ;
 - #4919 — outil : les exemples du reste à engager numérotent leurs lignes depuis la ligne 2 →
-  US-3270/L6, sur `REMAINING_FIRST_ROW`.
+  US-3270/L6, sur `REMAINING_FIRST_ROW` ;
+- #4935 — tests : les tests des bornes des classeurs lisent la crête par `ru_maxrss`, que Linux
+  garde à travers `exec` (428 Mio vus pour 484) → US-3190/L3, qui lit `VmHWM` et recale les
+  plafonds.
+- #4929 — outil : les fichiers de couverture parallèles du back (`.coverage.<hôte>.pid…`) ne sont
+  pas ignorés par git, et un commit de L6 en a embarqué 67 → US-3270/L6b : `.coverage.*` dans
+  `.gitignore` ; l'historique d'`epic/EP-33` n'est pas réécrit.
 
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
@@ -662,9 +668,20 @@ les éléments des membres qu'openpyxl lit en arbre, hors des onglets et de `sha
 `styles.xml` au maximum d'Excel passe » se lit liste par liste. Chaque liste à sa borne, avec des
 items comme Excel les écrit, passe. Toutes les listes riches pleines à la fois, qu'aucun fichier
 réel ne porte (≈ 1 600 000 éléments), ne passent pas. La borne, d'abord de 1 000 000, est relevée
-pour la liste la plus lourde : 65 490 `dxf` de 16 éléments, soit 1 047 935 éléments. US-3190/L3 (#4914, #4915) borne ensuite les
-octets des membres lus en arbre et les éléments étrangers des onglets et de `sharedStrings.xml`,
-sur la mesure : aucun classeur accepté au-delà de la crête des tests de L2b.
+pour la liste la plus lourde : 65 490 `dxf` de 16 éléments, soit 1 047 935 éléments.
+
+US-3190/L3 (#4914, #4915, #4935) borne ensuite les octets des membres lus en arbre et les éléments
+étrangers, sur la mesure (processus neuf, `VmHWM`). Décisions de l'auteur du 2026-11-25, après
+mesure : la liste `dxfs` riche à 65 490 entrées coûte à elle seule 484 Mio, et l'objectif de
+mémoire l'emporte. Aucun classeur accepté ne dépasse 192 Mio de crête pour une lecture. Les membres
+lus en arbre sont bornés à 7,5 Mio décompressés (option A). Le critère d'US-3190b est amendé :
+chaque liste riche passe à sa borne, ramenée au besoin, et celle de `dxfs` descend à ≈ 25 000 (le
+témoin en a 5). La borne de 1 100 000 éléments reste, pour les petits éléments. Les éléments
+étrangers sont bornés à 100 000 au total (option F1), comptés sur tous les onglets, lus ou non, et
+sous `<sst>`. Dans un onglet, est étranger tout ce qui est hors des `row` de `sheetData` et de
+leurs `c` ; sous `<sst>`, tout ce qui n'est ni un `si` ni dans un `si`. Les descendants d'une `c`
+ont une borne par ligne (65 536), car `v` et `f` atteignent légitimement 20 000 000 à la borne des
+cellules. Écartée : 24 Mio, qui garde la liste `dxfs` d'Excel mais annonce ≈ 512 Mio par lecture.
 
 **Hors périmètre.** La limite de mémoire du service dans le chart (EP-13, EP-39) ; la colonne
 absente d'un onglet (US-3200).
@@ -1070,7 +1087,8 @@ US-3270/L3b (ajouté le 2026-11-24) : le rejet `UNKNOWN_SUBPROJECT` porte le cod
 (#4898), le code du sous-projet se tronque dans l'écran des coûts réels (#4896), et le guide Python
 reçoit la variante « règle de comparaison écrite deux fois » (#4899). US-3270/L6 (ajouté le
 2026-11-25) : l'entrée `ghcr.io` assume le push (#4916), et les exemples du reste à engager
-numérotent leurs lignes depuis la ligne 3 (#4919).
+numérotent leurs lignes depuis la ligne 3 (#4919). US-3270/L6b (ajouté le 2026-11-25) : git ignore
+les fichiers de couverture parallèles du back (#4929).
 
 **Hors périmètre.** L'export du devis selon l'annexe B (#4399, EP-31) ; les noms d'onglet du devis
 (#3371), que le nom tiré du code règle pour le reste à engager.
