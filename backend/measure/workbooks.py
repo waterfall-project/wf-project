@@ -16,17 +16,38 @@ printing a JSON line by point:
   process the peak ``tracemalloc`` sees, which misses what libxml2 allocates;
 - ``preread``: the time the judgment of the archive takes before openpyxl opens a workbook, on the
   export of 10 000 lines and the extraction of 18 000 lines: the opening by the opener, less the
-  opening by openpyxl alone, the best of a few runs.
+  opening by openpyxl alone, the best of a few runs;
+- ``members``: what the bounds of US-3190/L3 judge a workbook engendered on (#4914, #4915): the
+  members openpyxl parses into a tree and the bytes each declares, and the nodes of its tabs and
+  of its shared strings by where they lie, those openpyxl's stream never frees among them;
+- ``peaks``: the peak resident size of a fresh process once it has imported the readers, once it
+  has read the base workbook of a format, and what reading each workbook engendered adds.
+
+The peaks of US-3190/L3 are those of the memory of the fresh process alone (``VmHWM``), beside the
+rise ``ru_maxrss`` gives, which the tests read (``resident``): Linux keeps ``ru_maxrss`` across
+``exec``, so a process spawned starts at the peak of the one that spawned it, and a read that rises
+less than the gap is seen short, or not at all.
+
+The vectors of US-3190/L3 swept: elements stuffed in a font of ``styles.xml`` — empty, by their
+count; with a long attribute, a short text or a long text, by the mebibytes they inflate to —, the
+``dxfs`` as Excel writes them by their count, and ``<x/>`` under the root of a tab read, in a cell
+of it, or under the root of the shared strings, by their count. Each point gives the mebibytes the
+members parsed into a tree declare, so that a peak is read against them.
 
 It needs the tests' support on the path (the target sets it), runs no database, and never fails on
 a figure: a figure is a report, and the chain does not run it.
 """
 
 import argparse
+import gc
 import json
+import multiprocessing
+import posixpath
+import resource
 import sys
 import time
 import zipfile
+from concurrent.futures import ProcessPoolExecutor
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from functools import partial
@@ -48,7 +69,9 @@ from workbook_bombs import (
     resident,
     shared_strings,
     shared_text,
+    stuffed,
     styled,
+    styled_richly,
     tab,
     tabulated,
 )
@@ -74,6 +97,7 @@ from waterfall.core.exchanges.interface import (
     hardened_parser,
     opened_workbook,
 )
+from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence, Sized
@@ -184,6 +208,26 @@ def _combined(_: int) -> bytes:
     return tabulated(content, tab(content, _SHEET), MOST_CELLS // MOST_COLUMNS, MOST_COLUMNS)
 
 
+# The elements of #4914, stuffed in a font of ``styles.xml``: with an attribute of 190 characters,
+# a text of as many, or a text of 8 KiB; and the element of #4915, out of any row, cell or string.
+_ATTRIBUTE = b'<b a="' + b"a" * 190 + b'"/>'
+_TEXT = b"<b>" + b"a" * 190 + b"</b>"
+_LONG_TEXT = b"<b>" + b"a" * (8 * 1024 - 7) + b"</b>"
+_FOREIGN = b"<x/>"
+# The first tab of the base, which the reader of an estimate reads: its header.
+_READ_TAB = "xl/worksheets/sheet1.xml"
+
+
+def _in_a_font(element: bytes, mebibytes: int) -> bytes:
+    """Give the base whose font holds as many ``element`` as inflate to ``mebibytes`` MiB."""
+    return stuffed(_base(), STYLES, b"</font>", element, mebibytes * _MEBIBYTE // len(element))
+
+
+def _foreign_strings(count: int) -> bytes:
+    """Give the base of one shared string, ``count`` elements ``<x/>`` under the root more."""
+    return stuffed(shared_strings(_base(), 1), STRINGS, b"</sst>", _FOREIGN, count)
+
+
 VECTORS: dict[str, Callable[[int], bytes]] = {
     "strings": lambda count: shared_strings(_base(), count),
     "string-elements": lambda count: shared_strings(_base(), 1, count),
@@ -195,7 +239,104 @@ VECTORS: dict[str, Callable[[int], bytes]] = {
         _base(), tab(_base(), _SHEET), max(1, count // 500), 500
     ),
     "combined": _combined,
+    "font-empty-b": lambda count: stuffed(_base(), STYLES, b"</font>", b"<b/>", count),
+    "font-attribute-mib": partial(_in_a_font, _ATTRIBUTE),
+    "font-text-mib": partial(_in_a_font, _TEXT),
+    "font-long-text-mib": partial(_in_a_font, _LONG_TEXT),
+    "dxfs-rich": lambda count: styled_richly(_base(), count),
+    "foreign-under-a-tab": lambda count: stuffed(
+        _base(), _READ_TAB, b"</worksheet>", _FOREIGN, count
+    ),
+    "foreign-in-a-cell": lambda count: stuffed(_base(), _READ_TAB, b"</c>", _FOREIGN, count),
+    "foreign-under-the-strings": _foreign_strings,
 }
+
+# What openpyxl parses into a tree by a fixed name: all of them but the theme, which it keeps as
+# bytes; and the relations of the workbook, which name the parts whose relations it parses too.
+_FIXED_TREES = (
+    "[Content_Types].xml",
+    "docProps/core.xml",
+    "docProps/custom.xml",
+    STYLES,
+    WORKBOOK,
+)
+_WORKBOOK_RELATIONS = "xl/_rels/workbook.xml.rels"
+_TABS = "xl/worksheets/"
+
+
+def trees(content: bytes) -> dict[str, int]:
+    """Give the members openpyxl parses into a tree, and the bytes each declares.
+
+    As the opener finds them for a workbook of no chartsheet and no external link, the workbooks
+    measured here: the fixed names but the theme, the relations of the workbook, and those of each
+    part it names. Two members of one name add up.
+    """
+    with zipfile.ZipFile(BytesIO(content)) as archive:
+        sizes: dict[str, int] = {}
+        for item in archive.infolist():
+            sizes[item.filename] = sizes.get(item.filename, 0) + item.file_size
+        named = {_WORKBOOK_RELATIONS}
+        if _WORKBOOK_RELATIONS in sizes:
+            relations = etree.fromstring(archive.read(_WORKBOOK_RELATIONS), hardened_parser())
+            for relation in relations:
+                target = relation.get("Target")
+                if target is None or relation.get("TargetMode") == "External":
+                    continue
+                part = target[1:] if target.startswith("/") else posixpath.join("xl", target)
+                folder, name = posixpath.split(posixpath.normpath(part))
+                named.add(posixpath.join(folder, "_rels", f"{name}.rels"))
+    return {name: sizes[name] for name in (*_FIXED_TREES, *sorted(named)) if name in sizes}
+
+
+def _local(tag: object) -> str:
+    """Give the local name of a tag; a comment or an instruction by ``#node``."""
+    return tag.rpartition("}")[2] if isinstance(tag, str) else "#node"
+
+
+def _add(found: dict[str, int], key: str, count: int = 1) -> None:
+    found[key] = found.get(key, 0) + count
+
+
+def placed(data: bytes) -> dict[str, int]:
+    """Give the nodes of a tab or of the shared strings by where they lie.
+
+    ``row`` and ``c``, a row of ``sheetData`` and its cells, ``row/<tag>`` another child of a row,
+    ``c/<tag>`` what a cell holds, at any depth; ``si`` a string, ``si/<tag>`` what it holds; any
+    other child of the root by its local name, and ``<tag>/<tag>`` what it holds, at any depth.
+    """
+    found: dict[str, int] = {}
+    for child in etree.fromstring(data, hardened_parser()):
+        name = _local(child.tag)
+        if name != "sheetData":
+            _add(found, name)
+            for node in child.iterdescendants():
+                _add(found, f"{name}/{_local(node.tag)}")
+            continue
+        for row in child:
+            _add(found, "row")
+            for cell in row:
+                key = "c" if _local(cell.tag) == "c" else f"row/{_local(cell.tag)}"
+                _add(found, key)
+                for node in cell.iterdescendants():
+                    _add(found, f"{key}/{_local(node.tag)}")
+    return dict(sorted(found.items()))
+
+
+def _members(_: argparse.Namespace) -> None:
+    for name, book in BOOKS.items():
+        content = book()
+        held = trees(content)
+        point: dict[str, object] = {"book": name, "tree_bytes": sum(held.values()), "trees": held}
+        with zipfile.ZipFile(BytesIO(content)) as archive:
+            tabs: dict[str, int] = {}
+            for member in archive.namelist():
+                if member.startswith(_TABS) and member.endswith(".xml"):
+                    for key, count in placed(archive.read(member)).items():
+                        _add(tabs, key, count)
+            point["tabs"] = dict(sorted(tabs.items()))
+            if STRINGS in archive.namelist():
+                point["strings"] = placed(archive.read(STRINGS))
+        _write(point)
 
 
 def _children(element: Sized | None) -> int:
@@ -246,6 +387,62 @@ def _books(_: argparse.Namespace) -> None:
         _write({"book": name, **vectors(book())})
 
 
+def _high_water() -> int:
+    """Give the peak resident size of the memory of this process alone, in bytes (``VmHWM``).
+
+    ``ru_maxrss`` is no measure of a process spawned: Linux keeps it across ``exec``, so that it
+    starts at the peak of the process that spawned it, and a read that rises less than the gap is
+    not seen at all. ``VmHWM`` is that of the memory of the process, which ``exec`` makes anew.
+    """
+    for entry in Path("/proc/self/status").read_text(encoding="ascii").splitlines():
+        if entry.startswith("VmHWM:"):
+            return int(entry.split()[1]) * 1024
+    return 0
+
+
+def _maxrss() -> int:
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024
+
+
+def _read_fresh(reader: str, base: bytes, content: bytes) -> dict[str, object]:
+    """Read ``base`` to warm ``reader``, then ``content``: the peaks, in the process spawned."""
+    gc.collect()
+    imported = _high_water()
+    READERS[reader](base)
+    gc.collect()
+    warmed, before = _high_water(), _maxrss()
+    start = time.perf_counter()
+    outcome = "read"
+    try:
+        READERS[reader](content)
+    except UnprocessableError as error:
+        outcome = error.code
+    seconds = time.perf_counter() - start
+    peak = _high_water()
+    return {
+        "outcome": outcome,
+        "imported_mib": round(imported / _MEBIBYTE, 1),
+        "warmed_mib": round(warmed / _MEBIBYTE, 1),
+        "peak_mib": round(peak / _MEBIBYTE, 1),
+        "rise_mib": round((peak - warmed) / _MEBIBYTE, 1),
+        "maxrss_rise_mib": round((_maxrss() - before) / _MEBIBYTE, 1),
+        "seconds": round(seconds, 3),
+    }
+
+
+def fresh(reader: str, base: bytes, content: bytes) -> dict[str, object]:
+    """Read ``content`` by ``reader`` in a fresh process, warmed on ``base``: what it gave.
+
+    The outcome, ``read`` or the code of the refusal; ``imported_mib``, ``warmed_mib`` and
+    ``peak_mib``, the peak of the memory of the process once the readers are imported, once
+    ``base`` is read, once ``content`` is; ``rise_mib`` what the read of ``content`` added; and
+    ``maxrss_rise_mib``, the rise ``resident`` of the tests sees, by ``ru_maxrss``.
+    """
+    context = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(max_workers=1, mp_context=context) as pool:
+        return pool.submit(_read_fresh, reader, base, content).result()
+
+
 def _sweep(arguments: argparse.Namespace) -> None:
     base = _base()
     for count in arguments.counts:
@@ -254,16 +451,34 @@ def _sweep(arguments: argparse.Namespace) -> None:
             "vector": arguments.vector,
             "count": count,
             "bytes": len(content),
+            "tree_mib": round(sum(trees(content).values()) / _MEBIBYTE, 2),
         }
-        (rss,) = resident("estimate", base, [content])
-        (traced,) = resident("estimate", base, [content], traced=True)
-        point.update(
-            outcome=rss.outcome,
-            rss_mib=round(rss.rise / _MEBIBYTE, 1),
-            traced_mib=round((traced.traced or 0) / _MEBIBYTE, 1),
-            seconds=round(rss.seconds, 3),
-        )
+        point.update(fresh("estimate", base, content))
+        if not arguments.resident_only:
+            (traced,) = resident("estimate", base, [content], traced=True)
+            point["traced_mib"] = round((traced.traced or 0) / _MEBIBYTE, 1)
         _write(point)
+
+
+# The reader of each workbook engendered, and the base of its format it is warmed on.
+_READ_BY: dict[str, str] = {
+    "estimate-prototype": "estimate",
+    "remaining-prototype": "remaining",
+    "estimate-export-10-lines": "estimate",
+    "remaining-of-the-tests": "remaining",
+    EXPORT: "estimate",
+    EXTRACTION: "actual_costs",
+}
+_BASES: dict[str, Callable[[], bytes]] = {
+    "estimate": _base,
+    "remaining": BOOKS["remaining-of-the-tests"],
+    "actual_costs": lambda: _extraction(1),
+}
+
+
+def _peaks(_: argparse.Namespace) -> None:
+    for name, reader in _READ_BY.items():
+        _write({"book": name, "reader": reader, **fresh(reader, _BASES[reader](), BOOKS[name]())})
 
 
 def _best(call: Callable[[], object], runs: int) -> float:
@@ -312,10 +527,19 @@ def main(argv: Sequence[str] | None = None) -> None:
     sweep = commands.add_parser("sweep", help="the peak of a reading, along one vector")
     sweep.add_argument("vector", choices=list(VECTORS))
     sweep.add_argument("counts", type=int, nargs="+")
+    sweep.add_argument(
+        "--resident-only", action="store_true", help="leave the peak tracemalloc sees"
+    )
     sweep.set_defaults(run=_sweep)
     preread = commands.add_parser("preread", help="the time the judgment of the archive takes")
     preread.add_argument("--runs", type=int, default=5)
     preread.set_defaults(run=_preread)
+    commands.add_parser(
+        "members", help="the members parsed into a tree, and where the nodes of the tabs lie"
+    ).set_defaults(run=_members)
+    commands.add_parser(
+        "peaks", help="the peak of a fresh process, and what each workbook engendered adds"
+    ).set_defaults(run=_peaks)
     arguments = parser.parse_args(argv)
     arguments.run(arguments)
 
