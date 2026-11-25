@@ -1,5 +1,5 @@
 {
-  "summary": "Un sous-projet créé, ou les essais et mise en service recodés, sous SP-CMD, le code du poste de commande : refusé, le code d'un sous-projet étant unique dans le projet, et le sous-projet qui le porte nommé par son identifiant et son libellé, que le formulaire dit au champ ; rien n'est écrit (WF-PRJ-0050).",
+  "summary": "Un sous-projet créé, ou les essais et mise en service recodés, sous PRJ-001/SP-CMD, le code du poste de commande : refusé, le code d'un sous-projet étant unique dans le projet, et le sous-projet qui le porte nommé par son identifiant et son libellé, que le formulaire dit au champ ; rien n'est écrit (WF-PRJ-0050).",
   "value": {
     "code": "ALREADY_EXISTS",
     "status": 409,

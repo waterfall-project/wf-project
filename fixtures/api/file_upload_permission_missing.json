@@ -1,0 +1,10 @@
+{
+  "summary": "Un fichier déposé aujourd'hui pour un import par un compte qui ne porte aucune des quatre permissions d'import — un rôle de consultation seule : le dépôt est refusé, la permission nommée la première des quatre, planning.write ; rien n'est écrit au stockage objet ni dans la base (WF-ADM-0020, #4423).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "PERMISSION_MISSING",
+    "status": 403,
+    "params": {"missing_permission":"planning.write"},
+    "correlation_id": "01926f3a-7c00-7000-8000-92b862211f1d"
+  }
+}

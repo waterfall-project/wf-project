@@ -4,7 +4,7 @@
 
 The state an import is read in is judged at the reading, from what its row keeps, what its last
 task became and the instant of the reading: an ``analysed`` import whose report expired reads
-``expired`` until the purge writes it (US-1420/L2), and an import whose analysis or application
+``expired`` until the purge deletes it (US-1420/L2), and an import whose analysis or application
 failed without leaving its trace — the attempts of its task spent by a worker stopped each time —
 reads ``failed``. One judgment serves the reading, the commands it lists and the refusals of
 ``applyImport`` and ``abandonImport``, so that a command said unavailable and the call refused
@@ -22,6 +22,8 @@ AWAITING_DECISION = "import_awaiting_decision"
 CALENDAR_GAP = "import_calendar_gap"
 FILE_ACCEPTED = "import_file_accepted"
 NOT_APPLIED = "import_not_applied"
+# Stated by the refusal of an application only, never by its command (#4420, US-3210).
+STRUCTURE_UNCHANGED = "import_structure_unchanged"
 IS_CONTRIBUTOR = "is_contributor"
 # The states of an import whose task runs; those in which it has written or writes.
 RUNNING = ("analysing", "applying")

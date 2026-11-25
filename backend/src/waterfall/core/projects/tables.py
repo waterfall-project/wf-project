@@ -38,13 +38,11 @@ from waterfall.platform.database import CODE_POINTS, Base, UtcDateTime, bounded,
 STATES = ("created", "pricing", "in_progress", "completed", "lost", "abandoned")
 CONTRIBUTOR_KINDS = ("project_manager", "contributor")
 # The bounds the contract puts on a project's code and label (``ProjectCode``, ``Project.label``),
-# and on a subproject's code (``DeclaredSubprojectCode``).
+# and on a subproject's code (``DeclaredSubprojectCode``): 100, the code of a project of 50, a
+# slash and a former code of 31 that the migration of the codes wrote (EP-33, US-3270).
 CODE_LENGTH = 50
 LABEL_LENGTH = 300
-SUBPROJECT_CODE_LENGTH = 31
-# The characters the name of a tab of a workbook may not hold, which a subproject's code names
-# (ANNEXE B, WF-PRJ-0050), as a class of a regular expression of PostgreSQL.
-TAB_FORBIDDEN = r"[:\\/?*\[\]]"
+SUBPROJECT_CODE_LENGTH = 100
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -105,8 +103,6 @@ class Project(Audited):
     __table_args__ = (
         *bounded("label", LABEL_LENGTH),
         *bounded("code", CODE_LENGTH),
-        # The one separator of the element of the ERP that bears it (WF-CRE-0020).
-        CheckConstraint("code !~ '/'", name="code_without_slash"),
         *bounded("client", LABEL_LENGTH),
         CheckConstraint(_in("state", STATES), name="state_known"),
         _ratio("inflation_rate"),
@@ -187,9 +183,8 @@ class Contributor(Base):
 class Subproject(Audited):
     """A subproject, by the code the ERP knows it by, unique in its project (WF-PRJ-0050).
 
-    Its code names a tab of the workbook of the remaining commitments: no character a tab refuses
-    (the form, here); the two names Waterfall gives its own tabs are refused by the service, which
-    compares them normalised (#1502). Deleted for good while nothing cites it.
+    Its code is free, the element of the ERP whole (``A.ABC.26001/10001``), and never the code of
+    its project, which the service refuses (#3966). Deleted for good while nothing cites it.
     """
 
     __tablename__ = "subproject"
@@ -198,7 +193,6 @@ class Subproject(Audited):
         # What a line of estimate names: the subproject with its project (EP-07, migration 0025).
         UniqueConstraint("id", "project_id"),
         *bounded("code", SUBPROJECT_CODE_LENGTH),
-        CheckConstraint(f"code !~ '{TAB_FORBIDDEN}'", name="code_form"),
         *bounded("label", LABEL_LENGTH),
         counted(),
     )

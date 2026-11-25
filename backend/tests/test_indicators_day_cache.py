@@ -819,11 +819,12 @@ def test_two_exclusions_of_one_project_each_change_the_key_whatever_their_instan
 
 @pytest.mark.requirement("WF-DAT-0130-A")
 @pytest.mark.usefixtures("project")
-def test_the_write_of_a_held_line_and_an_imputation_advance_its_counter_a_new_line_starts_at_zero(
+def test_the_write_of_a_held_line_advances_its_counter_a_new_line_starts_at_zero(
     api: ContractClient, stage: Scene
 ) -> None:
     # Propre à l'US (#3629) : une ligne neuve commence à 0 ; chaque écriture d'une ligne que
-    # l'import détient déjà, puis l'imputation à un sous-projet créé, avancent son compteur.
+    # l'import détient déjà avance son compteur ; la création d'un sous-projet n'impute plus rien
+    # (#3966) et ne l'avance pas.
     project_id = UUID(stage.project["project_id"])
 
     def versions() -> int:
@@ -835,10 +836,10 @@ def test_the_write_of_a_held_line_and_an_imputation_advance_its_counter_a_new_li
     assert versions() == before
     load_import(stage, project_id, [dated("LC-1", None, "11.00", DAY)], at=MORNING)
     assert versions() == before + 1
-    load_import(stage, project_id, [dated("LC-3", "10077", "5.00", DAY)], at=MORNING)
+    load_import(stage, project_id, [dated("LC-3", None, "5.00", DAY)], at=MORNING)
     assert versions() == before + 1
     subproject(api, stage, "10077", "Lot 10077")
-    assert versions() == before + 2
+    assert versions() == before + 1
 
 
 @pytest.mark.requirement("WF-DAT-0130-A")

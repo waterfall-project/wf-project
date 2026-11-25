@@ -57,6 +57,7 @@ from waterfall.core.planning.tables import (
     StructureReading,
     Task,
     TaskLink,
+    TaskLinkConflict,
     Timeline,
     TrackingEntry,
 )
@@ -225,7 +226,7 @@ def test_each_migration_is_undone_by_its_mirror_and_applied_again(empty_engine: 
 def describe_schema(engine: Engine) -> dict[str, list[tuple[object, ...]]]:
     """Read what the catalogue says of the tables: constraints, indexes and columns.
 
-    Those of ``public``, and of ``platform`` (migration 0044).
+    Those of ``public``, and of ``platform`` (migration 0048).
 
     The constraint trigger of ``revision_indicator`` (``contype`` ``t``) is a trigger, which the
     migrations alone write, as every other trigger: the tables of the code declare none. It is left
@@ -305,6 +306,7 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         Node.__tablename__,
         Task.__tablename__,
         TaskLink.__tablename__,
+        TaskLinkConflict.__tablename__,
         Timeline.__tablename__,
         TrackingEntry.__tablename__,
         StructureReading.__tablename__,
@@ -406,12 +408,12 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "access_role_permission": {"SELECT", "INSERT", "DELETE"},
     "user_access_role": {"SELECT", "INSERT", "DELETE"},
     # Submitted, followed, run and ended; deleted by the purge once the retention of its result is
-    # past (§4.4.1, EP-13, migration 0045).
+    # past (§4.4.1, EP-13, migration 0049).
     "background_task": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     # Recorded by the worker and read; marked, and given the outcome of its copy, and deleted by the
-    # rotation (WF-ADM-0170, EP-13, migration 0046).
+    # rotation (WF-ADM-0170, EP-13, migration 0050).
     "backup": {"SELECT", "INSERT", "UPDATE", "DELETE"},
-    # The schedules (EP-13, migrations 0046 and 0047): one row each, written by the migrations and
+    # The schedules (EP-13, migrations 0050 and 0051): one row each, written by the migrations and
     # changed by the service, which neither inserts nor deletes one.
     "backup_schedule": {"SELECT", "UPDATE"},
     "identity_sync_schedule": {"SELECT", "UPDATE"},
@@ -460,6 +462,9 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "node": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "task": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "task_link": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    # The tasks in manual mode a link in conflict cannot satisfy (EP-32, US-3300), written by the
+    # engine with the link, copied and deleted with it (migration 0044).
+    "task_link_conflict": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "timeline": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "tracking_entry": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "import_report": {"SELECT", "INSERT", "UPDATE", "DELETE"},
@@ -493,7 +498,7 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "risk_evaluation": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "risk_review": {"SELECT", "INSERT", "DELETE"},
     "risk_reference_share": {"SELECT", "INSERT", "DELETE"},
-    # The maintenance of a restoration and its state (EP-13, migration 0044), in the schema
+    # The maintenance of a restoration and its state (EP-13, migration 0048), in the schema
     # ``platform``: read by the API and the worker, written by the owner alone, which the service
     # of the restoration is.
     "maintenance": {"SELECT"},
@@ -581,6 +586,7 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
         ("revision_role_refuse_marked_change", False, own),
         ("risk_evaluation_refuse_marked_change", False, own),
         ("risk_review_refuse_marked_change", False, own),
+        ("task_link_conflict_refuse_marked_change", False, own),
         ("task_link_refuse_marked_change", False, own),
         ("task_refuse_marked_change", False, own),
     ]
@@ -588,7 +594,14 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
 
 # The revised tables of the revisions and the planning (EP-04, EP-06), of the estimate (EP-07), of
 # the indicators (EP-10) and of the risks (EP-08).
-PLANNING_REVISED = ("cost_structure", "node", "structure_reading", "task", "task_link")
+PLANNING_REVISED = (
+    "cost_structure",
+    "node",
+    "structure_reading",
+    "task",
+    "task_link",
+    "task_link_conflict",
+)
 INDICATORS_REVISED = ("revision_indicator",)
 RISKS_REVISED = ("risk_evaluation", "risk_review", "risk_reference_share")
 ESTIMATE_REVISED = (

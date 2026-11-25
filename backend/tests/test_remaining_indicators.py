@@ -374,8 +374,8 @@ def test_the_margin_of_the_project_is_the_sum_of_those_of_its_subprojects_the_un
 ) -> None:
     # « La marge sur le budget du projet égale la somme des marges de ses sous-projets, ensemble
     # hors sous-projet compris. » The lines without a subproject and the line of cost imputed to
-    # the project alone are the unassigned set; a cost whose code no subproject bears falls there.
-    load_import(stage, UUID(stage.project["project_id"]), [cost("D", "SP-9", "30.00")])
+    # the project alone are the unassigned set (a code no subproject bears is rejected, #3966).
+    load_import(stage, UUID(stage.project["project_id"]), [cost("D", None, "30.00")])
     body = indicators(api, stage)
     assert balance(body, "unassigned")["actual_cost"] == "230.00"
     assert sum(D(each["variance"]) for each in body["by_subproject"]) == D(

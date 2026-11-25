@@ -137,6 +137,7 @@ def test_a_guard_registered_refuses_a_calendar_that_would_leave_a_task_idle(
     )
 
 
+@pytest.mark.story("US-3320")
 def test_a_recalculation_registered_runs_once_what_dates_the_plannings_is_written(
     database: Database,
 ) -> None:
@@ -154,18 +155,21 @@ def test_a_recalculation_registered_runs_once_what_dates_the_plannings_is_writte
             with database.transaction() as session:
                 set_duration_units(session, units, get_duration_units(session).lock_version, act)
         assert ran == ["redated"]
-        # A calendar that is not the default redates nothing, whatever its hours.
-        longer = CalendarContent("Atelier B", SIX_DAYS)
-        with database.transaction() as session:
-            changed = update_calendar(
-                session, calendar.calendar_id, longer, calendar.lock_version, act
-            )
-        assert ran == ["redated"]
-        with database.transaction() as session:
-            designated = set_default_calendar(
-                session, calendar.calendar_id, changed.lock_version, act
-            )
+        # A calendar that is not the default redates once its hours change, as the default does:
+        # the tasks of the lines of its roles are on it (US-3320, #4411); renamed alone, nothing.
+        counter = calendar.lock_version
+        for content in (
+            CalendarContent("Atelier B", SIX_DAYS),
+            CalendarContent("Atelier D", SIX_DAYS),
+        ):
+            with database.transaction() as session:
+                counter = update_calendar(
+                    session, calendar.calendar_id, content, counter, act
+                ).lock_version
         assert ran == ["redated"] * 2
+        with database.transaction() as session:
+            designated = set_default_calendar(session, calendar.calendar_id, counter, act)
+        assert ran == ["redated"] * 3
         # The default renamed alone redates nothing; its hours changed redate.
         counter = designated.lock_version
         for content in (CalendarContent("Atelier C", SIX_DAYS), RENAMED):
@@ -173,7 +177,7 @@ def test_a_recalculation_registered_runs_once_what_dates_the_plannings_is_writte
                 counter = update_calendar(
                     session, calendar.calendar_id, content, counter, act
                 ).lock_version
-        assert ran == ["redated"] * 3
+        assert ran == ["redated"] * 4
 
 
 def test_the_attachments_registered_tell_share_hold_and_detach_an_element_of_the_work_breakdown(

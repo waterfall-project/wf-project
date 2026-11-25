@@ -106,6 +106,8 @@ DECLARED = {
     "revisions.rebase",
     "revisions.rebase_end",
     "projects.risk_designations",
+    # EP-33 (US-3210): what the planning answers of the structure an import applies to.
+    "exchanges.structure_guards",
 }
 PLANNING = "waterfall.core.planning.interface"
 # What EP-06 registers (US-1380/L1, US-1390/L2), the copy of the nodes after the structures', and
@@ -131,6 +133,7 @@ REGISTERED = {
     "projects.opening_main": [f"{PLANNING}.skeleton.opening_main_with_tasks"],
     CLOSING: [
         "history:waterfall.core.history.interface.closing.close_history",
+        "evaluations:waterfall.core.exchanges.interface.abandoning.expire_revision_deposits",
         f"content:{PLANNING}.closing.delete_nodes",
     ],
     "exchanges.formats": [f"ms_project_schedule:{PLANNING}.msproject.MsProjectFormat"],
@@ -139,6 +142,12 @@ REGISTERED = {
         f"task_tree_image:{PLANNING}.task_tree.TaskTreeExporter",
     ],
     "witness.revision_fillers": ["waterfall.witness.tasks.fill"],
+    "exchanges.structure_guards": [
+        (
+            f"StructureGuard({PLANNING}.structures.hold_structure, "
+            f"{PLANNING}.structures.unwritten_since_opening)"
+        )
+    ],
 }
 ESTIMATE = "waterfall.core.estimate.interface"
 CORE = "waterfall.core.estimate"
@@ -148,6 +157,7 @@ LINE_HOOKS = (
     f"{CORE}.copying.copy_lines",
     f"{ESTIMATE}.facet.delete_lines",
     f"{ESTIMATE}.facet.line_calendars",
+    f"{ESTIMATE}.facet.line_roles",
     f"{CORE}.writing.create_line",
     f"{ESTIMATE}.facet.snapshot_lines",
     f"{ESTIMATE}.facet.restore_lines",
@@ -208,12 +218,7 @@ COSTS = "waterfall.core.costs.interface"
 # ``CostFacts``; and the own lines that hold a summary task open, which the estimate tells the
 # planning (US-1590/L1), and when they were set to nought (US-1650/L2, #2803).
 REGISTERED_BY_EP09 = {
-    "projects.cost_facts": [
-        (
-            f"CostFacts({COSTS}.subprojects.subproject_has_actual_costs, "
-            f"{COSTS}.subprojects.impute_waiting_lines)"
-        )
-    ],
+    "projects.cost_facts": [f"CostFacts({COSTS}.subprojects.subproject_has_actual_costs)"],
     "exchanges.formats": [
         f"actual_costs:{COSTS}.actual_costs.ActualCostsFormat",
         f"remaining:{ESTIMATE}.remaining_excel.RemainingFormat",

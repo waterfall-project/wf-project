@@ -13,10 +13,10 @@ them from here, never from the file.
 The actual costs fill, at the import of this interface, the registry of the formats of the
 exchanges: the format ``actual_costs``, registered by the socle, which reads and analyses an
 extraction from US-1610/L1 and applies it from US-1610/L2; and ``register_cost_facts``, which
-US-1610/L3 declares in the interface of the projects: what they ask of a subproject, and what its
-creation imputes. The entry points that run an import of the actual costs, or load the witness —
-the API, the loader of the witness, and the worker, which applies an extraction (US-1610/L2; EP-09,
-"Le worker") — import it (#2180).
+US-1610/L3 declares in the interface of the projects: what they ask of a subproject — its
+creation imputes nothing since #3966. The entry points that run an import of the actual costs, or
+load the witness — the API, the loader of the witness, and the worker, which applies an extraction
+(US-1610/L2; EP-09, "Le worker") — import it (#2180).
 """
 
 # ``actual_costs`` (US-1580/L1; US-1610/L1, US-1610/L2): the format of an extraction of the ERP.
@@ -78,9 +78,6 @@ from waterfall.core.costs.interface.portfolio import (
 )
 
 # ``subprojects`` (US-1580/L1; US-1610/L3): what the projects ask the actual costs of a subproject.
-from waterfall.core.costs.interface.subprojects import (
-    impute_waiting_lines as impute_waiting_lines,
-)
 from waterfall.core.costs.interface.subprojects import (
     subproject_has_actual_costs as subproject_has_actual_costs,
 )
@@ -144,6 +141,6 @@ from waterfall.core.exchanges.interface import register_format
 from waterfall.core.projects.interface import CostFacts, register_cost_facts
 
 # The registrations, once, at the import: the format of an extraction; what the projects ask of a
-# subproject and what its creation imputes (US-1610/L3).
+# subproject (US-1610/L3).
 register_format("actual_costs", ACTUAL_COSTS_FORMAT)
-register_cost_facts(CostFacts(subproject_has_actual_costs, impute_waiting_lines))
+register_cost_facts(CostFacts(subproject_has_actual_costs))

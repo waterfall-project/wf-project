@@ -120,6 +120,7 @@ def application() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
+        logger.info("service.started")
         try:
             with ExitStack() as served:
                 served.callback(opened.close)

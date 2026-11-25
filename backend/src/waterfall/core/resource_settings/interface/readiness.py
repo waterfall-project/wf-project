@@ -63,7 +63,9 @@ def lock_reference(session: Session) -> None:
     deactivated (``calendar_not_default``), so that no deactivation can empty it. Were that refusal
     lifted, the activation would take the lock; a test pins the refusal (``test_reference_lock``).
     The units of duration take it too (``set_duration_units``), as every write that redates the
-    plannings of the current revisions, which the opening of a revision shares (EP-06).
+    plannings of the current revisions, which the opening of a revision shares (EP-06): the update
+    of a role among them (``update_role``), whatever it changes, since a calendar given to it
+    redates them (US-3320).
     """
     session.execute(select(func.pg_advisory_xact_lock(REFERENCE_LOCK)))
 

@@ -457,6 +457,7 @@ describe("the grid of the planning", () => {
     const conflict = {
       predecessor_node_id: review.node_id,
       successor_node_id: desks.node_id,
+      manual_node_id: desks.node_id,
       link_type: "finish_to_start" as const,
     };
     const conflicting = {
@@ -505,6 +506,71 @@ describe("the grid of the planning", () => {
       items: conflicting.items.filter((n) => n !== desks && n.node_id !== desks.node_id),
     });
     expect(marked("Revue de conception")).toEqual([`Liaison en conflit${NBSP}: 5FD`]);
+  });
+
+  it("names the manual task of a link to a summary task, on the predecessor and on that manual task [WF-PLA-0020-A]", () => {
+    // A (automatique) précède fin à début la récapitulative S, dont la subordonnée M est manuelle et
+    // datée avant la fin de A : A et M sont signalés par la liaison A → S, avec la ligne de M.
+    const [review, studies, desks] = ["Revue de conception", "Études", "Pupitres opérateurs"].map(
+      (label) => planning.items.find((node) => node.task?.label === label),
+    );
+    if (review === undefined || studies === undefined || desks === undefined) {
+      throw new Error("the example of the planning lacks its tasks");
+    }
+    const conflict = {
+      predecessor_node_id: review.node_id,
+      successor_node_id: studies.node_id,
+      manual_node_id: desks.node_id,
+      link_type: "finish_to_start" as const,
+    };
+    renderPlanning({
+      ...planning,
+      items: planning.items.map((node) =>
+        node.task && (node.node_id === review.node_id || node.node_id === desks.node_id)
+          ? { ...node, task: { ...node.task, link_conflicts: [conflict] } }
+          : node,
+      ),
+    });
+    const marked = (label: string) =>
+      iconNames(cellsOf(label)[at("predecessors")]).filter((name) => name?.startsWith("Liaison"));
+    const sentence = `Liaison en conflit${NBSP}: 5FD vers la ligne ${String(studies.row_number)} — tâche manuelle à la ligne ${String(desks.row_number)}`;
+    expect(marked("Revue de conception")).toEqual([sentence]);
+    expect(marked("Pupitres opérateurs")).toEqual([sentence]);
+    expect(marked("Études")).toEqual([]);
+  });
+
+  it("names the manual task of a link to a summary task in English, and not when no row names it [WF-PLA-0020-A]", () => {
+    const [review, studies, desks] = ["Revue de conception", "Études", "Pupitres opérateurs"].map(
+      (label) => planning.items.find((node) => node.task?.label === label),
+    );
+    if (review === undefined || studies === undefined || desks === undefined) {
+      throw new Error("the example of the planning lacks its tasks");
+    }
+    const conflict = {
+      predecessor_node_id: review.node_id,
+      successor_node_id: studies.node_id,
+      manual_node_id: desks.node_id,
+      link_type: "finish_to_start" as const,
+    };
+    const items = planning.items.map((node) =>
+      node.task && (node.node_id === review.node_id || node.node_id === desks.node_id)
+        ? { ...node, task: { ...node.task, link_conflicts: [conflict] } }
+        : node,
+    );
+    const marked = (label: string) =>
+      iconNames(cellsOf(label)[at("predecessors")]).filter((name) => name?.startsWith("Link"));
+    const { unmount } = renderPlanning({ ...planning, items }, "en");
+    expect(marked("Revue de conception")).toEqual([
+      `Link in conflict: 5FS to row ${String(studies.row_number)} — manual task on row ${String(desks.row_number)}`,
+    ]);
+    unmount();
+    // A search that leaves the manual task out: no row names it, so the sentence stops at the successor.
+    renderPlanning({ ...planning, items: items.filter((node) => node.node_id !== desks.node_id) });
+    expect(
+      iconNames(cellsOf("Revue de conception")[at("predecessors")]).filter((name) =>
+        name?.startsWith("Liaison"),
+      ),
+    ).toEqual([`Liaison en conflit${NBSP}: 5FD vers la ligne ${String(studies.row_number)}`]);
   });
 
   it("says the physical progress of a summary not computable, and why, in the cell itself [WF-PLA-0130-A] [WF-IND-0060-A]", () => {

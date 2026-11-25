@@ -8,7 +8,7 @@ the accounts of the identity provider every day at ``01:30`` UTC, half an hour a
 (`IdentitySyncSchedule`). Each row is written once, its counter at 1, as a created object's
 (`LockVersion`), its author the platform; a row already there is left as it is.
 
-A restoration of a backup taken before ``0046`` applies it again on the restored database, and
+A restoration of a backup taken before ``0050`` applies it again on the restored database, and
 then writes back the schedule of the backups it kept (#1743).
 """
 
@@ -19,8 +19,8 @@ from alembic import op
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-revision: str = "0047"
-down_revision: str | None = "0046"
+revision: str = "0051"
+down_revision: str | None = "0050"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -47,6 +47,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Delete both rows: the schedules set are lost, and ``0046`` drops their tables after."""
+    """Delete both rows: the schedules set are lost, and ``0050`` drops their tables after."""
     op.execute("DELETE FROM identity_sync_schedule")
     op.execute("DELETE FROM backup_schedule")

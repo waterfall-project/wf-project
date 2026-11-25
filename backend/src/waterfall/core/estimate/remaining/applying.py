@@ -102,8 +102,11 @@ def apply(
         for each in reviewed.found.planned
         if each.current is not None and each.current.node_id in closing
     }
+    # The counters of the lines that close their task, read at once (#4849): no write of a line
+    # of the remaining moves the counter of another, each is written once.
+    counters = node_versions(session, project_id, tuple(by_node))
     for node, entry in by_node.items():
-        counter = node_versions(session, project_id, (node,))[node]
+        counter = counters[node]
         sent = LineRemaining(replace(entry, lock_version=counter), None, reviewed.review_date)
         set_line_remaining(session, place, node, sent, writer)
 

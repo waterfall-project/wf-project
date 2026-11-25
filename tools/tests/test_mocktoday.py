@@ -425,7 +425,7 @@ def test_the_balances_sum_to_the_project_and_signal_a_scope_by_the_sign_of_its_m
     )
     assert [entry["zone"] for entry in balances.values()] == ["nominal"] * 3
     assert Decimal(balances[TESTS]["actual_cost"]) == sum(
-        line.amount for line in mockcosts.drawn() if line.code == "SP-ESS"
+        line.amount for line in mockcosts.drawn() if line.code == "PRJ-001/SP-ESS"
     )
     assert left["coverage"] == {
         key: value for key, value in today_coverage().items() if key != "context"

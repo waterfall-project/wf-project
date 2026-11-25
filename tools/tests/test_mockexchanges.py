@@ -70,6 +70,23 @@ def test_a_lineage_carried_twice_rejects_both_lines_each_naming_the_other() -> N
     assert second["params"]["lines"] == [{"sheet": first["sheet"], "row": first["row"]}]
 
 
+def test_a_renamed_tab_of_an_unknown_code_rejects_its_lines_naming_the_tab_and_the_code() -> None:
+    """The example of #4898: each line of the tab names the tab and the code read at its head."""
+    report = cast("dict[str, Any]", mockexchanges.import_remaining_unknown_subproject()["report"])
+    assert [(each["sheet"], each["code"], each["params"]) for each in report["rejected"]] == [
+        (
+            mockexchanges.UNKNOWN_TAB,
+            "UNKNOWN_SUBPROJECT",
+            {"value": mockexchanges.UNKNOWN_TAB, "subproject_code": mockexchanges.UNKNOWN_CODE},
+        )
+    ] * len(mockexchanges.IMPORTED)
+    assert [each["row"] for each in report["rejected"]] == [3, 4]
+    assert mockexchanges.UNKNOWN_CODE not in {
+        entry["code"] for entry in mockwitness.fixture("subprojects")
+    }
+    assert (report["differences"], report["read_count"]) == ([], len(mockexchanges.IMPORTED))
+
+
 def test_every_refusal_is_an_example_the_contract_cites_under_its_answer() -> None:
     examples = mockexchanges.examples()
     assert "paste_plan_subproject_held" in _cited(
@@ -87,6 +104,9 @@ def test_every_refusal_is_an_example_the_contract_cites_under_its_answer() -> No
     assert "import_remaining_duplicate_lineage" in _cited(
         _operation("exchanges.yaml", "getImport"), "200"
     )
+    assert "import_remaining_unknown_subproject" in _cited(
+        _operation("exchanges.yaml", "getImport"), "200"
+    )
     assert "import_actual_costs_first" in _cited(_operation("exchanges.yaml", "getImport"), "200")
     assert "export_revision_not_found" in _cited(
         _operation("exchanges.yaml", "requestExport"), "404"
@@ -96,6 +116,7 @@ def test_every_refusal_is_an_example_the_contract_cites_under_its_answer() -> No
         "import_remaining_subproject_held.json",
         "import_remaining_completed_tasks.json",
         "import_remaining_duplicate_lineage.json",
+        "import_remaining_unknown_subproject.json",
         "import_estimate_main_in_progress.json",
         "import_actual_costs_first.json",
         "export_revision_not_found.json",
@@ -175,26 +196,29 @@ def test_a_line_in_the_tab_of_another_subproject_moves_unless_held(
             "fields": ["subproject"],
         }
     ]
-    # The labour of the wiring, second line of the tab, its third row: rejected, the subproject
+    # The labour of the wiring, second line of the tab, its fourth row: rejected, the subproject
     # it may not leave named, the line by its tab, named as the file names it (#1162): by the code
-    # of its subproject, not by its label (ANNEXE B; EP-16/US-0610).
-    [(tab, label)] = [
+    # of its subproject, not by its label (ANNEXE B; EP-16/US-0610) — the slash a tab refuses
+    # replaced (#3966).
+    [(code, label)] = [
         (entry["code"], entry["label"])
         for entry in mockwitness.fixture("subprojects")
         if entry["subproject_id"] == mockexchanges.TAB
     ]
-    assert (tab, label) == ("SP-ESS", "Essais et mise en service")
+    assert (code, label) == ("PRJ-001/SP-ESS", "Essais et mise en service")
+    tab = mockexchanges.tab_name(mockexchanges.TAB)
+    assert tab == "PRJ-001_SP-ESS"
     assert report["rejected"] == [
         {
             "sheet": tab,
-            "row": 3,
+            "row": 4,
             "code": "SUBPROJECT_HAS_ACTUAL_COSTS",
             "params": _named(node(read, N.LABOUR)),
         }
     ]
     assert report["refusals"] == []
     summary = mockexchanges.examples()["import_remaining_subproject_held.json"]["summary"]
-    assert f"à la ligne 3 de l'onglet « {tab} »" in cast("str", summary)
+    assert f"à la ligne 4 de l'onglet « {tab} »" in cast("str", summary)
     assert f"l'onglet « {tab} », nommé par le code du sous-projet « {label} »" in cast(
         "str", summary
     )
@@ -299,13 +323,11 @@ def test_the_extraction_of_april_reports_what_its_journal_counts() -> None:
     other = mockexchanges.other_project()
     assert other != mockwitness.fixture("project")["code"]
     assert rejected["code"] == "WBS_ELEMENT_OUTSIDE_PROJECT"
-    assert rejected["params"] == {"wbs_element": f"{other}/SP-CAB", "project_code": other}
+    assert rejected["params"] == {"wbs_element": f"{other}/SP-CAB"}
     assert rejected["sheet"] is None
     assert report["format_version"] is None
-    assert report["requires_confirmation_reasons"] == [
-        "lines_outside_project",
-        "unknown_subproject",
-    ]
+    assert report["requires_confirmation_reasons"] == ["lines_outside_project"]
+    assert report["unknown_wbs_elements"] == [{"wbs_element": f"{other}/SP-CAB", "line_count": 1}]
     assert (imported["period_from"], imported["period_to"]) == (
         entry["period_from"],
         entry["period_to"],

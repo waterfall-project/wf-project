@@ -479,13 +479,15 @@ test("carries a line to a sub-project from the menu of its cell, and takes it ou
   const radios = page.getByRole("menu", { name: "Sous-projet" });
   await expect(radios.getByRole("menuitemradio")).toHaveText([
     "Aucun sous-projet",
-    "SP-CMD — Poste de commande",
-    "SP-ESS — Essais et mise en service",
+    "PRJ-001/SP-CMD — Poste de commande",
+    "PRJ-001/SP-ESS — Essais et mise en service",
   ]);
   await expect(
-    radios.getByRole("menuitemradio", { name: "SP-CMD — Poste de commande" }),
+    radios.getByRole("menuitemradio", { name: "PRJ-001/SP-CMD — Poste de commande" }),
   ).toHaveAttribute("aria-checked", "true");
-  await radios.getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }).click();
+  await radios
+    .getByRole("menuitemradio", { name: "PRJ-001/SP-ESS — Essais et mise en service" })
+    .click();
   const said = page.getByText("Sous-projet de « Mise en service sur site » mis à jour.");
   await expect(said).toBeVisible({ timeout: WORKING });
   await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });

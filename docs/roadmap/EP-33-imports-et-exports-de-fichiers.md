@@ -1,7 +1,7 @@
 ---
 id: EP-33
 titre: Fiabiliser les allers-retours de fichiers — rapprochement MS Project, bornes des classeurs, compte rendu confirmé, comptes rendus d'import et leur purge
-statut: en cours
+statut: livré
 depend_de: EP-08
 famille: front, back
 issue: 4523
@@ -28,9 +28,9 @@ depuis.
 ## Ce qui en fait partie
 
 - le rapprochement des tâches à la réimportation d'un planning MS Project, et les bornes de son
-  lecteur (US-3170, US-3180) ;
-- une borne de décompression commune aux classeurs téléversés, lus hors du verrou du projet
-  (US-3190) ;
+  lecteur, constantes d'unité comprises (US-3170, US-3180) ;
+- une borne de décompression commune aux classeurs téléversés, tenue jusque dans l'analyse XML de
+  leurs membres, et leur lecture hors du verrou du projet (US-3190) ;
 - le refus d'un onglet dont une colonne lue manque (US-3200), et l'import du devis qui retire ses
   lignes en une écriture (US-3220) ;
 - l'application d'un import liée au compte rendu que l'utilisateur a confirmé, par le compteur de
@@ -44,12 +44,16 @@ depuis.
 - l'élément d'OTP comparé en entier et le code de sous-projet libre (spécification 1.0.7), avec la
   reprise des codes déjà saisis (US-3270) ;
 - l'écran des imports : la commande « Relancer », le refus de l'application, le formulaire pendant
-  un envoi, la zone de dépôt, un long compte rendu (US-3280).
+  un envoi, la zone de dépôt, un long compte rendu (US-3280) ;
+- le devis et le reste à engager exportés, qui s'affichent justes sans recalcul du tableur, et les
+  colonnes d'heures du devis réduites aux codes comptables de ses rôles (US-3640, ajoutée le
+  2026-11-22).
 
 ## Ce qui n'en fait pas partie
 
 - le collage dans une grille — EP-34 ;
-- l'export du devis selon l'annexe B (#4399) — EP-31 ;
+- l'export du devis selon l'annexe B (#4399) — EP-31 ; US-3640 ne corrige que le classeur
+  d'aujourd'hui : ses valeurs en cache et le domaine de ses colonnes d'heures ;
 - la restauration et son dépôt, et l'écouteur `after_commit` sous point de sauvegarde qui supprime
   le fichier d'un import avant la validation de sa tâche (BEX-04, #4476) — EP-39 ;
 - la limite de mémoire du service dans le chart — EP-13 et EP-39 ;
@@ -129,10 +133,11 @@ Vague 1 de la ventilation du 2026-11-21. Créneaux utiles sur le poste, qui port
   exportée, une tâche insérée dans MS Project après la ligne 2, réimportée — garde à T5 sa lignée
   et ses lignes de devis, et ajoute la tâche nouvelle ;
 - un fichier MS Project de plus de 10 000 tâches, de plus de 50 niveaux, ou portant une durée ou un
-  entier hors bornes fait échouer son import sur `FILE_FORMAT_UNREADABLE`, jamais sur
-  `INTERNAL_ERROR` ;
-- un classeur de 68 515 octets dont un membre se décompresse en 64 Mio est refusé à l'ouverture
-  sans que la mémoire du service ne monte, et l'ouverture d'un import ne lit plus l'en-tête sous le
+  entier hors bornes, ou une constante d'unité nulle ou négative (#4766), fait échouer son import
+  sur `FILE_FORMAT_UNREADABLE`, jamais sur `INTERNAL_ERROR` ;
+- un classeur de 68 515 octets dont un membre se décompresse en 64 Mio en annonçant moins est
+  refusé à l'ouverture sans que la mémoire du service ne monte, de même un classeur de 13 705 octets
+  dont une ligne porte 2 000 000 de cellules vides (#4734), et l'ouverture d'un import ne lit plus l'en-tête sous le
   verrou du projet ;
 - un devis ou un reste à engager dont un onglet a perdu « ID ligne », « Débours restant » ou
   « Quantité » est refusé à l'ouverture, les colonnes nommées, et rien n'est analysé ;
@@ -154,7 +159,7 @@ Vague 1 de la ventilation du 2026-11-21. Créneaux utiles sur le poste, qui port
   `make server-models-up-to-date` passent, et `docs/api/DECISIONS.md` a ses entrées ;
 - `make check` passe sur la branche de l'EPIC, la file de fusion est verte ; `make roadmap` et
   `make requirements` passent ;
-- les quatorze constats reçus sont fermés par la fusion de leur lot.
+- les dix-neuf constats reçus sont fermés par la fusion de leur lot.
 
 ## Constats reçus
 
@@ -200,6 +205,130 @@ Constats de la même revue joints à une issue ci-dessus : BRC-04 (une ligne du 
 importe la borne du code de sous-projet de la table privée du module des projets), à #3966
 → US-3270.
 
+Constats d'EP-08 reçus le 2026-11-22 (décision de l'utilisateur : « l'export du devis »), relevés à
+l'essai de l'export sur `epic/EP-08` le 2026-11-20, rangés dans une US ajoutée le même jour :
+
+- #4317 — back : l'export du devis affiche ses montants et ses totaux à zéro sans recalcul du
+  tableur → US-3640 ;
+- #4319 — back : l'export du devis porte une colonne d'heures par catégorie de main-d'œuvre, non par
+  code des rôles → US-3640.
+
+Constats relevés à la livraison d'US-3190/L1 et d'US-3180, tranchés par l'auteur le 2026-11-23 :
+
+- #4734 — back : l'analyse XML d'openpyxl amplifie un classeur dans les bornes (13 Ko, 583 Mio) →
+  US-3190/L1b, une pré-lecture en flux ; une limite de mémoire du conteneur est écartée ; à la
+  question du livreur (2026-11-23), les chaînes partagées, les styles, les noms définis et le
+  produit lignes × colonnes → US-3190/L2b, qui les a mesurés ; bornes fixées par l'auteur le
+  2026-11-23 (« Les bornes des classeurs ») ;
+- #4736 — spec : le classeur de 64 Mio du critère d'US-3190 contre la borne de 200 Mio déclarés →
+  le critère est précisé dans le sens livré (un membre qui se décompresse au-delà de ce qu'il
+  annonce), sans borne par membre ;
+- #4766 — back : une constante d'unité nulle ou négative d'un fichier MS Project finit en
+  `INTERNAL_ERROR` → US-3180b, refusée par `FILE_FORMAT_UNREADABLE`, sans borne haute.
+
+Constats relevés à la livraison d'US-3190/L1b et à la mesure d'US-3190/L2b, confiés à US-3190/L2b :
+
+- #4837 — back : la pré-lecture refuse le VML mal formé d'une feuille de graphique, qu'openpyxl ne
+  lit pas ;
+- #4838 — tests : la tolérance d'un VML mal formé n'est pas éprouvée pour `[Content_Types].xml` ni
+  pour un membre en double ;
+- #4848 — back : un élément qu'openpyxl rejette par `TypeError` (un `<fill/>` de `styles.xml`)
+  finit en `INTERNAL_ERROR` → `TypeError` rattrapée à l'ouverture et à l'itération des lignes,
+  dans `opened_workbook` seulement, pour qu'une erreur de programmation d'un lecteur ne devienne
+  pas un refus du fichier (décision de l'auteur du 2026-11-23).
+
+Constat d'EP-32 reporté le 2026-11-23 (décision de l'auteur : le fichier d'EP-32 laisse l'import
+d'un planning MS Project à EP-33, qui écrit `core/planning/importing.py`) :
+
+- #4799 — contrat : l'import MS Project rend 500 sur une tâche créée sans heure travaillée, le
+  contrat ne sait pas la nommer → US-3210b, après la livraison d'EP-32 dans `main`, qui apporte
+  `TASK_WITHOUT_WORKING_HOURS` (US-3330).
+
+Constats relevés à la livraison d'US-3170, US-3180, US-3180b, US-3200 et US-3210, tranchés par
+l'auteur le 2026-11-23 :
+
+- #4759 — back : un fichier tiers qui range de vrais UUID dans `Text1` est pris pour un export de
+  Waterfall — limite acceptée, rejouée à la recette de l'aller-retour MS Project ;
+- #4779, #4813 — instabilités de la file (Keycloak, `test_partitions`), vues une fois — on attend ;
+  vues deux fois, le pilote ouvre le lot correctif ; reportés à EP-36 à la fin d'EP-33 (2026-11-25) ;
+- #4784 — back : un onglet de lignes qui perd « Tâche » ou « Rôle ou catégorie » n'est ni refusé ni
+  lu, et ses lignes se lisent absentes → US-3200b : la liste de #4421 s'étend aux deux clés ;
+- #4785 — contrat : aucun exemple d'un devis refusé pour une colonne absente → US-3280, un exemple
+  engendré, sans changement de forme ;
+- #4786 — back : le devis et le reste à engager lus deux fois à l'ouverture — écarté, hors verrou,
+  la mémoire tenue par les bornes, de l'ordre de 0,4 s sur 10 000 lignes ;
+- #4787 — front : une accolade ou une apostrophe dans le refus des colonnes absentes → US-3280, un
+  test ;
+- #4791 — back : la copie d'une révision ouverte qui rechiffre ses lignes fait refuser à tort un
+  import analysé dans la révision marquée → faux refus accepté, du côté sûr, figé par un test dans
+  US-3210b ; ni colonne ni migration ;
+- #4826 — back : une constante d'installation infime s'exporte à 0, que le lecteur refuse →
+  US-3210b : l'export écrit les constantes d'unité à 1 au moins ; la saisie n'est pas bornée ;
+- #4830 — tests : la citation du Vérif des constantes d'unité non littérale → US-3210b.
+
+Constats relevés à la livraison d'US-3230 et d'US-3240, tranchés par l'auteur le 2026-11-23 :
+
+- #4849 — back : l'application du reste à engager relit le compteur de chaque ligne qui termine sa
+  tâche, une par une (`remaining/applying.py`), le défaut que BCH-05 a retiré du devis → US-3230b ;
+- #4850 — back : un dépôt dont l'import abandonné est purgé redevient libre et compte de nouveau
+  dans le plafond de vingt → US-3240b : le dépôt marqué échu à l'abandon et à la purge de son
+  import (WF-DAT-0120) ;
+- #4854 — front : le refus du plafond redit « Valeur maximale : 20 » après « moins de vingt » →
+  US-3280, un libellé propre à la condition.
+
+Instabilité de la file vue trois fois, tranchée par l'auteur le 2026-11-24 :
+
+- #4846 — tests : `test_each_process_closes_its_services_when_the_api_stops` (EP-26, US-2230) ne
+  voit qu'un `service.stopped` sur deux → US-3170b. EP-26 est livré dans `main` : le lot va dans
+  la branche où l'instabilité a été vue. La fixture attend le démarrage des deux processus avant
+  le SIGTERM, sans délai élargi.
+
+Constats relevés à la livraison d'US-3190/L2b, US-3240b, US-3230b, US-3640, US-3270 et US-3280,
+tranchés par l'auteur le 2026-11-24 :
+
+- #4862 — back : un `styles.xml` ou un `workbook.xml` qui porte des millions d'éléments hors des
+  items bornés passe les bornes (543 Mio pour 25 Ko) → US-3190b : la pré-lecture compte tous les
+  éléments des membres qu'openpyxl lit en arbre, et refuse au-delà de 1 100 000 au total ;
+- #4881 — tests : le journal lu pendant son écriture, sur un caractère UTF-8 coupé — clos sans
+  suite, le journal JSON échappe tout caractère non ASCII ;
+- #4885 — back : un import emporté par la cascade d'une structure ou d'une révision libère encore
+  son dépôt → US-3250/L2b : le dépôt échoit (WF-DAT-0120), le cas d'abord reproduit par un test ;
+- #4886 — back : l'application du reste à engager rejoue le moteur une fois par tâche qu'elle
+  termine → reporté à EP-40, qui mesure avant de récrire l'interface de `core/planning` ;
+- #4889 — tests : un test d'US-3640 lit la ligne du devis par son rang → reporté à EP-31, dont la
+  refonte de l'onglet « Devis » (#4399) réécrit ce test ;
+- #4894 — chaîne : le pull d'une image du miroir `ghcr.io` expire, vu deux fois → US-3270b, ouvert
+  par le pilote (« Une instabilité de la file ») ;
+- #4896, #4898, #4899 — le code du sous-projet déborde la colonne de l'écran des coûts réels ; le
+  rejet `UNKNOWN_SUBPROJECT` ne nomme pas le code lu en tête ; une règle de comparaison écrite deux
+  fois, variante d'un défaut du guide Python → US-3270/L3b ;
+- #4902, #4903 — front : le refus d'un envoi annulé perdu ; la zone de dépôt qui libère deux fois
+  un envoi → reportés à EP-37 ;
+- #4904 — contrat : aucun exemple d'un import refusé ni d'une tâche d'application échouée →
+  reporté à EP-38.
+
+Constats relevés à la livraison d'US-3190b, d'US-3270b, d'US-3270/L3b et d'US-3270/L6, tranchés
+par l'auteur le 2026-11-25 :
+
+- #4914, #4915 — back : sous la borne d'éléments, le coût d'un élément (ses attributs, son texte)
+  n'est pas borné (660 Mio) ; les éléments étrangers d'un onglet ou de `sharedStrings.xml` passent
+  les bornes (≈ 257 Mio) → US-3190/L3 : une borne des octets des membres lus en arbre, et le
+  comptage en flux des éléments étrangers, aux valeurs mesurées (options A et F1, après mesure) ;
+- #4916 — outil : le rejeu et l'entrée connue de `ghcr.io` reconnaissent aussi un push →
+  élargissement assumé, la même panne d'infrastructure ; l'entrée reformulée par US-3270/L6 ;
+- #4919 — outil : les exemples du reste à engager numérotent leurs lignes depuis la ligne 2 →
+  US-3270/L6, sur `REMAINING_FIRST_ROW` ;
+- #4935 — tests : les tests des bornes des classeurs lisent la crête par `ru_maxrss`, que Linux
+  garde à travers `exec` (428 Mio vus pour 484) → US-3190/L3, qui lit `VmHWM` et recale les
+  plafonds.
+- #4929 — outil : les fichiers de couverture parallèles du back (`.coverage.<hôte>.pid…`) ne sont
+  pas ignorés par git, et un commit de L6 en a embarqué 67 → US-3270/L6b : `.coverage.*` dans
+  `.gitignore` ; l'historique d'`epic/EP-33` n'est pas réécrit ;
+- #4946 — back, déploiement : la lecture d'un classeur importé n'a pas de plafond de mémoire dur
+  (relevé à la mesure d'US-3190/L3) → reporté à EP-39, avec la limite de mémoire du service ;
+- #4949 — back : les crêtes annoncées des listes riches ne se reproduisent pas, et la commande
+  `counts` n'est pas branchée dans `make measure-workbooks` → reporté à EP-39, avec #4946.
+
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
 qui réalisera #3966, à nommer par le cadreur ») → US-3270.
@@ -236,7 +365,8 @@ lot (EP-08 et EP-13 en portent chacune de leur côté).
 - `core/exchanges` porte la mécanique commune. Un ouvreur de classeurs entre dans son interface, à
   côté de l'analyseur XML durci : il lit `infolist()` de l'archive, refuse au-delà de 200 Mio de
   tailles décompressées déclarées ou de 1 000 membres, puis seulement ouvre le classeur ; les trois
-  lecteurs passent par lui et bornent chaque onglet lu à 200 000 lignes et 500 colonnes (US-3190).
+  lecteurs passent par lui et bornent les onglets lus à 200 000 lignes et 10 000 000 de cellules
+  en cumul, chaque ligne à 500 colonnes (US-3190).
   Le protocole `Format` remplace `read_header(session, head)` par deux étapes : `parse_header(head)`,
   pure, appelée avant `lock_project`, qui garde son refus au lieu de le lever, et
   `judge_header(session, parsed)`, sous le verrou, à la place que le contrat donne à ce refus dans
@@ -248,7 +378,8 @@ lot (EP-08 et EP-13 en portent chacune de leur côté).
   des lignées (US-3170) ; les bornes dans `msproject/reader.py` et le repli de `calendar_of` sur
   « Standard » (US-3180) ; le retrait de plusieurs lignes dans l'écriture de `write_lines`, que
   l'interface du planning expose à `core/estimate` (US-3220) ; une fonction de l'interface qui dit
-  si une structure n'a pas été écrite depuis sa copie (US-3210).
+  si une structure n'a pas été écrite depuis sa copie (US-3210) ; `_replayed` traduit le refus
+  d'une tâche sans heure travaillée dans les `refusals` du compte rendu (US-3210b, #4799).
 - `core/estimate` : les deux lecteurs Excel rendent leurs colonnes manquantes à `parse_header`
   (US-3200) ; `applying.py` ne boucle plus sur `delete_node` (US-3220) ; `remaining/analysing.py`
   signale le montant écrit (US-3230) ; l'onglet d'un sous-projet nommé d'après son code, le code en
@@ -271,6 +402,9 @@ pour la famille des échanges, l'autre pour #3966 ; chacune a son entrée dans
   exemple, `import_apply_structure_changed` (US-3210).
 - `CommandCondition` gagne `pending_uploads_below_limit` : `uploadFile` déclare 403
   (`PERMISSION_MISSING`) et 409 `STATE_FORBIDS_OPERATION`, `params.maximum` à 20 (US-3240).
+- `ProblemImportedTask.lineage_id` devient nullable pour une tâche que le fichier crée, comme
+  `ImportDifference` l'accepte : le refus `TASK_WITHOUT_WORKING_HOURS` d'EP-32 nomme une tâche
+  créée à l'import, qui n'a encore ni nœud ni lignée (US-3210b, #4799).
 - `ImportDetail.task` devient `BackgroundTaskRef` ou nul ; `listImports`, `getImport`,
   `abandonImport` et les états `expired` et `abandoned` disent la suppression à la passe de purge ;
   les exemples de liste et le témoin ne portent plus d'import expiré ni abandonné (US-3250).
@@ -325,7 +459,11 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
 - **La comparaison se fait deux fois** : à la demande, pour refuser sans tâche, et à l'exécution
   sous le verrou de la structure. Une structure analysée dans la révision marquée et écrite dans sa
   copie est jugée « non écrite depuis sa copie », par l'interface du planning ; la révision que la
-  tâche crée elle-même n'est pas comparée. Un compte rendu au compteur nul — analysé avant la
+  tâche crée elle-même n'est pas comparée. Une ouverture de la copie qui avance son compteur
+  au-delà de la redatation (des lignes rechiffrées, une provision réécrite) la fait juger écrite :
+  l'import est refusé à tort, en 409, et l'utilisateur redépose — faux refus accepté, du côté sûr
+  (#4791, décision de l'auteur du 2026-11-23), figé par un test (US-3210b). Écarté : garder le
+  compteur de la copie à son ouverture, une colonne et une migration de plus. Un compte rendu au compteur nul — analysé avant la
   colonne, ou par un worker d'avant pendant une mise à jour — s'applique sans comparaison, pendant
   les vingt-quatre heures qu'il vit. Écarté : le refuser, sous une condition qui mentirait.
 - **La purge supprime dans la passe qui constate l'échéance** (US-3250) : elle ne passe plus par
@@ -341,9 +479,40 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
   `platform/storage.py`, qu'EP-13 réécrit (US-2860).
 - **Les bornes des classeurs** (US-3190) : 200 Mio déclarés, la valeur que la revue propose, vingt
   fois le fichier compressé ; 200 000 lignes, dix fois les 18 000 lignes de coût de §4.6.2 ; 500
-  colonnes, pour les colonnes conservées d'une extraction. Les bornes du lecteur MS Project
-  (US-3180) hors celles de l'auteur : un entier de 18 chiffres au plus, une durée d'un million
-  d'heures au plus.
+  colonnes, pour les colonnes conservées d'une extraction. Les lignes et les cellules se comptent
+  avant l'ouverture, par une pré-lecture en flux des membres XML (US-3190/L1b, décision de l'auteur
+  du 2026-11-23, #4734) : openpyxl matérialise une ligne entière avant de la tronquer, et un
+  classeur de 13 Ko le fait monter à 583 Mio. Écartée : une limite de mémoire du conteneur. La
+  pré-lecture lit tous les membres XML du classeur, pas seulement les onglets que le format lit :
+  un onglet non lu au-delà des bornes fait aussi échouer l'import ; le classeur s'ouvrant en
+  `read_only`, l'écart ne coûte pas de mémoire et évite de résoudre d'abord les onglets lus
+  (décision de l'auteur du 2026-11-23). Les autres vecteurs, mesurés par US-3190/L2b et bornés
+  par décision de l'auteur du 2026-11-23 : 1 000 000 de chaînes partagées, 65 536 éléments (runs)
+  par chaîne, et 32 Mio de texte décompressé dans `sharedStrings.xml`, comptés en caractères (le
+  texte coûte jusqu'à quatre fois sa taille en mémoire) ; dans `styles.xml`, `numFmts` 1 000,
+  `fonts`, `fills`, `borders`, `tableStyles` et `colors` 1 024 chacune, `cellStyleXfs`, `cellXfs`,
+  `cellStyles` et `dxfs` 65 490 chacune, les limites d'Excel, pour qu'un classeur qu'Excel écrit ne
+  soit jamais refusé (les items d'une liste sont ses enfants ; ceux de `colors`, les couleurs de ses
+  listes, comptées avec elles) ; 10 000 noms définis. Trois de ces listes sont ramenées par
+  US-3190/L3 pour tenir, avec des items comme Excel les écrit, sous la borne des octets : `dxfs`
+  22 000, `cellXfs` 40 000, `cellStyleXfs` 60 000. La pré-lecture les compte et refuse avant
+  l'ouverture. Les listes de `styles.xml` et les noms définis se comptent par nom local, enfants
+  directs de la racine du membre, comme openpyxl les lit, commentaires et instructions de
+  traitement compris (openpyxl en fait des items) ; une partie qu'openpyxl lit et qui déclare un
+  type de document (DOCTYPE) est refusée, une entité non déclarée sous un DOCTYPE externe
+  échappant à la pré-lecture. Le produit lignes × colonnes coûte 8,3 octets par cellule et 140 par ligne
+  explicite (790 Mio pour 200 000 × 500, d'un fichier de 7,9 Ko) : les onglets lus sont bornés en
+  cumul à 200 000 lignes **et**
+  10 000 000 de cellules, comptées dans `bounded_rows` à mesure que les lignes arrivent ; le refus
+  vient donc après l'ouverture, la mémoire tenue dans la borne (≈ 105 Mio). Écarté : compter les
+  `<c>` à la pré-lecture, plus lent (10 à 30 %) et au risque d'un écart avec ce qu'openpyxl
+  matérialise. Toutes les bornes atteintes à la fois tiennent sous 330 Mio. Les tests de borne
+  mesurent la mémoire réelle d'un processus neuf (`VmHWM` depuis US-3190/L3 ; `ru_maxrss`, que
+  Linux garde à travers `exec`, sous-estimait, #4935) : `tracemalloc` ne voit pas libxml2 et
+  sous-estime les styles et les noms jusqu'à 2,4 fois. Les
+  bornes du lecteur MS Project (US-3180) hors celles de l'auteur : un entier de 18 chiffres au plus,
+  une durée d'un million d'heures au plus ; une constante d'unité (`MinutesPerDay`,
+  `MinutesPerWeek`, `DaysPerMonth`) strictement positive, sans borne haute (US-3180b, #4766).
 - **Le code d'un sous-projet à 100 caractères** (US-3270) : la reprise préfixe un code de 31
   caractères d'un code de projet de 50 et d'une barre oblique, soit 82. Écarté : 50, que la reprise
   dépasserait.
@@ -358,7 +527,7 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
 
 ## US-3170 — Un planning réimporté de MS Project rapproche ses tâches par la lignée d'abord, et n'adopte aucune tâche par coïncidence d'UID
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0040-A`
 - **opérations** : `openImport`, `getImport`, `applyImport`
 - **issue** : #4531
@@ -397,13 +566,17 @@ avec les tâches créées dans Waterfall. La numérotation d'une tâche ajoutée
 grand `UID` + 1 ») n'a pas été vérifiée dans MS Project lui-même : le scénario se rejoue à la
 recette de l'aller-retour, la correction n'en dépend pas.
 
+US-3170b (#4846, ajouté le 2026-11-24) porte la correction d'une instabilité de la file, sans
+lien avec cette US : le test d'arrêt de l'API d'EP-26 attend le démarrage de ses deux processus.
+Il est rattaché ici faute d'une US d'EP-33 qui porte ce test.
+
 **Hors périmètre.** Les bornes du lecteur (US-3180) ; le compte rendu périmé (US-3210).
 
 ---
 
 ## US-3180 — Le lecteur MS Project refuse un fichier hors bornes par le refus du format, et lit une tâche manuelle sans calendrier nommé
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0040-A`
 - **opérations** : `openImport`, `getImport`
 - **issue** : #4532
@@ -421,7 +594,8 @@ garde ses tâches manuelles à leurs dates, **afin de** savoir quoi corriger plu
   l'analyse sur `FILE_FORMAT_UNREADABLE`, `expected_format` à `ms_project_schedule`, sans que le
   moteur ne soit rejoué. De même une durée que le lecteur ne peut pas porter (`PT999…H`) et un
   entier au-delà de la borne de chiffres du lecteur, dont un `UID` que `external_id` ne garderait
-  pas. Aucun de ces fichiers ne finit en `INTERNAL_ERROR`, et aucun n'échoue après un compte rendu
+  pas, et une constante d'unité — `MinutesPerDay`, `MinutesPerWeek`, `DaysPerMonth` — nulle ou
+  négative (US-3180b, #4766). Aucun de ces fichiers ne finit en `INTERNAL_ERROR`, et aucun n'échoue après un compte rendu
   accepté.
 - `WF-INTF-0040-A` — « Après import, les tâches et leurs liaisons de prédécesseur — type FD, DD, FF ou DF, et décalage — sont identiques à celles du fichier source ; une tâche en mode manuel du fichier est en mode manuel aux mêmes dates ; une tâche portant une contrainte « Pas avant le » est en mode manuel et signalée ; une tâche à 50 % d'avancement est importée non démarrée ; aucune ressource et aucun calendrier présents dans le fichier n'a été créé dans Waterfall, et l'utilisateur est informé que ces éléments ont été ignorés. » : sa
   forme pour un fichier sans calendrier nommé : un fichier qui ne nomme pas le calendrier de son
@@ -445,7 +619,7 @@ quatrième valeur hostile de BEX-08, que `uploadFile` refuse avec sa permission 
 
 ## US-3190 — Un classeur téléversé est borné avant d'être ouvert, et son en-tête se lit hors du verrou du projet
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0070-A`
 - **opérations** : `openImport`, `getImport`, `applyImport`
 - **issue** : #4527
@@ -462,7 +636,7 @@ mémoire du service ni bloquer les saisies de tous (#4419).
   tailles décompressées que ses membres déclarent, ou le nombre de ses membres, passe la borne de
   la conception est refusé par `openImport`, 422 `FILE_FORMAT_UNREADABLE`, le format attendu nommé,
   sans avoir été ouvert par le lecteur de classeurs : éprouvé sur un classeur de 68 515 octets dont
-  un membre se décompresse en 64 Mio, et sur une archive dont un membre annonce 1 Gio, la mémoire du
+  un membre se décompresse en 64 Mio en annonçant moins (#4736), et sur une archive dont un membre annonce 1 Gio, la mémoire du
   processus ne montant pas. Les refus de version et de colonne exigée sont constatés par EP-07 et
   EP-09, inchangés.
 - `WF-INTF-0070-A` — « Le projet est inchangé. » : et rien n'est mis en file : aucun import n'est
@@ -475,14 +649,56 @@ mémoire du service ni bloquer les saisies de tous (#4419).
   le projet n'attend pas la lecture d'un classeur — éprouvé comme l'application l'est déjà
   (`test_imports_application.py`), pour l'ouverture.
 - propre à l'US : à l'analyse et à l'application, un lecteur ne matérialise que les onglets que son
-  format lit, et un onglet dont les lignes ou les colonnes passent la borne de la conception fait
-  échouer l'import sur `FILE_FORMAT_UNREADABLE`.
+  format lit, et un onglet du classeur, lu ou non, dont les lignes ou les colonnes passent la
+  borne de la conception fait échouer l'import sur `FILE_FORMAT_UNREADABLE` ; lignes et
+  cellules, vides comprises, se comptent avant l'ouverture, et un classeur de 13 705 octets dont
+  une ligne porte 2 000 000 de cellules vides est refusé sans que la mémoire du processus ne
+  monte (US-3190/L1b, #4734).
+- propre à l'US : les chaînes partagées (leur nombre, leurs runs, leur texte), les listes de
+  `styles.xml` et les noms définis d'un classeur ont chacun la borne de la conception, au-delà de
+  laquelle l'import échoue avant l'ouverture sur `FILE_FORMAT_UNREADABLE` ; le cumul des onglets
+  lus, 200 000 lignes et 10 000 000 de cellules, se compte à la lecture et fait échouer l'import
+  de même, après l'ouverture, sans que la mémoire réelle du processus ne passe la borne que le
+  test fixe (US-3190/L2b).
 
 **Notes de réalisation.** Un seul ouvreur commun aux classeurs, dans l'interface des échanges, à
 côté de l'analyseur XML durci : les trois sites d'ouverture (`estimate/excel/reader.py`,
 `estimate/remaining/excel/reader.py`, `costs/extraction.py`) passent par lui. Les valeurs des bornes
-sont de la conception. `zipfile` ne lit jamais plus que la taille déclarée d'un membre : la borne se
-juge sur `infolist()`, sans rien décompresser.
+sont de la conception. La borne se juge sur `infolist()`, et chaque membre est vérifié, par pas
+bornés, ne pas se décompresser au-delà de ce qu'il déclare : `ZipFile.read` décompresse un membre
+en entier avant de le couper (L1). La pré-lecture en flux des membres XML est d'US-3190/L1b
+(#4734) ; les bornes des autres vecteurs et le cumul des onglets lus sont d'US-3190/L2b, qui
+versionne ses scripts de mesure et sa fabrique de classeurs démesurés (des classeurs engendrés,
+ceux des tests et du témoin, aucun autre). US-3190b (#4862, ajouté le 2026-11-24) borne en plus
+les éléments des membres qu'openpyxl lit en arbre, hors des onglets et de `sharedStrings.xml` :
+1 100 000 au total. Décisions de l'auteur du 2026-11-25 (questions d'US-3190b) : le critère « un
+`styles.xml` au maximum d'Excel passe » se lit liste par liste. Chaque liste à sa borne, avec des
+items comme Excel les écrit, passe. Toutes les listes riches pleines à la fois, qu'aucun fichier
+réel ne porte (≈ 1 600 000 éléments), ne passent pas. La borne, d'abord de 1 000 000, est relevée
+pour la liste la plus lourde : 65 490 `dxf` de 16 éléments, soit 1 047 935 éléments.
+
+US-3190/L3 (#4914, #4915, #4935) borne ensuite les octets des membres lus en arbre et les éléments
+étrangers, sur la mesure (processus neuf, `VmHWM`). Décisions de l'auteur du 2026-11-25, après
+mesure : la liste `dxfs` riche à 65 490 entrées coûte à elle seule 484 Mio, et l'objectif de
+mémoire l'emporte. Aucun classeur accepté ne dépasse 192 Mio de crête pour une lecture. Les membres
+lus en arbre sont bornés à 7,5 Mio décompressés (option A). Le critère d'US-3190b est amendé :
+chaque liste riche passe à sa borne, ramenée au besoin, et celle de `dxfs` descend à 22 000 (le
+témoin en a 5). La borne de 1 100 000 éléments reste, pour les petits éléments. Les éléments
+étrangers sont bornés à 100 000 au total (option F1), comptés sur tous les onglets, lus ou non, et
+sous `<sst>`. Dans un onglet, est étranger tout ce qui est hors des `row` de `sheetData` et de
+leurs `c` ; sous `<sst>`, tout ce qui n'est ni un `si` ni dans un `si`. Les descendants d'une `c`
+ont une borne par ligne (65 536), car `v` et `f` atteignent légitimement 20 000 000 à la borne des
+cellules. Écartée : 24 Mio, qui garde la liste `dxfs` d'Excel mais annonce ≈ 512 Mio par lecture.
+Les bornes tiennent liste par liste, mais la mesure a trouvé d'autres vecteurs : des combinaisons
+de listes (≈ 205 Mio), puis des attributs qu'aucune borne ne comptait (28 000 `<b/>` à 52 attributs
+vides : 342 Mio). Une borne calculée à l'avance ne garantit pas une crête exacte, car la mémoire
+dépend de la façon dont libxml2 et openpyxl représentent chaque construction. Décision de l'auteur
+du 2026-11-25 : chaque attribut compte comme un élément dans la borne de 1 100 000, et l'objectif
+est redit, ≈ 192 Mio par vecteur borné, au plus ≈ 220 Mio pour les combinaisons. Les bornes sont
+une défense en profondeur ; la garantie dure, une lecture sous une limite de mémoire imposée par
+le système, est reportée à EP-39 (#4946). Écartés : un budget commun des listes, des éléments et
+des octets, sous un plafond mesuré (il comptait deux fois les items et ignorait les attributs), une
+borne d'octets abaissée, et un modèle linéaire en Mio (lié au coût par objet d'openpyxl).
 
 **Hors périmètre.** La limite de mémoire du service dans le chart (EP-13, EP-39) ; la colonne
 absente d'un onglet (US-3200).
@@ -491,7 +707,7 @@ absente d'un onglet (US-3200).
 
 ## US-3200 — Un devis ou un reste à engager dont un onglet a perdu une colonne lue est refusé, colonnes nommées
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0070-A`, `WF-INTF-0120-A`
 - **opérations** : `openImport`
 - **issue** : #4530
@@ -530,7 +746,9 @@ mises à jour ordinaires (#4421).
 Écarté : rejeter au compte rendu chaque ligne de l'onglet, qui rend des milliers de rejets pour une
 seule cause. Les deux lecteurs calculent déjà `missing_headers` et `unread_sheets`, que rien ne
 lit ; la liste des colonnes dont l'absence refuse le fichier est celle de #4421, que la conception
-arrête. La lecture des en-têtes de tous les onglets se fait dans l'étape hors verrou d'US-3190.
+arrête, étendue le 2026-11-23 aux deux clés d'un onglet de lignes, « Tâche » et « Rôle ou
+catégorie » : un onglet qui porte au moins un en-tête lu du format sans elles est refusé, un onglet
+sans aucun en-tête lu reste ignoré (US-3200b, #4784). La lecture des en-têtes de tous les onglets se fait dans l'étape hors verrou d'US-3190.
 
 **Hors périmètre.** Les colonnes d'une extraction de coûts réels, déjà refusées (EP-09).
 
@@ -538,7 +756,7 @@ arrête. La lecture des en-têtes de tous les onglets se fait dans l'étape hors
 
 ## US-3210 — Un import ne s'applique que sur la structure que son compte rendu a lue
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ARC-0100-A`, `WF-INTF-0080-A`
 - **opérations** : `applyImport`, `getImport`, `openImport`, `setImportDurationRule`
 - **issue** : #4533
@@ -598,7 +816,7 @@ de confirmation (`Confirmed`), que le compteur rend sans objet sans la contredir
 
 ## US-3220 — L'import d'un devis retire les lignes absentes du fichier dans l'écriture qui pose les autres
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0100-A`
 - **opérations** : `applyImport`
 - **issue** : #4534
@@ -637,7 +855,7 @@ préalable ; ni test de durée ni mesure aux volumes dans ce lot — EP-13 (US-2
 
 ## US-3230 — L'import du reste à engager termine une tâche selon la spécification 1.0.7, et annonce le montant qu'il écrit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0120-A`
 - **opérations** : `openImport`, `getImport`, `applyImport`
 - **issue** : #4535
@@ -680,7 +898,8 @@ attendue. Pour #4428, décision de l'auteur du 2026-11-21 : dire l'écart au com
 étant de la conception. Écartés : ramener la quantité à 1, que la Conception d'EP-09 a déjà écartée ;
 ne corriger que la phrase. La phrase de la décision #2797 dans le fichier d'EP-09 (« Le débours d'une
 tâche à cheval sur deux années rend le montant saisi ») est corrigée par la pull request de ce
-cadrage.
+cadrage. US-3230b (#4849, ajouté le 2026-11-23) : l'application lit en une fois les compteurs des
+lignes qui terminent leur tâche, sur le modèle de BCH-05.
 
 **Hors périmètre.** L'export du reste à engager d'une révision marquée au taux du jour (BCH-08,
 #4441, EP-35).
@@ -689,7 +908,7 @@ cadrage.
 
 ## US-3240 — Déposer un fichier demande une permission d'import, et un compte ne garde pas plus de vingt dépôts en attente
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0020-A`, `WF-DAT-0120-A`
 - **opérations** : `uploadFile`
 - **issue** : #4536
@@ -722,7 +941,9 @@ remplisse pas le stockage objet, qui porte aussi les sauvegardes (#4423).
 dépôts en attente par compte (200 Mio). Écarté : la permission seule, qui laisse la boucle à un
 compte habilité. La forme du refus du plafond (son code et son statut) est de la conception. Le
 plafond se juge avant l'écriture au stockage, que la route fait aujourd'hui avant d'enregistrer le
-dépôt.
+dépôt. US-3240b (#4850, ajouté le 2026-11-23) : à l'abandon d'un import, et à sa suppression par
+la purge, le dépôt qu'il employait est marqué échu dans la même transaction ; un dépôt employé une
+fois ne redevient jamais libre (WF-DAT-0120), ni pour `openImport` ni pour le plafond.
 
 **Hors périmètre.** Le dépôt par morceaux d'une sauvegarde, déjà sous `platform_restore` ; la
 qualité de contributeur, que `openImport` juge sur son projet.
@@ -731,7 +952,7 @@ qualité de contributeur, que `openImport` juge sur son projet.
 
 ## US-3250 — Les comptes rendus d'import : supprimés à l'échéance et à l'abandon, listés sans leur contenu, lisibles sans leur tâche
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DAT-0080-A`, `WF-ARC-0100-A`
 - **opérations** : `listImports`, `getImport`, `abandonImport`
 - **issue** : #4524
@@ -780,13 +1001,15 @@ colonne `report`, qui amendait la spécification ; supprimer après la rétentio
 À livrer avant la fusion d'EP-13, dont la purge supprime les tâches de trente jours.
 
 **Hors périmètre.** La purge des tâches de fond elle-même (EP-13, US-2830) ; le dépôt qu'une
-restauration désigne (#4471, EP-39) ; le fichier d'un import emporté par une cascade (#4331, EP-08).
+restauration désigne (#4471, EP-39) ; le fichier d'un import emporté par une cascade (#4331, EP-08),
+qui part au balayage de la purge. Son dépôt, lui, échoit dans la transaction de la cascade :
+US-3250/L2b (#4885, ajouté le 2026-11-24).
 
 ---
 
 ## US-3260 — Une panne passagère du stockage laisse l'import à reprendre, au lieu de le faire échouer pour de bon
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-EXP-0040-A`
 - **opérations** : `openImport`, `applyImport`, `getImport`
 - **issue** : #4537
@@ -820,7 +1043,7 @@ la branche d'EP-13, pour ne pas toucher le même fichier.
 
 ## US-3270 — L'élément d'OTP d'une ligne de coût se compare en entier, et le code d'un sous-projet est libre
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-CRE-0020-A`, `WF-PRJ-0050-A`
 - **opérations** : `openImport`, `getImport`, `applyImport`, `createProject`, `updateProject`,
   `createSubproject`, `updateSubproject`, `listSubprojects`, `listActualCosts`, `requestExport`
@@ -877,6 +1100,13 @@ laissait « à dire » ; écartés : les garder imputées au seul projet, ou gar
 à la création. La migration touche des données saisies : elle dit ce qu'elle supprime dans son
 journal, par projet.
 
+US-3270/L3b (ajouté le 2026-11-24) : le rejet `UNKNOWN_SUBPROJECT` porte le code lu en tête
+(#4898), le code du sous-projet se tronque dans l'écran des coûts réels (#4896), et le guide Python
+reçoit la variante « règle de comparaison écrite deux fois » (#4899). US-3270/L6 (ajouté le
+2026-11-25) : l'entrée `ghcr.io` assume le push (#4916), et les exemples du reste à engager
+numérotent leurs lignes depuis la ligne 3 (#4919). US-3270/L6b (ajouté le 2026-11-25) : git ignore
+les fichiers de couverture parallèles du back (#4929).
+
 **Hors périmètre.** L'export du devis selon l'annexe B (#4399, EP-31) ; les noms d'onglet du devis
 (#3371), que le nom tiré du code règle pour le reste à engager.
 
@@ -884,7 +1114,7 @@ journal, par projet.
 
 ## US-3280 — L'écran des imports : l'application échouée ou refusée, le formulaire pendant un envoi, la zone de dépôt, un long compte rendu
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0080-A`, `WF-INTF-0080-A`
 - **opérations** : `uploadFile`, `openImport`, `getImport`, `listImports`, `applyImport`,
   `abandonImport`, `setImportDurationRule`
@@ -936,3 +1166,49 @@ vont dans `exchanges.dom.test.tsx` et `project-start.dom.test.tsx`.
 
 **Hors périmètre.** Les messages des refus nouveaux du contrat, que leur US ajoute au catalogue
 (US-3200, US-3210, US-3240) ; la refonte des écrans (EP-37).
+
+---
+
+## US-3640 — Le devis et le reste à engager exportés s'affichent justes sans recalcul, et le devis ne porte de colonne d'heures que pour les codes de ses rôles
+
+- **statut** : fini
+- **exigences** : `WF-INTF-0110-A`, `WF-INTF-0130-A`
+- **opérations** : `requestExport`
+- **issue** : #4730
+
+**En tant que** chef de projet, **je veux** que le classeur du devis ou du reste à engager que
+j'exporte montre ses montants et ses totaux dès son ouverture, dans un tableur qui ne recalcule pas
+ou dans un aperçu, et que l'onglet « Devis » ne porte une colonne d'heures que pour un code que l'un
+de mes rôles peut remplir, **afin de** diffuser le fichier sans qu'il se lise à zéro, et de ne pas
+chercher mes heures parmi cent cinquante colonnes vides (#4317, #4319).
+
+**Critères d'acceptation.**
+
+- propre à l'US (#4317) : relu sans recalcul (`openpyxl`, `data_only=True`), chaque cellule calculée
+  d'une ligne exportée du devis — Nature, Code comptable, Service, Taux horaire, Type, Heures
+  totales, Main-d'œuvre, Débours, Montant, Description de la tâche — porte la valeur que sa formule
+  rend, chaque « Montant » égal au « Montant Waterfall » ; une ligne préparée vide porte la valeur
+  vide que sa formule rend, non 0 ; la ligne de totaux de chaque onglet, les onglets « Devis » et
+  « Présentation » portent les leurs. Les formules restent : le classeur modifié dans un tableur se
+  recalcule.
+- propre à l'US (#4317) : le classeur du reste à engager, relu de même, porte la valeur de chacune de
+  ses cellules calculées et de ses totaux.
+- propre à l'US (#4319) : l'onglet « Devis » porte une colonne « Heures <code> » par code comptable
+  des rôles de « Paramètres », dans l'ordre des codes, et aucune pour un code qu'aucun rôle ne
+  porte : un référentiel de cinq rôles sur deux codes et de cent cinquante catégories de
+  main-d'œuvre donne deux colonnes. La « Synthèse » du reste à engager, qui ventile ses jours par
+  code comptable, suit le même domaine si elle a le même défaut.
+- écart : `WF-INTF-0110-A` — « On exporte un devis, puis on le réimporte sans modification dans la révision en cours. Le compte rendu (WF-INTF-0080) ne signale aucun écart, et les lignes obtenues sont identiques. » : constaté par EP-07 ; le test d'aller-retour
+  existant reste au vert avec les valeurs écrites et les colonnes réduites.
+- écart : `WF-INTF-0130-A` — « Même critère d'aller-retour que WF-INTF-0110. » : constaté par EP-09 ; idem.
+
+**Notes de réalisation.** Les propositions de #4317 et de #4319, retenues par l'utilisateur le
+2026-11-20, font foi : écrire avec chaque formule la valeur que Waterfall connaît déjà
+(`write_formula` avec sa valeur, `total_value` à côté de `total_function`), dans
+`core/estimate/excel/writer.py` et `core/estimate/remaining/excel/writer.py` ; prendre pour domaine
+des colonnes d'heures les codes comptables des rôles (`_summary_columns`). Écarté : forcer le
+recalcul au chargement, que LibreOffice, Excel en mode protégé et les aperçus ignorent.
+
+**Hors périmètre.** La refonte de l'export selon l'annexe B de la spécification 1.0.8 — « Devis »
+allégé, onglet « Heures », heures dans « Présentation » (#4399, EP-31), sous laquelle le même domaine
+des rôles fonde les lignes de l'onglet « Heures ».

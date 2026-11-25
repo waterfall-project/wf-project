@@ -52,6 +52,7 @@ from waterfall.core.resource_settings.interface import (
     RoleWindow,
     create_role,
     list_roles,
+    lock_reference,
     set_role_activation,
     update_role,
 )
@@ -342,6 +343,9 @@ def patch_resource_role(
     """Change a role, never its node: its category and its calendar towards active ones."""
     node_sent_null(body)
     category_id = body.cost_category_id.root
+    # The reference before the natures, which a change of category shares: the order of a change
+    # of a category (``update_cost_category``), which ``update_role`` takes again (US-3320).
+    lock_reference(session)
     change = RoleChange(
         body.code,
         body.label,

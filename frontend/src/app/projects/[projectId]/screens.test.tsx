@@ -450,8 +450,8 @@ describe("the settings of a project", () => {
     expect(page).toMatch(/<h2[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Subprojects<\/h2>/);
     expect(rows(page, "Subprojects")).toEqual([
       "ERP code Label Actual costs Modify Delete",
-      `SP-CMD Poste de commande Charged Modify Delete ${undeletable}`,
-      `SP-ESS Essais et mise en service Charged Modify Delete ${undeletable}`,
+      `PRJ-001/SP-CMD Poste de commande Charged Modify Delete ${undeletable}`,
+      `PRJ-001/SP-ESS Essais et mise en service Charged Modify Delete ${undeletable}`,
       "2 subprojects",
     ]);
     expect(sortable(page, "Subprojects")).toEqual(["ERP code", "Label", "Actual costs"]);
@@ -586,8 +586,8 @@ describe("the settings of a project", () => {
     );
     // A sub-project charged with actual costs no longer deletes: its deletion says why. Both are,
     // the tests and commissioning by the invoices of the drawn tasks of its lots (EP-14/L45a).
-    expect(page).toMatch(/aria-label="Delete “SP-CMD”"[^>]*aria-disabled="true"/);
-    expect(page).toMatch(/aria-label="Delete “SP-ESS”"[^>]*aria-disabled="true"/);
+    expect(page).toMatch(/aria-label="Delete “PRJ-001\/SP-CMD”"[^>]*aria-disabled="true"/);
+    expect(page).toMatch(/aria-label="Delete “PRJ-001\/SP-ESS”"[^>]*aria-disabled="true"/);
     expect(text(page)).toContain(
       "Proposed from the roles of the estimate, to be confirmed: Sacha Lefèvre.",
     );
@@ -916,6 +916,6 @@ describe("the lists of a project", () => {
         subprojects={subproject === undefined ? [] : [{ ...subproject, has_actual_costs: true }]}
       />,
     );
-    expect(text(page)).toContain("SP-CMD Poste de commande Charged");
+    expect(text(page)).toContain("PRJ-001/SP-CMD Poste de commande Charged");
   });
 });

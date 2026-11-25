@@ -13,7 +13,7 @@ too, but the most precise code wins: it is refused first, as `LINK_FORBIDDEN`.
 """
 
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 from waterfall.core.planning.scheduling.structure import (
@@ -36,6 +36,11 @@ FINISH: End = "finish"
 ENDS: tuple[End, End] = (START, FINISH)
 
 
+def _no_leaves() -> dict[UUID, tuple[UUID, ...]]:
+    """Return the leaves a plan has found before any is asked: none."""
+    return {}
+
+
 @dataclass(frozen=True, slots=True)
 class Plan:
     """The hierarchy and the links of a structure, each list in the order of the plan."""
@@ -45,6 +50,9 @@ class Plan:
     parents: dict[UUID, UUID]
     incoming: dict[UUID, list[Link]]
     outgoing: dict[UUID, list[Link]]
+    _leaves: dict[UUID, tuple[UUID, ...]] = field(
+        default_factory=_no_leaves, init=False, repr=False, compare=False
+    )
 
     def ancestors(self, task_id: UUID) -> list[UUID]:
         """Return the summaries of a task, from the nearest up."""
@@ -61,9 +69,21 @@ class Plan:
             found.extend(self.below(child))
         return found
 
-    def leaves(self, task_id: UUID) -> list[UUID]:
-        """Return the tasks without subordinates a task spans: itself when it has none."""
-        return [each for each in self.below(task_id) if each not in self.children]
+    def leaves(self, task_id: UUID) -> tuple[UUID, ...]:
+        """Return the tasks without subordinates a task spans, in the order of the plan.
+
+        Itself when it has none. Kept once found: the backward pass reads those of the successor of
+        each link, and of each summary above them (#4414).
+        """
+        found = self._leaves.get(task_id)
+        if found is None:
+            children = self.children.get(task_id)
+            if children is None:
+                found = (task_id,)
+            else:
+                found = tuple(leaf for child in children for leaf in self.leaves(child))
+            self._leaves[task_id] = found
+        return found
 
 
 def plan_of(structure: Structure) -> Plan:

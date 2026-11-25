@@ -1,14 +1,14 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Tests of the client of a project and of the bounded code of a subproject (EP-16/US-0610).
+"""Tests of the client of a project and of the free code of a subproject (EP-16/US-0610, #3966).
 
 They try the contract and its examples: the client every reading of a project bears, the code of
-a declared subproject that names its tab in the file of the remaining to commit — at most 31
-characters, none of the characters a tab refuses (FORBIDDEN), neither « Synthèse » nor « Hors
-sous-projet », whatever the case —, the refusal of a code that would not, and every code of the
-witness under that bound. Not the Vérif of a requirement: WF-PRJ-0080-A and WF-PRJ-0050-A are
-closed by the service, EP-04, and the exported estimate, EP-07; none is cited (WF-QUA-0010, « un
-test qui ne couvre aucune exigence »).
+a declared subproject — at most 100 characters, never blank, free otherwise since the
+specification 1.0.7, a slash, a character a tab refuses and the name of a tab Waterfall writes
+included (#3966) —, the refusal of a code too long, and every code of the witness under that
+bound. Not the Vérif of a requirement: WF-PRJ-0080-A and WF-PRJ-0050-A are closed by the service,
+EP-04 and US-3270, and the exported estimate, EP-07; none is cited (WF-QUA-0010, « un test qui ne
+couvre aucune exigence »).
 """
 
 import json
@@ -25,14 +25,9 @@ type Entry = dict[str, Any]
 API = REPOSITORY / "docs" / "api"
 SCHEMAS = API / "components" / "schemas"
 
-LONGEST_CODE = 31
-"""The most characters the code of a declared subproject holds, the most a tab of Excel holds."""
-FORBIDDEN = ":\\/?*[]"
-"""The characters a tab of Excel refuses, which the code of a subproject may not bear."""
-RESERVED = ("Synthèse", "Hors sous-projet")
-"""The two tabs Waterfall names in the file of the remaining to commit (ANNEXE B)."""
-LONGEST_READ = 50
-"""The bound the code read in the WBS element of an actual cost line keeps (WF-CRE-0020)."""
+LONGEST_CODE = 100
+"""The most characters the code of a declared subproject holds: enough for the code of a project,
+a slash and a former code (#3966)."""
 LONGEST_CLIENT = 300
 """The most characters the name of the client holds, as the label of a project."""
 CLIENT = "Papeteries de la Vienne"
@@ -91,32 +86,34 @@ def test_the_reading_and_the_writes_of_a_subproject_share_the_bounded_code() -> 
     assert schemas["SubprojectWrite"]["properties"]["code"] == {"$ref": "#/DeclaredSubprojectCode"}
     # The update is the write and its counter.
     assert schemas["SubprojectUpdate"]["allOf"][0] == {"$ref": "#/SubprojectWrite"}
-    assert (_code()["minLength"], _code()["maxLength"]) == (1, LONGEST_CODE)
+    assert (_code()["minLength"], _code()["maxLength"], _code()["pattern"]) == (
+        1,
+        LONGEST_CODE,
+        "\\S",
+    )
+
+
+@pytest.mark.parametrize("code", ["x" * (LONGEST_CODE + 1), "", "   "])
+def test_a_code_too_long_or_blank_is_refused_by_the_contract(code: str) -> None:
+    assert not _accepted(code)
 
 
 @pytest.mark.parametrize(
     "code",
     [
-        "SP/01",
+        "SP-CMD",
+        "A.ABC.26001/10001",
         "Synthèse",
-        "SYNTHÈSE",
-        "synthèse",
         "Hors sous-projet",
-        "HORS SOUS-PROJET",
-        "x" * (LONGEST_CODE + 1),
-        "",
-        "   ",
-        *(f"SP{character}01" for character in FORBIDDEN),
+        "x" * 40,
+        "x" * LONGEST_CODE,
+        "SP 01",
+        *(f"SP{character}01" for character in ":\\/?*[]"),
     ],
 )
-def test_a_code_that_cannot_name_a_tab_is_refused_by_the_contract(code: str) -> None:
-    assert not _accepted(code)
-
-
-@pytest.mark.parametrize(
-    "code", ["SP-CMD", "SP-ESS", "x" * LONGEST_CODE, "Synthese", "Synthèse 2", "Hors lot", "SP 01"]
-)
-def test_a_code_that_names_a_tab_is_accepted_by_the_contract(code: str) -> None:
+def test_a_free_code_is_accepted_by_the_contract(code: str) -> None:
+    # « Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de quarante caractères se
+    # crée » (WF-PRJ-0050-A, specification 1.0.7): the contract no longer refuses what a tab would.
     assert _accepted(code)
 
 
@@ -129,69 +126,33 @@ def test_every_subproject_code_of_the_witness_respects_the_bound() -> None:
         for entry in _walk(example)
         if keys <= entry.keys()
     }
-    assert {"SP-CMD", "SP-ESS"} <= codes
+    assert codes
     assert all(_accepted(code) for code in codes), codes
 
 
-def test_the_code_read_in_an_actual_cost_line_keeps_its_own_bound() -> None:
+def test_the_code_of_an_actual_cost_line_is_bounded_as_that_of_a_subproject() -> None:
+    # The code of the subproject the line is charged to, null for the project alone (#3966).
     line = _schemas("costs.yaml")["ActualCostLine"]["properties"]["subproject_code"]
     [text, _null] = line["anyOf"]
-    assert text == {"type": "string", "maxLength": LONGEST_READ}
-    assert "keeps its bound of 50 characters" in " ".join(line["description"].split())
+    assert text == {"type": "string", "maxLength": LONGEST_CODE}
 
 
 def test_a_code_refused_names_its_motive_and_its_parameter() -> None:
     said = " ".join(_code()["description"].split())
-    assert "`VALUE_TOO_LONG`, `fields[].params.max_length` at `31`" in said
-    assert "`SUBPROJECT_CODE_INVALID`, `fields[].params.forbidden_characters`" in said
-    assert "`SUBPROJECT_CODE_INVALID`, `fields[].params.reserved_name`" in said
+    assert "`VALUE_TOO_LONG`, `fields[].params.max_length` at `100`" in said
+    equal = "equal to the code of the project, compared whole, with `SUBPROJECT_CODE_INVALID`"
+    assert equal in said
     common = yaml.safe_load((API / "components" / "common.yaml").read_text(encoding="utf-8"))
     assert "SUBPROJECT_CODE_INVALID" in common["ErrorCode"]["enum"]
     for operation in ("createSubproject", "updateSubproject"):
         answer = " ".join(_answer(operation, "422").split())
-        assert "`SUBPROJECT_CODE_INVALID`" in answer, operation
-        assert "`fields[].params.max_length` at `31`" in answer, operation
-        assert "subproject_code_invalid.json" in answer, operation
-
-
-def test_the_refusal_of_a_forbidden_character_names_the_characters_the_code_bears() -> None:
-    example = json.loads(
-        (mockwitness.FIXTURES / "subproject_code_invalid.json").read_text(encoding="utf-8")
-    )
-    refused = example["value"]
-    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
-    [field] = refused["fields"]
-    assert (field["pointer"], field["code"]) == ("/code", "SUBPROJECT_CODE_INVALID")
-    sent = "SP/01"
-    assert sent in example["summary"]
-    assert not _accepted(sent)
-    assert field["params"] == {
-        "forbidden_characters": [each for each in dict.fromkeys(sent) if each in FORBIDDEN]
-    }
-
-
-def test_the_refusal_of_a_reserved_name_names_it_as_waterfall_writes_it() -> None:
-    # Its twin for the reserved names (#1507): the code of the summary, written in another case, is
-    # refused all the same, and the name is given as Waterfall writes its tab.
-    example = json.loads(
-        (mockwitness.FIXTURES / "subproject_code_reserved.json").read_text(encoding="utf-8")
-    )
-    refused = example["value"]
-    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
-    [field] = refused["fields"]
-    assert (field["pointer"], field["code"]) == ("/code", "SUBPROJECT_CODE_INVALID")
-    sent = "synthèse"
-    assert f"« {sent} »" in example["summary"]
-    assert not _accepted(sent)
-    assert field["params"] == {"reserved_name": "Synthèse"}
-    named = field["params"]["reserved_name"]
-    assert named.casefold() == sent.casefold()
-    assert named != sent
-    for operation in ("createSubproject", "updateSubproject"):
-        answer = " ".join(_answer(operation, "422").split())
-        assert "code_reserved: { $ref: ../../../fixtures/api/subproject_code_reserved.json }" in (
-            answer
-        ), operation
+        assert "`SUBPROJECT_CODE_INVALID`, without a parameter" in answer, operation
+        assert "`fields[].params.max_length` at `100`" in answer, operation
+        assert "subproject_code_of_project.json" in answer, operation
+    # A project recoded to the code of one of its subprojects is refused likewise.
+    answer = " ".join(_answer("updateProject", "422").split())
+    assert "`SUBPROJECT_CODE_INVALID`, without a parameter" in answer
+    assert "project_code_of_subproject.json" in answer
 
 
 # --- The client of a project ---------------------------------------------------------------------

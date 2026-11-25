@@ -9,6 +9,13 @@ reads (``ImportReport.ignored``, WF-INTF-0040). A file it cannot read raises
 ``UnreadableProjectError``, which the format turns into its refusal: not well formed, not a
 ``Project`` of MSPDI, a value that is not of its type, a tree whose outline levels skip one, two
 tasks of one unique identifier, a link to a task the file does not carry.
+
+It refuses so a file beyond its bounds too (US-3180), so that a hostile value is the refusal of the
+format and not an error of the engine or of the database: more than 10 000 tasks — ten times the
+volume of §4.6.2 — or than 50 outline levels, which the engine recurses through; an integer of more
+than 18 digits, so that a unique identifier of 19 characters at most fits ``external_id`` and no
+computation on an integer overflows; a duration of more than a million hours, which a ``timedelta``
+holds.
 """
 
 import re
@@ -47,8 +54,15 @@ DURATION = re.compile(
     r"P(?:(?P<D>\d+(?:\.\d+)?)D)?"
     r"(?:T(?:(?P<H>\d+(?:\.\d+)?)H)?(?:(?P<M>\d+(?:\.\d+)?)M)?(?:(?P<S>\d+(?:\.\d+)?)S)?)?"
 )
-INTEGER = re.compile(r"-?[0-9]+")
 MICROSECONDS = {"D": 86_400_000_000, "H": 3_600_000_000, "M": 60_000_000, "S": 1_000_000}
+
+# The bounds of a file the reader reads (EP-33, US-3180): those of the author, the tasks and the
+# levels; those of the design, the digits of an integer and the hours of a duration.
+MOST_TASKS = 10_000
+MOST_LEVELS = 50
+MOST_DIGITS = 18
+MOST_HOURS = 1_000_000
+INTEGER = re.compile(rf"-?[0-9]{{1,{MOST_DIGITS}}}")
 
 # The calendar a task does not have: MS Project writes ``-1`` for it, and for a calendar without
 # a base.
@@ -62,21 +76,26 @@ PROJECT_SUMMARY_UID = 0
 def read_project(content: bytes) -> ReadProject:
     """Read a planning of MS Project, and what it carries besides, from its MSPDI file."""
     root = parse(content)
+    users = _users(root, "Tasks", "Task")
+    # Counted before any task is read: a file beyond the bound costs no model of its tasks.
+    if len(users) > MOST_TASKS:
+        raise UnreadableProjectError(element="Tasks")
     lineage_field = _lineage_field(root)
-    tasks = tuple(_task(element, lineage_field) for element in _users(root, "Tasks", "Task"))
+    tasks = tuple(_task(element, lineage_field) for element in users)
     _check_tree(tasks)
     project = MsProject(
         start=_datetime(root, "StartDate"),
         name=root.text_of("Name"),
         currency_code=root.text_of("CurrencyCode"),
         calendar_uid=_calendar_uid(root, "CalendarUID"),
-        minutes_per_day=_integer(root, "MinutesPerDay"),
-        minutes_per_week=_integer(root, "MinutesPerWeek"),
-        days_per_month=_integer(root, "DaysPerMonth"),
+        minutes_per_day=_divisor(root, "MinutesPerDay"),
+        minutes_per_week=_divisor(root, "MinutesPerWeek"),
+        days_per_month=_divisor(root, "DaysPerMonth"),
         calendars=tuple(_calendar(element) for element in _every(root, "Calendars", "Calendar")),
         tasks=tasks,
+        lineage_declared=_lineage_declared(root, users),
     )
-    return ReadProject(project, _ignored(root, project))
+    return ReadProject(project, _ignored(root, users, project))
 
 
 def _every(root: Tag, collection: str, name: str) -> list[Tag]:
@@ -101,15 +120,24 @@ def _value(element: Tag, name: str) -> str | None:
 
 
 def _integer(element: Tag, name: str) -> int | None:
-    """Return a child read as an integer."""
+    """Return a child read as an integer, of 18 digits at most."""
     value = _value(element, name)
     if value is None:
         return None
     # ``int()`` would take ``1_0`` and the digits of other scripts: an integer of the schema is
-    # an optional minus and ASCII digits.
+    # an optional minus and ASCII digits. Bounded to 18 digits, a ``UID`` of 19 characters at most
+    # fits ``external_id`` (200 characters) and no computation on it overflows.
     if INTEGER.fullmatch(value) is None:
         raise UnreadableProjectError(name)
     return int(value)
+
+
+def _divisor(element: Tag, name: str) -> int | None:
+    """Return a constant of unit of the project, positive: the conversions divide by it."""
+    value = _integer(element, name)
+    if value is not None and value <= 0:
+        raise UnreadableProjectError(name)
+    return value
 
 
 def _required(element: Tag, name: str) -> int:
@@ -176,16 +204,26 @@ def _calendar_uid(element: Tag, name: str) -> int | None:
 
 
 def _duration(element: Tag, name: str) -> timedelta | None:
-    """Return a child read as an ``xsd:duration``, in exact microseconds."""
+    """Return a child read as an ``xsd:duration``, in microseconds: a million hours at most."""
     value = _value(element, name)
     if value is None:
         return None
     match = DURATION.fullmatch(value)
     if match is None or value.endswith(("P", "T")):
         raise UnreadableProjectError(name)
-    microseconds = sum(
-        Decimal(amount) * MICROSECONDS[part] for part, amount in match.groupdict().items() if amount
-    )
+    most = MOST_HOURS * MICROSECONDS["H"]
+    amounts = [
+        (Decimal(amount), MICROSECONDS[part])
+        for part, amount in match.groupdict().items()
+        if amount
+    ]
+    # A part beyond the bound in microseconds is beyond it in its unit: refused before a product
+    # of thousands of digits overflows the context of the decimals.
+    if any(amount > most for amount, _ in amounts):
+        raise UnreadableProjectError(name)
+    microseconds = sum(amount * unit for amount, unit in amounts)
+    if microseconds > most:
+        raise UnreadableProjectError(name)
     return timedelta(microseconds=int(microseconds))
 
 
@@ -225,6 +263,41 @@ def _lineage_field(root: Tag) -> str | None:
     return None
 
 
+def _lineage_declared(root: Tag, users: list[Tag]) -> bool:
+    """Tell whether the file defines the field of the lineages, by its alias or by its identifier.
+
+    The alias is the export's own. The identifier alone is ``Text1``, which users alias for their
+    own ends: it declares the lineages only if a task carries an identifier in it, as ``_lineage``
+    reads it, so that a file of another tool aliasing ``Text1`` is not taken for an export.
+    """
+    definitions = _every(root, "ExtendedAttributes", "ExtendedAttribute")
+    if any(_value(definition, "Alias") == LINEAGE_ALIAS for definition in definitions):
+        return True
+    if not any(_value(definition, "FieldID") == LINEAGE_FIELD_ID for definition in definitions):
+        return False
+    return any(_field_lineage(element, LINEAGE_FIELD_ID) is not None for element in users)
+
+
+def _field_lineage(element: Tag, lineage_field: str | None) -> UUID | None:
+    """Return the identifier a task carries in the custom field of the lineages, if it does."""
+    for attribute in element.every("ExtendedAttribute"):
+        field_id = _value(attribute, "FieldID")
+        lineage = _uuid(_value(attribute, "Value"))
+        if field_id is not None and field_id in {lineage_field, LINEAGE_FIELD_ID} and lineage:
+            return lineage
+    return None
+
+
+def _uuid(value: str | None) -> UUID | None:
+    """Return the identifier a text spells, or nothing."""
+    if value is None:
+        return None
+    try:
+        return UUID(value)
+    except ValueError:
+        return None
+
+
 def _lineage(element: Tag, lineage_field: str | None) -> UUID | None:
     """Return the lineage of a task: its custom field of the export, else its ``GUID``.
 
@@ -234,19 +307,7 @@ def _lineage(element: Tag, lineage_field: str | None) -> UUID | None:
     A value that is not an identifier, typed by hand in MS Project, is no lineage: the task is
     matched as one the file creates.
     """
-    values = [
-        _value(attribute, "Value")
-        for attribute in element.every("ExtendedAttribute")
-        if (field_id := _value(attribute, "FieldID")) is not None
-        and field_id in {lineage_field, LINEAGE_FIELD_ID}
-    ]
-    for value in [*values, _value(element, "GUID")]:
-        if value is not None:
-            try:
-                return UUID(value)
-            except ValueError:
-                continue
-    return None
+    return _field_lineage(element, lineage_field) or _uuid(_value(element, "GUID"))
 
 
 def _link(element: Tag) -> PredecessorLink:
@@ -295,10 +356,10 @@ def _task(element: Tag, lineage_field: str | None) -> MsTask:
 
 
 def _check_tree(tasks: tuple[MsTask, ...]) -> None:
-    """Refuse a tree whose levels skip one, a unique identifier twice, a link to no task."""
+    """Refuse levels that skip one or pass 50, a unique identifier twice, a link to no task."""
     level = 0
     for task in tasks:
-        if not 1 <= task.outline_level <= level + 1:
+        if not 1 <= task.outline_level <= min(level + 1, MOST_LEVELS):
             raise UnreadableProjectError(element="OutlineLevel")
         level = task.outline_level
     uids = {task.uid for task in tasks}
@@ -343,7 +404,7 @@ def _named(*names: str | None) -> tuple[str, ...]:
     return tuple(name for name in names if name)
 
 
-def _ignored(root: Tag, project: MsProject) -> tuple[Ignored, ...]:
+def _ignored(root: Tag, tasks: list[Tag], project: MsProject) -> tuple[Ignored, ...]:
     """Count by kind what the file carries and no import reads, in the order of the contract.
 
     The resources and the calendars are Waterfall's alone; an assignment is of a resource, and
@@ -352,7 +413,6 @@ def _ignored(root: Tag, project: MsProject) -> tuple[Ignored, ...]:
     children, which would count twice what is one.
     """
     resources = _users(root, "Resources", "Resource")
-    tasks = _users(root, "Tasks", "Task")
     fields = [
         element
         for element in _every(root, "ExtendedAttributes", "ExtendedAttribute")

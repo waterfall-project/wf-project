@@ -42,6 +42,7 @@ from waterfall.core.estimate.excel.reader import (
     TOTAL_LABEL,
     VERSION_LABEL,
     Rejection,
+    check_workbook,
     read_number,
     read_workbook,
 )
@@ -351,7 +352,7 @@ def test_the_params_of_a_rejection_cannot_be_changed() -> None:
 @pytest.mark.requirement("WF-INTF-0100-A")
 def test_a_tab_without_the_headers_of_lines_is_named_as_unread() -> None:
     row = ["t", "DEV", None, 1, None, None, None, None, None]
-    read = read_workbook(workbook({"1.1": [HEADERS, row], "Notes": [["a"]], "Autre": [["Tâche"]]}))
+    read = read_workbook(workbook({"1.1": [HEADERS, row], "Notes": [["a"]], "Autre": [["b"]]}))
 
     assert read.unread_sheets == ("Notes", "Autre")
     assert [line.sheet for line in read.lines] == ["1.1"]
@@ -388,8 +389,10 @@ def damaged(part: str) -> bytes:
 
 
 @pytest.mark.requirement("WF-INTF-0070-A")
-@pytest.mark.parametrize("part", ["xl/worksheets/sheet1.xml", "xl/workbook.xml"])
+@pytest.mark.parametrize("part", ["xl/worksheets/sheet3.xml", "xl/workbook.xml"])
 def test_a_workbook_whose_xml_is_damaged_is_refused_as_unreadable(part: str) -> None:
+    # The third tab, « 1.1 Centrale et logiciel », is a tab of lines, read whole; the first,
+    # « Présentation », is read in its two rows of header alone (US-3190).
     error = refusal(damaged(part))
 
     assert error.code == "FILE_FORMAT_UNREADABLE"
@@ -632,3 +635,91 @@ def test_the_headers_and_labels_the_reader_expects_are_the_ones_the_writer_write
     }
     assert set(totalled) == set(TOTAL_HEADERS)
     assert all(str(value).startswith("=SUBTOTAL(109,") for value in totalled.values())
+
+
+def _without(headers: list[str], *dropped: str) -> list[str]:
+    return [header for header in headers if header not in dropped]
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_each_column_a_tab_lacks_is_named_with_its_tab_in_the_order_of_the_format() -> None:
+    # « un devis dont un onglet de lignes n'a plus « ID ligne », « Quantité », « Heures » ou
+    # « Débours unitaire » est refusé […] params.missing_columns nommant chaque colonne manquante
+    # avec son onglet » ; un en-tête renommé est une colonne absente.
+    content = workbook(
+        {
+            "SP-1": [_without(HEADERS, "ID ligne", "Heures")],
+            "SP-2": [HEADERS],
+            "SP-3": [[*_without(HEADERS, "Débours unitaire"), "Débours unitaire (€)"]],
+        }
+    )
+
+    with pytest.raises(UnprocessableError) as raised:
+        check_workbook(content)
+
+    assert raised.value.code == "FILE_FORMAT_UNREADABLE"
+    assert raised.value.params == {
+        "expected_format": "estimate",
+        "expected_version": "1",
+        "missing_columns": [
+            {"header": "Heures", "sheet": "SP-1"},
+            {"header": "ID ligne", "sheet": "SP-1"},
+            {"header": "Débours unitaire", "sheet": "SP-3"},
+        ],
+    }
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_a_column_the_format_reads_but_can_do_without_may_be_missing() -> None:
+    # « une colonne que le format ne lit pas peut manquer » ; la désignation, le délai de paiement
+    # et le sous-projet, lus mais jamais le fondement d'une application, restent à l'analyse.
+    lean = _without(HEADERS, "Désignation", "Délai de paiement (j)", "Sous-projet")
+
+    check_workbook(workbook({"SP-1": [lean]}))
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_a_tab_without_any_header_read_is_no_tab_of_lines_and_is_not_refused() -> None:
+    # US-3200b (#4784): a tab with no header read at all (notes) stays ignored.
+    check_workbook(workbook({"SP-1": [HEADERS], "Notes": [["Remarque", "Commentaire"]]}))
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_a_tab_with_a_header_read_but_neither_task_nor_role_is_refused_naming_them() -> None:
+    # US-3200b (#4784): the tab that carries « Quantité » without « Tâche » or « Rôle ou
+    # catégorie » is refused, both keys named with the tab, in the order of the format.
+    with pytest.raises(UnprocessableError) as raised:
+        check_workbook(workbook({"SP-1": [HEADERS], "Notes": [["Remarque", "Quantité"]]}))
+
+    assert raised.value.code == "FILE_FORMAT_UNREADABLE"
+    # Both keys open the list; only the other required columns follow, as for any tab.
+    assert raised.value.params["missing_columns"] == [
+        {"header": "Tâche", "sheet": "Notes"},
+        {"header": "Rôle ou catégorie", "sheet": "Notes"},
+        {"header": "Heures", "sheet": "Notes"},
+        {"header": "Débours unitaire", "sheet": "Notes"},
+        {"header": "ID ligne", "sheet": "Notes"},
+    ]
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+@pytest.mark.parametrize("key", ["Tâche", "Rôle ou catégorie"])
+def test_a_tab_whose_task_or_role_header_is_renamed_is_refused_naming_it(key: str) -> None:
+    # US-3200b (#4784): a renamed key of a tab of lines is a missing column.
+    renamed = [f"{key} (x)" if header == key else header for header in HEADERS]
+
+    with pytest.raises(UnprocessableError) as raised:
+        check_workbook(workbook({"SP-1": [renamed]}))
+
+    assert raised.value.params["missing_columns"] == [{"header": key, "sheet": "SP-1"}]
+
+
+@pytest.mark.story("US-3200")
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_the_workbook_the_writer_writes_is_accepted_at_the_opening() -> None:
+    check_workbook(write_workbook(_round_trip_model()))

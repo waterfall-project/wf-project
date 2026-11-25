@@ -10,7 +10,17 @@ fills it, but for those a caller relies on before (the purge), without effect un
 module imports them from here, never from the file. The formats and the exporters are registered
 by the modules that serve them, at the import of their interface (``register_format``,
 ``register_exporter``). The witness writes its imports as they ended (``load_import``, EP-09).
+A workbook deposited is opened by ``opened_workbook`` alone, its tabs read by the
+``bounded_rows`` of the ``OpenedWorkbook`` it gives.
 """
+
+# ``abandoning`` (US-3250/L2b): the deposits of the imports a cascade takes away, expired first.
+from waterfall.core.exchanges.interface.abandoning import (
+    expire_revision_deposits as expire_revision_deposits,
+)
+from waterfall.core.exchanges.interface.abandoning import (
+    expire_structure_deposits as expire_structure_deposits,
+)
 
 # ``damages`` (US-1940): what a damaged workbook raises, one list for every reader of a workbook.
 from waterfall.core.exchanges.interface.damages import (
@@ -108,6 +118,9 @@ from waterfall.core.exchanges.interface.imports import (
     Judge as Judge,
 )
 from waterfall.core.exchanges.interface.imports import (
+    ParsedHead as ParsedHead,
+)
+from waterfall.core.exchanges.interface.imports import (
     RuleChange as RuleChange,
 )
 from waterfall.core.exchanges.interface.imports import (
@@ -129,10 +142,22 @@ from waterfall.core.exchanges.interface.imports import (
     judge_deposit as judge_deposit,
 )
 from waterfall.core.exchanges.interface.imports import (
+    judge_room as judge_room,
+)
+from waterfall.core.exchanges.interface.imports import (
+    kept as kept,
+)
+from waterfall.core.exchanges.interface.imports import (
+    kept_refusal as kept_refusal,
+)
+from waterfall.core.exchanges.interface.imports import (
     list_imports as list_imports,
 )
 from waterfall.core.exchanges.interface.imports import (
     open_import as open_import,
+)
+from waterfall.core.exchanges.interface.imports import (
+    parse_head as parse_head,
 )
 from waterfall.core.exchanges.interface.imports import (
     read_import as read_import,
@@ -175,9 +200,71 @@ from waterfall.core.exchanges.interface.purge import (
     stored_before as stored_before,
 )
 
+# ``workbooks`` (US-3190/L1): the opener of a workbook deposited, bounded, for every reader of one;
+# (US-3190/L2b) the bounds of the other vectors, the cumul of the tabs read, a workbook openpyxl
+# rejects by a TypeError (#4848); (US-3190b) the elements of the parts openpyxl parses into a tree;
+# (US-3190/L3) their bytes, and the elements of the tabs and of the shared strings out of place.
+from waterfall.core.exchanges.interface.workbooks import (
+    LARGEST_INFLATED as LARGEST_INFLATED,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    LARGEST_TREES as LARGEST_TREES,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    LONGEST_TEXT as LONGEST_TEXT,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    MOST_CELL_ELEMENTS as MOST_CELL_ELEMENTS,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    MOST_CELLS as MOST_CELLS,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    MOST_COLUMNS as MOST_COLUMNS,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    MOST_ELEMENTS as MOST_ELEMENTS,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    MOST_FOREIGN as MOST_FOREIGN,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    MOST_MEMBERS as MOST_MEMBERS,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    MOST_NAMES as MOST_NAMES,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    MOST_ROWS as MOST_ROWS,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    MOST_STRING_ELEMENTS as MOST_STRING_ELEMENTS,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    MOST_STRINGS as MOST_STRINGS,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    STYLE_LISTS as STYLE_LISTS,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    OpenedWorkbook as OpenedWorkbook,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    WorkbookDamagedError as WorkbookDamagedError,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    WorkbookOutOfBoundsError as WorkbookOutOfBoundsError,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    opened_workbook as opened_workbook,
+)
+
 # ``xml`` (US-1380/L1): the hardened reader of an XML file deposited, for every XML format.
 from waterfall.core.exchanges.interface.xml import (
     hardened_parser as hardened_parser,
+)
+from waterfall.core.exchanges.interface.xml import (
+    hardened_target_parser as hardened_target_parser,
 )
 
 # ``judgments`` (US-2000/L2): the rule of the durations of an MS Project schedule in calendar gap,
@@ -187,4 +274,12 @@ from waterfall.core.exchanges.judgments import (
 )
 from waterfall.core.exchanges.judgments import (
     KEEP_DURATIONS as KEEP_DURATIONS,
+)
+
+# ``unchanged`` (US-3210): what the planning answers of the structure an application writes.
+from waterfall.core.exchanges.unchanged import (
+    StructureGuard as StructureGuard,
+)
+from waterfall.core.exchanges.unchanged import (
+    register_structure_guard as register_structure_guard,
 )

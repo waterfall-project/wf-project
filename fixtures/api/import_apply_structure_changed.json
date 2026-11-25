@@ -1,0 +1,10 @@
+{
+  "summary": "L'application de « devis-avenant-2-reprise-des-essais.xlsx » (import_analysed), le devis de l'avenant 2 analysé ce matin, demandée après une saisie faite depuis sur ce différentiel, la charge de l'« Assistance à la reprise des essais » passée de 40 à 48 h (estimate_line_updated_amendment) : le compte rendu ne dit plus ce que l'application écrirait. Refusée pour de bon par la condition qui manque, une structure inchangée depuis l'analyse ; l'import devient refusé (refused), son fichier est supprimé, et l'utilisateur dépose de nouveau le fichier ; rien n'est appliqué (WF-ARC-0100, #4420).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"import_structure_unchanged"},
+    "correlation_id": "01926f3a-7c00-7000-8000-a63def177585"
+  }
+}

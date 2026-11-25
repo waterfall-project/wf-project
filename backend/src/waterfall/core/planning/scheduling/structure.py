@@ -96,11 +96,14 @@ type Origin = Entry | Move | None
 class LinkConflict:
     """A link a predecessor in automatic mode cannot satisfy with a task in manual mode.
 
-    Named by its two tasks and its type, as the grid and the Gantt name it (WF-PLA-0020).
+    Named by its two tasks, the task in manual mode it cannot satisfy and its type, as the grid
+    and the Gantt name it (WF-PLA-0020): the successor itself, or a subordinate in manual mode of
+    a summary successor, which the link binds as it binds each of them (#3984).
     """
 
     predecessor_id: UUID
     successor_id: UUID
+    manual_node_id: UUID
     link_type: LinkType
 
 
