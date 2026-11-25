@@ -164,6 +164,7 @@ spec:
         - name: password
           image: {{ include "waterfall.image" (list . "waterfall") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command:
             - sh
             - -c
@@ -171,30 +172,31 @@ spec:
           volumeMounts:
             - { name: shared, mountPath: /restore-test }
         # The authority of the test, made at each test, as compose.restore-test.yaml makes it: the
-        # certificates of its PostgreSQL, its Keycloak and its API, for the loopback, each owned by
-        # the user of its server; as root, to give each key to its user.
+        # certificates of its PostgreSQL, its Keycloak and its API, for the loopback. The three
+        # servers run as the user of the image waterfall, 1000, which makes them and reads the
+        # password, and owns each key: nothing in the pod runs as root (#4664).
         - name: restore-test-authority
           image: {{ include "waterfall.image" (list . "waterfall") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
-          securityContext:
-            runAsUser: 0
-            runAsGroup: 0
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command:
             - waterfall-authority
             - --provided=/restore-test-authority/none
             - --kept=/restore-test-authority/kept
             - --trust=/restore-test-authority/trust
             - --certificates=/restore-test-authority/certificates
-            - restore-test-postgres:999:999
-            - restore-test-keycloak:1000:0
+            - restore-test-postgres:1000:1000
+            - restore-test-keycloak:1000:1000
             - restore-test-api:1000:1000
           volumeMounts:
             - { name: test-authority, mountPath: /restore-test-authority }
         # PostgreSQL, empty: the owners of the two databases and the role of the service, made at
-        # its initialisation (restore-test-database.sql), on the loopback alone, in TLS alone.
+        # its initialisation (restore-test-database.sql), on the loopback alone, in TLS alone. As
+        # the user of the password and of its key, which the entry point of the image names.
         - name: postgres
           image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict "runAsUser" 1000 "runAsGroup" 1000) | nindent 10 }}
           restartPolicy: Always
           command:
             - sh
@@ -230,6 +232,7 @@ spec:
         - name: keycloak
           image: {{ include "waterfall.image" (list . "keycloak") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           restartPolicy: Always
           command:
             - bash
@@ -266,6 +269,7 @@ spec:
         - name: api
           image: {{ include "waterfall.image" (list . "waterfall") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           restartPolicy: Always
           command:
             - sh
@@ -299,6 +303,7 @@ spec:
         - name: restore-test
           image: {{ include "waterfall.image" (list . "waterfall") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command:
             - sh
             - -c

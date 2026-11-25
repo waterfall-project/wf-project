@@ -392,6 +392,7 @@ paths = [
     "tools/tests/test_chartprometheus.py",
     "tools/tests/test_chartprovided.py",
     "tools/tests/test_chartrestoretest.py",
+    "tools/tests/test_chartsecurity.py",
     "tools/tests/test_chartstateless.py",
     "tools/tests/test_charttransport.py",
     "tools/tests/test_alerts.py",

@@ -53,15 +53,42 @@ helm.sh/chart: {{ printf "%s-%s" (index . 0).Chart.Name (index . 0).Chart.Versio
 {{- end -}}
 
 {{/* What every pod shares: no variable of the services of the namespace — a service named
-waterfall-api would give WATERFALL_API_PORT to every container —, and the secrets of the registries. */}}
+waterfall-api would give WATERFALL_API_PORT to every container —, the secrets of the registries, and
+the level "restricted" of the Pod Security Standards (#4664): no process as root, the profile seccomp
+of the runtime. A pod whose processes run as a user of their own gives it, and the group of its
+volumes: . or (list $ (dict "runAsUser" 65534 "runAsGroup" 65534 "fsGroup" 65534)). Each container
+adds its own part, waterfall.containerSecurity, which Kubernetes does not take from the pod. */}}
 {{- define "waterfall.podDefaults" -}}
+{{- $ := . -}}
+{{- $security := dict "runAsNonRoot" true "seccompProfile" (dict "type" "RuntimeDefault") -}}
+{{- if kindIs "slice" . -}}
+{{- $ = index . 0 -}}
+{{- range $key, $value := index . 1 -}}
+{{- $_ := set $security $key $value -}}
+{{- end -}}
+{{- end -}}
 enableServiceLinks: false
-{{- with .Values.images.pullSecrets }}
+securityContext:
+  {{- toYaml $security | nindent 2 }}
+{{- with $.Values.images.pullSecrets }}
 imagePullSecrets:
 {{- range . }}
   - name: {{ . }}
 {{- end }}
 {{- end }}
+{{- end -}}
+
+{{/* What every container adds to waterfall.podDefaults (#4664): no privilege gained at an exec,
+every capability dropped. A container of an image that runs as root, or as a user it names by a name
+the kubelet cannot hold against runAsNonRoot, gives the number of the user it runs as:
+(dict) or (dict "runAsUser" 999 "runAsGroup" 999). */}}
+{{- define "waterfall.containerSecurity" -}}
+{{- $security := dict "allowPrivilegeEscalation" false "capabilities" (dict "drop" (list "ALL")) -}}
+{{- range $key, $value := . -}}
+{{- $_ := set $security $key $value -}}
+{{- end -}}
+securityContext:
+  {{- toYaml $security | nindent 2 }}
 {{- end -}}
 
 {{/* The address the browser reaches the platform at. */}}
@@ -248,6 +275,7 @@ dependencies of compose.prod.yaml on service-database-role and keycloak-database
 - name: wait-for-database
   image: {{ include "waterfall.thirdParty" (list $ $.Values.postgresql.image) }}
   imagePullPolicy: IfNotPresent
+  {{- include "waterfall.containerSecurity" (dict "runAsUser" 999 "runAsGroup" 999) | nindent 2 }}
   command:
     - sh
     - -c
@@ -280,6 +308,7 @@ certificate checked against the roots of the pod — its readiness, 9000 /auth/h
 - name: wait-for-keycloak
   image: {{ include "waterfall.image" (list $ "waterfall") }}
   imagePullPolicy: {{ $.Values.images.pullPolicy }}
+  {{- include "waterfall.containerSecurity" (dict) | nindent 2 }}
   command:
     - sh
     - -c
