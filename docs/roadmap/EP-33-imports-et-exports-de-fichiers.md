@@ -682,6 +682,13 @@ sous `<sst>`. Dans un onglet, est étranger tout ce qui est hors des `row` de `s
 leurs `c` ; sous `<sst>`, tout ce qui n'est ni un `si` ni dans un `si`. Les descendants d'une `c`
 ont une borne par ligne (65 536), car `v` et `f` atteignent légitimement 20 000 000 à la borne des
 cellules. Écartée : 24 Mio, qui garde la liste `dxfs` d'Excel mais annonce ≈ 512 Mio par lecture.
+Les bornes tiennent liste par liste, mais des combinaisons acceptées dépassaient l'objectif
+(`cellXfs`, `cellStyleXfs` et `dxf` riches : 213 Mio). L'auteur a donc ajouté un budget commun
+(2026-11-25) : chaque borne vaut, atteinte seule, l'objectif entier, et la pré-lecture refuse un
+classeur dont la somme des fractions consommées (items de chaque liste bornée, éléments, octets
+des membres lus en arbre) dépasse 1. L'additivité est mesurée, avec une marge si la somme
+sous-estime. Écartées : une borne commune aux seules listes de styles (elle ignore les éléments
+hors liste), une borne d'octets abaissée, un objectif relevé à ≈ 220 Mio.
 
 **Hors périmètre.** La limite de mémoire du service dans le chart (EP-13, EP-39) ; la colonne
 absente d'un onglet (US-3200).
