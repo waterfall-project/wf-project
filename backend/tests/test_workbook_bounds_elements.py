@@ -79,7 +79,9 @@ BYTES_REFUSAL = f"the parts openpyxl holds whole declare more than {LARGEST_TREE
 # ``dxfs`` at 25 000, at 184 MiB; ``cellXfs`` at 40 000, 155; ``cellStyleXfs`` at 60 000, 139;
 # ``cellStyles`` at 65 490, 57; the others under 5. Read one after the other in one process, they
 # rose to 200 MiB, what the earlier reads leave held. The plafond is the objective of the design, no
-# workbook accepted past 192 MiB for a reading: some 4 % over the heaviest.
+# workbook accepted past 192 MiB for a reading: some 4 % over the heaviest. These 192 MiB, and the
+# figures measured, are the rise above the process warmed on the base (``resident``), which starts
+# at some 123 MiB: not its VmHWM in absolute terms.
 RICH_ORDER = (
     "colors",
     "numFmts",

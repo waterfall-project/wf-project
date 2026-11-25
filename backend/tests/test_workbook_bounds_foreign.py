@@ -30,6 +30,7 @@ from workbook_bombs import (
     appended,
     edited,
     grown,
+    relocated,
     resident,
     shared_strings,
     stuffed,
@@ -50,6 +51,17 @@ CELLS_REFUSAL = f"holds more than {MOST_CELL_ELEMENTS} elements in the cells of 
 # cell of a tab read, under the root of a tab not read, of no ``<dimension>``, before its rows.
 SWOLLEN = 3_000_000
 SWELLINGS = ("under-a-tab-read", "under-the-strings", "in-a-cell", "under-a-tab-not-read")
+# The rows nested of the review of US-3190/L3: 100 rows, each in a cell of the one before, each
+# cell holding 65 000 ``<x/>``, which held 540 MiB more when each row had a bound of its own.
+NESTED = (100, 65_000)
+# The tabs found by their relation alone: of a type openpyxl does not know, by a target relative to
+# the folder of the workbook, by an absolute one; each the member it names, and the target.
+UNKNOWN_TYPE = "http://example.com/relationships/unknown"
+RELATED = {
+    "of-a-type-unknown": ("xl/worksheets/x.xml", "/xl/worksheets/x.xml"),
+    "by-a-relative-target": ("worksheets/x.xml", "../worksheets/x.xml"),
+    "by-an-absolute-target": ("xl/worksheets/x.xml", "/xl/worksheets/x.xml"),
+}
 # A chain of calculation, which the relations of a workbook name and openpyxl does not read.
 CHAIN = (
     b'<calcChain xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
@@ -185,6 +197,105 @@ def test_the_elements_the_cells_of_a_row_hold_are_bounded_by_row(
     READINGS["estimate"].whole(_rows_holding(MOST_CELL_ELEMENTS, rows=2))
     refused = _refused_unopened(_rows_holding(MOST_CELL_ELEMENTS + 1), monkeypatch)
     assert CELLS_REFUSAL in refused
+
+
+def _related(relation: str, count: int = SWOLLEN) -> bytes:
+    """Give the estimate whose tab of lines lies where ``relation`` puts it, ``count`` ``<x/>`` in.
+
+    They lie in its ``sheetData``, out of any row; the relation keeps its id, which a sheet names.
+    """
+    base = _base("estimate")
+    member = tab(base, "1 Études")
+    to, target = RELATED[relation]
+    content = relocated(base, member, to, target, (FOREIGN * (count // 30) for _ in range(30)))
+    if relation != "of-a-type-unknown":
+        return content
+    return edited(
+        content,
+        "xl/_rels/workbook.xml.rels",
+        lambda xml: re.sub(
+            rb'Type="[^"]*"( Target="' + re.escape(target.encode()) + rb'")',
+            b'Type="' + UNKNOWN_TYPE.encode() + rb'"\1',
+            xml,
+        ),
+    )
+
+
+@pytest.mark.story("US-3190")
+@pytest.mark.parametrize("relation", list(RELATED))
+def test_a_tab_a_sheet_names_is_counted_wherever_its_relation_puts_it(
+    relation: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # openpyxl reads as a tab the target of every relation a sheet names, whatever its type, the
+    # target joined to the folder of the workbook or taken past its slash: 3 000 000 ``<x/>`` out
+    # of its rows are refused before the opening, wherever the relation puts the tab.
+    content = _related(relation)
+    with zipfile.ZipFile(BytesIO(content)) as archive:
+        assert RELATED[relation][0] in archive.namelist()
+        relations = archive.read("xl/_rels/workbook.xml.rels").decode()
+    assert (UNKNOWN_TYPE in relations) == (relation == "of-a-type-unknown")
+    assert REFUSAL in _refused_unopened(content, monkeypatch)
+
+
+@pytest.mark.story("US-3190")
+def test_a_tab_no_sheet_names_is_left_out_of_the_bound() -> None:
+    # A worksheet the relations of the workbook name, but no sheet: openpyxl does not read it, and
+    # twice ``MOST_FOREIGN`` elements out of its rows leave the workbook read.
+    worksheet = (
+        f'<worksheet xmlns="{_MAIN[1:-1]}"><sheetData>'.encode()
+        + FOREIGN * (2 * MOST_FOREIGN)
+        + b"</sheetData></worksheet>"
+    )
+    content = with_relations(
+        _base("estimate"),
+        {"xl/worksheets/x.xml": worksheet},
+        {"xl/workbook.xml": "worksheet worksheets/x.xml"},
+    )
+    READINGS["estimate"].whole(content)
+
+
+def _nested(levels: int, each: int, more: int = 0) -> bytes:
+    """Give the estimate whose tab of lines, of no ``<dimension>``, ends with rows nested.
+
+    ``levels`` rows, each in the cell of the one before, every cell holding ``each`` ``<x/>``, the
+    first ``more`` more: the cells of the first row hold ``levels * each + more`` of them, and the
+    ``2 * (levels - 1)`` rows and cells nested in it.
+    """
+    body = b"".join(
+        b"<row><c>" + FOREIGN * (each + (more if level == 0 else 0)) for level in range(levels)
+    )
+    body += b"</c></row>" * levels
+
+    def nest(xml: bytes) -> bytes:
+        xml = re.sub(rb"<dimension [^>]*/>", b"", xml)
+        xml = xml.replace(b"<sheetData/>", b"<sheetData></sheetData>")
+        return xml.replace(b"</sheetData>", body + b"</sheetData>")
+
+    base = _base("estimate")
+    return edited(base, tab(base, "1 Études"), nest)
+
+
+@pytest.mark.story("US-3190")
+def test_nested_rows_share_the_bound_of_the_outermost_row(monkeypatch: pytest.MonkeyPatch) -> None:
+    # openpyxl frees a row with what it holds once that row closes: what the cells of a row hold
+    # stays held while the rows nested in it are read. Three rows nested, their cells holding
+    # 30 000 ``<x/>`` each, are refused on the bound of the cells of a row, which each would pass
+    # alone; at the bound, the rows and cells nested counted, the estimate is read; one more,
+    # refused.
+    assert CELLS_REFUSAL in _refused_unopened(_nested(3, 30_000), monkeypatch)
+    each, rest = divmod(MOST_CELL_ELEMENTS - 2 * (3 - 1), 3)
+    READINGS["estimate"].whole(_nested(3, each, rest))
+    assert CELLS_REFUSAL in _refused_unopened(_nested(3, each, rest + 1), monkeypatch)
+
+
+@pytest.mark.story("US-3190")
+def test_rows_nested_a_hundred_deep_are_refused_within_the_memory() -> None:
+    # « … sans que la mémoire réelle du processus ne passe la borne que le test fixe » : the rows
+    # nested of the review, 6 500 000 ``<x/>`` in all, refused in a fresh process before any
+    # inflation.
+    (found,) = resident("estimate", _base("estimate"), [_nested(*NESTED)])
+    assert found.outcome == UNREADABLE
+    assert found.rise < CALM
 
 
 @pytest.mark.requirement("WF-INTF-0070-A")

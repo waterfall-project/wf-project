@@ -86,7 +86,7 @@ workbook its sheets name, read or not, as the opening parses each — and the sh
 content type, the first of the tabs and the second of the shared strings are added up: past
 ``MOST_FOREIGN``, the workbook is refused before it is opened. The elements the cells of a row hold,
 which the stream frees with the row, are bounded by row, ``MOST_CELL_ELEMENTS``, in every member as
-the rows are.
+the rows are: a row in a row and all it holds count to the outermost, freed last.
 
 A reader then materialises the tabs its format reads, and those alone, by the ``bounded_rows`` of
 the workbook opened: a row of more than ``MOST_COLUMNS`` columns, as openpyxl gives them — the width
@@ -351,11 +351,12 @@ class _Tally(_Target):
     an item of (``NestedSequence``); a list in a list is an item of the first. The items of a list
     met twice add up. Whether the member declares a document type, under which an entity left
     unresolved is one more child to openpyxl and none to the reading. Its elements, comments and
-    instructions included, each a node of the tree openpyxl may parse of it. The elements the cells
-    of each row hold, at any depth, which openpyxl's stream holds until it reads the row and frees
-    with it; the elements out of any row, and out of any string, which it keeps as it reads a tab
-    or the shared strings — its stream, the standard library's, builds no comment and no
-    instruction, so these counts leave them.
+    instructions included, each a node of the tree openpyxl may parse of it. The elements a row
+    holds past its cells, at any depth, the rows in it included, counted to the outermost row open,
+    which openpyxl's stream holds until it reads that row and frees with it; the elements out of any
+    row, and out of any string, which it keeps as it reads a tab or the shared strings — its
+    stream, the standard library's, builds no comment and no instruction, so these counts leave
+    them.
     """
 
     def __init__(self, name: str) -> None:
@@ -364,7 +365,7 @@ class _Tally(_Target):
         self.elements = 0
         self.depth = 0
         self.rows = 0
-        # Each row open: its depth, its cells, the elements its cells hold.
+        # Each row open: its depth, its cells, and for the outermost the elements it holds.
         self.open_rows: list[list[int]] = []
         # The elements out of any row, and out of any string: those openpyxl's stream of a tab, or
         # of the shared strings, keeps.
@@ -403,7 +404,14 @@ class _Tally(_Target):
             self.listing = _Listing(_local(tag), self.depth, bounded[0], deep=bounded[1])
 
     def _count_rows(self, tag: str) -> None:
-        """Count a row, a cell of the row open, or an element a cell of it holds."""
+        """Count a row, a cell of the row it lies in, or an element the outermost row open holds.
+
+        A cell is counted to its row, the innermost open. Any other element in a row — one a cell
+        holds, a row in a row, a cell of that row — is counted to the outermost row open: openpyxl
+        frees a row with what it holds once that row closes, and no sooner, so what the cells of a
+        row hold stays held while the rows in it are read. Counted to the innermost, each row
+        nested had a bound of its own: 100 rows nested of 65 000 elements each held 540 MiB more.
+        """
         if self.open_rows:
             row = self.open_rows[-1]
             if row[0] == self.depth - 1:
@@ -411,9 +419,10 @@ class _Tally(_Target):
                 if row[1] > MOST_COLUMNS:
                     msg = f"{self.name!r} holds a row of more than {MOST_COLUMNS} cells"
                     raise WorkbookOutOfBoundsError(msg)
-            else:
-                row[2] += 1
-                if row[2] > MOST_CELL_ELEMENTS:
+            outermost = self.open_rows[0]
+            if outermost[0] != self.depth - 1:
+                outermost[2] += 1
+                if outermost[2] > MOST_CELL_ELEMENTS:
                     self._refuse("elements in the cells of a row", MOST_CELL_ELEMENTS)
         if tag == _ROW:
             self.rows += 1

@@ -74,7 +74,9 @@ if TYPE_CHECKING:
 # 192 MiB for a reading (US-3190/L3). ``make measure-workbooks`` measured each vector at its bound
 # alone in a fresh process: the text the heaviest, 135 MiB, then the strings, 91, the cells of the
 # tabs read, 79, the named styles, 56; some 40 % to spare. Read one after the other in one process,
-# they rose to 204 MiB, what the earlier reads leave held: each is read in its own.
+# they rose to 204 MiB, what the earlier reads leave held: each is read in its own. These 192 MiB,
+# and every figure here, are the rise above the process warmed on the base (``resident``), which
+# starts at some 123 MiB: not its VmHWM in absolute terms.
 WITHIN = 192 * MEBIBYTE
 
 # Each vector refused before the opening, by what makes a workbook of a format hold ``count`` of it,
