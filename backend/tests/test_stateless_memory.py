@@ -35,6 +35,7 @@ DECLARED = {
     "answers of: it gives the same answer cached or not",
     "core/exchanges/interface/exports.py:_EXPORTERS": REGISTRY,
     "core/exchanges/interface/imports.py:_FORMATS": REGISTRY,
+    "core/exchanges/unchanged.py:_GUARDS": REGISTRY,
     "core/planning/interface/facets.py:_FACETS": REGISTRY,
     "core/planning/interface/open_lines.py:_OPEN_LINES": REGISTRY,
     "core/planning/interface/open_lines.py:_ZEROED_AT": REGISTRY,
