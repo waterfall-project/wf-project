@@ -309,19 +309,24 @@ class Upgrade:
         return output
 
     def helm(self, arguments: list[str], values: Mapping[str, Any] | None, what: str) -> None:
-        """Run Helm on the release of the platform, with the values given, waiting for it."""
+        """Run Helm on the release of the platform, with the values given, and wait for it.
+
+        Helm waits for what it deploys, but at the installation: its migrations are a hook after
+        it, which the services wait for, and which Helm would hold until they are ready.
+        """
         given: list[str] = []
         if values is not None:
             path = self.trial.folder / "values.json"
             path.write_text(json.dumps(values), encoding="utf-8")
             given = ["--values", str(path)]
+        wait = [] if arguments[0] == "install" else ["--wait"]
         command = [
             *self.trial.tools.helm,
             *arguments,
             "--namespace",
             charttrial.NAMESPACE,
             *given,
-            "--wait",
+            *wait,
             "--timeout",
             charttrial.INSTALLATION,
         ]
