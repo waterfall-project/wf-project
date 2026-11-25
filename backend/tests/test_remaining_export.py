@@ -705,7 +705,8 @@ def test_a_tab_without_a_known_code_at_its_head_rejects_its_lines_as_an_unknown_
 ) -> None:
     # A file exported before the code came to the head (a title in A1, no code in B1), or a tab
     # whose code is no subproject's: its name designates no subproject, its lines are rejected
-    # (``UNKNOWN_SUBPROJECT``, the tab named) and no line moves.
+    # (``UNKNOWN_SUBPROJECT``, the tab named, and the code of its head when it bears one, #4898)
+    # and no line moves.
     created = place(api, stage, scene, {"Fournitures": "SP-A", "Banc": "SP-B"})
     content = exported(api, stage, worker, scene.tree.revision["revision_id"])
 
@@ -718,10 +719,33 @@ def test_a_tab_without_a_known_code_at_its_head_rejects_its_lines_as_an_unknown_
     found = report(api, stage, import_id)
     assert [(each["sheet"], each["code"], each["params"]) for each in found["rejected"]] == [
         ("SP-A", "UNKNOWN_SUBPROJECT", {"value": "SP-A"}),
-        ("SP-B", "UNKNOWN_SUBPROJECT", {"value": "SP-B"}),
+        ("SP-B", "UNKNOWN_SUBPROJECT", {"value": "SP-B", "subproject_code": "SP-Z"}),
     ]
     assert found["differences"] == []
     applied(api, stage, worker, import_id)
     for label, code in (("Fournitures", "SP-A"), ("Banc", "SP-B")):
         node = line_named(scene.tree, label)["node_id"]
         assert row_of(stage, node).subproject_id == UUID(created[code])
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_renamed_tab_whose_head_bears_an_unknown_code_is_rejected_naming_the_code_and_the_tab(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « Un onglet renommé dans Excel garde son sous-projet. » — by the code of its head: a tab
+    # renamed whose head bears a code no subproject has designates none, and the rejection names
+    # that code, which the user declares, beside the name of the tab, where they find the line
+    # (``UNKNOWN_SUBPROJECT``, ``params.subproject_code``, #4898).
+    place(api, stage, scene, {"Fournitures": "SP-A"})
+    content = exported(api, stage, worker, scene.tree.revision["revision_id"])
+
+    def rename(book: Workbook) -> None:
+        book["SP-A"].title = "Mon lot"
+        book["Mon lot"]["B1"] = "SP-NEUF"
+
+    import_id = analysed(api, stage, worker, edited(content, rename))
+    found = report(api, stage, import_id)
+    assert [(each["sheet"], each["code"], each["params"]) for each in found["rejected"]] == [
+        ("Mon lot", "UNKNOWN_SUBPROJECT", {"value": "Mon lot", "subproject_code": "SP-NEUF"}),
+    ]
+    assert found["differences"] == []

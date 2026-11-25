@@ -409,6 +409,11 @@ Problem:
         value of the cell as the file carries it, of a line of an estimate or of a remaining to
         commit that cites an unknown task, role or subproject (`UNKNOWN_TASK`,
         `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `ImportRejection.params`, WF-INTF-0100),
+        the name of the sheet for a line of a remaining to commit whose sheet designates no
+        subproject — with `subproject_code`, the code its head bears (cell B1), as the file carries
+        it, which designates the subproject of a sheet whatever its name and which the user
+        declares, absent from a head without a code, as a file exported before the code came to the
+        head (`UNKNOWN_SUBPROJECT`, `ImportRejection.params`, WF-INTF-0120; #4898) —,
         and of a cell of a column of numbers of an estimate that carries a text (`NUMBER_INVALID`,
         `ImportRejection.params`); `header`, the header of the column of the workbook of an
         estimate that carries the refused cell, as the workbook carries it, for `NUMBER_INVALID`

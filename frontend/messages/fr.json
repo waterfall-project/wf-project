@@ -3269,6 +3269,7 @@
     "horizon_task_row": "Tâche en cause : {task}, ligne {row} du bloc collé.",
     "taskName": "« {label} »",
     "unknown_value": "Valeur lue dans le fichier : « {value} ».",
+    "unknown_subproject_code": "Code lu en tête de l’onglet « {sheet} » : « {code} », qu’aucun sous-projet du projet ne porte.",
     "ambiguous_label": "Libellé lu : « {label} », porté par les tâches {tasks}.",
     "wbs_element": "Élément d’OTP lu : « {element} ».",
     "duplicate_rows": "{count, plural, one {Autre ligne} other {Autres lignes}} du fichier de même pièce et de même poste : {rows}.",

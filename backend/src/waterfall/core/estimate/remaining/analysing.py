@@ -47,8 +47,11 @@ The subproject of a line is the one of its tab, designated by the code the head 
 ``updated`` difference on ``subproject`` —, rejected when its task is started or completed and its
 subproject received actual costs (``SUBPROJECT_HAS_ACTUAL_COSTS``, by the entry); a tab of no
 subproject — a head with an unknown code, or without a code, as a file exported before the code
-came to the head — rejects its lines (``UNKNOWN_SUBPROJECT``, ``params.value`` the tab). The lines
-of the structure absent from the file are left as they are, without a difference (WF-INTF-0120).
+came to the head — rejects its lines (``UNKNOWN_SUBPROJECT``, ``params.value`` the name of the
+tab, ``params.subproject_code`` the code its head bears, as the file carries it, absent from a head
+without a code; #4898): the user declares that code, the name telling them where the line is. The
+lines of the structure absent from the file are left as they are, without a difference
+(WF-INTF-0120).
 
 A task the import leaves with no remaining to commit — every line of it the file writes set to
 nought, none of its other lines holding a remaining, a provision never — is completed by the
@@ -295,8 +298,7 @@ def analyse(
             if importing.ignored_provision(held, current, found):
                 continue
         if line.sheet not in scale.tabs:
-            unknown = {"value": line.sheet}
-            found.rejected.append(importing.rejection(_placed(line), UNKNOWN_SUBPROJECT, unknown))
+            found.rejected.append(_unknown_tab(line, read.heads.get(line.sheet)))
         elif current is None:
             _create(session, line, held, (reference, named, scale), (found, judging))
         else:
@@ -308,6 +310,18 @@ def analyse(
     reviewed = Reviewed(found, read.review_date, read.unreadable_review, rounded=rounded)
     _close(session, held, reviewed)
     return reviewed
+
+
+def _unknown_tab(line: ReadRemainingLine, head: str | None) -> dict[str, Any]:
+    """Reject a line of a tab of no subproject, by the name of the tab and the code its head bears.
+
+    ``head`` the code the head of the tab bears, none for a head without a code (a file exported
+    before the code came to the head): the parameter is then absent, the tab named alone (#4898).
+    """
+    unknown: dict[str, Any] = {"value": line.sheet}
+    if head is not None:
+        unknown["subproject_code"] = head
+    return importing.rejection(_placed(line), UNKNOWN_SUBPROJECT, unknown)
 
 
 def lineages_by_node(held: Aimed) -> dict[UUID, UUID]:

@@ -3269,6 +3269,7 @@
     "horizon_task_row": "Task concerned: {task}, row {row} of the pasted block.",
     "taskName": "“{label}”",
     "unknown_value": "Value read in the file: “{value}”.",
+    "unknown_subproject_code": "Code read at the head of the sheet “{sheet}”: “{code}”, which no subproject of the project bears.",
     "ambiguous_label": "Label read: “{label}”, shared by the tasks {tasks}.",
     "wbs_element": "Work breakdown element read: “{element}”.",
     "duplicate_rows": "{count, plural, one {Other line} other {Other lines}} of the file with the same document and item: {rows}.",

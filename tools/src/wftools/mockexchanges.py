@@ -18,7 +18,8 @@ structure (WF-CRE-0020, US-0701/L7); and the export of a revision of another pro
 unknown one (WF-ADM-0110). An import says the structure, the revision and the period its opening
 received (``opened_on``, I-08). And a remaining to commit that brings every line of two tasks to
 zero, which its report names completed on the date of the review the file bears (WF-INTF-0120,
-WF-INTF-0130; US-0703/L7).
+WF-INTF-0130; US-0703/L7). And a remaining to commit whose tab, renamed, bears at its head a code no
+subproject bears: its lines rejected, naming the tab and the code (WF-INTF-0120; #4898).
 """
 
 from datetime import date
@@ -185,6 +186,10 @@ station, which received the invoice of the screens."""
 FIRST_ROW = 2
 """The row of the first line of a tab, under its headings."""
 
+REMAINING_FIRST_ROW = 3
+"""The row of the first line of a tab of a remaining to commit: its head, with the code of the
+subproject, takes the first row, its headings the second, so its lines start at the third."""
+
 HELD_IMPORT, HELD_IMPORT_TASK = hex_identifier(0xA17), universe(947)
 
 
@@ -318,6 +323,47 @@ def import_remaining_duplicate_lineage() -> JsonObject:
     report["rejected"] = rejected
     report["read_count"] = len(cast("list[JsonValue]", report["differences"])) + len(rejected)
     report["unchanged_count"] = 0
+    return imported
+
+
+# --- A remaining to commit whose tab, renamed, bears an unknown code at its head ---------------
+
+UNKNOWN_TAB, UNKNOWN_CODE = "Essais sur site", "PRJ-001/SP-MES"
+"""The tab of IMPORTED renamed in the spreadsheet, and the code its head bears, no subproject's."""
+
+UNKNOWN_IMPORT, UNKNOWN_IMPORT_TASK = hex_identifier(0xA33), universe(956)
+UNKNOWN_SUBMITTED, UNKNOWN_ANALYSED, UNKNOWN_EXPIRES = (
+    "2026-06-03T10:47:05Z",
+    "2026-06-03T10:48:00Z",
+    "2026-06-04T10:48:00Z",
+)
+"""The import and its task, and when it was opened today, analysed, and until when it applies."""
+
+
+def import_remaining_unknown_subproject() -> JsonObject:
+    """Return the remaining of IMPORTED in a tab renamed whose head bears an unknown code (#4898).
+
+    The subproject of a tab is the one of the code at its head, whatever its name (WF-INTF-0120):
+    a code no subproject bears designates none, and each line of the tab is rejected, naming the
+    tab, where the user finds it, and the code, which they declare.
+    """
+    imported = import_remaining_subproject_held()
+    task = cast("JsonObject", imported["task"])
+    report = cast("JsonObject", imported["report"])
+    imported["import_id"], task["task_id"] = UNKNOWN_IMPORT, UNKNOWN_IMPORT_TASK
+    imported["created_at"], task["submitted_at"] = UNKNOWN_SUBMITTED, UNKNOWN_SUBMITTED
+    task["finished_at"], imported["expires_at"] = UNKNOWN_ANALYSED, UNKNOWN_EXPIRES
+    rejected: list[JsonValue] = [
+        {
+            "sheet": UNKNOWN_TAB,
+            "row": row,
+            "code": "UNKNOWN_SUBPROJECT",
+            "params": {"value": UNKNOWN_TAB, "subproject_code": UNKNOWN_CODE},
+        }
+        for row in range(REMAINING_FIRST_ROW, REMAINING_FIRST_ROW + len(IMPORTED))
+    ]
+    report["rejected"], report["differences"] = rejected, []
+    report["read_count"], report["unchanged_count"] = len(rejected), 0
     return imported
 
 
@@ -753,6 +799,15 @@ def examples() -> dict[str, JsonObject]:
             f"l'autre ; la ligne de la révision que cette lignée désigne est laissée telle quelle "
             f"(WF-INTF-0100, WF-INTF-0120, #2798).",
             import_remaining_duplicate_lineage(),
+        ),
+        "import_remaining_unknown_subproject.json": mocktext.example(
+            f"Une variante du reste à engager importé aujourd'hui : l'onglet « {tab_name(TAB)} », "
+            f"renommé « {UNKNOWN_TAB} » dans le tableur, porte en tête le code « {UNKNOWN_CODE} », "
+            f"qu'aucun sous-projet du projet ne porte : ses lignes {REMAINING_FIRST_ROW} et "
+            f"{REMAINING_FIRST_ROW + 1} sont rejetées, chacune nommant l'onglet, où l'utilisateur "
+            f"la retrouve, et le code lu en tête, qu'il déclare ; aucune ligne ne change de "
+            f"sous-projet (WF-INTF-0120, WF-INTF-0080, #4898).",
+            import_remaining_unknown_subproject(),
         ),
         "import_actual_costs_first.json": mocktext.example(
             _april_said(), import_actual_costs_first()
