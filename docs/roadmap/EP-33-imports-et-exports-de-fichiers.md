@@ -307,8 +307,8 @@ tranchés par l'auteur le 2026-11-24 :
 - #4904 — contrat : aucun exemple d'un import refusé ni d'une tâche d'application échouée →
   reporté à EP-38.
 
-Constats relevés à la livraison d'US-3190b, d'US-3270b et d'US-3270/L3b, tranchés par l'auteur le
-2026-11-25 :
+Constats relevés à la livraison d'US-3190b, d'US-3270b, d'US-3270/L3b et d'US-3270/L6, tranchés
+par l'auteur le 2026-11-25 :
 
 - #4914, #4915 — back : sous la borne d'éléments, le coût d'un élément (ses attributs, son texte)
   n'est pas borné (660 Mio) ; les éléments étrangers d'un onglet ou de `sharedStrings.xml` passent
@@ -318,6 +318,9 @@ Constats relevés à la livraison d'US-3190b, d'US-3270b et d'US-3270/L3b, tranc
   élargissement assumé, la même panne d'infrastructure ; l'entrée reformulée par US-3270/L6 ;
 - #4919 — outil : les exemples du reste à engager numérotent leurs lignes depuis la ligne 2 →
   US-3270/L6, sur `REMAINING_FIRST_ROW`.
+- #4929 — outil : les fichiers de couverture parallèles du back (`.coverage.<hôte>.pid…`) ne sont
+  pas ignorés par git, et un commit de L6 en a embarqué 67 → US-3270/L6b : `.coverage.*` dans
+  `.gitignore` ; l'historique d'`epic/EP-33` n'est pas réécrit.
 
 Constat d'EP-11 que ce cadrage nomme : #4022 — les exemples de WF-CRE-0020 et de WF-PRJ-0050 à barre
 oblique attendent #3966 pour entrer au harnais (décision de l'auteur du 2026-11-19 : « avec le lot
@@ -1070,7 +1073,8 @@ US-3270/L3b (ajouté le 2026-11-24) : le rejet `UNKNOWN_SUBPROJECT` porte le cod
 (#4898), le code du sous-projet se tronque dans l'écran des coûts réels (#4896), et le guide Python
 reçoit la variante « règle de comparaison écrite deux fois » (#4899). US-3270/L6 (ajouté le
 2026-11-25) : l'entrée `ghcr.io` assume le push (#4916), et les exemples du reste à engager
-numérotent leurs lignes depuis la ligne 3 (#4919).
+numérotent leurs lignes depuis la ligne 3 (#4919). US-3270/L6b (ajouté le 2026-11-25) : git ignore
+les fichiers de couverture parallèles du back (#4929).
 
 **Hors périmètre.** L'export du devis selon l'annexe B (#4399, EP-31) ; les noms d'onglet du devis
 (#3371), que le nom tiré du code règle pour le reste à engager.
