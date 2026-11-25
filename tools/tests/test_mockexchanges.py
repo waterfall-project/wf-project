@@ -196,7 +196,7 @@ def test_a_line_in_the_tab_of_another_subproject_moves_unless_held(
             "fields": ["subproject"],
         }
     ]
-    # The labour of the wiring, second line of the tab, its third row: rejected, the subproject
+    # The labour of the wiring, second line of the tab, its fourth row: rejected, the subproject
     # it may not leave named, the line by its tab, named as the file names it (#1162): by the code
     # of its subproject, not by its label (ANNEXE B; EP-16/US-0610) — the slash a tab refuses
     # replaced (#3966).
@@ -211,14 +211,14 @@ def test_a_line_in_the_tab_of_another_subproject_moves_unless_held(
     assert report["rejected"] == [
         {
             "sheet": tab,
-            "row": 3,
+            "row": 4,
             "code": "SUBPROJECT_HAS_ACTUAL_COSTS",
             "params": _named(node(read, N.LABOUR)),
         }
     ]
     assert report["refusals"] == []
     summary = mockexchanges.examples()["import_remaining_subproject_held.json"]["summary"]
-    assert f"à la ligne 3 de l'onglet « {tab} »" in cast("str", summary)
+    assert f"à la ligne 4 de l'onglet « {tab} »" in cast("str", summary)
     assert f"l'onglet « {tab} », nommé par le code du sous-projet « {label} »" in cast(
         "str", summary
     )

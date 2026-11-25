@@ -140,6 +140,12 @@ AUTHORIZE = (
     "i/o timeout\n"
 )
 HANDSHAKE = 'Get "https://ghcr.io/v2/": net/http: TLS handshake timeout\n'
+PUSH = (
+    "#12 pushing layers 60.0s\n"
+    "ERROR: failed to push ghcr.io/waterfall-project/waterfall-back:sha-3175c44: Put "
+    '"https://ghcr.io/v2/waterfall-project/waterfall-back/blobs/uploads/e8b1": dial tcp '
+    "20.29.134.18:443: i/o timeout\n"
+)
 OTHER_TIMEOUT = 'Get "https://registry-1.docker.io/v2/": dial tcp 1.2.3.4:443: i/o timeout\n'
 
 
@@ -150,6 +156,7 @@ OTHER_TIMEOUT = 'Get "https://registry-1.docker.io/v2/": dial tcp 1.2.3.4:443: i
         (TIMEOUT, True),
         (AUTHORIZE, True),
         (HANDSHAKE, True),
+        (PUSH, True),
         (OTHER_TIMEOUT, False),
         (OTHER_HOST, False),
         (DENIED, False),
@@ -160,7 +167,7 @@ def test_what_is_tried_again_is_what_the_queue_recognises(output: str, *, expect
     entry = next(
         e
         for e in tomllib.loads(queue.KNOWN.read_text("utf-8"))["known"]
-        if e["family"] == "ghcr.io, miroir des images"
+        if e["family"] == "ghcr.io, au pull du miroir comme au push des images"
     )
     assert retried.unreachable(output) is expected
     assert (re.search(entry["message"], output) is not None) is expected
