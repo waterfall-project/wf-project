@@ -209,7 +209,10 @@ class Prometheus:
     def observe(self) -> Observation:
         """Read at once what the status screen presents of the metrics; raise if any of it fails.
 
-        The whole reading is bounded by ``OBSERVATION_SECONDS``, not only each request of it.
+        The whole reading is bounded by ``OBSERVATION_SECONDS``, not only each request of it, but
+        only roughly: httpx applies the timeout of a request to each phase (connection, read,
+        write, pool), not to the request as a whole, so a slow one can overrun the deadline
+        a little.
         """
         self._observing.deadline = time.monotonic() + OBSERVATION_SECONDS
         try:
