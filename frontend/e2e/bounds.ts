@@ -114,7 +114,9 @@ export const WAY_BACK_PATH_IN_SERVICE = 60_000;
 
 /**
  * How long the address of the comparison of PRJ-001 to its reference is waited for after the click
- * of the base (`revisions.spec.ts`), in milliseconds. Measured on 2026-11-25
+ * of the base (`revisions.spec.ts`), in milliseconds. Both its callers are covered: the path of the
+ * estimate (`:204`, `COMPARISON_PATH_IN_SERVICE`) and that of the planning (`:265`,
+ * `COMPARISON_PLANNING_PATH_IN_SERVICE`). Measured on 2026-11-25
  * (`make e2e-service TESTS="e2e/revisions.spec.ts --grep 'the estimate, the cell marked' --repeat-each=3"`,
  * three at once): 14.0, 15.0 and 16.6 s, past `WORKING`; in the queue the same wait overran it
  * without L3 at 42.7 s for the whole path. Fifty seconds, three times the worst. Constat #4911.
@@ -151,6 +153,19 @@ export const PASTE_PATH_IN_SERVICE = 120_000;
  * times the worst. Constat #4911.
  */
 export const COMPARISON_PATH_IN_SERVICE = 150_000;
+
+/**
+ * The same for the path that compares the planning of PRJ-001 to its reference, then its remaining
+ * to commit (`revisions.spec.ts:265`), in place of its `test.slow` there. Measured on 2026-11-25
+ * (`make e2e-service TESTS="e2e/revisions.spec.ts --grep 'the planning, the branches' --repeat-each=3"`,
+ * three at once): 9.7, 13.4 and 14.5 s. At worst the waits add up: the address
+ * (`COMPARING_REVISION_102`, 50 s), the planning and the remaining to commit (`LOADED`, 40 s each),
+ * and three of `WORKING` (the run of the foot, its unfolding, the address of the remaining, 15 s
+ * each): 175 s, over the ninety seconds of `test.slow` and over `COMPARISON_PATH_IN_SERVICE`, with
+ * the rest of the path (about 10 s). Three and a half minutes, covers that worst case. Constat
+ * #4911, #4874, corrected by US-3070/L3b (#4912).
+ */
+export const COMPARISON_PLANNING_PATH_IN_SERVICE = 210_000;
 
 /**
  * The same for the two paths of the reference of the resources that redate the schedules

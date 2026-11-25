@@ -18,6 +18,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import {
   COMPARING_REVISION_102,
   COMPARISON_PATH_IN_SERVICE,
+  COMPARISON_PLANNING_PATH_IN_SERVICE,
   LOADED,
   MARKING,
   WORKING,
@@ -271,7 +272,10 @@ test("the comparison of the current revision of PRJ-001 to its reference on the 
   page,
 }) => {
   // The planning and the remaining to commit of PRJ-001, the slowest reads of the comparison.
-  test.slow();
+  // Against the service, the waits at worst add up over `test.slow`: a budget measured in its place
+  // (`COMPARISON_PLANNING_PATH_IN_SERVICE`, #4911, #4912).
+  if (inService) test.setTimeout(COMPARISON_PLANNING_PATH_IN_SERVICE);
+  else test.slow();
   const { comparedTo, named, compared } = await compareToReference(page, "planning");
   const planning = page.getByRole("treegrid", { name: "Grille de planning" });
   // The planning compared is a read slowed by the queue: past 15 s, the screen still « Chargement
