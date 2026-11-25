@@ -450,9 +450,8 @@ def test_a_module_of_the_core_may_not_import_one_of_a_layer_above_it_by_its_inte
 
 
 def test_two_modules_of_a_same_layer_may_not_import_each_other(sample: Path) -> None:
-    result = lint(
-        sample, "core.access_roles.interface", "from sample.core.backups import interface\n"
-    )
+    code = "from sample.core.backups import interface\n"
+    result = lint(sample, "core.access_roles.interface", code)
     assert result.returncode == 1
     assert "sample.core.access_roles.interface -> sample.core.backups" in result.stdout
 
@@ -476,9 +475,8 @@ def test_a_module_of_the_core_may_not_reach_the_tables_of_another(
 def test_a_module_of_the_core_may_import_one_of_a_layer_below_it_by_its_interface(
     sample: Path,
 ) -> None:
-    result = lint(
-        sample, "core.users.interface", "from sample.core.resource_settings import interface\n"
-    )
+    code = "from sample.core.resource_settings import interface\n"
+    result = lint(sample, "core.users.interface", code)
     assert result.returncode == 0, result.stdout
 
 
