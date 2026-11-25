@@ -309,6 +309,40 @@ def test_an_empty_directory_deactivates_the_others_at_once_and_the_administrator
         ]
         deactivated = {entry[2] for entry in journal(session) if entry[0] == "user_deactivate"}
         assert deactivated == {ordinary[0]["id"], ordinary[1]["id"], first["id"]}
+        # Each one deactivated is versioned and dated as the platform's own write; the kept not.
+        for row in everyone[:3]:
+            account = session.get_one(UserAccount, row["id"], populate_existing=True)
+            assert (account.lock_version, account.updated_at, account.updated_by) == (1, NOON, None)
+        kept = session.get_one(UserAccount, last["id"], populate_existing=True)
+        assert (kept.lock_version, kept.updated_at) == (0, datetime(2026, 10, 1, tzinfo=UTC))
+
+
+@pytest.mark.requirement("WF-ADM-0120-A")
+def test_an_administrator_is_deactivated_when_another_the_directory_holds_remains(
+    database: Database,
+) -> None:
+    # The guard sees the final state: the ordinary account is deactivated first, at once, and the
+    # administrator not last is deactivated since the other, retained by the directory, remains.
+    with database.transaction() as session:
+        ordinary = held(session, email="ordinary@example.org")
+        leaving = held(session, email="leaving@example.org")
+        remaining = held(session, email="remaining@example.org")
+    holders = (leaving["id"], remaining["id"])
+    role(database, "Administration", permissions=ADMINISTRATION, holders=holders)
+    unheld = [HeldAccount(row["id"], row["idp_subject"]) for row in (ordinary, leaving)]
+    with database.transaction() as session:
+        written = write_accounts(session, [of_provider(remaining)], unheld, NOON)
+        assert written.counts["deactivated"] == 2
+        assert written.skipped == []
+        states = {
+            row["id"]: session.get_one(UserAccount, row["id"], populate_existing=True).state
+            for row in (ordinary, leaving, remaining)
+        }
+        assert states == {
+            ordinary["id"]: "deactivated",
+            leaving["id"]: "deactivated",
+            remaining["id"]: "active",
+        }
 
 
 @pytest.mark.requirement("WF-DAT-0070-A")

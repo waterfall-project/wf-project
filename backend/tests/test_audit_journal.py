@@ -140,6 +140,7 @@ def test_two_inscriptions_of_one_instant_are_ordered_as_they_were_written(
     assert sorted(written) == written
 
 
+@pytest.mark.requirement("WF-SEC-0030-A")
 def test_several_actions_are_inscribed_by_one_write_in_their_order_or_none_is(
     database: Database,
 ) -> None:

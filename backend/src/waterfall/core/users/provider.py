@@ -321,6 +321,10 @@ def deactivate_all_unheld(session: Session, held: Sequence[HeldAccount], at: dat
     for all its writes (WF-ARC-0090), and a directory of five hundred persons emptied would hold
     it for as long as the round trips take. The caller runs them under the guard only for the
     accounts the rule is about. Give how many were deactivated.
+
+    An account missing from the table is ignored in silence, where ``lock_account`` answers 404:
+    unreachable from the worker, whose accounts are anonymised, never deleted, and whose list is
+    read under the lock of the rule.
     """
     if not held:
         return 0

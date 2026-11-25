@@ -259,7 +259,9 @@ def write_accounts(
 
     Under the lock of the rule, taken before any row: the deactivation of an administrator runs
     under the guard of the last one, who is kept and reported (WF-ADM-0120); the others, which take
-    no administration away, are deactivated all at once.
+    no administration away, are deactivated all at once. The journal therefore inscribes the
+    deactivations of the latter first, in a block, then those of the administrators one by one,
+    not the accounts in the order they were read.
     """
     lock_administrators(session)
     written = Written()
