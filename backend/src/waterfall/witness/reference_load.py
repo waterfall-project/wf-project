@@ -76,7 +76,7 @@ if TYPE_CHECKING:
 
 COMMAND = "load-reference"
 # The key of the advisory lock each transaction of the reference set holds.
-REFERENCE_LOCK = 4_202_950
+REFERENCE_SET_LOCK = 4_202_950
 # The instant the identifiers the set draws bear, a millisecond more for each transaction: the
 # reference at nought, the n-th project at n. A day after the witness's, whose they never meet.
 DRAWN_AT = datetime(2025, 9, 2, 9, 0, tzinfo=UTC)
@@ -199,7 +199,7 @@ def _in_transaction(database: Database, rank: int, write: Callable[[Session], bo
     before the partitions a project creates.
     """
     with database.transaction() as session:
-        session.execute(select(func.pg_advisory_xact_lock(REFERENCE_LOCK)))
+        session.execute(select(func.pg_advisory_xact_lock(REFERENCE_SET_LOCK)))
         with drawn_in_order(DRAWN_AT + timedelta(milliseconds=rank)):
             return write(session)
 
