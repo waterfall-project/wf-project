@@ -142,6 +142,18 @@ def test_the_report_of_the_update_keeps_the_charge_and_announces_the_severity() 
         assert (amendment["severity"], amendment["provision_amount"]) == (None, None)
 
 
+def test_the_clean_report_signals_nothing_and_announces_the_severity() -> None:
+    # #4775: the main branch of the screen, the update that asks nothing.
+    clean = fixture("structure_rebase_report_risk_clean")
+    assert {each["change"] for each in clean["differences"]} == {"added", "updated", "removed"}
+    assert clean["refusals"] == []
+    assert Decimal(clean["severity"]) == mockownestimate.SEVERITY
+    assert Decimal(clean["provision_amount"]) == mockownestimate.provision(mockownestimate.SEVERITY)
+    signalled = fixture("structure_rebase_report_risk")
+    assert clean["structure_lock_version"] == signalled["structure_lock_version"]
+    assert clean["main_structure_lock_version"] == signalled["main_structure_lock_version"] - 1
+
+
 def test_the_refused_variant_names_the_loop_by_the_nodes_of_the_own_estimate() -> None:
     refused = fixture("structure_rebase_report_risk_refused")
     [reason] = refused["refusals"]
@@ -187,6 +199,23 @@ def test_the_recomposition_makes_the_own_estimate_whole() -> None:
     assert refused["params"] == {"missing_condition": "own_estimate_whole"}
     marked = fixture("structure_recompose_revision_marked")
     assert marked["params"] == {"missing_condition": "revision_draft"}
+
+
+def test_the_late_recomposition_leaves_the_own_estimate_out_of_date() -> None:
+    # #4775: whole, out of date, its update offered and its entry waiting for it.
+    late = fixture("structure_recomposed_late")
+    whole = fixture("structure_recomposed")
+    assert (late["is_pruned"], late["is_up_to_date"]) == (False, False)
+    moved = {"is_up_to_date", "available_commands"}
+    assert {key: late[key] for key in late if key not in moved} == {
+        key: whole[key] for key in whole if key not in moved
+    }
+    commands = _commands(late)
+    assert commands == {
+        "edit_planning": ["own_estimate_up_to_date"],
+        "edit_estimate": ["own_estimate_up_to_date"],
+        "rebase": [],
+    }
 
 
 def test_the_recomposition_is_listed_on_a_pruned_own_estimate_not_consumed() -> None:

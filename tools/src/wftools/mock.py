@@ -74,9 +74,17 @@ AMENDMENT_PATHS = (
 """The paths served at the address of each differential: its nodes read, its estimate entered and
 pasted (#1219, #1277). The others — its gestures, its planning — answer as the main structure's."""
 AMENDMENT_EXAMPLE = "amendment"
-RISK_PATHS = (NODES_PATH,)
-"""The paths served at the address of the own estimate of each risk: its nodes read (#4409)."""
-RISK_EXAMPLE = "risk_estimate"
+REBASE_PATH = STRUCTURES_PATH + "/{structure_id}/rebase"
+RECOMPOSE_PATH = STRUCTURES_PATH + "/{structure_id}/recompose"
+RISK_PATHS: dict[str, tuple[str, ...]] = {
+    NODES_PATH: ("risk_estimate",),
+    REBASE_PATH: ("risk", "risk_rebased"),
+    RECOMPOSE_PATH: ("recomposed",),
+}
+"""The paths served at the address of the own estimate of each risk, with the examples that
+describe it: its nodes read (#4409), the report and the application of its update, its
+recomposition (#4747). Each operation of a path leads with the first of them it lists; the
+others — a gesture, a write of its lines — answer as the main structure's."""
 HTTP_METHODS = frozenset({"get", "put", "post", "delete", "options", "head", "patch", "trace"})
 STRUCTURE_PARAMETER = "#/components/parameters/StructureId"
 COMPARISON_PATH = "/projects/{project_id}/revisions/comparison"
@@ -144,7 +152,8 @@ def _with_amendment_nodes(contract: Json, paths: Json, prefix: str) -> Json:
     if prefix + NODES_PATH not in paths:
         return paths
     structures = _amendment_structures(contract, paths.get(prefix + STRUCTURES_PATH))
-    return _at_structures(paths, prefix, structures, AMENDMENT_PATHS, AMENDMENT_EXAMPLE)
+    routed: dict[str, tuple[str, ...]] = dict.fromkeys(AMENDMENT_PATHS, (AMENDMENT_EXAMPLE,))
+    return _at_structures(paths, prefix, structures, routed)
 
 
 def _with_risk_nodes(contract: Json, paths: Json, prefix: str) -> Json:
@@ -156,21 +165,21 @@ def _with_risk_nodes(contract: Json, paths: Json, prefix: str) -> Json:
     if prefix + NODES_PATH not in paths or listing is None:
         return paths
     structures = _listed_of_kind(contract, listing, "risk")
-    return _at_structures(paths, prefix, structures, RISK_PATHS, RISK_EXAMPLE)
+    return _at_structures(paths, prefix, structures, RISK_PATHS)
 
 
 def _at_structures(
-    paths: Json, prefix: str, structures: list[str], routed: tuple[str, ...], example: str
+    paths: Json, prefix: str, structures: list[str], routed: dict[str, tuple[str, ...]]
 ) -> Json:
     """Return the paths, plus those routed at the address of each structure, leading with one."""
     served = dict(paths)
     for structure in structures:
-        for path in routed:
+        for path, examples in routed.items():
             if prefix + path not in paths:
                 continue
             address = path.replace("{structure_id}", structure)
             served[prefix + address] = _at_a_literal(
-                paths[prefix + path], STRUCTURE_PARAMETER, example
+                paths[prefix + path], STRUCTURE_PARAMETER, examples
             )
     return served
 
@@ -222,12 +231,14 @@ def _listed_of_kind(contract: Json, path: Json, kind: str) -> list[str]:
     return [str(item["structure_id"]) for item in structures if item.get("kind") == kind]
 
 
-def _at_a_literal(path: Json, parameter: str, example: str) -> Json:
+def _at_a_literal(path: Json, parameter: str, examples: str | tuple[str, ...]) -> Json:
     """Return a path without one of its parameters, the example named first where it is listed.
 
     Only the HTTP methods are rewritten; the parameters declared on the path itself lose it too.
-    Each method whose answer 200 lists the example leads with it; the others keep their order.
+    Each method whose answer 200 lists one of the examples leads with the first it lists; the
+    others keep their order.
     """
+    names = (examples,) if isinstance(examples, str) else examples
     served: Json = {}
     for key, value in path.items():
         if key in HTTP_METHODS:
@@ -242,10 +253,11 @@ def _at_a_literal(path: Json, parameter: str, example: str) -> Json:
             served[key] = value
     for key in HTTP_METHODS & served.keys():
         operation = served[key]
-        examples = _examples(operation)
-        if example not in examples:
+        listed = _examples(operation)
+        example = next((name for name in names if name in listed), None)
+        if example is None:
             continue
-        reordered = {example: examples[example]} | examples
+        reordered = {example: listed[example]} | listed
         response = operation["responses"]["200"]
         media = response["content"]["application/json"]
         operation["responses"] = {

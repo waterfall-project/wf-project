@@ -61,6 +61,8 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 // The estimate of the revision, its reading context carried: the structure of the risk is added.
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate?as_of=2026-03-01`;
+// Where the screen of the risks stands, as it hands it to the commands.
+const AT = { projectId: PROJECT, revisionId: REVISION };
 const CREATE = "POST /projects/{project_id}/risks";
 const UPDATE = "PATCH /projects/{project_id}/risks/{risk_id}";
 const MOVE = "PUT /projects/{project_id}/risks/{risk_id}/provision";
@@ -151,7 +153,7 @@ function modify(risk: Risk = CREATED, options: ProvisionOptions = OPTIONS) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PendingAddress>
-        <RiskCommands projectId={PROJECT} risk={risk} options={options} />
+        <RiskCommands {...AT} risk={risk} options={options} />
       </PendingAddress>
     </NextIntlClientProvider>
   );
@@ -168,7 +170,7 @@ function detail(risk: Risk) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PendingAddress>
-        <RiskDetail risk={risk} reviews={[]} projectId={PROJECT} options={OPTIONS} />
+        <RiskDetail risk={risk} reviews={[]} {...AT} options={OPTIONS} />
       </PendingAddress>
     </NextIntlClientProvider>
   );

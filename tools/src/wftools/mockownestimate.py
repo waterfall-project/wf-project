@@ -28,12 +28,13 @@ What the examples say of it is read from this description, never written by hand
   and the provision the update would record; ``structure_rebase_report_risk_refused``, its refused
   variant, the main structure having besides made the wiring of the cabinets follow the
   commissioning, which closes a loop through the rework; ``structure_rebased_risk``, the own
-  estimate once updated;
+  estimate once updated; ``structure_rebase_report_risk_clean``, its variant that signals nothing;
 - ``structure_recomposed``, a declared variant: the revision 104 opened after that marking takes
   the own estimate over pruned, as the structure 209, and its recomposition makes it whole;
   ``structure_rebase_risk_pruned_refused``, the report of its update asked before, refused by
   ``own_estimate_whole``; ``structure_recompose_revision_marked``, the recomposition asked on the
-  marked revision, refused by ``revision_draft``.
+  marked revision, refused by ``revision_draft``; ``structure_recomposed_late``, its variant that
+  leaves the own estimate out of date.
 
 The occurrence of 751 (``mockriskwrites``) still reads the own estimate EP-08 described,
 ``mockwitness.REWORK_ESTIMATE``, as the loader of the witness does: their forms are rewritten by
@@ -387,6 +388,28 @@ def report() -> JsonObject:
     }
 
 
+def report_clean() -> JsonObject:
+    """Return the report of the update that signals nothing: no value kept, nothing refused.
+
+    The main structure has not re-estimated the charge of the connection of the terminal blocks
+    (one write less): the own estimate designates it alone, against a base that does not move, so
+    that nothing is kept. The writes it did make reach the own estimate and its base alike, the gap
+    stays the severity of the register and the provision is that of the register.
+    """
+    applicable = report()
+    differences = cast("list[JsonObject]", applicable["differences"])
+    severity = SEVERITY
+    return {
+        **applicable,
+        "main_structure_lock_version": cast("int", applicable["main_structure_lock_version"]) - 1,
+        "differences": cast(
+            "list[JsonValue]", [each for each in differences if each["change"] != "kept"]
+        ),
+        "severity": money(severity),
+        "provision_amount": money(provision(severity)),
+    }
+
+
 def _labels() -> dict[int, str]:
     """Return the labels of the nodes of the own estimate after the update, by their number."""
     labels = mockrebase.node_labels()
@@ -471,6 +494,26 @@ def recomposed() -> JsonObject:
 NEXT_MAIN = 210
 
 
+def recomposed_late() -> JsonObject:
+    """Return the recomposed copy when the main structure of its revision has changed since.
+
+    Whole, it is out of date: its entry and its planning wait for its update, which is offered, as
+    for the own estimate of a risk written off in ``structures``.
+    """
+    waiting: list[JsonValue] = [
+        {"command": name, "is_available": False, "missing_conditions": ["own_estimate_up_to_date"]}
+        for name in ("edit_planning", "edit_estimate")
+    ]
+    return {
+        **recomposed(),
+        "is_up_to_date": False,
+        "available_commands": [
+            *waiting,
+            {"command": "rebase", "is_available": True, "missing_conditions": []},
+        ],
+    }
+
+
 def next_structures() -> list[JsonObject]:
     """Return the structures of the revision 104 opened after the marking, the own estimate pruned.
 
@@ -519,7 +562,7 @@ def examples() -> dict[str, JsonObject]:
     labels = mockrebase.node_labels()
     whole = nodes_risk_estimate()
     pruned = nodes_risk_estimate_pruned()
-    read, refused = report(), report_refused()
+    read, refused, clean = report(), report_refused(), report_clean()
     main, own = _counters()
     severity, rework = mocktext.amount(SEVERITY), mocktext.amount(rework_amount())
     hours = mocktext.amount(DESIGNED_HOURS, 0)
@@ -598,6 +641,19 @@ def examples() -> dict[str, JsonObject]:
             f"propre, puis relance (WF-PLA-0030, WF-RIS-0070, #4585).",
             refused,
         ),
+        "structure_rebase_report_risk_clean.json": mocktext.example(
+            f"Variante déclarée de structure_rebase_report_risk : la structure principale n'a pas "
+            f"réestimé la charge du « {labels[N.LABOUR]} », que le devis propre de « {LABEL} » "
+            f"porte seul à {hours} h ; le devis propre, en retard, ne reçoit que la tâche ajoutée, "
+            f"le libellé et la charge de la mise en service modifiés, la ligne retirée. La mise à "
+            f"jour ne signale rien : aucune valeur gardée (kept), aucun refus. L'écran la "
+            f"confirme sans rien demander, avec les compteurs lus, celui de la principale, "
+            f"{clean['main_structure_lock_version']}, et celui du devis propre, {own}. La gravité "
+            f"recalculée, {mocktext.amount(SEVERITY)}, reste celle du registre, et la provision "
+            f"qu'elle donne à {mocktext.amount(PROBABILITY * 100, 0)} %, "
+            f"{mocktext.amount(provision(SEVERITY))} (WF-RIS-0070, WF-REV-0110, #4585).",
+            clean,
+        ),
         "structure_rebased_risk.json": mocktext.example(
             f"Le devis propre de « {LABEL} » mis à jour, la confirmation de "
             f"structure_rebase_report_risk reçue avec ses compteurs : ce que la principale a reçu "
@@ -615,6 +671,16 @@ def examples() -> dict[str, JsonObject]:
             f"structure principale de la révision {NEXT_REVISION} n'ayant rien reçu depuis, il est "
             f"à jour, et se saisit ; son compteur passe à 2 (WF-RIS-0030, #4585).",
             recomposed(),
+        ),
+        "structure_recomposed_late.json": mocktext.example(
+            f"Variante de structure_recomposed : la structure principale de la révision "
+            f"{NEXT_REVISION} a changé depuis le marquage de la révision {MARKED_REVISION}. "
+            f"Recomposé, le devis propre de « {LABEL} », structure {NEXT_STRUCTURE}, est entier "
+            f"mais en retard (is_up_to_date faux) : sa saisie et son planning manquent de "
+            f"own_estimate_up_to_date, sa mise à jour (rebase) est offerte ; l'écran la lance "
+            f"avant toute saisie (structure_rebase_report_risk_clean). Son compteur passe à 2 "
+            f"(WF-RIS-0030, WF-RIS-0070, #4585).",
+            recomposed_late(),
         ),
         "structure_rebase_risk_pruned_refused.json": mocktext.example(
             f"{taken}. Le compte rendu de sa mise à jour demandé avant sa recomposition : un devis "

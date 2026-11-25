@@ -535,14 +535,35 @@ describe("« Écarts seulement » on the grid of the planning [WF-REV-0100-A] [W
     expect(grid.given.at(-1)?.comparing).toBe(true);
   });
 
-  it("neither offers, nor sends, nor says it on the main structure and on the own estimate of a risk", async () => {
-    for (const search of [{ difference: ALL }, { structure: RISK, difference: ALL }]) {
-      server.clients = [];
-      const page = await planning(search);
-      expect(callsOf(NODES)[0]?.query.has("difference")).toBe(false);
-      expect(page).not.toContain("Differences only");
-      expect(page).not.toContain("Active filters");
-    }
+  it("neither offers, nor sends, nor says it on the main structure", async () => {
+    const page = await planning({ difference: ALL });
+    expect(callsOf(NODES)[0]?.query.has("difference")).toBe(false);
+    expect(page).not.toContain("Differences only");
+    expect(page).not.toContain("Active filters");
+  });
+
+  it("is offered on the own estimate of a risk, which presents what it designates as added, modified or removed [US-3140] [WF-IHM-0020-A]", async () => {
+    const page = await planning({ structure: RISK, difference: ALL });
+    expect(callsOf(NODES)[0]?.query.get("difference")).toBe(ALL);
+    expect(BUTTON.exec(page)?.[1]).toBe("true");
+    expect(grid.given.at(-1)?.differential).toBe(true);
+  });
+
+  it("offers no start date of its own on the own estimate of a risk, the main structure's being copied, and offers it on the main structure [US-3140] [WF-PLA-0020]", async () => {
+    await planning({ structure: RISK });
+    expect(grid.given.at(-1)?.planningStart?.editable).toBe(false);
+    await planning();
+    expect(grid.given.at(-1)?.planningStart?.editable).toBe(true);
+  });
+
+  it("reads the own estimate of a risk occurred as the main structure, which bears no difference: none asked, none offered [US-3140] [WF-RIS-0060]", async () => {
+    const consumed = "01926f3a-7c00-7000-8000-000000000205";
+    server.answers = { ...server.answers, [NODES]: "nodes_risk_estimate_occurred" };
+    const page = await planning({ structure: consumed, difference: ALL });
+    expect(callsOf(NODES)[0]?.path).toContain(`/structures/${consumed}/nodes`);
+    expect(callsOf(NODES)[0]?.query.has("difference")).toBe(false);
+    expect(BUTTON.exec(page)).toBeNull();
+    expect(grid.given.at(-1)?.differential).toBe(false);
   });
 });
 
@@ -702,5 +723,35 @@ describe("the filter of the planning on the rows a risk occurred merged", () => 
     const page = await planning();
     expect(menuText(page, "Origin")).toBe("All rows");
     expect(filtersOf(grid.given.at(-1)).origin?.risks).toEqual([]);
+  });
+});
+
+describe("the own estimate of a risk on the grid of the planning [US-3140]", () => {
+  const LATE = "01926f3a-7c00-7000-8000-000000000206";
+  const UP_TO_DATE = "01926f3a-7c00-7000-8000-000000000204";
+
+  it("names the own estimate it reads, says it is late, offers its update and opens the grid to entry, the first one updating it [US-3140] [WF-IHM-0020-A] [WF-RIS-0070-A]", async () => {
+    const page = await planning({ structure: LATE });
+    expect(page).toContain("The own estimate “Indisponibilité de l&#x27;automaticien” is late");
+    expect(page).toContain("Update the own estimate");
+    expect(grid.given.at(-1)?.editable).toBe(true);
+    expect(grid.given.at(-1)?.differential).toBe(true);
+  });
+
+  it("opens an own estimate up to date to entry without a word of delay [US-3140]", async () => {
+    const page = await planning({ structure: UP_TO_DATE });
+    expect(page).not.toContain("is late");
+    expect(page).not.toContain("Update the own estimate");
+    expect(grid.given.at(-1)?.editable).toBe(true);
+  });
+
+  it("reads an own estimate in arrears of a marked revision, which lists no entry for it, as it is: read only, with no update offered [US-3140] [WF-REV-0100]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_amendments",
+    };
+    const page = await planning({ structure: "01926f3a-7c00-7000-8000-000000000214" });
+    expect(page).not.toContain("Update the own estimate");
+    expect(grid.given.at(-1)?.editable).toBe(false);
   });
 });

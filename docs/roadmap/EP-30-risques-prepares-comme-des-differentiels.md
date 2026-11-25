@@ -235,6 +235,41 @@ le planning entier : ses tâches se datent par leurs liaisons avec celles du pro
 lit dans sa grille. US-3100 retire les deux premiers signalements et garde le troisième, étendu à
 toute tâche terminée que la survenance rouvre.
 
+- #4822 — contrat : `RiskOccurrenceReport.completed_provision_task` (et la phrase voisine de
+  `getRiskOccurrenceReport`) dit la tâche porteuse terminée repassée « not started », quand la
+  spécification 1.0.10 (WF-PLA-0040-A) en fait une récapitulative démarrée, à sa date de démarrage.
+  Reporté d'EP-32 à sa livraison (décision de l'auteur du 2026-11-23) : la forme du contrat ne
+  change pas, seule la description est périmée. Corrigé par US-3100/L2, qui récrit le compte rendu
+  de survenance (« tâches terminées qu'elle rouvre ») ; la phrase d'EP-08 (#4240) reste, EP-08
+  étant livré.
+
+Constats relevés à la livraison d'US-3070/L3 et d'US-3140/L1, tranchés par l'auteur le
+2026-11-24 :
+
+- #4874 — e2e : le PUT du calendrier par défaut et celui des unités de durée redatent toutes les
+  structures de la révision en cours ; tant que le devis propre consommé n'est pas élagué, la 102
+  de PRJ-001 en porte 9 (≈ 54 000 nœuds) et ces écritures dépassent `WORKING` (14 à 19,5 s).
+  US-3070/L3 leur pose une borne à part, `REDATING`, sur la mesure, sans relever `WORKING` →
+  US-3070/L3b (au second rejet de L3 ; d'abord rattaché à L4, dont l'élagage ne suffit pas) ;
+- #4911 — e2e : après la bascule, d'autres parcours contre le service dépassent leurs bornes. Une
+  écriture qui recalcule les structures en cours (un taux horaire : 12,4 s → plus de 30 s), le
+  collage dans le devis propre, le contexte, la comparaison à la référence. La cause est celle de
+  #4874. L3 leur pose des bornes mesurées dans la famille de `REDATING` → US-3070/L3b. Une part de
+  `context.spec.ts:34` précède L3 : si ce parcours échoue encore une fois la cause corrigée, il
+  reçoit son propre lot ;
+- #4883 — e2e : le pire cas d'un parcours qui cumule deux bornes `REDATING` n'est pas chiffré →
+  un `test.setTimeout` mesuré au 7ᵉ tour de L3, puis la famille retirée par US-3070/L3b ;
+- #4818 — front : un geste de structure, le sous-projet d'une ligne ou l'inscription aux
+  chronologies, fait sur un devis propre en retard, est retenu après la mise à jour, à refaire →
+  US-3140/L1b : le sous-projet et les gestes de structure se rejouent sur les compteurs relus ;
+  l'inscription aux chronologies reste retenue, parce qu'elle ne se rejoue pas sans doublon ;
+- #4884 — e2e : le parcours de la survenance contre le service n'asserte plus le tableau des écarts
+  → US-3100/L2, dont le parcours écrit un écart avant la survenance ;
+- #4877, #4879 — front : un test qui retire seulement une ancre d'un déplacement ; l'hypothèse du
+  rafraîchissement de la grille après un rejeu, à nommer → US-3140/L3 ;
+- #4878 — front : l'occupation partagée entre deux grilles d'un devis propre — clos sans suite, un
+  écran n'en montre qu'une.
+
 ## Conception
 
 Écrite au cadrage du 2026-11-21, sur le code d'`epic/EP-08` et d'`epic/EP-11` à cette date, après la
@@ -698,7 +733,7 @@ fusion (`load_occurrence`), sous les identifiants que le témoin impose. Le calc
 
 Le devis propre s'ouvre dans les grilles du planning et du devis par ce qu'EP-08 a écrit pour un
 avenant : la lecture contre la base, la note de retard, la commande de mise à jour et son compte
-rendu (`amendment-late-note.tsx`, `rebase-amendment-command.tsx`), généralisés aux deux natures. S'y
+rendu (`structure-late-note.tsx`, `rebase-structure-command.tsx`), généralisés aux deux natures. S'y
 ajoutent : la recomposition à l'ouverture d'un devis propre élagué ; l'enchaînement de la mise à
 jour avant une saisie, un réexamen ou une survenance ; l'échec nommé d'un marquage ou d'une
 contractualisation, d'où l'écran mène aux risques à lire ; le compte rendu de survenance ;
@@ -834,6 +869,23 @@ nommer la nature « avenant » : ce sont les deux calculs que cette US reprend, 
 ayant sa base comme un différentiel. La conception dit ses états — entier dans la révision en cours,
 élagué au marquage —, la recomposition et l'élagage. Le devis propre d'EP-08, structure autonome qui
 tient seule ses lignées (`holds_its_lineages`), disparaît.
+
+Bascule (US-3070/L3, décision de l'auteur du 2026-11-24) : entre elle et US-3150/L1, les parcours
+`@shared` que l'écart du témoin fausse contre le service sont gardés par `inService`, et le guide
+porte une entrée « EP-30 / US-3150 » dans la liste des entrées non rejouées ; US-3150/L1 lève les
+gardes et retire l'entrée. Le lot a dépassé son estimation (3 191 lignes pour ≈ 1 500), ce que
+l'auteur a accepté.
+
+Second rejet de la bascule (décision de l'auteur du 2026-11-24) : un devis propre entier, avec sa
+base, dans la révision en cours, coûte à toute écriture qui recalcule les structures en cours et à
+des lectures de la révision. La 102 du témoin porte 9 structures et ≈ 54 000 nœuds. L'élagage
+d'US-3070/L4 ne touche que les devis propres survenus ou marqués, et ne suffit pas. L3 se fusionne
+avec une famille de bornes e2e mesurées, contre le service seulement (#4874, #4911).
+US-3070/L3b, après L4, mesure où passe le temps, corrige la cause et retire la famille. Piste à
+confirmer : une écriture qui recalcule les structures en cours laisse les devis propres entiers et
+leurs bases en retard, recomposés à leur mise à jour. Si la mesure montre autre chose, ou si la
+correction change une règle de cette conception, L3b pose la question avant d'écrire. Les mesures
+de la définition de fini (WF-QUA-0060) se rejouent après L3b.
 
 **Hors périmètre.** La gravité et la provision (US-3080) ; la mise à jour et ses refus (US-3090) ;
 la survenance (US-3100) ; les écrans (US-3140) ; le témoin (US-3150).
@@ -1360,7 +1412,7 @@ d'une opportunité (US-3140).
 
 ## US-3140 — Les écrans des risques : le devis propre sur le projet, sa mise à jour, la survenance, l'opportunité
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — WF-IHM-0020, dont le texte ne change pas, reste close par EP-08
 - **opérations** : celles des US-3070 à US-3130, par le client engendré
 - **issue** : #4582
@@ -1416,9 +1468,12 @@ qu'il est.
 
 **Notes de réalisation.** Les écrans existent (EP-15, EP-17, EP-25, EP-08) : le registre, le détail,
 les formulaires, le réexamen, le compte rendu de survenance, et pour un avenant la note de retard et
-« Mettre à jour l'avenant » (`amendment-late-note.tsx`, `rebase-amendment-command.tsx`), que le
+« Mettre à jour l'avenant » (`structure-late-note.tsx`, `rebase-structure-command.tsx`), que le
 devis propre reprend. Cette US ne redessine aucun écran : la reprise du graphique à bulles et la
 colonne de tendance sont d'US-3160.
+
+US-3140/L1b (#4818, ajouté le 2026-11-24) étend le rejeu des saisies après une mise à jour sans
+question au sous-projet d'une ligne et aux gestes de structure.
 
 **Hors périmètre.** La reprise de l'écran des risques (US-3160) ; les vues du portefeuille (EP-11).
 

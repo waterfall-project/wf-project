@@ -142,12 +142,22 @@ export interface RiskDetailProps {
   readonly risk: Risk;
   readonly reviews: readonly RiskReview[];
   readonly projectId: string;
+  readonly revisionId: string;
   /** What the provision is chosen among, read while the risk lists `update` or `review` available. */
   readonly options?: ProvisionOptions | undefined;
+  /** The address of the estimate of the revision, where a refused update is corrected. */
+  readonly estimate?: string | undefined;
 }
 
 /** Render the detail of a risk. */
-export function RiskDetail({ risk, reviews, projectId, options }: RiskDetailProps) {
+export function RiskDetail({
+  risk,
+  reviews,
+  projectId,
+  revisionId,
+  options,
+  estimate,
+}: RiskDetailProps) {
   const t = useTranslations();
   const locale = useLocale();
   // Named by its label, not by its heading: an identifier of a server component may meet one of
@@ -162,7 +172,13 @@ export function RiskDetail({ risk, reviews, projectId, options }: RiskDetailProp
         <CloseRiskDetail />
       </div>
       {/* Keeps by risk what a write leaves; the form and the status of a risk never outlive it. */}
-      <RiskCommands projectId={projectId} risk={risk} options={options} />
+      <RiskCommands
+        projectId={projectId}
+        revisionId={revisionId}
+        risk={risk}
+        options={options}
+        estimate={estimate}
+      />
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
         <Fact name={t("grid.columns.state")}>{t(`enums.RiskState.${risk.state}`)}</Fact>
         <Fact name={t("grid.columns.probability")}>{formatPercent(risk.probability, locale)}</Fact>
@@ -181,6 +197,11 @@ export function RiskDetail({ risk, reviews, projectId, options }: RiskDetailProp
         {risk.occurrence_cost === null ? null : (
           <Fact name={t("grid.columns.occurrenceCost")}>
             <ComputedAmount amount={risk.occurrence_cost} />
+          </Fact>
+        )}
+        {risk.occurred_reestimated_amount == null ? null : (
+          <Fact name={t("risks.detail.costToday")}>
+            <ComputedAmount amount={risk.occurred_reestimated_amount} />
           </Fact>
         )}
         <Fact name={t("grid.columns.lastReview")}>

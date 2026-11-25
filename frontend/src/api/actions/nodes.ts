@@ -10,7 +10,7 @@
  * (`createNode`, `deleteNode`), nodes moved under a task (`moveNodes`), the timelines a task is
  * inscribed to (`setNodeTracking`), a block pasted from a
  * spreadsheet (`previewPaste`, `applyPaste`), the totals of a filtered reading read anew
- * (`listNodes`), the skeleton of the planning generated on an empty main structure
+ * (`listNodes`, `readNodeCounters`), the skeleton of the planning generated on an empty main structure
  * (`generatePlanningSkeleton`), the planning start date of a structure written (`updateStructure`)
  * —: the grid asks the server of Next,
  * which calls the API (§4.3.1), and gets back the outcome the one decoder makes of its answer
@@ -330,6 +330,45 @@ export async function readNodeTotals(
     ),
   );
   return outcome.kind === "done" ? { kind: "done", data: outcome.data.totals } : outcome;
+}
+
+/** What a node says of itself to whoever writes it: its counter, and the fields it accepts. */
+export interface NodeCounter {
+  readonly node_id: string;
+  readonly lock_version: number;
+  readonly editable_fields: readonly components["schemas"]["EditableField"][];
+}
+
+/**
+ * Read anew the counter and the editable fields of every node of a structure, nothing else
+ * (`listNodes`, `fields`): what an entry held back while the own estimate of a risk was updated
+ * is written again from (US-3140) — the update rewrote the counters of the nodes, and perhaps the
+ * nodes themselves.
+ */
+export async function readNodeCounters(
+  structure: StructurePath,
+): Promise<Outcome<readonly NodeCounter[]>> {
+  const outcome = await decode(() =>
+    serverClient().GET(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes",
+      {
+        params: {
+          path: structure,
+          query: { fields: ["node_id", "lock_version", "editable_fields"] },
+        },
+      },
+    ),
+  );
+  return outcome.kind === "done"
+    ? {
+        kind: "done",
+        data: outcome.data.items.map(({ node_id, lock_version, editable_fields }) => ({
+          node_id,
+          lock_version,
+          editable_fields,
+        })),
+      }
+    : outcome;
 }
 
 /**

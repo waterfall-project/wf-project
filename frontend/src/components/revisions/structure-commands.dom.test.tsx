@@ -16,7 +16,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
-import { AmendmentCommands } from "./amendment-commands";
+import { StructureCommands } from "./structure-commands";
 
 // The server of Next, as far as these commands need it: the fake back behind serverClient, and the
 // router that leads the screen.
@@ -86,7 +86,7 @@ function commands(structure: CostStructure, available: readonly Command[], merge
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <TaskTracker>
         <main>
-          <AmendmentCommands
+          <StructureCommands
             structure={listedStructure(structure)}
             version={structure.lock_version}
             commands={new Set(available)}
@@ -268,5 +268,66 @@ describe("an amendment in arrears", () => {
     const client = serve({ [MERGE_REPORT]: "structure_merge_report" });
     commands(amendment("structures_amendments"), ["rebase"]);
     expect(client.calls).toEqual([]);
+  });
+});
+
+/** The own estimate of a risk of an example of the structures of a revision. */
+function ownEstimate(name: string, id: string): CostStructure {
+  const found = (example(name) as CostStructure[]).find((structure) =>
+    structure.structure_id.endsWith(id),
+  );
+  if (found === undefined) {
+    throw new Error(`${name} lists no structure ${id}`);
+  }
+  return found;
+}
+
+describe("the own estimate of a risk in arrears", () => {
+  it("is named, says it is late and offers its update, without the merge or the abandon of an amendment [US-3140] [WF-IHM-0020-A]", () => {
+    const late = ownEstimate("structures", "206");
+    expect(late.kind).toBe("risk");
+    expect(late.is_up_to_date).toBe(false);
+    commands(late, listedAvailable(late));
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "Le devis propre « Indisponibilité de l'automaticien » est en retard",
+    );
+    expect(screen.getByRole("button", { name: "Mettre à jour le devis propre" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Contractualiser l’avenant" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Abandonner l’avenant" })).toBeNull();
+  });
+
+  it("says nothing on an own estimate up to date, and offers no update [US-3140]", () => {
+    const current = ownEstimate("structures", "204");
+    commands(current, listedAvailable(current));
+    expect(screen.queryByRole("note")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Mettre à jour le devis propre" })).toBeNull();
+  });
+
+  it("presents the report with the severity and the provision it recomputes, and confirms with the counters read [US-3140] [WF-RIS-0070-A]", async () => {
+    const client = serve({
+      [REBASE_REPORT]: "structure_rebase_report_risk",
+      [REBASE]: "structure_rebased_risk",
+    });
+    commands(ownEstimate("structures", "206"), ["rebase"]);
+    await userEvent.click(screen.getByRole("button", { name: "Mettre à jour le devis propre" }));
+    const form = screen.getByRole("form", { name: "Mettre à jour le devis propre" });
+    const recomputed = await within(form).findByRole("list", {
+      name: "Gravité et provision recalculées",
+    });
+    expect(recomputed).toHaveTextContent("1 249 880,00");
+    expect(recomputed).toHaveTextContent("499 952,00");
+    await userEvent.click(within(form).getByRole("button", { name: "Confirmer la mise à jour" }));
+    await waitFor(() => {
+      expect(client.calls.some((call) => call.route === REBASE)).toBe(true);
+    });
+    expect(
+      await screen.findByText(/« Indisponibilité de l'automaticien » est à jour\./),
+    ).toBeVisible();
+  });
+
+  it("is not offered in a marked revision, where the example lists `rebase` unavailable [US-3140] [WF-REV-0100]", () => {
+    const marked = ownEstimate("structures_amendments", "214");
+    commands(marked, listedAvailable(marked));
+    expect(screen.queryByRole("button", { name: "Mettre à jour le devis propre" })).toBeNull();
   });
 });

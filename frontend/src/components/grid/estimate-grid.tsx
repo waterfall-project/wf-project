@@ -31,6 +31,12 @@ import {
   updateTaskFacet,
 } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
+import {
+  counterOf,
+  type EntryGuard,
+  fieldsOf,
+  useEntryGuard,
+} from "@/components/revisions/entry-guard";
 import { formatPercent } from "@/i18n/format";
 
 import { withDifference } from "./compared";
@@ -163,6 +169,7 @@ function structurePaste(
   version: number,
   moved: Moved,
   name: (column: NodeColumn) => string,
+  guard: EntryGuard,
 ): EstimateWrites["paste"] {
   return {
     span: pasteSpan,
@@ -174,10 +181,17 @@ function structurePaste(
         rows: block.map((cells) => [...cells]),
       }),
     apply: async (plan) => {
-      const outcome = await applyPaste(structure, {
-        paste_id: plan.paste_id,
-        confirmed: true,
-        lock_version: version,
+      // A block has no node of its own: the service places it, and judges it by the counter of the
+      // structure — read again, when the own estimate was updated first.
+      const outcome = await guard({
+        nodes: [],
+        fields: [],
+        send: (fresh) =>
+          applyPaste(structure, {
+            paste_id: plan.paste_id,
+            confirmed: true,
+            lock_version: fresh?.structureLockVersion ?? version,
+          }),
       });
       if (outcome.kind !== "done") {
         return outcome;
@@ -208,24 +222,35 @@ function structureWrites(
   tasks: boolean,
   name: (column: NodeColumn) => string,
   filters: NodeFilters,
+  guard: EntryGuard,
 ): EstimateWrites {
   return {
-    paste: structurePaste(structure, version, moved, name),
+    paste: structurePaste(structure, version, moved, name, guard),
     totals: moved.whole ? undefined : () => readNodeTotals(structure, filters),
     line: async (node, change) =>
       asWritten(
-        await updateEstimateLine(structure, node.node_id, {
-          ...change,
-          lock_version: node.lock_version,
+        await guard({
+          nodes: [node.node_id],
+          fields: fieldsOf("estimate_line", change),
+          send: (fresh) =>
+            updateEstimateLine(structure, node.node_id, {
+              ...change,
+              lock_version: counterOf(fresh, node.node_id, node.lock_version),
+            }),
         }),
         moved,
       ),
     task: tasks
       ? async (node, label) =>
           asWritten(
-            await updateTaskFacet(structure, node.node_id, {
-              label,
-              lock_version: node.lock_version,
+            await guard({
+              nodes: [node.node_id],
+              fields: ["task.label"],
+              send: (fresh) =>
+                updateTaskFacet(structure, node.node_id, {
+                  label,
+                  lock_version: counterOf(fresh, node.node_id, node.lock_version),
+                }),
             }),
             moved,
           )
@@ -252,6 +277,8 @@ export function EstimateGrid({
 }: EstimateGridProps) {
   const t = useTranslations("estimateGrid");
   const locale = useLocale();
+  // The own estimate of a risk in arrears is updated before the first entry (US-3140).
+  const guard = useEntryGuard();
 
   const columns = useTranslations("enums.NodeColumn");
   // The version of the structure moves with each write answered: the highest one told — writes
@@ -322,7 +349,7 @@ export function EstimateGrid({
     return estimateGrid(
       reference,
       editable
-        ? structureWrites(structure, version, told, tasksEditable, name, filters)
+        ? structureWrites(structure, version, told, tasksEditable, name, filters, guard)
         : undefined,
       inflation === undefined
         ? undefined
@@ -342,6 +369,7 @@ export function EstimateGrid({
     columns,
     inflation,
     locale,
+    guard,
   ]);
   const config = useMemo(
     () => withDifference(read, differential, comparing),

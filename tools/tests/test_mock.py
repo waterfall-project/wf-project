@@ -149,6 +149,54 @@ def test_the_writes_of_the_own_estimate_of_a_risk_answer_as_the_main_structure()
     assert f"/api/v1{STRUCTURES}/{RISK}/nodes/paste" not in paths
 
 
+REBASE = f"{STRUCTURES}/{{structure_id}}/rebase"
+RECOMPOSE = f"{STRUCTURES}/{{structure_id}}/recompose"
+
+
+def with_update(contract: dict[str, object]) -> dict[str, object]:
+    """Return a contract that also has the update and the recomposition, each led by a witness."""
+
+    def operation(*names: str) -> dict[str, Any]:
+        examples = {name: {"$ref": f"#/x/{name}"} for name in names}
+        content = {"application/json": {"examples": examples}}
+        return {
+            "parameters": [{"$ref": "#/components/parameters/StructureId"}],
+            "responses": {"200": {"content": content}},
+        }
+
+    paths = paths_of(contract)
+    paths[REBASE] = {
+        "get": operation("applicable", "refused", "risk", "risk_refused"),
+        "post": operation("rebased", "risk_rebased"),
+    }
+    paths[RECOMPOSE] = {"post": operation("recomposed")}
+    return contract
+
+
+@pytest.mark.story("US-3140")
+def test_the_update_and_the_recomposition_of_a_risk_answer_with_its_own_examples() -> None:
+    # #4747: the screen of the own estimate reads the report, applies the update, recomposes.
+    paths = paths_of(mock.derive(with_update(risks_contract())))
+    for path, method, example in (
+        (REBASE, "get", "risk"),
+        (REBASE, "post", "risk_rebased"),
+        (RECOMPOSE, "post", "recomposed"),
+    ):
+        served = paths[f"/api/v1{path.replace('{structure_id}', RISK)}"]
+        assert next(iter(examples_of(served, method))) == example, (path, method)
+        assert served[method]["parameters"] == []
+
+
+@pytest.mark.story("US-3140")
+def test_the_update_of_an_amendment_stays_that_of_the_main_structure() -> None:
+    paths = paths_of(mock.derive(with_update(risks_contract())))
+    assert f"/api/v1{RECOMPOSE.replace('{structure_id}', AMENDMENT)}" not in paths
+    assert not any(path.endswith(f"{AMENDMENT}/rebase") for path in paths)
+    templated = paths[f"/api/v1{REBASE}"]
+    assert next(iter(examples_of(templated))) == "applicable"
+    assert next(iter(examples_of(templated, "post"))) == "rebased"
+
+
 def test_a_listing_without_a_risk_routes_none() -> None:
     paths = paths_of(mock.derive(amendments_contract()))
     assert not any(path.endswith(f"{RISK}/nodes") for path in paths)
@@ -375,6 +423,16 @@ def test_the_bundle_of_the_repository_serves_the_amendment_203_the_volume_and_th
         assert next(iter(examples_of(served[path], method))) == "amendment", path
     own = f"/api/v1{STRUCTURES}/{RISK}/nodes"
     assert next(iter(examples_of(served[own]))) == "risk_estimate"
+    for path, method, example in (
+        (REBASE, "get", "risk"),
+        (REBASE, "post", "risk_rebased"),
+        (RECOMPOSE, "post", "recomposed"),
+    ):
+        literal = f"/api/v1{path.replace('{structure_id}', RISK)}"
+        assert next(iter(examples_of(served[literal], method))) == example, (path, method)
+    templated = served[f"/api/v1{REBASE}"]
+    assert next(iter(examples_of(templated))) == "applicable"
+    assert next(iter(examples_of(templated, "post"))) == "rebased"
     volume = served[f"/api/v1{COMPARISON.replace('{project_id}', mock.VOLUME_PROJECT)}"]
     assert next(iter(examples_of(volume))) == "volume"
     assert next(iter(examples_of(served[f"/api/v1{COMPARISON}"]))) == "witness"

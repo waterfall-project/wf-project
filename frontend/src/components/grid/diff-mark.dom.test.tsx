@@ -94,6 +94,64 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// The own estimate of a risk a marking pruned (`nodes_risk_estimate_pruned`): what it designates against
+// the main structure of the marked revision, read as a differential, no revision compared.
+const pruned = example("nodes_risk_estimate_pruned") as NodeList;
+
+/** The grid of the estimate over the own estimate pruned: a differential, none compared. */
+function prunedEstimate() {
+  return (
+    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+      <EstimateGrid
+        nodes={pruned}
+        structure={{ ...STRUCTURE, structure_id: "01926f3a-7c00-7000-8000-000000000209" }}
+        structureVersion={1}
+        reference={estimateReference()}
+        editable
+        tasksEditable
+        query={NO_QUERY}
+        filters={{}}
+        preferences={undefined}
+        differential
+      />
+    </NextIntlClientProvider>
+  );
+}
+
+describe("the grid of an own estimate a marking pruned [US-3140] [WF-RIS-0030-A]", () => {
+  it("presents the lines added and modified, the task removed at its place, the ancestors unmarked, and reorders nothing", () => {
+    render(prunedEstimate());
+    const rows = pruned.items.map((node, row) => ({
+      label: cell(row, "label").textContent,
+      mark: cell(row, "diff_mark").textContent,
+      difference: node.difference,
+    }));
+    // The marks, in the order of the answer: the ancestors of what it designates unchanged, bearing none.
+    expect(rows.map(({ label, mark }) => [label, mark])).toEqual([
+      ["Études", ""],
+      ["Dossier de conception", "-Retiré"],
+      ["Poste de commande", ""],
+      ["Câblage des armoires", ""],
+      ["Raccordement des borniers", "MModifié"],
+      ["Reprise du câblage des armoires", "+Ajouté"],
+      ["Recâblage des armoires", "+Ajouté"],
+      ["Installation sur site", ""],
+      ["Mise en service", ""],
+    ]);
+    expect(rows.map(({ difference }) => difference)).toEqual([
+      "unchanged",
+      "removed",
+      "unchanged",
+      "unchanged",
+      "modified",
+      "added",
+      "added",
+      "unchanged",
+      "unchanged",
+    ]);
+  });
+});
+
 describe("the mark of a difference", () => {
   it("writes + for a node added, - for a node removed and M for a node modified, in a column at the start of the grid", async () => {
     const { container } = render(estimate(true));

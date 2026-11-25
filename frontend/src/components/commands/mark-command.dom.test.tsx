@@ -423,3 +423,75 @@ describe("the marking of a revision", () => {
     expect(screen.queryByRole("form")).toBeNull();
   });
 });
+
+describe("the marking whose task fails for own estimates out of date [US-3140] [WF-RIS-0070-A]", () => {
+  // An earlier test held the reading of the screen: the refresh that follows an end reads at once.
+  beforeEach(() => {
+    router.refresh.mockReset();
+  });
+
+  /** The commands of the revision, shown or not: the screen left and come back to while a task runs. */
+  function screenOf(shown: boolean) {
+    return (
+      <Reading>
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+          <TaskTracker>
+            <TasksButton />
+            <TaskPanel />
+            <main>
+              {shown ? (
+                <RevisionCommands revision={example("revision") as Revision} context={CONTEXT} />
+              ) : null}
+            </main>
+          </TaskTracker>
+        </NextIntlClientProvider>
+      </Reading>
+    );
+  }
+
+  /** The risks named, in the alert the command tells them in. */
+  async function named() {
+    return screen.findByRole("alert", { name: "Devis propres à mettre à jour" });
+  }
+
+  it("names the risks the task failed on and leads to the detail of each, beside the command that started it", async () => {
+    serve({
+      [MARK]: { example: "task_mark_queued", status: 202 },
+      [TASK]: ["task_running", "task_mark_own_estimates_failed"],
+    });
+    open();
+    await mark("V2");
+    await tick();
+    await tick();
+    const alert = await named();
+    expect(within(alert).getByText(/Risque de reprise du câblage/)).toBeVisible();
+    expect(
+      within(alert).getByRole("link", {
+        name: "Lire le compte rendu de « Risque de reprise du câblage »",
+      }),
+    ).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT}/revisions/${REVISION}/risks?risk=01926f3a-7c00-7000-8000-000000000751`,
+    );
+  });
+
+  it("names them too once the screen is shown again while the task runs, the task found by its aim", async () => {
+    serve({
+      [MARK]: { example: "task_mark_queued", status: 202 },
+      [TASK]: ["task_running", "task_mark_own_estimates_failed"],
+    });
+    const view = render(screenOf(true));
+    await mark("V2");
+    await tick();
+    view.rerender(screenOf(false));
+    view.rerender(screenOf(true));
+    expect(screen.queryByRole("alert", { name: "Devis propres à mettre à jour" })).toBeNull();
+    await tick();
+    const alert = await named();
+    expect(
+      within(alert).getByRole("link", {
+        name: "Lire le compte rendu de « Risque de reprise du câblage »",
+      }),
+    ).toBeVisible();
+  });
+});
