@@ -117,7 +117,12 @@ test("an administrator creates an account and gives it a role, reads the state o
     const entries = page.getByRole("region", { name: "Tâches de fond" }).getByRole("listitem");
     await expect(entries.getByText("Réussie")).toBeVisible({ timeout: BACKUP_DONE });
   } finally {
-    // The account is left anonymised, whatever the path reached.
-    await administrator.retire(email);
+    // The account is left anonymised, whatever the path reached. A cleanup that fails is told,
+    // never thrown: it would hide the error of the path (#963).
+    try {
+      await administrator.retire(email);
+    } catch (failure) {
+      console.error("The cleanup of the administrator path failed:", failure);
+    }
   }
 });
