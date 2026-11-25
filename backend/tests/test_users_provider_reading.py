@@ -280,6 +280,37 @@ def test_what_the_reading_leaves_is_reported_an_account_by_its_identifier_alone(
         assert session.get_one(UserAccount, gone["id"]).state == "active"
 
 
+@pytest.mark.requirement("WF-ADM-0120-A")
+def test_an_empty_directory_deactivates_the_others_at_once_and_the_administrators_under_the_guard(
+    database: Database,
+) -> None:
+    # #4748: the accounts that hold no administration are deactivated all at once; the two
+    # administrators one by one under the guard, the last of them kept and reported, as before.
+    with database.transaction() as session:
+        ordinary = [held(session, email=f"ordinary{rank}@example.org") for rank in range(2)]
+        first = held(session, email="first@example.org")
+        last = held(session, email="last@example.org")
+    role(database, "Administration", permissions=ADMINISTRATION, holders=(first["id"], last["id"]))
+    everyone = [*ordinary, first, last]
+    unheld = [HeldAccount(row["id"], row["idp_subject"]) for row in everyone]
+    with database.transaction() as session:
+        written = write_accounts(session, [], unheld, NOON)
+        assert written.counts["deactivated"] == 3
+        assert written.skipped == [SkippedAccount(last["id"], "LAST_ADMINISTRATOR")]
+        states = {
+            row["id"]: session.get_one(UserAccount, row["id"], populate_existing=True).state
+            for row in everyone
+        }
+        assert [states[row["id"]] for row in everyone] == [
+            "deactivated",
+            "deactivated",
+            "deactivated",
+            "active",
+        ]
+        deactivated = {entry[2] for entry in journal(session) if entry[0] == "user_deactivate"}
+        assert deactivated == {ordinary[0]["id"], ordinary[1]["id"], first["id"]}
+
+
 @pytest.mark.requirement("WF-DAT-0070-A")
 def test_an_account_the_provider_no_longer_holds_is_deactivated_by_the_platform(
     session: Session,

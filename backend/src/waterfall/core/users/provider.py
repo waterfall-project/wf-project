@@ -345,7 +345,7 @@ def deactivate_all_unheld(session: Session, held: Sequence[HeldAccount], at: dat
     }
     session.execute(
         update(UserAccount)
-        .where(UserAccount.id.in_(moving))
+        .where(UserAccount.id.in_(list(moving)))
         .values(
             state=DEACTIVATED,
             lock_version=UserAccount.lock_version + 1,
