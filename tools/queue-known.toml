@@ -442,9 +442,9 @@ cause = "hypothèse : la construction d'une image tire apt faute de cache de cou
 
 # ghcr.io, au pull du miroir (`ghcr.io/waterfall-project/mirror/…`) comme au push des images du
 # projet (job `publish` d'`images.yml`, #4916) : une panne de connexion au registre, la même des
-# deux côtés. Le pull d'une image échoue à la résolution de la référence, avant tout
-# téléchargement, par `docker pull` ou par la
-# construction d'une image qui en part (BuildKit, sans « failed to resolve reference ») (#4894).
+# deux côtés. Le pull d'une image échoue à la résolution de la référence, avant tout téléchargement,
+# par `docker pull` ou par la construction d'une image qui en part (BuildKit, sans « failed to
+# resolve reference ») (#4894).
 # Depuis US-3270b, `wftools.retried` rejoue la commande (4 essais, pauses de 20, 40 et 60 s) : ce qui
 # reste est l'échec d'après tous les essais, que `wftools.retried: ghcr.io did not answer, in 4
 # attempts` suit, après le dernier message de Docker, que le motif reconnaît. Le motif est

@@ -41,9 +41,10 @@ PAUSE = registry.PAUSE
 
 # A line that names ghcr.io and then says the registry cannot be reached, in Docker's message or
 # BuildKit's. Both on one line: ghcr.io figures in the progress of any build, and the timeout of
-# another host (Maven, apt) is not the mirror's. The pattern of the entry "ghcr.io, miroir des
-# images" of tools/queue-known.toml is this one, case included: what is tried again here must be
-# recognised there when the last attempt fails (tests/test_retried.py keeps them equal).
+# another host (Maven, apt) is not ghcr.io's. The pattern of the entry "ghcr.io, au pull du miroir
+# comme au push des images" of tools/queue-known.toml is this one, case included: what is tried
+# again here must be recognised there when the last attempt fails (tests/test_retried.py keeps
+# them equal).
 UNREACHABLE = re.compile(
     re.escape(registry.REGISTRY)
     + r"[^\n]*(?:dial tcp[^\n]*(?:i/o timeout|connection (?:refused|reset)|no such host)"
@@ -52,7 +53,7 @@ UNREACHABLE = re.compile(
 
 
 def unreachable(output: str) -> bool:
-    """Say whether what a command printed is a failure to reach ghcr.io, the mirror's registry."""
+    """Say whether what a command printed is a failure to reach ghcr.io, at pull as at push."""
     return UNREACHABLE.search(output) is not None
 
 

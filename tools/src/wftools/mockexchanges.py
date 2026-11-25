@@ -795,10 +795,10 @@ def examples() -> dict[str, JsonObject]:
         "import_remaining_duplicate_lineage.json": mocktext.example(
             "Une variante du reste à engager importé aujourd'hui : les lignes "
             f"{REMAINING_FIRST_ROW} et {REMAINING_FIRST_ROW + 1} de l'onglet « {tab_name(TAB)} » "
-            f"portent la même lignée, une ligne "
-            f"copiée dans le tableur : toutes deux rejetées, aucune préférée, chacune nommant "
-            f"l'autre ; la ligne de la révision que cette lignée désigne est laissée telle quelle "
-            f"(WF-INTF-0100, WF-INTF-0120, #2798).",
+            "portent la même lignée, une ligne "
+            "copiée dans le tableur : toutes deux rejetées, aucune préférée, chacune nommant "
+            "l'autre ; la ligne de la révision que cette lignée désigne est laissée telle quelle "
+            "(WF-INTF-0100, WF-INTF-0120, #2798).",
             import_remaining_duplicate_lineage(),
         ),
         "import_remaining_unknown_subproject.json": mocktext.example(
