@@ -651,6 +651,9 @@ def test_the_front_is_not_a_component_of_the_screen_but_its_stop_is_an_alert_of_
     # among its components, even when Prometheus collects it; the alert of its stop, which the rule
     # raises with component="front", is in the alerts of the screen, naming it.
     collected(prometheus)
+    every = (*COMPONENTS, "front")
+    prometheus.holds(AVAILABILITY, [({"component": c}, 1.0) for c in every])
+    prometheus.holds(CHECKED, [({"component": c}, CHECKED_AT.timestamp()) for c in every])
     stopped = datetime(2026, 6, 3, 0, 52, tzinfo=UTC)
     prometheus.fires("component_unavailable", stopped, component="front", severity="alert")
     status = read(screen_on(contract, platform, prometheus), viewer)
