@@ -446,7 +446,7 @@ def import_ambiguous_label() -> JsonObject:
     ]
     rejected: JsonObject = {
         "sheet": mockexchanges.tab_name(mockexchanges.TAB),
-        "row": mockexchanges.FIRST_ROW + 1,
+        "row": mockexchanges.REMAINING_FIRST_ROW + 1,
         "code": "AMBIGUOUS_TASK_LABEL",
         "params": {"label": AMBIGUOUS_LABEL, "tasks": tasks},
     }
@@ -948,7 +948,7 @@ def _named_examples() -> dict[str, JsonObject]:
         ),
         "import_remaining_ambiguous_label.json": mocktext.example(
             f"Une variante du reste à engager importé aujourd'hui : la ligne "
-            f"{mockexchanges.FIRST_ROW + 1} de l'onglet « {tab} » désigne sa tâche par « "
+            f"{mockexchanges.REMAINING_FIRST_ROW + 1} de l'onglet « {tab} » désigne sa tâche par « "
             f"{AMBIGUOUS_LABEL} », que portent deux tâches — celle de l'installation et celle du "
             f"volume du portefeuille — alors que l'onglet « Tâches » ne la connaît pas : rejetée, "
             f"le libellé et les deux tâches nommés par leur lignée ; l'autre ligne change de "

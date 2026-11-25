@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 from openpyxl import Workbook, load_workbook
+from remaining_import_support import workbook as import_workbook
 
 from waterfall.core.estimate.remaining.excel.layout import (
     FORMAT_NAME,
@@ -45,6 +46,7 @@ from waterfall.core.estimate.remaining.excel.reader import (
 )
 from waterfall.core.estimate.remaining.excel.writer import write_workbook
 from waterfall.platform.errors import UnprocessableError
+from wftools.mockexchanges import REMAINING_FIRST_ROW
 
 D = Decimal
 ARCH = "Architecte logiciel (ARCH-LOG)"
@@ -596,3 +598,13 @@ def test_the_workbook_exported_opens_and_the_label_alone_may_be_missing() -> Non
         )
     )
     check_workbook(write_workbook(_book()))
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_the_first_line_of_a_tab_is_the_row_the_examples_of_the_contract_number_it_from() -> None:
+    # [US-3270] The examples of the remaining to commit (``wftools.mockexchanges``) number their
+    # lines from REMAINING_FIRST_ROW: under the head and the headings of the tab, where the reader
+    # places the first line of a tab (#4919).
+    line = ["1 Câblage", "", "Raccordement", 2, None, "L-1"]
+    read = read_remaining_workbook(import_workbook({"Lot": [line, line]}))
+    assert [each.row for each in read.lines] == [REMAINING_FIRST_ROW, REMAINING_FIRST_ROW + 1]

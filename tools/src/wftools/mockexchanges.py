@@ -224,7 +224,7 @@ def import_report(nodes: dict[int, Node]) -> JsonObject:
     """
     rejected: list[JsonValue] = []
     differences: list[JsonValue] = []
-    for row, number in enumerate(IMPORTED, start=FIRST_ROW):
+    for row, number in enumerate(IMPORTED, start=REMAINING_FIRST_ROW):
         line = nodes[number]
         refusal = held_refusal(nodes, line, TAB, pasted=False)
         if refusal is not None:
@@ -310,7 +310,7 @@ def import_remaining_duplicate_lineage() -> JsonObject:
     imported["created_at"], task["submitted_at"] = LINEAGE_SUBMITTED, LINEAGE_SUBMITTED
     task["finished_at"], imported["expires_at"] = LINEAGE_ANALYSED, LINEAGE_EXPIRES
     sheet = tab_name(TAB)
-    first, second = FIRST_ROW + 1, FIRST_ROW + 2
+    first, second = REMAINING_FIRST_ROW, REMAINING_FIRST_ROW + 1
     rejected: list[JsonValue] = [
         {
             "sheet": sheet,
@@ -793,8 +793,9 @@ def examples() -> dict[str, JsonObject]:
             imported,
         ),
         "import_remaining_duplicate_lineage.json": mocktext.example(
-            f"Une variante du reste à engager importé aujourd'hui : les lignes {FIRST_ROW + 1} et "
-            f"{FIRST_ROW + 2} de l'onglet « {tab_name(TAB)} » portent la même lignée, une ligne "
+            "Une variante du reste à engager importé aujourd'hui : les lignes "
+            f"{REMAINING_FIRST_ROW} et {REMAINING_FIRST_ROW + 1} de l'onglet « {tab_name(TAB)} » "
+            f"portent la même lignée, une ligne "
             f"copiée dans le tableur : toutes deux rejetées, aucune préférée, chacune nommant "
             f"l'autre ; la ligne de la révision que cette lignée désigne est laissée telle quelle "
             f"(WF-INTF-0100, WF-INTF-0120, #2798).",

@@ -61,7 +61,7 @@ from typing import TYPE_CHECKING, cast
 
 from wftools import mockcore, mockhistory, mockkanban, mocktext
 from wftools.mockamendment import MAIN_ONLY
-from wftools.mockexchanges import FIRST_ROW, import_commands, main_structure, opened_on
+from wftools.mockexchanges import REMAINING_FIRST_ROW, import_commands, main_structure, opened_on
 from wftools.mockids import hex_identifier, universe
 from wftools.mockindicators import rate_update
 from wftools.mocklists import PROJECT_STATES, project_page
@@ -718,7 +718,7 @@ def import_remaining_completed_task() -> JsonObject:
         "rejected": [
             {
                 "sheet": "Hors sous-projet",
-                "row": FIRST_ROW,
+                "row": REMAINING_FIRST_ROW,
                 "code": "STATE_FORBIDS_OPERATION",
                 "params": {
                     "missing_condition": "task_not_completed",
