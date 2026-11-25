@@ -402,6 +402,19 @@ _STYLE_ITEMS: dict[str, Callable[[int], bytes]] = {
     "tableStyles": lambda rank: b'<tableStyle name="t%d"/>' % rank,
     "colors": lambda _: b'<rgbColor rgb="FF000000"/>',
 }
+# A ``dxf`` as Excel writes it: a font with ``b`` and a colour, a fill with the ``bgColor`` of its
+# pattern, a border of four sides each with a style and a colour: 16 elements.
+RICH_DXF = (
+    b'<dxf><font><b/><color rgb="FF9C0006"/></font>'
+    b'<fill><patternFill><bgColor rgb="FFFFC7CE"/></patternFill></fill>'
+    b"<border>"
+    b'<left style="thin"><color auto="1"/></left>'
+    b'<right style="thin"><color auto="1"/></right>'
+    b'<top style="thin"><color auto="1"/></top>'
+    b'<bottom style="thin"><color auto="1"/></bottom>'
+    b"</border></dxf>"
+)
+RICH_DXF_ELEMENTS = 16
 # The longest text of one string of ``shared_text``: the text is written by streams of a MiB.
 _LONGEST_STRING = 8 * MEBIBYTE
 _ASTRAL = "\U0001f600".encode()
@@ -482,14 +495,18 @@ def shared_text(base: bytes, characters: int, *, astral: bool = False) -> bytes:
     return out.getvalue()
 
 
-def styled(base: bytes, listing: str, count: int) -> bytes:
+def styled(
+    base: bytes, listing: str, count: int, item: Callable[[int], bytes] | None = None
+) -> bytes:
     """Give the workbook whose list ``listing`` of ``styles.xml`` holds ``count`` items exactly.
+
+    ``item`` writes an item of the list, ``_STYLE_ITEMS`` the empty one by default.
 
     The list replaces the one the workbook has, or is added at its place in the order of the
     stylesheet; ``colors`` holds its ``indexedColors``, then ``count - 1`` colours in it: ``count``
     elements in all.
     """
-    item = _STYLE_ITEMS[listing]
+    item = item or _STYLE_ITEMS[listing]
     tag = listing.encode()
     if listing == "colors":
         block = b"<colors><indexedColors>" + item(0) * (count - 1) + b"</indexedColors></colors>"
@@ -586,6 +603,11 @@ def stuffed(base: bytes, member: str, before: bytes, element: bytes, count: int)
                 written.write(element * min(per_write, count - start))
             written.write(before + tail)
     return out.getvalue()
+
+
+def styled_richly(base: bytes, count: int) -> bytes:
+    """Give the workbook whose ``dxfs`` hold ``count`` dxf as Excel writes them (``RICH_DXF``)."""
+    return styled(base, "dxfs", count, lambda _: RICH_DXF)
 
 
 def styled_in_full(base: bytes, lists: Mapping[str, int]) -> bytes:

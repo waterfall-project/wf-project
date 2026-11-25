@@ -5,7 +5,7 @@
 openpyxl parses ``styles.xml``, ``workbook.xml``, the content types, the relations, the properties,
 a chartsheet and its drawings and charts whole, into a tree: each element costs it a node, in a list
 bounded by US-3190/L2b or out of any — 25 kB of ``<b/>`` in a font held 543 MiB. The reading ahead
-of the opener counts them, and past 1 000 000 in all the workbook is refused before it is opened,
+of the opener counts them, and past 1 100 000 in all the workbook is refused before it is opened,
 ``FILE_FORMAT_UNREADABLE``. The tabs and the shared strings, which openpyxl reads as a stream, are
 left to their own bounds (``test_workbook_bounds_vectors`` reads them at those bounds); the theme,
 which it keeps as bytes, too.
@@ -23,6 +23,8 @@ from test_workbook_bounds import PROTOTYPES, READINGS, UNREADABLE
 from test_workbook_bounds_vectors import WITHIN
 from workbook_bombs import (
     CALM,
+    MEBIBYTE,
+    RICH_DXF_ELEMENTS,
     STYLES,
     WORKBOOK,
     charted,
@@ -31,6 +33,7 @@ from workbook_bombs import (
     resident,
     stuffed,
     styled_in_full,
+    styled_richly,
 )
 
 from waterfall.core.estimate.excel import reader as estimate_reader
@@ -40,13 +43,25 @@ from waterfall.platform.errors import UnprocessableError
 
 REFUSAL = f"the parts openpyxl parses into a tree hold more than {MOST_ELEMENTS} elements"
 # The workbooks of #4862: elements out of any list, in a font of ``styles.xml`` or under the root
-# of ``workbook.xml``, 1 000 000 or 5 000 000 of them; each member, and where they go in it.
+# of ``workbook.xml``; each member, and where they go in it. Refused: 5 000 000 of them, and
+# 1 200 000, which put the total just past the bound. Read: 1 000 000, which the bound of 1 100 000
+# (decided on 2026-11-25, option a1) holds.
+_B = (STYLES, b"</font>", b"<b/>")
+_X = (WORKBOOK, b"</workbook>", b"<x/>")
 SWOLLEN: dict[str, tuple[str, bytes, bytes, int]] = {
-    "b-in-a-font-1M": (STYLES, b"</font>", b"<b/>", 1_000_000),
-    "b-in-a-font-5M": (STYLES, b"</font>", b"<b/>", 5_000_000),
-    "x-under-the-workbook-1M": (WORKBOOK, b"</workbook>", b"<x/>", 1_000_000),
-    "x-under-the-workbook-5M": (WORKBOOK, b"</workbook>", b"<x/>", 5_000_000),
+    "b-in-a-font-5M": (*_B, 5_000_000),
+    "b-in-a-font-just-past": (*_B, 1_200_000),
+    "x-under-the-workbook-5M": (*_X, 5_000_000),
+    "x-under-the-workbook-just-past": (*_X, 1_200_000),
 }
+HELD: dict[str, tuple[str, bytes, bytes, int]] = {
+    "b-in-a-font-1M": (*_B, 1_000_000),
+    "x-under-the-workbook-1M": (*_X, 1_000_000),
+}
+# Every element of the ``dxfs`` of Excel at the bound, 65 490 dxf of 16 elements, and what the rest
+# of ``styles.xml`` of the workbook of the tests holds.
+RICH_DXFS = 65_490 * RICH_DXF_ELEMENTS
+RICH_WITHIN = 512 * MEBIBYTE
 # The parts an openpyxl workbook holds that openpyxl parses into a tree, and those of a chartsheet.
 PARTS = (
     "[Content_Types].xml",
@@ -76,7 +91,7 @@ def _base(name: str) -> bytes:
 
 @cache
 def _swollen(name: str, swelling: str) -> bytes:
-    return stuffed(_base(name), *SWOLLEN[swelling])
+    return stuffed(_base(name), *{**SWOLLEN, **HELD}[swelling])
 
 
 def _never_opened(*_: object, **__: object) -> None:
@@ -122,16 +137,58 @@ def test_the_workbooks_of_4862_are_refused_before_the_opening_naming_their_forma
 
 
 @pytest.mark.story("US-3190")
-def test_the_workbooks_of_4862_are_refused_within_the_memory_and_styles_in_full_read() -> None:
+def test_the_workbooks_of_4862_are_refused_within_the_memory() -> None:
     # « … sans que la mémoire réelle du processus ne passe la borne que le test fixe » : one fresh
-    # process, the refusals first, each under what a refusal before any inflation allocates; then
-    # ``styles.xml`` as full as Excel writes it, every list at its bound at once, read.
-    full = styled_in_full(_base("estimate"), STYLE_LISTS)
+    # process, the refusals, each under what a refusal before any inflation allocates.
     swollen = [_swollen("estimate", swelling) for swelling in SWOLLEN]
-    found = resident("estimate", _base("estimate"), [*swollen, full])
-    assert [each.outcome for each in found] == [UNREADABLE] * len(SWOLLEN) + ["read"]
-    assert max(each.rise for each in found[:-1]) < CALM
-    assert found[-1].rise < WITHIN
+    found = resident("estimate", _base("estimate"), swollen)
+    assert [each.outcome for each in found] == [UNREADABLE] * len(SWOLLEN)
+    assert max(each.rise for each in found) < CALM
+
+
+@pytest.mark.story("US-3190")
+def test_every_list_of_styles_full_and_the_workbooks_of_4862_at_a_million_are_read_within() -> None:
+    # « … chaque liste de styles.xml à sa borne, avec des items comme Excel les écrit, passe » : in
+    # one fresh process, from the lightest, the workbooks of #4862 at 1 000 000 elements and every
+    # list of ``styles.xml`` full at once with empty items (some 268 000 elements), read within
+    # the memory of the other vectors.
+    full = styled_in_full(_base("estimate"), STYLE_LISTS)
+    held = [_swollen("estimate", swelling) for swelling in HELD]
+    found = resident("estimate", _base("estimate"), [*held, full])
+    assert [each.outcome for each in found] == ["read"] * len(found)
+    assert max(each.rise for each in found) < WITHIN
+
+
+@pytest.mark.story("US-3190")
+def test_the_richest_list_of_styles_at_its_bound_with_items_as_excel_writes_them_is_read() -> None:
+    # « … chaque liste de styles.xml à sa borne, avec des items comme Excel les écrit, passe » : the
+    # ``dxfs`` alone at their bound, 65 490 dxf of 16 elements each, 1 047 935 elements in
+    # ``styles.xml``, in a fresh process. openpyxl builds an object of each item, some 400 bytes an
+    # element, 427 MiB measured: the bytes an element costs are bounded by US-3190/L3 (#4914).
+    (found,) = resident(
+        "estimate", _base("estimate"), [styled_richly(_base("estimate"), STYLE_LISTS["dxfs"])]
+    )
+    assert found.outcome == "read"
+    assert found.rise < RICH_WITHIN
+
+
+@pytest.mark.story("US-3190")
+def test_the_richest_list_of_styles_at_its_bound_is_counted_under_the_bound() -> None:
+    # The count of the test above: 65 490 dxf of 16 elements, and the elements of the rest of
+    # ``styles.xml``, are 1 047 935, under ``MOST_ELEMENTS``.
+    rich = styled_richly(_base("estimate"), STYLE_LISTS["dxfs"])
+    assert _nodes(rich, (STYLES,)) == 1_047_935
+    assert _nodes(rich, (STYLES,)) < MOST_ELEMENTS
+    assert STYLE_LISTS["dxfs"] * RICH_DXF_ELEMENTS == RICH_DXFS
+
+
+@pytest.mark.story("US-3190")
+@pytest.mark.parametrize("swelling", list(HELD))
+def test_the_workbooks_of_4862_at_a_million_elements_are_read(swelling: str) -> None:
+    # The bound at 1 100 000 holds the workbooks of #4862 swollen by 1 000 000 elements.
+    content = _swollen("estimate", swelling)
+    assert _nodes(content, PARTS) < MOST_ELEMENTS
+    READINGS["estimate"].whole(content)
 
 
 @pytest.mark.story("US-3190")

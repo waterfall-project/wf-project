@@ -156,8 +156,10 @@ STYLE_LISTS: Mapping[str, int] = MappingProxyType(
 )
 MOST_NAMES = 10_000
 # The elements of the parts openpyxl parses into a tree, in all (US-3190b, decided by the author on
-# 2026-11-24, #4862): some 110 bytes a node to openpyxl, some 110 MiB at the bound.
-MOST_ELEMENTS = 1_000_000
+# 2026-11-24, #4862, set at 1 100 000 on 2026-11-25, option a1): some 110 bytes a node to openpyxl,
+# some 120 MiB at the bound. The richest list of ``styles.xml`` at its bound, 65 490 ``dxf`` of 16
+# elements as Excel writes them, holds 1 047 935 elements: it is read, with some 5 % to spare.
+MOST_ELEMENTS = 1_100_000
 
 # The steps of the inflation of a member: what is fed, and the most that one step gives.
 _FED = 64 * 1024
