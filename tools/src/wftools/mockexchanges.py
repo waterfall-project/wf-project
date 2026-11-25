@@ -186,6 +186,10 @@ station, which received the invoice of the screens."""
 FIRST_ROW = 2
 """The row of the first line of a tab, under its headings."""
 
+REMAINING_FIRST_ROW = 3
+"""The row of the first line of a tab of a remaining to commit: its head, with the code of the
+subproject, takes the first row, its headings the second, so its lines start at the third."""
+
 HELD_IMPORT, HELD_IMPORT_TASK = hex_identifier(0xA17), universe(947)
 
 
@@ -356,7 +360,7 @@ def import_remaining_unknown_subproject() -> JsonObject:
             "code": "UNKNOWN_SUBPROJECT",
             "params": {"value": UNKNOWN_TAB, "subproject_code": UNKNOWN_CODE},
         }
-        for row in range(FIRST_ROW + 1, FIRST_ROW + 1 + len(IMPORTED))
+        for row in range(REMAINING_FIRST_ROW, REMAINING_FIRST_ROW + len(IMPORTED))
     ]
     report["rejected"], report["differences"] = rejected, []
     report["read_count"], report["unchanged_count"] = len(rejected), 0
@@ -799,9 +803,9 @@ def examples() -> dict[str, JsonObject]:
         "import_remaining_unknown_subproject.json": mocktext.example(
             f"Une variante du reste à engager importé aujourd'hui : l'onglet « {tab_name(TAB)} », "
             f"renommé « {UNKNOWN_TAB} » dans le tableur, porte en tête le code « {UNKNOWN_CODE} », "
-            f"qu'aucun sous-projet du projet ne porte : ses lignes {FIRST_ROW + 1} et "
-            f"{FIRST_ROW + 2} sont rejetées, chacune nommant l'onglet, où l'utilisateur la "
-            f"retrouve, et le code lu en tête, qu'il déclare ; aucune ligne ne change de "
+            f"qu'aucun sous-projet du projet ne porte : ses lignes {REMAINING_FIRST_ROW} et "
+            f"{REMAINING_FIRST_ROW + 1} sont rejetées, chacune nommant l'onglet, où l'utilisateur "
+            f"la retrouve, et le code lu en tête, qu'il déclare ; aucune ligne ne change de "
             f"sous-projet (WF-INTF-0120, WF-INTF-0080, #4898).",
             import_remaining_unknown_subproject(),
         ),

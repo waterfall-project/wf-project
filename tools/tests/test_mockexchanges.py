@@ -80,6 +80,7 @@ def test_a_renamed_tab_of_an_unknown_code_rejects_its_lines_naming_the_tab_and_t
             {"value": mockexchanges.UNKNOWN_TAB, "subproject_code": mockexchanges.UNKNOWN_CODE},
         )
     ] * len(mockexchanges.IMPORTED)
+    assert [each["row"] for each in report["rejected"]] == [3, 4]
     assert mockexchanges.UNKNOWN_CODE not in {
         entry["code"] for entry in mockwitness.fixture("subprojects")
     }
