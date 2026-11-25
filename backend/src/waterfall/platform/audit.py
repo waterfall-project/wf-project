@@ -262,6 +262,23 @@ def record(session: Session, inscription: Inscription) -> UUID:
     name evokes a secret is refused too, at any depth, and an object without a label but a backup
     or an account — an anonymised one has lost its name —, which the table refuses as well.
     """
+    entry = _entry(inscription)
+    session.execute(insert(AuditEntry).values(**entry))
+    return entry["id"]
+
+
+def record_all(session: Session, inscriptions: Sequence[Inscription]) -> None:
+    """Inscribe several actions in the transaction of ``session``, by one write, in their order.
+
+    Each is held to the rules of ``record``; none is inscribed if one breaks them.
+    """
+    entries = [_entry(inscription) for inscription in inscriptions]
+    if entries:
+        session.execute(insert(AuditEntry), entries)
+
+
+def _entry(inscription: Inscription) -> dict[str, Any]:
+    """Give the columns of the entry an action is inscribed as, once its rules are held."""
     correlation_id = get_contextvars().get("correlation_id")
     if not isinstance(correlation_id, str):
         message = "an action is inscribed inside a request or a task, under its correlation"
@@ -279,28 +296,24 @@ def record(session: Session, inscription: Inscription) -> UUID:
     ):
         message = f"an object of kind {audited.kind!r} is inscribed without its label"
         raise AuditError(message)
-    identifier = new_id()
     revision = audited.revision
-    session.execute(
-        insert(AuditEntry).values(
-            id=identifier,
-            occurred_at=inscription.occurred_at,
-            actor_user_id=None if actor is None else actor.user_id,
-            actor_display_name=None if actor is None else actor.display_name,
-            action=inscription.action,
-            object_kind=audited.kind,
-            object_id=audited.object_id,
-            object_label=audited.label,
-            object_revision_id=None if revision is None else revision.revision_id,
-            object_revision_label=None if revision is None else revision.label,
-            project_id=None if project is None else project.project_id,
-            project_code=None if project is None else project.code,
-            project_label=None if project is None else project.label,
-            params=params,
-            correlation_id=correlation_id,
-        )
-    )
-    return identifier
+    return {
+        "id": new_id(),
+        "occurred_at": inscription.occurred_at,
+        "actor_user_id": None if actor is None else actor.user_id,
+        "actor_display_name": None if actor is None else actor.display_name,
+        "action": inscription.action,
+        "object_kind": audited.kind,
+        "object_id": audited.object_id,
+        "object_label": audited.label,
+        "object_revision_id": None if revision is None else revision.revision_id,
+        "object_revision_label": None if revision is None else revision.label,
+        "project_id": None if project is None else project.project_id,
+        "project_code": None if project is None else project.code,
+        "project_label": None if project is None else project.label,
+        "params": params,
+        "correlation_id": correlation_id,
+    }
 
 
 def _secret_field(value: AuditValue) -> str | None:
