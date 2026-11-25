@@ -489,7 +489,9 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
   `fonts`, `fills`, `borders`, `tableStyles` et `colors` 1 024 chacune, `cellStyleXfs`, `cellXfs`,
   `cellStyles` et `dxfs` 65 490 chacune, les limites d'Excel, pour qu'un classeur qu'Excel écrit ne
   soit jamais refusé (les items d'une liste sont ses enfants ; ceux de `colors`, les couleurs de ses
-  listes, comptées avec elles) ; 10 000 noms définis. La pré-lecture les compte et refuse avant
+  listes, comptées avec elles) ; 10 000 noms définis. Trois de ces listes sont ramenées par
+  US-3190/L3 pour tenir, avec des items comme Excel les écrit, sous la borne des octets : `dxfs`
+  25 000, `cellXfs` 40 000, `cellStyleXfs` 60 000. La pré-lecture les compte et refuse avant
   l'ouverture. Les listes de `styles.xml` et les noms définis se comptent par nom local, enfants
   directs de la racine du membre, comme openpyxl les lit, commentaires et instructions de
   traitement compris (openpyxl en fait des items) ; une partie qu'openpyxl lit et qui déclare un
@@ -501,8 +503,9 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
   vient donc après l'ouverture, la mémoire tenue dans la borne (≈ 105 Mio). Écarté : compter les
   `<c>` à la pré-lecture, plus lent (10 à 30 %) et au risque d'un écart avec ce qu'openpyxl
   matérialise. Toutes les bornes atteintes à la fois tiennent sous 330 Mio. Les tests de borne
-  mesurent la mémoire réelle du processus (`ru_maxrss`, dans un sous-processus) : `tracemalloc` ne
-  voit pas libxml2 et sous-estime les styles et les noms jusqu'à 2,4 fois. Les
+  mesurent la mémoire réelle d'un processus neuf (`VmHWM` depuis US-3190/L3 ; `ru_maxrss`, que
+  Linux garde à travers `exec`, sous-estimait, #4935) : `tracemalloc` ne voit pas libxml2 et
+  sous-estime les styles et les noms jusqu'à 2,4 fois. Les
   bornes du lecteur MS Project (US-3180) hors celles de l'auteur : un entier de 18 chiffres au plus,
   une durée d'un million d'heures au plus ; une constante d'unité (`MinutesPerDay`,
   `MinutesPerWeek`, `DaysPerMonth`) strictement positive, sans borne haute (US-3180b, #4766).

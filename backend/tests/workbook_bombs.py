@@ -17,8 +17,9 @@ their number, by the elements of one, by their text; the lists of ``styles.xml``
 of ``workbook.xml``; a tab of rows as wide as its ``<dimension>`` says. Each gives exactly the
 count it is asked, so that a test sets a workbook just at a bound, or one past it. The elements of
 the parts openpyxl parses into a tree (US-3190b): a member stuffed with elements out of any list,
-every list of ``styles.xml`` at once, a part named an external link by the workbook. And their
-measure: the peak resident size of a fresh process, which sees what libxml2 allocates and
+every list of ``styles.xml`` at once, a part named an external link by the workbook; each list of
+``styles.xml`` with items as Excel writes them (US-3190/L3). And their measure: the peak resident
+size of the memory of a fresh process, ``VmHWM``, which sees what libxml2 allocates and
 ``tracemalloc`` does not (``resident``), the one the measure of the workbooks takes too
 (``measure/workbooks.py``).
 """
@@ -26,7 +27,6 @@ measure: the peak resident size of a fresh process, which sees what libxml2 allo
 import gc
 import multiprocessing
 import re
-import resource
 import time
 import tracemalloc
 import warnings
@@ -36,6 +36,7 @@ from concurrent.futures import ProcessPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
 from io import BytesIO
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from openpyxl import load_workbook
@@ -415,6 +416,53 @@ RICH_DXF = (
     b"</border></dxf>"
 )
 RICH_DXF_ELEMENTS = 16
+# An item of each list as Excel writes it, as the prototypes of the specification hold them, the
+# fullest of each (US-3190/L3): a format of currency, a bold font of a theme colour, a solid fill, a
+# border of four thin sides, a format of a cell that applies all of them and aligns it, a named
+# style, a ``dxf``, a style of a table of two elements, a colour.
+_THIN = b'style="thin"><color auto="1"/>'
+RICH_ITEMS: dict[str, Callable[[int], bytes]] = {
+    "numFmts": lambda rank: (
+        b'<numFmt numFmtId="%d" formatCode="#,##0.00\\ &quot;\xe2\x82\xac&quot;;'
+        b'[Red]\\-#,##0.00\\ &quot;\xe2\x82\xac&quot;"/>' % (164 + rank)
+    ),
+    "fonts": lambda _: (
+        b'<font><b/><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/>'
+        b'<scheme val="minor"/></font>'
+    ),
+    "fills": lambda _: (
+        b'<fill><patternFill patternType="solid"><fgColor rgb="FFDDEBF7"/><bgColor indexed="64"/>'
+        b"</patternFill></fill>"
+    ),
+    "borders": lambda _: (
+        b"<border><left "
+        + _THIN
+        + b"</left><right "
+        + _THIN
+        + b"</right><top "
+        + _THIN
+        + b"</top><bottom "
+        + _THIN
+        + b"</bottom><diagonal/></border>"
+    ),
+    "cellStyleXfs": lambda _: (
+        b'<xf numFmtId="0" fontId="0" fillId="0" borderId="0" applyNumberFormat="0" applyBorder="0"'
+        b' applyAlignment="0" applyProtection="0"/>'
+    ),
+    "cellXfs": lambda _: (
+        b'<xf numFmtId="164" fontId="2" fillId="2" borderId="1" xfId="0" applyNumberFormat="1"'
+        b' applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'
+        b'<alignment vertical="top" wrapText="1"/></xf>'
+    ),
+    "cellStyles": lambda rank: b'<cellStyle name="Style %d" xfId="0"/>' % rank,
+    "dxfs": lambda _: RICH_DXF,
+    "tableStyles": lambda rank: (
+        b'<tableStyle name="Style de tableau %d" pivot="0" count="2">'
+        b'<tableStyleElement type="wholeTable" dxfId="1"/>'
+        b'<tableStyleElement type="headerRow" dxfId="0"/></tableStyle>' % rank
+    ),
+    "colors": lambda _: b'<rgbColor rgb="FFDDEBF7"/>',
+}
 # The longest text of one string of ``shared_text``: the text is written by streams of a MiB.
 _LONGEST_STRING = 8 * MEBIBYTE
 _ASTRAL = "\U0001f600".encode()
@@ -605,9 +653,9 @@ def stuffed(base: bytes, member: str, before: bytes, element: bytes, count: int)
     return out.getvalue()
 
 
-def styled_richly(base: bytes, count: int) -> bytes:
-    """Give the workbook whose ``dxfs`` hold ``count`` dxf as Excel writes them (``RICH_DXF``)."""
-    return styled(base, "dxfs", count, lambda _: RICH_DXF)
+def styled_richly(base: bytes, listing: str, count: int) -> bytes:
+    """Give the workbook whose list ``listing`` holds ``count`` items as Excel writes them."""
+    return styled(base, listing, count, RICH_ITEMS[listing])
 
 
 def styled_in_full(base: bytes, lists: Mapping[str, int]) -> bytes:
@@ -711,7 +759,8 @@ class Resident:
     """What reading a workbook in a fresh process gave.
 
     ``outcome`` is ``read`` or the code of the refusal; ``rise``, in bytes, what the peak resident
-    size of the process rose to since the reader was warmed, this read and those before it
+    size of the process (``high_water``) rose to since the reader was warmed, this read and those
+    before it
     included; ``seconds``, its duration; ``traced``, the peak ``tracemalloc`` saw of this read
     alone, when asked.
     """
@@ -722,9 +771,19 @@ class Resident:
     traced: int | None = None
 
 
-def _peak() -> int:
-    """Give the peak resident size of this process, in bytes (Linux gives it in kibibytes)."""
-    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024
+def high_water() -> int:
+    """Give the peak resident size of the memory of this process alone, in bytes (``VmHWM``).
+
+    Not ``ru_maxrss``, which Linux keeps across ``exec``: a process spawned starts at the peak of
+    the one that spawned it, and a read that rises less than the gap is seen short, or not at all
+    (#4935). ``VmHWM`` is that of the memory of the process, which ``exec`` makes anew; Linux gives
+    it in kibibytes.
+    """
+    for entry in Path("/proc/self/status").read_text(encoding="ascii").splitlines():
+        if entry.startswith("VmHWM:"):
+            return int(entry.split()[1]) * 1024
+    msg = "no VmHWM in /proc/self/status"
+    raise OSError(msg)
 
 
 def _read_each(
@@ -734,7 +793,7 @@ def _read_each(
     call = READERS[reader]
     call(base)
     gc.collect()
-    before = _peak()
+    before = high_water()
     found: list[Resident] = []
     for content in contents:
         if traced:
@@ -748,7 +807,7 @@ def _read_each(
         seconds = time.perf_counter() - start
         peak = tracemalloc.get_traced_memory()[1] if traced else None
         tracemalloc.stop()
-        found.append(Resident(outcome, _peak() - before, seconds, peak))
+        found.append(Resident(outcome, high_water() - before, seconds, peak))
     return found
 
 

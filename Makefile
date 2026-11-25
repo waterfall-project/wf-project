@@ -387,9 +387,9 @@ measure-core-run: measure-fresh-witness
 # (US-3190/L3); VECTOR=<vector> COUNTS="<count>..." the peak of the reading along one vector. It takes
 # the workstation for itself alone, as measure-core does, and never fails on a figure.
 .PHONY: measure-workbooks
-measure-workbooks: ## Measure what a workbook engendered costs its reader (US-3190/L2b, L3), the workstation for itself alone: the vectors of the workbooks engendered, the time of the judgment of the archive, the members parsed into a tree, the peak of each; VECTOR=<vector> COUNTS="<count>..." the peak resident size along one vector
+measure-workbooks: ## Measure what a workbook engendered costs its reader (US-3190/L2b, L3), the workstation for itself alone: the vectors of the workbooks engendered, the time of the judgment of the archive, the members parsed into a tree, the peak of each; VECTOR=<vector> COUNTS="<count>..." the peak resident size along one vector, READER=openpyxl by openpyxl alone, behind the bounds
 	@cd $(BACK) && $(exclusive) PYTHONPATH=tests PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure.workbooks \
-		$(if $(VECTOR),sweep $(VECTOR) $(COUNTS),books)
+		$(if $(VECTOR),sweep $(VECTOR) $(COUNTS) $(if $(READER),--reader $(READER)),books)
 	@$(if $(VECTOR),,cd $(BACK) && $(exclusive) PYTHONPATH=tests PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure.workbooks preread)
 	@$(if $(VECTOR),,cd $(BACK) && $(exclusive) PYTHONPATH=tests PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure.workbooks members)
 	@$(if $(VECTOR),,cd $(BACK) && $(exclusive) PYTHONPATH=tests PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m measure.workbooks peaks)

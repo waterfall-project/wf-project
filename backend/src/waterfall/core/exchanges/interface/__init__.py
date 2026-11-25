@@ -202,12 +202,19 @@ from waterfall.core.exchanges.interface.purge import (
 
 # ``workbooks`` (US-3190/L1): the opener of a workbook deposited, bounded, for every reader of one;
 # (US-3190/L2b) the bounds of the other vectors, the cumul of the tabs read, a workbook openpyxl
-# rejects by a TypeError (#4848); (US-3190b) the elements of the parts openpyxl parses into a tree.
+# rejects by a TypeError (#4848); (US-3190b) the elements of the parts openpyxl parses into a tree;
+# (US-3190/L3) their bytes, and the elements of the tabs and of the shared strings out of place.
 from waterfall.core.exchanges.interface.workbooks import (
     LARGEST_INFLATED as LARGEST_INFLATED,
 )
 from waterfall.core.exchanges.interface.workbooks import (
+    LARGEST_TREES as LARGEST_TREES,
+)
+from waterfall.core.exchanges.interface.workbooks import (
     LONGEST_TEXT as LONGEST_TEXT,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    MOST_CELL_ELEMENTS as MOST_CELL_ELEMENTS,
 )
 from waterfall.core.exchanges.interface.workbooks import (
     MOST_CELLS as MOST_CELLS,
@@ -217,6 +224,9 @@ from waterfall.core.exchanges.interface.workbooks import (
 )
 from waterfall.core.exchanges.interface.workbooks import (
     MOST_ELEMENTS as MOST_ELEMENTS,
+)
+from waterfall.core.exchanges.interface.workbooks import (
+    MOST_FOREIGN as MOST_FOREIGN,
 )
 from waterfall.core.exchanges.interface.workbooks import (
     MOST_MEMBERS as MOST_MEMBERS,

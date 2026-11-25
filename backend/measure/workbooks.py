@@ -5,34 +5,36 @@
 The measure the bounds of the workbooks were set on (EP-33, "Les bornes des classeurs"), kept so
 that a bound can be measured again. It reads workbooks it engenders alone, never a file deposited:
 the swollen ones of ``tests/workbook_bombs.py``, the exports of the writers and the extractions of
-the tests' support, and the prototypes of the specification the tests read. Three commands, each
+the tests' support, and the prototypes of the specification the tests read. Five commands, each
 printing a JSON line by point:
 
 - ``books``: the vectors of the workbooks engendered — strings, elements of a string, text, the
   lists of ``styles.xml``, the defined names, rows and cells of the tabs —, against which the
   margin of a bound is read;
 - ``sweep <vector> <count>...``: the peak of the reading of a workbook swollen along one vector, by
-  the reader of an estimate, each point in a fresh process — the peak resident size, and in another
-  process the peak ``tracemalloc`` sees, which misses what libxml2 allocates;
+  the reader of an estimate — or by openpyxl alone (``--reader openpyxl``), what a vector costs
+  behind the bound that refuses it —, each point in a fresh process: the peak resident size, and
+  in another process the peak ``tracemalloc`` sees, which misses what libxml2 allocates;
 - ``preread``: the time the judgment of the archive takes before openpyxl opens a workbook, on the
   export of 10 000 lines and the extraction of 18 000 lines: the opening by the opener, less the
   opening by openpyxl alone, the best of a few runs;
 - ``members``: what the bounds of US-3190/L3 judge a workbook engendered on (#4914, #4915): the
-  members openpyxl parses into a tree and the bytes each declares, and the nodes of its tabs and
-  of its shared strings by where they lie, those openpyxl's stream never frees among them;
+  members openpyxl holds whole and the bytes each declares, and the nodes of its tabs and of its
+  shared strings by where they lie, those openpyxl's stream never frees among them;
 - ``peaks``: the peak resident size of a fresh process once it has imported the readers, once it
   has read the base workbook of a format, and what reading each workbook engendered adds.
 
-The peaks of US-3190/L3 are those of the memory of the fresh process alone (``VmHWM``), beside the
-rise ``ru_maxrss`` gives, which the tests read (``resident``): Linux keeps ``ru_maxrss`` across
-``exec``, so a process spawned starts at the peak of the one that spawned it, and a read that rises
-less than the gap is seen short, or not at all.
+The peaks are those of the memory of the fresh process alone (``VmHWM``, ``high_water``), which the
+tests read too since US-3190/L3 (``resident``, #4935), beside the rise ``ru_maxrss`` gives: Linux
+keeps ``ru_maxrss`` across ``exec``, so a process spawned starts at the peak of the one that spawned
+it, and a read that rises less than the gap is seen short, or not at all.
 
 The vectors of US-3190/L3 swept: elements stuffed in a font of ``styles.xml`` — empty, by their
-count; with a long attribute, a short text or a long text, by the mebibytes they inflate to —, the
-``dxfs`` as Excel writes them by their count, and ``<x/>`` under the root of a tab read, in a cell
-of it, or under the root of the shared strings, by their count. Each point gives the mebibytes the
-members parsed into a tree declare, so that a peak is read against them.
+count; with a long attribute, a short text or a long text, by the mebibytes they inflate to —, each
+list of ``styles.xml`` with items as Excel writes them, by their count, and ``<x/>`` under the root
+of a tab read, in a cell of it, under the root of the shared strings, or under the root of a tab
+the reader does not read and that has no ``<dimension>``, by their count. Each point gives the
+mebibytes the members openpyxl holds whole declare, so that a peak is read against them.
 
 It needs the tests' support on the path (the target sets it), runs no database, and never fails on
 a figure: a figure is a report, and the chain does not run it.
@@ -43,6 +45,7 @@ import gc
 import json
 import multiprocessing
 import posixpath
+import re
 import resource
 import sys
 import time
@@ -64,7 +67,11 @@ from workbook_bombs import (
     READERS,
     STRINGS,
     STYLES,
+    THEME,
     WORKBOOK,
+    edited,
+    grown,
+    high_water,
     named,
     resident,
     shared_strings,
@@ -199,6 +206,10 @@ def _styled(listing: str, count: int) -> bytes:
     return styled(_base(), listing, count)
 
 
+def _richly(listing: str, count: int) -> bytes:
+    return styled_richly(_base(), listing, count)
+
+
 def _combined(_: int) -> bytes:
     """Give the workbook of every vector at its bound at once, its text apart."""
     content = shared_strings(_base(), MOST_STRINGS)
@@ -228,6 +239,25 @@ def _foreign_strings(count: int) -> bytes:
     return stuffed(shared_strings(_base(), 1), STRINGS, b"</sst>", _FOREIGN, count)
 
 
+# A tab the reader of an estimate does not read, added last to the base; openpyxl's opening parses
+# it up to the end of its rows when it has no ``<dimension>`` (``parse_dimensions``).
+UNREAD_TAB = "Paramètres"
+_UNREAD_MEMBER = "xl/worksheets/sheet4.xml"
+
+
+def foreign_unread(count: int) -> bytes:
+    """Give the base with a tab it does not read, of no dimension, ``count`` ``<x/>`` in its root.
+
+    They come before its rows, which openpyxl's opening parses through (#4915, (iii)).
+    """
+    unread = edited(
+        grown(_base(), UNREAD_TAB, 1, 1),
+        _UNREAD_MEMBER,
+        lambda xml: re.sub(rb"<dimension [^>]*/>", b"", xml),
+    )
+    return stuffed(unread, _UNREAD_MEMBER, b"<sheetData", _FOREIGN, count)
+
+
 VECTORS: dict[str, Callable[[int], bytes]] = {
     "strings": lambda count: shared_strings(_base(), count),
     "string-elements": lambda count: shared_strings(_base(), 1, count),
@@ -243,21 +273,24 @@ VECTORS: dict[str, Callable[[int], bytes]] = {
     "font-attribute-mib": partial(_in_a_font, _ATTRIBUTE),
     "font-text-mib": partial(_in_a_font, _TEXT),
     "font-long-text-mib": partial(_in_a_font, _LONG_TEXT),
-    "dxfs-rich": lambda count: styled_richly(_base(), count),
+    **{f"rich-{listing}": partial(_richly, listing) for listing in STYLE_LISTS},
     "foreign-under-a-tab": lambda count: stuffed(
         _base(), _READ_TAB, b"</worksheet>", _FOREIGN, count
     ),
     "foreign-in-a-cell": lambda count: stuffed(_base(), _READ_TAB, b"</c>", _FOREIGN, count),
     "foreign-under-the-strings": _foreign_strings,
+    "foreign-under-an-unread-tab": foreign_unread,
 }
 
-# What openpyxl parses into a tree by a fixed name: all of them but the theme, which it keeps as
-# bytes; and the relations of the workbook, which name the parts whose relations it parses too.
+# What openpyxl holds whole by a fixed name: the parts it parses into a tree, and the theme, which
+# it keeps as bytes; and the relations of the workbook, which name the parts whose relations it
+# parses too.
 _FIXED_TREES = (
     "[Content_Types].xml",
     "docProps/core.xml",
     "docProps/custom.xml",
     STYLES,
+    THEME,
     WORKBOOK,
 )
 _WORKBOOK_RELATIONS = "xl/_rels/workbook.xml.rels"
@@ -265,11 +298,11 @@ _TABS = "xl/worksheets/"
 
 
 def trees(content: bytes) -> dict[str, int]:
-    """Give the members openpyxl parses into a tree, and the bytes each declares.
+    """Give the members openpyxl holds whole, and the bytes each declares (``LARGEST_TREES``).
 
     As the opener finds them for a workbook of no chartsheet and no external link, the workbooks
-    measured here: the fixed names but the theme, the relations of the workbook, and those of each
-    part it names. Two members of one name add up.
+    measured here: the fixed names, the theme among them, the relations of the workbook, and those
+    of each part it names. Two members of one name add up.
     """
     with zipfile.ZipFile(BytesIO(content)) as archive:
         sizes: dict[str, int] = {}
@@ -387,38 +420,49 @@ def _books(_: argparse.Namespace) -> None:
         _write({"book": name, **vectors(book())})
 
 
-def _high_water() -> int:
-    """Give the peak resident size of the memory of this process alone, in bytes (``VmHWM``).
-
-    ``ru_maxrss`` is no measure of a process spawned: Linux keeps it across ``exec``, so that it
-    starts at the peak of the process that spawned it, and a read that rises less than the gap is
-    not seen at all. ``VmHWM`` is that of the memory of the process, which ``exec`` makes anew.
-    """
-    for entry in Path("/proc/self/status").read_text(encoding="ascii").splitlines():
-        if entry.startswith("VmHWM:"):
-            return int(entry.split()[1]) * 1024
-    return 0
-
-
 def _maxrss() -> int:
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024
+
+
+# The tabs the reader of an estimate reads whole.
+_ESTIMATE_READS = ("1 Études", "Tâches")
+
+
+def _by_openpyxl(content: bytes) -> None:
+    """Read ``content`` as the reader of an estimate does, by openpyxl alone, without the opener.
+
+    What a vector costs behind the bound that refuses it: the opening, read-only and by values,
+    then every row of the tabs the reader reads whole.
+    """
+    workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+    try:
+        for sheet in workbook.worksheets:
+            if sheet.title in _ESTIMATE_READS:
+                for _ in sheet.iter_rows(values_only=True):
+                    pass
+    finally:
+        workbook.close()
+
+
+# The readers of a measure: those of the tests, and openpyxl alone.
+_READERS: dict[str, Callable[[bytes], object]] = {**READERS, "openpyxl": _by_openpyxl}
 
 
 def _read_fresh(reader: str, base: bytes, content: bytes) -> dict[str, object]:
     """Read ``base`` to warm ``reader``, then ``content``: the peaks, in the process spawned."""
     gc.collect()
-    imported = _high_water()
-    READERS[reader](base)
+    imported = high_water()
+    _READERS[reader](base)
     gc.collect()
-    warmed, before = _high_water(), _maxrss()
+    warmed, before = high_water(), _maxrss()
     start = time.perf_counter()
     outcome = "read"
     try:
-        READERS[reader](content)
+        _READERS[reader](content)
     except UnprocessableError as error:
         outcome = error.code
     seconds = time.perf_counter() - start
-    peak = _high_water()
+    peak = high_water()
     return {
         "outcome": outcome,
         "imported_mib": round(imported / _MEBIBYTE, 1),
@@ -435,8 +479,9 @@ def fresh(reader: str, base: bytes, content: bytes) -> dict[str, object]:
 
     The outcome, ``read`` or the code of the refusal; ``imported_mib``, ``warmed_mib`` and
     ``peak_mib``, the peak of the memory of the process once the readers are imported, once
-    ``base`` is read, once ``content`` is; ``rise_mib`` what the read of ``content`` added; and
-    ``maxrss_rise_mib``, the rise ``resident`` of the tests sees, by ``ru_maxrss``.
+    ``base`` is read, once ``content`` is; ``rise_mib`` what the read of ``content`` added, which
+    ``resident`` of the tests sees too; and ``maxrss_rise_mib``, the rise ``ru_maxrss`` gives, which
+    the tests read before #4935.
     """
     context = multiprocessing.get_context("spawn")
     with ProcessPoolExecutor(max_workers=1, mp_context=context) as pool:
@@ -453,7 +498,7 @@ def _sweep(arguments: argparse.Namespace) -> None:
             "bytes": len(content),
             "tree_mib": round(sum(trees(content).values()) / _MEBIBYTE, 2),
         }
-        point.update(fresh("estimate", base, content))
+        point.update(fresh(arguments.reader, base, content))
         if not arguments.resident_only:
             (traced,) = resident("estimate", base, [content], traced=True)
             point["traced_mib"] = round((traced.traced or 0) / _MEBIBYTE, 1)
@@ -529,6 +574,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     sweep.add_argument("counts", type=int, nargs="+")
     sweep.add_argument(
         "--resident-only", action="store_true", help="leave the peak tracemalloc sees"
+    )
+    sweep.add_argument(
+        "--reader",
+        choices=["estimate", "openpyxl"],
+        default="estimate",
+        help="the reader of an estimate, or openpyxl alone, behind the bounds",
     )
     sweep.set_defaults(run=_sweep)
     preread = commands.add_parser("preread", help="the time the judgment of the archive takes")
