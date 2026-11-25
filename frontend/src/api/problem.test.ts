@@ -16,13 +16,14 @@ import {
   UNREACHABLE_DIGEST,
 } from "@/components/system/failure";
 
-import { createApiClient, Unreachable } from "./client";
+import { ComponentUnreachable, createApiClient, Unreachable } from "./client";
 import { ACCOUNT_REFUSALS, accountRefusalOf, isAccountRefusal, kindOf } from "./problem-kind";
 import {
   AccountRefused,
   type BackgroundTask,
   ComponentUnavailable,
   decode,
+  decodeOrLost,
   decodeTask,
   type ExpectedRefusal,
   OPTIONAL_READ_REFUSALS,
@@ -646,6 +647,24 @@ describe("a read refused for a component of the platform unavailable", () => {
       kind: "unexpected",
       reference: "WATERFALL_COMPONENT_UNAVAILABLE;toString",
     });
+  });
+});
+
+describe("a call a component of the platform out of reach stops, whose outcome names it (decodeOrLost) [US-2860]", () => {
+  it("refuses an action whose component is down, naming it, and sent nothing [WF-EXP-0040-A]", async () => {
+    const outcome = await decodeOrLost(() =>
+      Promise.reject(new ComponentUnreachable("cache", new Error("down"), "Redis is down")),
+    );
+    expect(outcome).toEqual({
+      kind: "refused",
+      problem: { code: "COMPONENT_UNAVAILABLE", status: 503, params: { component: "cache" } },
+      conflictingObjectId: null,
+    });
+  });
+
+  it("tells an ordinary Unreachable as the API out of reach, not as a component refused [WF-EXP-0040-A]", async () => {
+    const outcome = await decodeOrLost(() => Promise.reject(new Unreachable()));
+    expect(outcome).toEqual({ kind: "unreachable" });
   });
 });
 
