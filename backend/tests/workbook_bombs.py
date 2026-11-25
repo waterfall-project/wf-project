@@ -15,7 +15,9 @@ measures. And the measure: the peak of what Python allocates during a call.
 The other vectors of amplification, which US-3190/L2b measured, then bounded: shared strings by
 their number, by the elements of one, by their text; the lists of ``styles.xml``; the defined names
 of ``workbook.xml``; a tab of rows as wide as its ``<dimension>`` says. Each gives exactly the
-count it is asked, so that a test sets a workbook just at a bound, or one past it. And their
+count it is asked, so that a test sets a workbook just at a bound, or one past it. The elements of
+the parts openpyxl parses into a tree (US-3190b): a member stuffed with elements out of any list,
+every list of ``styles.xml`` at once, a part named an external link by the workbook. And their
 measure: the peak resident size of a fresh process, which sees what libxml2 allocates and
 ``tracemalloc`` does not (``resident``), the one the measure of the workbooks takes too
 (``measure/workbooks.py``).
@@ -46,7 +48,7 @@ from waterfall.core.estimate.remaining.excel import reader as remaining_reader
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator, Iterable, Sequence
+    from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 
 MEBIBYTE = 1024 * 1024
 GIBIBYTE = 1024 * MEBIBYTE
@@ -400,6 +402,19 @@ _STYLE_ITEMS: dict[str, Callable[[int], bytes]] = {
     "tableStyles": lambda rank: b'<tableStyle name="t%d"/>' % rank,
     "colors": lambda _: b'<rgbColor rgb="FF000000"/>',
 }
+# A ``dxf`` as Excel writes it: a font with ``b`` and a colour, a fill with the ``bgColor`` of its
+# pattern, a border of four sides each with a style and a colour: 16 elements.
+RICH_DXF = (
+    b'<dxf><font><b/><color rgb="FF9C0006"/></font>'
+    b'<fill><patternFill><bgColor rgb="FFFFC7CE"/></patternFill></fill>'
+    b"<border>"
+    b'<left style="thin"><color auto="1"/></left>'
+    b'<right style="thin"><color auto="1"/></right>'
+    b'<top style="thin"><color auto="1"/></top>'
+    b'<bottom style="thin"><color auto="1"/></bottom>'
+    b"</border></dxf>"
+)
+RICH_DXF_ELEMENTS = 16
 # The longest text of one string of ``shared_text``: the text is written by streams of a MiB.
 _LONGEST_STRING = 8 * MEBIBYTE
 _ASTRAL = "\U0001f600".encode()
@@ -480,14 +495,18 @@ def shared_text(base: bytes, characters: int, *, astral: bool = False) -> bytes:
     return out.getvalue()
 
 
-def styled(base: bytes, listing: str, count: int) -> bytes:
+def styled(
+    base: bytes, listing: str, count: int, item: Callable[[int], bytes] | None = None
+) -> bytes:
     """Give the workbook whose list ``listing`` of ``styles.xml`` holds ``count`` items exactly.
+
+    ``item`` writes an item of the list, ``_STYLE_ITEMS`` the empty one by default.
 
     The list replaces the one the workbook has, or is added at its place in the order of the
     stylesheet; ``colors`` holds its ``indexedColors``, then ``count - 1`` colours in it: ``count``
     elements in all.
     """
-    item = _STYLE_ITEMS[listing]
+    item = item or _STYLE_ITEMS[listing]
     tag = listing.encode()
     if listing == "colors":
         block = b"<colors><indexedColors>" + item(0) * (count - 1) + b"</indexedColors></colors>"
@@ -564,6 +583,103 @@ def named(base: bytes, count: int, sheet: str) -> bytes:
     xml = re.sub(rb"<definedNames>.*?</definedNames>|<definedNames/>", b"", _member(base, WORKBOOK))
     xml = xml.replace(b"</sheets>", f"</sheets><definedNames>{names}</definedNames>".encode(), 1)
     return _rewritten(base, {WORKBOOK: xml})
+
+
+def stuffed(base: bytes, member: str, before: bytes, element: bytes, count: int) -> bytes:
+    """Give the workbook whose ``member`` holds ``count`` elements ``element`` more (US-3190b).
+
+    They come before the first ``before`` the member holds, written by streams of a MiB: the
+    workbooks of #4862, a ``<b/>`` in a font of ``styles.xml`` or a ``<x/>`` under the root of
+    ``workbook.xml``, which openpyxl parses into a tree, out of any list bounded.
+    """
+    head, tail = _member(base, member).split(before, 1)
+    per_write = max(1, MEBIBYTE // len(element))
+    out = BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as target:
+        _copied(base, target, but=member)
+        with target.open(member, "w") as written:
+            written.write(head)
+            for start in range(0, count, per_write):
+                written.write(element * min(per_write, count - start))
+            written.write(before + tail)
+    return out.getvalue()
+
+
+def styled_richly(base: bytes, count: int) -> bytes:
+    """Give the workbook whose ``dxfs`` hold ``count`` dxf as Excel writes them (``RICH_DXF``)."""
+    return styled(base, "dxfs", count, lambda _: RICH_DXF)
+
+
+def styled_in_full(base: bytes, lists: Mapping[str, int]) -> bytes:
+    """Give the workbook whose lists of ``styles.xml`` each hold the items ``lists`` gives."""
+    for listing, count in lists.items():
+        base = styled(base, listing, count)
+    return base
+
+
+def linked_externally(
+    base: bytes, member: str, data: bytes, *, referred: bool, bare: bool = False
+) -> bytes:
+    """Give the workbook with ``member`` more, named by a relation of its workbook typed a tab.
+
+    The relation is ``rIdLinked``; when ``referred``, ``workbook.xml`` names it as an external link
+    too, of which openpyxl parses the target into a tree whatever the type of the relation, by an
+    ``r:id`` or, when ``bare``, an ``id`` of no namespace, which openpyxl takes as well; the target
+    then has its relations, the path of the linked workbook, which openpyxl reads too.
+    """
+    office = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    relations = "xl/_rels/workbook.xml.rels"
+    relation = f'<Relationship Id="rIdLinked" Type="{office}/worksheet" Target="/{member}"/>'
+    held = _member(base, relations).replace(
+        b"</Relationships>", relation.encode() + b"</Relationships>"
+    )
+    xml = _member(base, WORKBOOK)
+    written = {member: data, relations: held, WORKBOOK: xml}
+    if referred:
+        named = 'id="rIdLinked"' if bare else f'xmlns:r="{office}" r:id="rIdLinked"'
+        reference = f"<externalReferences><externalReference {named}/>"
+        written[WORKBOOK] = xml.replace(
+            b"</sheets>", f"</sheets>{reference}</externalReferences>".encode(), 1
+        )
+        folder, name = member.rsplit("/", 1)
+        path = (
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1"'
+            f' Type="{office}/externalLinkPath" Target="linked.xlsx" TargetMode="External"/>'
+            "</Relationships>"
+        )
+        written[f"{folder}/_rels/{name}.rels"] = path.encode()
+    return _rewritten(base, written)
+
+
+def referring(base: bytes, member: str, references: int) -> bytes:
+    """Give the workbook whose workbook part lies at ``member``, naming ``references`` links.
+
+    The content types name it there, its relations follow it; it names the external links by ids
+    no relation bears.
+    """
+    office = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    folder, name = member.rsplit("/", 1)
+    links = "".join(f'<externalReference r:id="rIdLink{rank}"/>' for rank in range(references))
+    xml = _member(base, WORKBOOK).replace(
+        b"</sheets>",
+        f'</sheets><externalReferences xmlns:r="{office}">{links}</externalReferences>'.encode(),
+        1,
+    )
+    relations = "xl/_rels/workbook.xml.rels"
+    types = _member(base, CONTENT_TYPES).replace(f'"/{WORKBOOK}"'.encode(), f'"/{member}"'.encode())
+    moved = {member: xml, f"{folder}/_rels/{name}.rels": _member(base, relations)}
+    out = BytesIO()
+    with (
+        zipfile.ZipFile(BytesIO(base)) as source,
+        zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target,
+    ):
+        for item in source.infolist():
+            if item.filename not in {WORKBOOK, relations, CONTENT_TYPES}:
+                target.writestr(item, source.read(item.filename))
+        for written, data in {**moved, CONTENT_TYPES: types}.items():
+            target.writestr(written, data)
+    return out.getvalue()
 
 
 def tabulated(base: bytes, member: str, rows: int, columns: int) -> bytes:

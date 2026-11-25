@@ -65,6 +65,16 @@ by their local names, where it reads them, comments and instructions included, a
 parse that declares a document type is refused. Past a bound, the workbook is refused before it is
 opened.
 
+The items bounded are not all openpyxl builds: it parses ``styles.xml``, ``workbook.xml``, the
+content types, the relations, the properties, a chartsheet and its drawings and charts whole, into a
+tree, and each element costs it a node, in an item or out of any list — 25 kB of ``<b/>`` in a font
+held 543 MiB (#4862). So the reading counts the elements of every member, comments and instructions
+included, and once the parts openpyxl parses into a tree are found as it finds them, their elements
+are added up: past ``MOST_ELEMENTS`` in all, the workbook is refused before it is opened
+(US-3190b). The tabs and the shared strings, which openpyxl reads as a stream and the other bounds
+hold, are left out, unless openpyxl parses them into a tree by another way; the theme too, which it
+keeps as bytes.
+
 A reader then materialises the tabs its format reads, and those alone, by the ``bounded_rows`` of
 the workbook opened: a row of more than ``MOST_COLUMNS`` columns, as openpyxl gives them — the width
 the places of the cells give —, is refused, and so are the tabs read past ``MOST_ROWS`` rows or
@@ -145,6 +155,11 @@ STYLE_LISTS: Mapping[str, int] = MappingProxyType(
     }
 )
 MOST_NAMES = 10_000
+# The elements of the parts openpyxl parses into a tree, in all (US-3190b, decided by the author on
+# 2026-11-24, #4862, set at 1 100 000 on 2026-11-25, option a1): some 110 bytes a node to openpyxl,
+# some 120 MiB at the bound. The richest list of ``styles.xml`` at its bound, 65 490 ``dxf`` of 16
+# elements as Excel writes them, holds 1 047 935 elements: it is read, with some 5 % to spare.
+MOST_ELEMENTS = 1_100_000
 
 # The steps of the inflation of a member: what is fed, and the most that one step gives.
 _FED = 64 * 1024
@@ -190,6 +205,14 @@ _WORKBOOKS = frozenset({XLSX, XLSM, XLTX, XLTM})
 _LOOKED_UP = _WORKBOOKS | {SHARED_STRINGS}
 _CHARTSHEET = "chartsheet"
 _DRAWING = f"{REL_NS}/drawing"
+# The fixed names openpyxl parses into a tree: all but the theme, which it keeps as bytes. The list
+# of the workbook whose children name, by the id of a relation, the external links it parses into a
+# tree (``WorkbookParser.parse``), a child of the root in any namespace, as ``from_tree`` reads it;
+# the attributes it takes their id from, that of the relationships' namespace before the bare one
+# (``Serialisable.from_tree`` keeps an attribute of no namespace, and sets the namespaced over it).
+_TREES = _FIXED - {ARC_THEME}
+_REFERENCES = "externalReferences"
+_RELATION_IDS = (f"{{{REL_NS}}}id", "id")
 
 
 class _Relations(Enum):
@@ -205,7 +228,7 @@ class _Relations(Enum):
     DRAWING = "drawing"
 
 
-type _Named = Callable[[dict[str, str]], tuple[str, _Relations | None] | None]
+type _Named = Callable[[dict[str, str]], tuple[str, _Relations | None, bool] | None]
 
 
 class WorkbookOutOfBoundsError(ValueError):
@@ -284,12 +307,14 @@ class _Tally(_Target):
     and its processing instructions among them, which openpyxl's lxml gives as children and builds
     an item of (``NestedSequence``); a list in a list is an item of the first. The items of a list
     met twice add up. Whether the member declares a document type, under which an entity left
-    unresolved is one more child to openpyxl and none to the reading.
+    unresolved is one more child to openpyxl and none to the reading. Its elements, comments and
+    instructions included, each a node of the tree openpyxl may parse of it.
     """
 
     def __init__(self, name: str) -> None:
         self.name = name
         self.started = False
+        self.elements = 0
         self.depth = 0
         self.rows = 0
         self.open_rows: list[list[int]] = []
@@ -310,6 +335,7 @@ class _Tally(_Target):
     def start(self, tag: str, _attributes: dict[str, str], /) -> None:
         """Count an element: as a cell, a row, a string, an element of one, an item of a list."""
         self.started = True
+        self.elements += 1
         self.depth += 1
         if self.open_rows and self.open_rows[-1][0] == self.depth - 1:
             self.open_rows[-1][1] += 1
@@ -359,11 +385,13 @@ class _Tally(_Target):
                 self._refuse("characters of text in shared strings", LONGEST_TEXT)
 
     def comment(self, _text: str, /) -> None:
-        """Count a comment as an item of the list open: openpyxl builds one of it."""
+        """Count a comment as an element, and as an item of the list open: openpyxl builds one."""
+        self.elements += 1
         self._count_item(self.depth)
 
     def pi(self, _target: str, _data: str, /) -> None:
-        """Count a processing instruction as an item of the list open, as a comment."""
+        """Count a processing instruction as a comment is counted."""
+        self.elements += 1
         self._count_item(self.depth)
 
     def doctype(self, _root: str | None, _public_id: str | None, _system_id: str | None, /) -> None:
@@ -386,14 +414,15 @@ class _Naming(_Target):
 
     ``named`` gives, from the attributes of an element, the member it names, as openpyxl finds it,
     and whose relations those of that member are when openpyxl follows them, ``None`` when it does
-    not; ``None`` for an element that names no member openpyxl parses. A name no member bears is
-    not kept: what is kept is at most the archive.
+    not, and whether openpyxl parses it into a tree; ``None`` for an element that names no member
+    openpyxl parses. A name no member bears is not kept: what is kept is at most the archive.
     """
 
     def __init__(self, named: _Named, members: Container[str]) -> None:
         self.named = named
         self.members = members
         self.parts: set[str] = set()
+        self.trees: set[str] = set()
         self.followed: set[tuple[str, _Relations]] = set()
 
     def start(self, _tag: str, attributes: dict[str, str], /) -> None:
@@ -401,8 +430,44 @@ class _Naming(_Target):
         found = self.named(attributes)
         if found is not None and found[0] in self.members:
             self.parts.add(found[0])
+            if found[2]:
+                self.trees.add(found[0])
             if found[1] is not None:
                 self.followed.add((found[0], found[1]))
+
+
+class _Referring(_Target):
+    """The target of the reading of a workbook part: keeps the relations its external links name.
+
+    The ids of the children of ``externalReferences``, a child of the root, whatever their tag, as
+    ``NestedSequence`` reads them, in the relationships' namespace or in none: both are kept, a
+    superset of the one openpyxl takes. Each child is an element of a part openpyxl parses into a
+    tree: past ``MOST_ELEMENTS`` of them, the workbook is refused before it holds more ids than
+    twice as many.
+    """
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.depth = 0
+        self.within = False
+        self.children = 0
+        self.ids: set[str] = set()
+
+    def start(self, tag: str, attributes: dict[str, str], /) -> None:
+        """Keep the id of a child of the external references."""
+        self.depth += 1
+        if self.depth == _LISTED_AT:
+            self.within = _local(tag) == _REFERENCES
+        elif self.within and self.depth == _LISTED_AT + 1:
+            self.children += 1
+            if self.children > MOST_ELEMENTS:
+                msg = f"{self.name!r} holds more than {MOST_ELEMENTS} elements"
+                raise WorkbookOutOfBoundsError(msg)
+            self.ids.update(attributes[key] for key in _RELATION_IDS if key in attributes)
+
+    def end(self, _tag: str, /) -> None:
+        """Close an element."""
+        self.depth -= 1
 
 
 class _Reading:
@@ -547,15 +612,17 @@ def _relations_of(part: str) -> str:
     return posixpath.join(folder, "_rels", f"{name}.rels")
 
 
-def _content_type(attributes: dict[str, str]) -> tuple[str, _Relations | None] | None:
+def _content_type(attributes: dict[str, str]) -> tuple[str, _Relations | None, bool] | None:
     """Give the part an override of the content types names, if openpyxl looks it up by its type.
 
-    openpyxl takes its name past its first character, and follows the relations of a workbook.
+    openpyxl takes its name past its first character, and follows the relations of a workbook,
+    which it parses into a tree; its shared strings, it reads as a stream.
     """
     kind, part = attributes.get("ContentType"), attributes.get("PartName")
     if kind not in _LOOKED_UP or part is None:
         return None
-    return part[1:], _Relations.WORKBOOK if kind in _WORKBOOKS else None
+    workbook = kind in _WORKBOOKS
+    return part[1:], _Relations.WORKBOOK if workbook else None, workbook
 
 
 def _followed(kind: str, of: _Relations) -> tuple[bool, _Relations | None]:
@@ -576,17 +643,21 @@ def _followed(kind: str, of: _Relations) -> tuple[bool, _Relations | None]:
             return True, None
 
 
-def _relation(relations: str, of: _Relations) -> _Named:
+def _relation(relations: str, of: _Relations, linked: Container[str] = ()) -> _Named:
     """Give how an element of ``relations`` names a member, as openpyxl's ``get_dependents`` does.
 
     A target is taken as it is when external, past its slash when absolute, and joined to the folder
     of the part otherwise, then normalised; it is named when openpyxl parses it (``_followed``).
+    Of the targets of a workbook, openpyxl parses into a tree its chartsheets, and the external
+    links its ids ``linked`` name, whatever their type; its tabs, its shared strings, it reads as a
+    stream, and the rest not at all. It parses into a tree every target it parses of the others.
     """
     folder = posixpath.dirname(posixpath.dirname(relations))
 
-    def named(attributes: dict[str, str]) -> tuple[str, _Relations | None] | None:
+    def named(attributes: dict[str, str]) -> tuple[str, _Relations | None, bool] | None:
         target = attributes.get("Target")
-        parsed, followed = _followed(attributes.get("Type", ""), of)
+        kind = attributes.get("Type", "")
+        parsed, followed = _followed(kind, of)
         if target is None or not parsed:
             return None
         external = attributes.get("TargetMode") == "External"
@@ -594,35 +665,41 @@ def _relation(relations: str, of: _Relations) -> _Named:
             target = target[1:]
         elif not external:
             target = posixpath.normpath(posixpath.join(folder, target))
-        return target, followed
+        linking = attributes.get("Id", "") in linked
+        return target, followed, of != _Relations.WORKBOOK or _CHARTSHEET in kind or linking
 
     return named
 
 
-def _parsed_parts(content: bytes, members: list[zipfile.ZipInfo]) -> set[str]:
-    """Give the members openpyxl's opening, read-only, may parse: a superset of those it parses.
+def _parsed_parts(content: bytes, members: list[zipfile.ZipInfo]) -> tuple[set[str], set[str]]:
+    """Give the members openpyxl's opening, read-only, may parse, and those it parses into a tree.
 
-    openpyxl finds them by fixed names, by the content types (the workbook and its shared strings),
-    by the relations of the workbook (its tabs, read as tabs whatever their name, the relations of
-    each, the other parts it names) and, from a chartsheet, by its drawings and what their relations
-    name; the relations of a worksheet and of a chartsheet, where Excel names its VML drawings, it
-    parses without parsing those. Each part that names others is read by the hardened parser,
-    without a tree, at most once for each kind of relations it may hold.
+    Each a superset of those it parses so. openpyxl finds them by fixed names, by the content types
+    (the workbook and its shared strings), by the relations of the workbook (its tabs, read as tabs
+    whatever their name, the relations of each, the other parts it names, the external links it
+    names by their ids) and, from a chartsheet, by its drawings and what their relations name; the
+    relations of a worksheet and of a chartsheet, where Excel names its VML drawings, it parses
+    without parsing those. Each part that names others is read by the hardened parser, without a
+    tree, at most once for each kind of relations it may hold.
     """
     by_name = {member.filename: member for member in members}
 
-    def named_by(part: str, named: _Named) -> _Naming:
-        naming = _Naming(named, by_name)
+    def read(part: str, target: _Target) -> None:
         member = by_name.get(part)
         if member is not None:
-            parser = hardened_target_parser(naming)
+            parser = hardened_target_parser(target)
             for step in _inflated(content, member):
                 parser.feed(bytes(step))
             parser.close()
+
+    def named_by(part: str, named: _Named) -> _Naming:
+        naming = _Naming(named, by_name)
+        read(part, naming)
         return naming
 
     found = named_by(_CONTENT_TYPES, _content_type)
     parsed = {*_FIXED, *found.parts}
+    trees = {*_TREES, *found.trees}
     pending = [*found.followed, (_WORKBOOK, _Relations.WORKBOOK)]
     seen: set[tuple[str, _Relations]] = set()
     while pending:
@@ -631,10 +708,14 @@ def _parsed_parts(content: bytes, members: list[zipfile.ZipInfo]) -> set[str]:
         if (relations, of) in seen:
             continue
         seen.add((relations, of))
-        found = named_by(relations, _relation(relations, of))
+        referring = _Referring(part)
+        if of == _Relations.WORKBOOK:
+            read(part, referring)
+        found = named_by(relations, _relation(relations, of, referring.ids))
         parsed |= {relations, *found.parts, *map(_relations_of, found.parts)}
+        trees |= {relations, *found.trees, *map(_relations_of, found.parts)}
         pending.extend(found.followed)
-    return parsed
+    return parsed, trees
 
 
 def _judge_archive(content: bytes) -> None:
@@ -645,26 +726,38 @@ def _judge_archive(content: bytes) -> None:
     whose XML is damaged, a VML drawing included when openpyxl may parse it: all of them in
     ``DAMAGES``. A part openpyxl may parse that declares a document type is refused by the bounds:
     Excel writes none, and an entity it leaves unresolved, which the reading does not see, is an
-    item to openpyxl's lxml in a list of ``styles.xml``.
+    item to openpyxl's lxml in a list of ``styles.xml``. So are the parts it parses into a tree
+    whose elements add up past ``MOST_ELEMENTS``, those of two members of one name included.
     """
     with zipfile.ZipFile(BytesIO(content)) as archive:
         members = archive.infolist()
     _judge_directory(members)
     left: dict[str, etree.XMLSyntaxError] = {}
     typed: set[str] = set()
+    elements: dict[str, int] = {}
     for member in members:
         reading = _judge_member(content, member)
         if reading.left is not None:
             left.setdefault(member.filename, reading.left)
         if reading.tally.typed:
             typed.add(member.filename)
-    if left or typed:
-        parsed = _parsed_parts(content, members)
-        for name in left.keys() & parsed:
-            raise left[name]
-        for name in typed & parsed:
-            msg = f"{name!r} declares a document type"
-            raise WorkbookOutOfBoundsError(msg)
+        elements[member.filename] = elements.get(member.filename, 0) + reading.tally.elements
+    # The parts of fixed names first, so that the parts naming others are not read past the bound.
+    _judge_elements(elements, _TREES)
+    parsed, trees = _parsed_parts(content, members)
+    for name in left.keys() & parsed:
+        raise left[name]
+    for name in typed & parsed:
+        msg = f"{name!r} declares a document type"
+        raise WorkbookOutOfBoundsError(msg)
+    _judge_elements(elements, trees)
+
+
+def _judge_elements(elements: Mapping[str, int], trees: Iterable[str]) -> None:
+    """Refuse the parts ``trees`` openpyxl parses into a tree, past ``MOST_ELEMENTS`` in all."""
+    if sum(elements.get(name, 0) for name in trees) > MOST_ELEMENTS:
+        msg = f"the parts openpyxl parses into a tree hold more than {MOST_ELEMENTS} elements"
+        raise WorkbookOutOfBoundsError(msg)
 
 
 class OpenedWorkbook:
