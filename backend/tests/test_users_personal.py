@@ -493,6 +493,10 @@ def test_a_table_of_a_hundred_and_one_entries_is_read_and_changed_never_in_error
     assert len(preferences_of(database, user_id)[table]) == 101
     grown = api.patch(PREFERENCES, headers=headers, json={table: {"more": entry}})
     assert refusal(grown)[:2] == (422, "VALIDATION_FAILED")
+    # The bound the write tolerates for a table of 101: it may stay as long, and not grow.
+    assert [(field["pointer"], field["params"]) for field in refusal(grown)[2]] == [
+        (f"/{table}", {"max_length": 101})
+    ]
     forgotten = api.patch(PREFERENCES, headers=headers, json={table: {"e000": None, "e001": None}})
     assert forgotten.status_code == 200, forgotten.text
     assert len(forgotten.json()[table]) == 99

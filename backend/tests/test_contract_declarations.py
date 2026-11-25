@@ -515,7 +515,10 @@ def test_an_operation_that_lacks_either_is_found(tmp_path: Path) -> None:
 # 2026-11-18; ``docs/api/DECISIONS.md``): the route judges these parameters and gives the refusal
 # the contract names, which a bound declared on the served parameter would turn into the generic
 # 422.
-# Each entry has a test that runs its refusal; a parameter a route judges by hand is added here.
+# The eight parameters of #2303 (the grid of the hourly rates, the roles of resource, the journal)
+# each have a test that runs its refusal; the other entries (``listRisks``, ``listBackups``,
+# ``listNodes``…) are pinned by their text here, and not all by such a test. A parameter a route
+# judges by hand is added here.
 #
 # The sort column of the contributors of a project (EP-04, US-0930, ``listContributors``) is
 # declared by a ``pattern`` where the contract names an ``enum``: the same three columns, read as

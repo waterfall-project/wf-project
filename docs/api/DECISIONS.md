@@ -6276,15 +6276,30 @@ alors le motif que le contrat nomme au paramètre (422, `/query/<nom>`, `NUMBER_
 borne déclarée sur le paramètre servi donnerait. Ce n'est pas un écart à corriger : c'est la règle,
 que `test_the_bounds_of_every_parameter_the_service_declares_are_those_of_the_contract`
 (`backend/tests/test_contract_declarations.py`) tient par `CHECKED_BY_THE_ROUTE`. Chaque entrée de
-ce dictionnaire épingle le texte exact de l'écart d'un paramètre, et un test d'exécution éprouve son
-refus : un paramètre ajouté par une route qui juge à la main s'y ajoute avec ce test, jamais une
-borne déclarée à la place. Le contrôle ne voit que la description servie : le motif de
+ce dictionnaire épingle le texte exact de l'écart d'un paramètre ; pour les huit paramètres de #2303
+ci-dessous, un test d'exécution éprouve en outre le refus (les autres entrées — `listRisks`,
+`listBackups`, `listNodes`… — ne sont pas visées par cette phrase). Un paramètre ajouté par une route
+qui juge à la main s'y ajoute, avec son test, jamais une borne déclarée à la place. Le contrôle ne voit que la description servie : le motif de
 `correlation_id` (`listAuditEvents`), porté par `Field(pattern=…)` de `JournalQuery`, y est absent,
 et c'est l'exécution qui le prouve (`test_audit_consultation.py`). Les huit paramètres de #2303
 (`rate_min` et `rate_max` de `getHourlyRateGrid` ; `headcount_min`, `headcount_max`,
 `monthly_hours_min` et `monthly_hours_max` de `listResourceRoles` ; `correlation_id` et `actions`
 de `listAuditEvents`) sont gardés ainsi. Écarté : déclarer la borne sur le paramètre servi, qui
 changerait les motifs du contrat figé.
+
+## Les entrées de préférences au-delà de cent : gardées, masquées à la lecture (EP-13/US-3020/L3, #2236)
+
+Une table de `grids`, `timelines` ou `charts` plus ancienne que la borne (#874), ou écrite hors de
+l'API, peut tenir plus de cent entrées. `maxProperties` 100 borne ce que le contrat donne : la
+lecture (`getCurrentUser`, `updateMyPreferences`) ne rend que les cent premières, dans l'ordre que
+garde la base (JSONB range les clés par longueur puis par octets, non par insertion : un ordre
+stable, qui n'est pas celui de l'écriture). Les autres entrées restent en base, ni perdues ni
+changées, et reparaissent quand des changements qui en oublient ramènent la table à cent. Une
+écriture qui ne la fait pas croître passe ; celle qui la ferait croître est refusée sur la table,
+`VALUE_TOO_LONG`, avec pour `max_length` la borne que la table tient au plus (101 pour une table
+de 101) : c'est la borne qui, gardée, laisse passer l'écriture, et le contrat ne fixe pas ce
+paramètre. Écartés : une migration qui tronque les tables anciennes, qui détruirait des données
+sans que l'auteur l'ait voulu ; relever `maxProperties`, le contrat étant figé.
 
 ## Attribuer un rôle, et l'invitation d'un compte créé (EP-03/US-0360/L2b, #834, #816)
 

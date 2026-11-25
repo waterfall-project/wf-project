@@ -76,7 +76,8 @@ def shown_preferences(preferences: Mapping[str, Any]) -> dict[str, Any]:
     A table older than the bound (#874), or written outside of the API, may hold more, and
     ``merged`` keeps it so; the contract bounds it in what it gives (``maxProperties`` 100), so
     that reading or changing the account of its holder is never an internal error (#2236). The
-    first hundred entries are given, in the order the table keeps: its other entries are neither
+    first hundred entries are given, in the order the table keeps, which is stable but is not that
+    of the insertion (JSONB orders the keys by length, then by bytes): its other entries are neither
     changed nor lost, they are only not shown until the table is shortened by changes that forget
     some.
     """
