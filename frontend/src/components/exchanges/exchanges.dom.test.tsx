@@ -758,7 +758,7 @@ describe("the report of an import", () => {
     serve({});
     const held = open(report(example("import_remaining_subproject_held") as Import));
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
-      "3Cette ligne ne peut pas quitter ce sous-projet",
+      "4Cette ligne ne peut pas quitter ce sous-projet",
     );
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
       "« Poste de commande »",
@@ -766,7 +766,7 @@ describe("the report of an import", () => {
     held.unmount();
     open(report(example("import_remaining_ambiguous_label") as Import));
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
-      "3Ce libellé est porté par plusieurs tâches",
+      "4Ce libellé est porté par plusieurs tâches",
     );
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
       "Libellé lu : « Mise en service », porté par les tâches « Mise en service » et « Mise en service ».",
