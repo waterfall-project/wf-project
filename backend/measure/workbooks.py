@@ -5,28 +5,57 @@
 The measure the bounds of the workbooks were set on (EP-33, "Les bornes des classeurs"), kept so
 that a bound can be measured again. It reads workbooks it engenders alone, never a file deposited:
 the swollen ones of ``tests/workbook_bombs.py``, the exports of the writers and the extractions of
-the tests' support, and the prototypes of the specification the tests read. Three commands, each
+the tests' support, and the prototypes of the specification the tests read. Six commands, each
 printing a JSON line by point:
 
 - ``books``: the vectors of the workbooks engendered — strings, elements of a string, text, the
   lists of ``styles.xml``, the defined names, rows and cells of the tabs —, against which the
   margin of a bound is read;
 - ``sweep <vector> <count>...``: the peak of the reading of a workbook swollen along one vector, by
-  the reader of an estimate, each point in a fresh process — the peak resident size, and in another
-  process the peak ``tracemalloc`` sees, which misses what libxml2 allocates;
+  the reader of an estimate — or by openpyxl alone (``--reader openpyxl``), what a vector costs
+  behind the bound that refuses it —, each point in a fresh process: the peak resident size, and
+  in another process the peak ``tracemalloc`` sees, which misses what libxml2 allocates;
+- ``counts [<name>...]``: the elements and the attributes of the parts openpyxl parses into a tree
+  that each workbook of ``CHECKED`` holds, as the bound of the elements counts them since US-3190/L3
+  (#4924), the mebibytes these parts declare, and the peak of its reading in a fresh process, by
+  the reader of an estimate or by openpyxl alone: each list of ``styles.xml`` with items as Excel
+  writes them at its bound, and the workbooks of US-3190b, are read under the bound;
 - ``preread``: the time the judgment of the archive takes before openpyxl opens a workbook, on the
   export of 10 000 lines and the extraction of 18 000 lines: the opening by the opener, less the
-  opening by openpyxl alone, the best of a few runs.
+  opening by openpyxl alone, the best of a few runs;
+- ``members``: what the bounds of US-3190/L3 judge a workbook engendered on (#4914, #4915): the
+  members openpyxl holds whole and the bytes each declares, and the nodes of its tabs and of its
+  shared strings by where they lie, those openpyxl's stream never frees among them;
+- ``peaks``: the peak resident size of a fresh process once it has imported the readers, once it
+  has read the base workbook of a format, and what reading each workbook engendered adds.
+
+The peaks are those of the memory of the fresh process alone (``VmHWM``, ``high_water``), which the
+tests read too since US-3190/L3 (``resident``, #4935), beside the rise ``ru_maxrss`` gives: Linux
+keeps ``ru_maxrss`` across ``exec``, so a process spawned starts at the peak of the one that spawned
+it, and a read that rises less than the gap is seen short, or not at all.
+
+The vectors of US-3190/L3 swept: elements stuffed in a font of ``styles.xml`` — empty, by their
+count; with a long attribute, a short text or a long text, by the mebibytes they inflate to —, each
+list of ``styles.xml`` with items as Excel writes them, by their count, and ``<x/>`` under the root
+of a tab read, in a cell of it, under the root of the shared strings, or under the root of a tab
+the reader does not read and that has no ``<dimension>``, by their count. Each point gives the
+mebibytes the members openpyxl holds whole declare, so that a peak is read against them.
 
 It needs the tests' support on the path (the target sets it), runs no database, and never fails on
 a figure: a figure is a report, and the chain does not run it.
 """
 
 import argparse
+import gc
 import json
+import multiprocessing
+import posixpath
+import re
+import resource
 import sys
 import time
 import zipfile
+from concurrent.futures import ProcessPoolExecutor
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from functools import partial
@@ -40,15 +69,23 @@ from lxml import etree
 from openpyxl import load_workbook
 from remaining_import_support import workbook as remaining_workbook
 from workbook_bombs import (
+    ATTRIBUTED,
     READERS,
     STRINGS,
     STYLES,
+    THEME,
     WORKBOOK,
+    edited,
+    grown,
+    high_water,
     named,
     resident,
     shared_strings,
     shared_text,
+    stuffed,
     styled,
+    styled_in_full,
+    styled_richly,
     tab,
     tabulated,
 )
@@ -68,15 +105,17 @@ from waterfall.core.estimate.excel.writer import write_workbook
 from waterfall.core.exchanges.interface import (
     MOST_CELLS,
     MOST_COLUMNS,
+    MOST_ELEMENTS,
     MOST_NAMES,
     MOST_STRINGS,
     STYLE_LISTS,
     hardened_parser,
     opened_workbook,
 )
+from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence, Sized
+    from collections.abc import Callable, Mapping, Sequence, Sized
 
 _PROTOTYPES = Path(__file__).resolve().parents[2] / "docs" / "spec" / "exemples"
 _MAIN = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
@@ -175,6 +214,10 @@ def _styled(listing: str, count: int) -> bytes:
     return styled(_base(), listing, count)
 
 
+def _richly(listing: str, count: int) -> bytes:
+    return styled_richly(_base(), listing, count)
+
+
 def _combined(_: int) -> bytes:
     """Give the workbook of every vector at its bound at once, its text apart."""
     content = shared_strings(_base(), MOST_STRINGS)
@@ -182,6 +225,45 @@ def _combined(_: int) -> bytes:
         content = styled(content, listing, most)
     content = named(content, MOST_NAMES, _SHEET)
     return tabulated(content, tab(content, _SHEET), MOST_CELLS // MOST_COLUMNS, MOST_COLUMNS)
+
+
+# The elements of #4914, stuffed in a font of ``styles.xml``: with an attribute of 190 characters,
+# a text of as many, or a text of 8 KiB; and the element of #4915, out of any row, cell or string.
+_ATTRIBUTE = b'<b a="' + b"a" * 190 + b'"/>'
+_TEXT = b"<b>" + b"a" * 190 + b"</b>"
+_LONG_TEXT = b"<b>" + b"a" * (8 * 1024 - 7) + b"</b>"
+_FOREIGN = b"<x/>"
+# The first tab of the base, which the reader of an estimate reads: its header.
+_READ_TAB = "xl/worksheets/sheet1.xml"
+
+
+def _in_a_font(element: bytes, mebibytes: int) -> bytes:
+    """Give the base whose font holds as many ``element`` as inflate to ``mebibytes`` MiB."""
+    return stuffed(_base(), STYLES, b"</font>", element, mebibytes * _MEBIBYTE // len(element))
+
+
+def _foreign_strings(count: int) -> bytes:
+    """Give the base of one shared string, ``count`` elements ``<x/>`` under the root more."""
+    return stuffed(shared_strings(_base(), 1), STRINGS, b"</sst>", _FOREIGN, count)
+
+
+# A tab the reader of an estimate does not read, added last to the base; openpyxl's opening parses
+# it up to the end of its rows when it has no ``<dimension>`` (``parse_dimensions``).
+UNREAD_TAB = "Paramètres"
+_UNREAD_MEMBER = "xl/worksheets/sheet4.xml"
+
+
+def foreign_unread(count: int) -> bytes:
+    """Give the base with a tab it does not read, of no dimension, ``count`` ``<x/>`` in its root.
+
+    They come before its rows, which openpyxl's opening parses through (#4915, (iii)).
+    """
+    unread = edited(
+        grown(_base(), UNREAD_TAB, 1, 1),
+        _UNREAD_MEMBER,
+        lambda xml: re.sub(rb"<dimension [^>]*/>", b"", xml),
+    )
+    return stuffed(unread, _UNREAD_MEMBER, b"<sheetData", _FOREIGN, count)
 
 
 VECTORS: dict[str, Callable[[int], bytes]] = {
@@ -195,7 +277,125 @@ VECTORS: dict[str, Callable[[int], bytes]] = {
         _base(), tab(_base(), _SHEET), max(1, count // 500), 500
     ),
     "combined": _combined,
+    "font-empty-b": lambda count: stuffed(_base(), STYLES, b"</font>", b"<b/>", count),
+    "font-attribute-mib": partial(_in_a_font, _ATTRIBUTE),
+    "font-text-mib": partial(_in_a_font, _TEXT),
+    "font-long-text-mib": partial(_in_a_font, _LONG_TEXT),
+    **{f"rich-{listing}": partial(_richly, listing) for listing in STYLE_LISTS},
+    "foreign-under-a-tab": lambda count: stuffed(
+        _base(), _READ_TAB, b"</worksheet>", _FOREIGN, count
+    ),
+    "foreign-in-a-cell": lambda count: stuffed(_base(), _READ_TAB, b"</c>", _FOREIGN, count),
+    "foreign-under-the-strings": _foreign_strings,
+    "foreign-under-an-unread-tab": foreign_unread,
 }
+
+# What openpyxl holds whole by a fixed name: the parts it parses into a tree, and the theme, which
+# it keeps as bytes; and the relations of the workbook, which name the parts whose relations it
+# parses too.
+_FIXED_TREES = (
+    "[Content_Types].xml",
+    "docProps/core.xml",
+    "docProps/custom.xml",
+    STYLES,
+    THEME,
+    WORKBOOK,
+)
+_WORKBOOK_RELATIONS = "xl/_rels/workbook.xml.rels"
+_TABS = "xl/worksheets/"
+
+
+def trees(content: bytes) -> dict[str, int]:
+    """Give the members openpyxl holds whole, and the bytes each declares (``LARGEST_TREES``).
+
+    As the opener finds them for a workbook of no chartsheet and no external link, the workbooks
+    measured here: the fixed names, the theme among them, the relations of the workbook, and those
+    of each part it names. Two members of one name add up.
+    """
+    with zipfile.ZipFile(BytesIO(content)) as archive:
+        sizes: dict[str, int] = {}
+        for item in archive.infolist():
+            sizes[item.filename] = sizes.get(item.filename, 0) + item.file_size
+        named = {_WORKBOOK_RELATIONS}
+        if _WORKBOOK_RELATIONS in sizes:
+            relations = etree.fromstring(archive.read(_WORKBOOK_RELATIONS), hardened_parser())
+            for relation in relations:
+                target = relation.get("Target")
+                if target is None or relation.get("TargetMode") == "External":
+                    continue
+                part = target[1:] if target.startswith("/") else posixpath.join("xl", target)
+                folder, name = posixpath.split(posixpath.normpath(part))
+                named.add(posixpath.join(folder, "_rels", f"{name}.rels"))
+    return {name: sizes[name] for name in (*_FIXED_TREES, *sorted(named)) if name in sizes}
+
+
+def counted(content: bytes) -> int:
+    """Give what the bound of the elements counts of the parts openpyxl parses into a tree.
+
+    The nodes of the trees lxml builds of them — elements, comments, instructions —, and the
+    attributes of their elements, one an element (US-3190/L3, #4924); the theme, which openpyxl
+    keeps as bytes, apart.
+    """
+    with zipfile.ZipFile(BytesIO(content)) as archive:
+        return sum(
+            sum(
+                1 + (len(node.attrib) if isinstance(node.tag, str) else 0)
+                for node in etree.fromstring(archive.read(name), hardened_parser()).iter()
+            )
+            for name in trees(content)
+            if name != THEME
+        )
+
+
+def _local(tag: object) -> str:
+    """Give the local name of a tag; a comment or an instruction by ``#node``."""
+    return tag.rpartition("}")[2] if isinstance(tag, str) else "#node"
+
+
+def _add(found: dict[str, int], key: str, count: int = 1) -> None:
+    found[key] = found.get(key, 0) + count
+
+
+def placed(data: bytes) -> dict[str, int]:
+    """Give the nodes of a tab or of the shared strings by where they lie.
+
+    ``row`` and ``c``, a row of ``sheetData`` and its cells, ``row/<tag>`` another child of a row,
+    ``c/<tag>`` what a cell holds, at any depth; ``si`` a string, ``si/<tag>`` what it holds; any
+    other child of the root by its local name, and ``<tag>/<tag>`` what it holds, at any depth.
+    """
+    found: dict[str, int] = {}
+    for child in etree.fromstring(data, hardened_parser()):
+        name = _local(child.tag)
+        if name != "sheetData":
+            _add(found, name)
+            for node in child.iterdescendants():
+                _add(found, f"{name}/{_local(node.tag)}")
+            continue
+        for row in child:
+            _add(found, "row")
+            for cell in row:
+                key = "c" if _local(cell.tag) == "c" else f"row/{_local(cell.tag)}"
+                _add(found, key)
+                for node in cell.iterdescendants():
+                    _add(found, f"{key}/{_local(node.tag)}")
+    return dict(sorted(found.items()))
+
+
+def _members(_: argparse.Namespace) -> None:
+    for name, book in BOOKS.items():
+        content = book()
+        held = trees(content)
+        point: dict[str, object] = {"book": name, "tree_bytes": sum(held.values()), "trees": held}
+        with zipfile.ZipFile(BytesIO(content)) as archive:
+            tabs: dict[str, int] = {}
+            for member in archive.namelist():
+                if member.startswith(_TABS) and member.endswith(".xml"):
+                    for key, count in placed(archive.read(member)).items():
+                        _add(tabs, key, count)
+            point["tabs"] = dict(sorted(tabs.items()))
+            if STRINGS in archive.namelist():
+                point["strings"] = placed(archive.read(STRINGS))
+        _write(point)
 
 
 def _children(element: Sized | None) -> int:
@@ -246,6 +446,74 @@ def _books(_: argparse.Namespace) -> None:
         _write({"book": name, **vectors(book())})
 
 
+def _maxrss() -> int:
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024
+
+
+# The tabs the reader of an estimate reads whole.
+_ESTIMATE_READS = ("1 Études", "Tâches")
+
+
+def _by_openpyxl(content: bytes) -> None:
+    """Read ``content`` as the reader of an estimate does, by openpyxl alone, without the opener.
+
+    What a vector costs behind the bound that refuses it: the opening, read-only and by values,
+    then every row of the tabs the reader reads whole.
+    """
+    workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+    try:
+        for sheet in workbook.worksheets:
+            if sheet.title in _ESTIMATE_READS:
+                for _ in sheet.iter_rows(values_only=True):
+                    pass
+    finally:
+        workbook.close()
+
+
+# The readers of a measure: those of the tests, and openpyxl alone.
+_READERS: dict[str, Callable[[bytes], object]] = {**READERS, "openpyxl": _by_openpyxl}
+
+
+def _read_fresh(reader: str, base: bytes, content: bytes) -> dict[str, object]:
+    """Read ``base`` to warm ``reader``, then ``content``: the peaks, in the process spawned."""
+    gc.collect()
+    imported = high_water()
+    _READERS[reader](base)
+    gc.collect()
+    warmed, before = high_water(), _maxrss()
+    start = time.perf_counter()
+    outcome = "read"
+    try:
+        _READERS[reader](content)
+    except UnprocessableError as error:
+        outcome = error.code
+    seconds = time.perf_counter() - start
+    peak = high_water()
+    return {
+        "outcome": outcome,
+        "imported_mib": round(imported / _MEBIBYTE, 1),
+        "warmed_mib": round(warmed / _MEBIBYTE, 1),
+        "peak_mib": round(peak / _MEBIBYTE, 1),
+        "rise_mib": round((peak - warmed) / _MEBIBYTE, 1),
+        "maxrss_rise_mib": round((_maxrss() - before) / _MEBIBYTE, 1),
+        "seconds": round(seconds, 3),
+    }
+
+
+def fresh(reader: str, base: bytes, content: bytes) -> dict[str, object]:
+    """Read ``content`` by ``reader`` in a fresh process, warmed on ``base``: what it gave.
+
+    The outcome, ``read`` or the code of the refusal; ``imported_mib``, ``warmed_mib`` and
+    ``peak_mib``, the peak of the memory of the process once the readers are imported, once
+    ``base`` is read, once ``content`` is; ``rise_mib`` what the read of ``content`` added, which
+    ``resident`` of the tests sees too; and ``maxrss_rise_mib``, the rise ``ru_maxrss`` gives, which
+    the tests read before #4935.
+    """
+    context = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(max_workers=1, mp_context=context) as pool:
+        return pool.submit(_read_fresh, reader, base, content).result()
+
+
 def _sweep(arguments: argparse.Namespace) -> None:
     base = _base()
     for count in arguments.counts:
@@ -254,16 +522,87 @@ def _sweep(arguments: argparse.Namespace) -> None:
             "vector": arguments.vector,
             "count": count,
             "bytes": len(content),
+            "tree_mib": round(sum(trees(content).values()) / _MEBIBYTE, 2),
         }
-        (rss,) = resident("estimate", base, [content])
-        (traced,) = resident("estimate", base, [content], traced=True)
-        point.update(
-            outcome=rss.outcome,
-            rss_mib=round(rss.rise / _MEBIBYTE, 1),
-            traced_mib=round((traced.traced or 0) / _MEBIBYTE, 1),
-            seconds=round(rss.seconds, 3),
-        )
+        point.update(fresh(arguments.reader, base, content))
+        if not arguments.resident_only:
+            (traced,) = resident("estimate", base, [content], traced=True)
+            point["traced_mib"] = round((traced.traced or 0) / _MEBIBYTE, 1)
         _write(point)
+
+
+def mixed(
+    rich: Mapping[str, int], empty: Mapping[str, int] | None = None, stuffing: int = 0
+) -> bytes:
+    """Give the base of lists of ``styles.xml`` rich and empty, and of ``<b/>`` stuffed in a font.
+
+    The items ``rich`` gives as Excel writes them, those ``empty`` gives empty, and ``stuffing``
+    elements ``<b/>`` more in a font.
+    """
+    content = styled_in_full(_base(), empty or {})
+    for listing, count in rich.items():
+        content = styled_richly(content, listing, count)
+    return stuffed(content, STYLES, b"</font>", b"<b/>", stuffing) if stuffing else content
+
+
+# The workbooks the count of the attributes is checked on (US-3190/L3, #4924, decided by the author
+# on 2026-11-25): each list of ``styles.xml`` with items as Excel writes them, alone at its bound;
+# the workbooks of US-3190b at 1 000 000 elements; the combination ``q1`` of the question, whose
+# peak the objective names; and the 28 000 ``<b/>`` of 52 empty attributes the count refuses.
+CHECKED: dict[str, Callable[[], bytes]] = {
+    **{
+        f"rich-{listing}-{most}": partial(mixed, {listing: most})
+        for listing, most in STYLE_LISTS.items()
+    },
+    "b-in-a-font-1000000": lambda: mixed({}, stuffing=1_000_000),
+    "x-under-the-workbook-1000000": lambda: stuffed(
+        _base(), WORKBOOK, b"</workbook>", b"<x/>", 1_000_000
+    ),
+    "q1": lambda: mixed(
+        {"dxfs": STYLE_LISTS["dxfs"]},
+        {"cellXfs": STYLE_LISTS["cellXfs"], "cellStyleXfs": STYLE_LISTS["cellStyleXfs"]},
+    ),
+    "b-of-52-attributes-in-a-font-28000": lambda: stuffed(
+        _base(), STYLES, b"</font>", ATTRIBUTED, 28_000
+    ),
+}
+
+
+def _counts(arguments: argparse.Namespace) -> None:
+    base = _base()
+    for name in arguments.names or CHECKED:
+        content = CHECKED[name]()
+        elements = counted(content)
+        _write(
+            {
+                "workbook": name,
+                "counted": elements,
+                "under_the_bound": elements <= MOST_ELEMENTS,
+                "tree_mib": round(sum(trees(content).values()) / _MEBIBYTE, 2),
+                **fresh(arguments.reader, base, content),
+            }
+        )
+
+
+# The reader of each workbook engendered, and the base of its format it is warmed on.
+_READ_BY: dict[str, str] = {
+    "estimate-prototype": "estimate",
+    "remaining-prototype": "remaining",
+    "estimate-export-10-lines": "estimate",
+    "remaining-of-the-tests": "remaining",
+    EXPORT: "estimate",
+    EXTRACTION: "actual_costs",
+}
+_BASES: dict[str, Callable[[], bytes]] = {
+    "estimate": _base,
+    "remaining": BOOKS["remaining-of-the-tests"],
+    "actual_costs": lambda: _extraction(1),
+}
+
+
+def _peaks(_: argparse.Namespace) -> None:
+    for name, reader in _READ_BY.items():
+        _write({"book": name, "reader": reader, **fresh(reader, _BASES[reader](), BOOKS[name]())})
 
 
 def _best(call: Callable[[], object], runs: int) -> float:
@@ -312,10 +651,36 @@ def main(argv: Sequence[str] | None = None) -> None:
     sweep = commands.add_parser("sweep", help="the peak of a reading, along one vector")
     sweep.add_argument("vector", choices=list(VECTORS))
     sweep.add_argument("counts", type=int, nargs="+")
+    sweep.add_argument(
+        "--resident-only", action="store_true", help="leave the peak tracemalloc sees"
+    )
+    sweep.add_argument(
+        "--reader",
+        choices=["estimate", "openpyxl"],
+        default="estimate",
+        help="the reader of an estimate, or openpyxl alone, behind the bounds",
+    )
     sweep.set_defaults(run=_sweep)
+    counts = commands.add_parser(
+        "counts", help="the elements and attributes counted, and the peak, of the workbooks checked"
+    )
+    counts.add_argument("names", nargs="*", metavar="name", help=", ".join(CHECKED))
+    counts.add_argument(
+        "--reader",
+        choices=["estimate", "openpyxl"],
+        default="estimate",
+        help="the reader of an estimate, behind the bounds, or openpyxl alone",
+    )
+    counts.set_defaults(run=_counts)
     preread = commands.add_parser("preread", help="the time the judgment of the archive takes")
     preread.add_argument("--runs", type=int, default=5)
     preread.set_defaults(run=_preread)
+    commands.add_parser(
+        "members", help="the members parsed into a tree, and where the nodes of the tabs lie"
+    ).set_defaults(run=_members)
+    commands.add_parser(
+        "peaks", help="the peak of a fresh process, and what each workbook engendered adds"
+    ).set_defaults(run=_peaks)
     arguments = parser.parse_args(argv)
     arguments.run(arguments)
 
