@@ -70,6 +70,22 @@ def merged(current: Mapping[str, Any], sent: Mapping[str, Any]) -> dict[str, Any
     return preferences
 
 
+def shown_preferences(preferences: Mapping[str, Any]) -> dict[str, Any]:
+    """Give the preferences as the contract lets them be read: a hundred entries a table at most.
+
+    A table older than the bound (#874), or written outside of the API, may hold more, and
+    ``merged`` keeps it so; the contract bounds it in what it gives (``maxProperties`` 100), so
+    that reading or changing the account of its holder is never an internal error (#2236). The
+    first hundred entries are given, in the order the table keeps: its other entries are neither
+    changed nor lost, they are only not shown until the table is shortened by changes that forget
+    some.
+    """
+    return {
+        name: dict(list(value.items())[:MOST_ENTRIES]) if name in TABLES and value else value
+        for name, value in preferences.items()
+    }
+
+
 def change_preferences(session: Session, user_id: UUID, sent: Mapping[str, Any]) -> dict[str, Any]:
     """Apply a change to the preferences of an account, and give them as they now are.
 

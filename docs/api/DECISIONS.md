@@ -6267,6 +6267,25 @@ quand seul le fournisseur d'identité porte l'adresse (#814) ; son 422 refuse au
 ou un nom que le fournisseur refuse alors que la règle du contrat les admet (#815). Écarté :
 resserrer la règle des adresses sur celle du fournisseur, qui défait la décision de #665.
 
+## Un paramètre de requête que la route juge : la règle du contrôle de conformité (EP-13/US-3020/L3, #2303)
+
+Décision de l'auteur du 2026-11-18. Un paramètre de requête que le contrat borne par `pattern`,
+`enum` ou `minItems` peut être lu en texte par le service et jugé dans la route : le refus rend
+alors le motif que le contrat nomme au paramètre (422, `/query/<nom>`, `NUMBER_INVALID`,
+`DATE_INVALID`, `VALIDATION_FAILED`…), non le 422 générique de la validation de FastAPI, que la
+borne déclarée sur le paramètre servi donnerait. Ce n'est pas un écart à corriger : c'est la règle,
+que `test_the_bounds_of_every_parameter_the_service_declares_are_those_of_the_contract`
+(`backend/tests/test_contract_declarations.py`) tient par `CHECKED_BY_THE_ROUTE`. Chaque entrée de
+ce dictionnaire épingle le texte exact de l'écart d'un paramètre, et un test d'exécution éprouve son
+refus : un paramètre ajouté par une route qui juge à la main s'y ajoute avec ce test, jamais une
+borne déclarée à la place. Le contrôle ne voit que la description servie : le motif de
+`correlation_id` (`listAuditEvents`), porté par `Field(pattern=…)` de `JournalQuery`, y est absent,
+et c'est l'exécution qui le prouve (`test_audit_consultation.py`). Les huit paramètres de #2303
+(`rate_min` et `rate_max` de `getHourlyRateGrid` ; `headcount_min`, `headcount_max`,
+`monthly_hours_min` et `monthly_hours_max` de `listResourceRoles` ; `correlation_id` et `actions`
+de `listAuditEvents`) sont gardés ainsi. Écarté : déclarer la borne sur le paramètre servi, qui
+changerait les motifs du contrat figé.
+
 ## Attribuer un rôle, et l'invitation d'un compte créé (EP-03/US-0360/L2b, #834, #816)
 
 **Attribuer un rôle exige la permission de modifier les rôles** (#834 ; décision de l'auteur du

@@ -8,16 +8,18 @@
 ``requestExport`` deposits the task of an export (202) under the command ``export_*`` of the
 revision it names. The file the worker wrote is read by the account that asked for it alone, through
 the task: streamed as an attachment and, once its last byte is sent, deleted from the storage with
-the result marked consumed; a download that stops before leaves both (WF-DAT-0120).
+the result marked consumed; a download that stops before leaves both (WF-DAT-0120). "Its last
+byte" is the end of the answer, accepted by the server, not the last piece of the file: a
+connection that breaks while the answer closes leaves the file to be downloaded again (#3977).
 """
 
 import unicodedata
-from collections.abc import Iterator
 from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
+from starlette.background import BackgroundTask as AfterResponse
 
 from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.models import BackgroundTaskRef, ExportRequest
@@ -110,8 +112,10 @@ def get_background_task_result(
     """Stream the file an export produced, to the account that asked for it (WF-DAT-0120).
 
     The task is read in a transaction of its own, closed before the file streams: no connection is
-    held while the storage is read. The file is deleted, and the result marked consumed, when the
-    last byte has been handed over; a stream that stops before leaves both, and is resumed.
+    held while the storage is read. The file is deleted, and the result marked consumed, once the
+    answer has been sent to its end, the closing of the stream included: it runs after the response,
+    which the server never reaches when the connection breaks before. A stream that stops before,
+    or while it closes, leaves both, and is resumed (WF-DAT-0120, #3977).
     """
     with services.database.transaction() as session:
         found = result_of(session, task_id, account.user_id)
@@ -124,8 +128,7 @@ def get_background_task_result(
             consumed(session, task_id)
         raise NotFoundError(NOT_FOUND) from None
 
-    def delivered() -> Iterator[bytes]:
-        yield from chunks
+    def delivered() -> None:
         services.backups.remove(found.object_key)
         with services.database.transaction() as session:
             consumed(session, task_id)
@@ -133,4 +136,9 @@ def get_background_task_result(
     headers = {"Content-Disposition": disposition(found.filename)}
     if length is not None:
         headers["Content-Length"] = str(length)
-    return StreamingResponse(delivered(), media_type=found.media_type, headers=headers)
+    return StreamingResponse(
+        chunks,
+        media_type=found.media_type,
+        headers=headers,
+        background=AfterResponse(delivered),
+    )

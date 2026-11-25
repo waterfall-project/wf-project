@@ -474,6 +474,31 @@ def test_a_table_already_past_its_bound_is_refused_with_the_bound_it_holds_at_mo
     assert [fault.params for fault in from_empty.value.fields] == [{"max_length": 100}]
 
 
+@pytest.mark.story("US-3020")
+@pytest.mark.parametrize("table", ["timelines", "grids", "charts"])
+def test_a_table_of_a_hundred_and_one_entries_is_read_and_changed_never_in_error(
+    api: ContractClient, database: Database, realm: TestRealm, table: str
+) -> None:
+    # #2236: a table older than the bound is kept by the write (``merged``), and the contract
+    # bounds it at a hundred entries: it is read and written back as a hundred, never a 500.
+    entry = {"timelines": STEERING, "charts": UNFOLDED}.get(table, USERS_GRID)
+    held = {table: {f"e{rank:03}": entry for rank in range(101)}}
+    user_id, headers = person(database, realm, display_preferences=held)
+    read = api.get(ME, headers=headers)
+    assert read.status_code == 200, read.text
+    assert len(read.json()["display_preferences"][table]) == 100
+    other = api.patch(PREFERENCES, headers=headers, json={"theme": "dark"})
+    assert other.status_code == 200, other.text
+    assert len(other.json()[table]) == 100
+    assert len(preferences_of(database, user_id)[table]) == 101
+    grown = api.patch(PREFERENCES, headers=headers, json={table: {"more": entry}})
+    assert refusal(grown)[:2] == (422, "VALIDATION_FAILED")
+    forgotten = api.patch(PREFERENCES, headers=headers, json={table: {"e000": None, "e001": None}})
+    assert forgotten.status_code == 200, forgotten.text
+    assert len(forgotten.json()[table]) == 99
+    assert len(preferences_of(database, user_id)[table]) == 99
+
+
 @pytest.mark.parametrize("table", ["timelines", "grids", "charts"])
 def test_a_table_the_changes_would_take_past_a_hundred_entries_is_refused_and_kept(
     api: ContractClient, database: Database, realm: TestRealm, table: str

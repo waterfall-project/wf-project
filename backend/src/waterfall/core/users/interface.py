@@ -78,6 +78,7 @@ from waterfall.core.users.personal import (
     image_type,
     put_avatar,
     read_avatar,
+    shown_preferences,
     withdraw_avatar,
 )
 from waterfall.core.users.provider import (
@@ -211,6 +212,7 @@ __all__ = [
     "record_report",
     "refuse",
     "set_account_activation",
+    "shown_preferences",
     "sync_is_due",
     "unheld_accounts",
     "withdraw_avatar",

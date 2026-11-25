@@ -176,11 +176,14 @@ def stored(bucket: Bucket, key: str) -> int | None:
     return bucket.size(key)
 
 
-async def pulled_then_dropped(app: ASGIApp, path: str, headers: dict[str, str]) -> int:
+async def pulled_then_dropped(
+    app: ASGIApp, path: str, headers: dict[str, str], *, at_the_end: bool = False
+) -> int:
     """Read the first piece of an answer, then drop the connection; give the pieces received.
 
     The client stops reading as one whose network breaks does: the server fails to send the next
-    piece, and its stream is closed where it stands.
+    piece, and its stream is closed where it stands. With ``at_the_end``, every piece of the file
+    is received, and the connection breaks as the answer closes: the file is all handed over.
     """
     received: list[bytes] = []
     scope: Scope = {
@@ -202,8 +205,13 @@ async def pulled_then_dropped(app: ASGIApp, path: str, headers: dict[str, str]) 
         return {"type": "http.request", "body": b"", "more_body": False}
 
     async def send(message: Message) -> None:
-        if message["type"] == "http.response.body" and message.get("body"):
+        if message["type"] != "http.response.body":
+            return
+        if message.get("body"):
             received.append(message["body"])
+        if (not at_the_end and message.get("body")) or (
+            at_the_end and not message.get("more_body")
+        ):
             raise ConnectionResetError
 
     with contextlib.suppress(ClientDisconnect):
@@ -242,6 +250,27 @@ def test_an_interrupted_download_leaves_the_export_available_to_be_downloaded_ag
     key = f"exports/{task_id}.png"
     pieces = asyncio.run(
         pulled_then_dropped(api.client.app, f"{TASKS}/{task_id}/result", stage.manager.headers)
+    )
+    assert pieces == 1
+    assert stored(backups_bucket, key) == len(CONTENT)
+    assert task_of(api, stage, task_id)["result_url"] == f"{TASKS}/{task_id}/result"
+    again = result(api, stage, task_id)
+    assert (again.status_code, again.content) == (200, CONTENT)
+    assert stored(backups_bucket, key) is None
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+@pytest.mark.usefixtures("trial")
+def test_a_download_cut_after_its_last_piece_leaves_the_export_available_to_be_downloaded_again(
+    api: ContractClient, stage: Scene, worker: Worker, backups_bucket: Bucket
+) -> None:
+    # #3977: the connection breaks once the file is handed over, as the answer closes.
+    task_id, _ = exported(api, stage, worker)
+    key = f"exports/{task_id}.png"
+    pieces = asyncio.run(
+        pulled_then_dropped(
+            api.client.app, f"{TASKS}/{task_id}/result", stage.manager.headers, at_the_end=True
+        )
     )
     assert pieces == 1
     assert stored(backups_bucket, key) == len(CONTENT)
