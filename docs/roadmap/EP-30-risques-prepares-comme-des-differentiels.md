@@ -256,7 +256,7 @@ Constats relevés à la livraison d'US-3070/L3 et d'US-3140/L1, tranchés par l'
   collage dans le devis propre, le contexte, la comparaison à la référence. La cause est celle de
   #4874. L3 leur pose des bornes mesurées dans la famille de `REDATING` → US-3070/L3b. Une part de
   `context.spec.ts:34` précède L3 : si ce parcours échoue encore une fois la cause corrigée, il
-  reçoit son propre lot ;
+  reçoit son propre lot. Élargi le 2026-11-25 à `service/reference-manager.spec.ts:154` ;
 - #4883 — e2e : le pire cas d'un parcours qui cumule deux bornes `REDATING` n'est pas chiffré →
   un `test.setTimeout` mesuré au 7ᵉ tour de L3, puis la famille retirée par US-3070/L3b ;
 - #4818 — front : un geste de structure, le sous-projet d'une ligne ou l'inscription aux
@@ -886,6 +886,13 @@ confirmer : une écriture qui recalcule les structures en cours laisse les devis
 leurs bases en retard, recomposés à leur mise à jour. Si la mesure montre autre chose, ou si la
 correction change une règle de cette conception, L3b pose la question avant d'écrire. Les mesures
 de la définition de fini (WF-QUA-0060) se rejouent après L3b.
+
+Troisième rejet (décision de l'auteur du 2026-11-25) : les bornes mesurées sur le poste ne tiennent
+pas dans la file, 2 à 3 fois plus lente, et chaque passage trouve un nouveau parcours ralenti. Une
+bascule fusionnée lente ferait payer chaque lot suivant à la file. L3 ne repasse donc pas seul en
+file. US-3070/L3b part de sa branche, sans attendre L4 (la piste ne dépend pas de l'élagage), et
+une seule pull request porte les deux lots. La file y juge la vraie vitesse, sans bornes élargies.
+US-3070/L4 part d'`epic/EP-30` une fois les deux fusionnés.
 
 **Hors périmètre.** La gravité et la provision (US-3080) ; la mise à jour et ses refus (US-3090) ;
 la survenance (US-3100) ; les écrans (US-3140) ; le témoin (US-3150).
