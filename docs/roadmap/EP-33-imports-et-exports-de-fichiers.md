@@ -675,7 +675,7 @@ US-3190/L3 (#4914, #4915, #4935) borne ensuite les octets des membres lus en arb
 mesure : la liste `dxfs` riche à 65 490 entrées coûte à elle seule 484 Mio, et l'objectif de
 mémoire l'emporte. Aucun classeur accepté ne dépasse 192 Mio de crête pour une lecture. Les membres
 lus en arbre sont bornés à 7,5 Mio décompressés (option A). Le critère d'US-3190b est amendé :
-chaque liste riche passe à sa borne, ramenée au besoin, et celle de `dxfs` descend à ≈ 25 000 (le
+chaque liste riche passe à sa borne, ramenée au besoin, et celle de `dxfs` descend à 22 000 (le
 témoin en a 5). La borne de 1 100 000 éléments reste, pour les petits éléments. Les éléments
 étrangers sont bornés à 100 000 au total (option F1), comptés sur tous les onglets, lus ou non, et
 sous `<sst>`. Dans un onglet, est étranger tout ce qui est hors des `row` de `sheetData` et de
@@ -684,11 +684,14 @@ ont une borne par ligne (65 536), car `v` et `f` atteignent légitimement 20 000
 cellules. Écartée : 24 Mio, qui garde la liste `dxfs` d'Excel mais annonce ≈ 512 Mio par lecture.
 Les bornes tiennent liste par liste, mais des combinaisons acceptées dépassaient l'objectif
 (`cellXfs`, `cellStyleXfs` et `dxf` riches : 213 Mio). L'auteur a donc ajouté un budget commun
-(2026-11-25) : chaque borne vaut, atteinte seule, l'objectif entier, et la pré-lecture refuse un
-classeur dont la somme des fractions consommées (items de chaque liste bornée, éléments, octets
-des membres lus en arbre) dépasse 1. L'additivité est mesurée, avec une marge si la somme
-sous-estime. Écartées : une borne commune aux seules listes de styles (elle ignore les éléments
-hors liste), une borne d'octets abaissée, un objectif relevé à ≈ 220 Mio.
+(2026-11-25) : la pré-lecture refuse un classeur dont la somme des fractions consommées (items de
+chaque liste bornée, éléments, octets des membres lus en arbre) dépasse un plafond mesuré, ≈ 2,1.
+Un item compte aussi comme élément et comme octets, si bien que le plafond n'est pas 1 : une unité
+coûte au plus ≈ 85 Mio, marge de 5 % comprise, et l'additivité tient à 5 % près. La borne de
+`dxfs`, d'abord ≈ 25 000, est ramenée à 22 000 pour y tenir ; 1 000 000 `<b/>` passent toujours.
+Écartées : une borne commune aux seules listes de styles (elle ignore les éléments hors liste),
+une borne d'octets abaissée, un objectif relevé à ≈ 220 Mio, le plafond à 1 (tout se resserre
+d'environ 2,4 fois), et un modèle linéaire en Mio (lié au coût par objet d'openpyxl).
 
 **Hors périmètre.** La limite de mémoire du service dans le chart (EP-13, EP-39) ; la colonne
 absente d'un onglet (US-3200).
