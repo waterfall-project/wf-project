@@ -100,7 +100,7 @@ def test_the_chart_runs_prometheus_on_a_configuration_promtool_accepts(
         (tmp_path / name).write_text(content, encoding="utf-8")
     checked = promtool("check", "config", str(tmp_path / "prometheus.yml"))
     assert checked.returncode == 0, checked.stdout + checked.stderr
-    assert "11 rules found" in checked.stdout
+    assert "12 rules found" in checked.stdout
 
 
 @pytest.mark.story("US-2880")

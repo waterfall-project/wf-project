@@ -23,6 +23,7 @@ import {
   componentDigest,
   correlationDigest,
   failureOf,
+  isPlatformComponent,
   ACCOUNT_DEACTIVATED_DIGEST,
   ACCOUNT_NOT_ADMITTED_DIGEST,
   SESSION_LOST_DIGEST,
@@ -254,6 +255,15 @@ describe("the screen of failure", () => {
       await expectAccessible(container);
     },
   );
+
+  it("knows the front among the components of the platform, and names it behind a digest [US-2880] [WF-OBS-0030-A]", () => {
+    expect(isPlatformComponent("front")).toBe(true);
+    expect(isPlatformComponent("frontend")).toBe(false);
+    expect(failureOf(forwarded(componentDigest("front")))).toEqual({
+      kind: "component_unavailable",
+      component: "front",
+    });
+  });
 
   it("names no reference for an empty correlation identifier", () => {
     expect(failureOf(forwarded(correlationDigest("")))).toEqual({

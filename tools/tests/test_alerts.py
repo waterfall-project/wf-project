@@ -123,6 +123,28 @@ def play(rules: Path, series: dict[str, str], expected: Expected) -> None:
 # --- The seven alerts, at the shipped thresholds -------------------------------------------------
 
 
+@pytest.mark.story("US-2880")
+def test_the_stop_of_the_front_produces_an_alert_that_ends_when_it_answers_again(
+    tmp_path: Path,
+) -> None:
+    # Proper to US-2880: « l'arrêt du front produit une alerte, qui cesse avec sa cause » (#4297).
+    # The front down at minute 4, back at 10; the API and the worker answering throughout, they
+    # raise nothing; the front alone is named.
+    play(
+        by_compose(tmp_path),
+        {
+            'up{job="front",instance="a"}': "1x3 0x5 1x3",
+            'up{job="api",instance="a"}': "1x12",
+            'up{job="worker",instance="a"}': "1x12",
+        },
+        [
+            (4, "component_unavailable", []),
+            (5, "component_unavailable", [{"component": "front", **ALERT}]),
+            (10, "component_unavailable", []),
+        ],
+    )
+
+
 @pytest.mark.requirement("WF-OBS-0030-A")
 def test_the_stop_of_a_component_produces_an_alert_that_ends_when_it_answers_again(
     tmp_path: Path,
@@ -133,6 +155,7 @@ def test_the_stop_of_a_component_produces_an_alert_that_ends_when_it_answers_aga
     play(
         by_compose(tmp_path),
         {
+            'up{job="front",instance="a"}': "1x12",
             'up{job="api",instance="a"}': "1x3 0x5 1x3",
             'up{job="worker",instance="a"}': "1x3 stale _x7",
             'waterfall_component_up{component="database",instance="a"}': "1x3 0x5 1x3",
