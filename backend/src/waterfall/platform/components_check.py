@@ -10,9 +10,9 @@ than 1 024 locks per transaction (the rule of the start of each process, ``compo
 Redis in cluster mode. It says every cause it finds, not the first alone, and what it read when all
 fit. Status 0 when they fit, 1 when one does not, or does not answer, 2 for a setting that lacks.
 
-Keycloak announces its version to the administrator of its master realm alone
-(``/admin/serverinfo``): the command signs in as that administrator, with the password of the
-deployment, in ``admin-cli``.
+Keycloak announces its version to the service account of its realm, through its extension
+(``KeycloakAdmin.server_version``): the command holds no password of the administrator of
+``master``. It runs once the realm is applied, which creates that account and its role.
 """
 
 import sys
@@ -31,7 +31,8 @@ from waterfall.platform.components import (
     redis_faults,
 )
 from waterfall.platform.database import Database, create_database_engine
-from waterfall.platform.keycloak import trusted
+from waterfall.platform.keycloak import IdentityProviderError, Keycloak
+from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.settings import ComponentsSettings, SettingsError, load_components_settings
 
 if TYPE_CHECKING:
@@ -41,9 +42,8 @@ if TYPE_CHECKING:
 
 NAME = "waterfall-check-components"
 USAGE = f"usage: {NAME} [--version]\n"
-# How long a component is waited for, and the client of the master realm that signs in by password.
+# How long a component is waited for.
 WAIT_SECONDS = 10.0
-ADMIN_CLIENT = "admin-cli"
 
 
 def check_database(settings: ComponentsSettings) -> tuple[str, list[str]]:
@@ -82,35 +82,15 @@ def check_redis(settings: ComponentsSettings) -> tuple[str, list[str]]:
     return f"Redis {information.get('redis_version')} ({mode})", redis_faults(information)
 
 
-def keycloak_version(settings: ComponentsSettings) -> str | None:
-    """Ask Keycloak its version as the administrator of its master realm; none if it says none."""
-    base = (settings.keycloak_backchannel or settings.keycloak_address).rstrip("/")
-    with httpx2.Client(
-        base_url=base, timeout=WAIT_SECONDS, verify=trusted(settings.tls_authority)
-    ) as http:
-        token = http.post(
-            "/realms/master/protocol/openid-connect/token",
-            data={
-                "grant_type": "password",
-                "client_id": ADMIN_CLIENT,
-                "username": settings.keycloak_admin_user,
-                "password": settings.keycloak_admin_password.get_secret_value(),
-            },
-        )
-        token.raise_for_status()
-        granted = {"Authorization": f"Bearer {token.json()['access_token']}"}
-        information = http.get("/admin/serverinfo", headers=granted)
-        information.raise_for_status()
-        version = information.json().get("systemInfo", {}).get("version")
-    return None if version is None else str(version)
-
-
 def check_keycloak(settings: ComponentsSettings) -> tuple[str, list[str]]:
     """Read the version of Keycloak: what it is, and why it does not fit."""
+    keycloak = Keycloak(settings, timeout=WAIT_SECONDS)
     try:
-        version = keycloak_version(settings)
-    except (httpx2.HTTPError, KeyError, ValueError, TypeError, AttributeError) as error:
+        version = KeycloakAdmin(keycloak, settings).server_version()
+    except (IdentityProviderError, httpx2.HTTPError, KeyError, ValueError, TypeError) as error:
         return "Keycloak", [f"Keycloak does not answer as expected: {type(error).__name__}"]
+    finally:
+        keycloak.close()
     return f"Keycloak {version}", keycloak_faults(version)
 
 

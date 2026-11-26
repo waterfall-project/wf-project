@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 NAME = "waterfall-check-components"
 EIGHTEEN = 180_001
 LOCKS = components.POSTGRESQL_LOCKS
-CHECKED = ("DATABASE_URL", "REDIS_URL", "KEYCLOAK_ADDRESS", "KEYCLOAK_ADMIN_PASSWORD")
+CHECKED = ("DATABASE_URL", "REDIS_URL", "KEYCLOAK_ADDRESS", "SERVICE_CLIENT_SECRET")
 
 
 def server_state(version_number: int, locks: int) -> Callable[[Database], tuple[int, int]]:
@@ -224,18 +224,19 @@ def test_the_service_of_the_restoration_refuses_to_start_on_a_postgresql_that_do
 
 
 class Keycloak(BaseHTTPRequestHandler):
-    """A Keycloak that gives a token to the administrator of its master realm, and its version."""
+    """A Keycloak that gives a token to the service account of its realm, and its version."""
 
     version: str | None = "26.4.2"
     document: Any = None
-    phrase = "master-phrase"
+    phrase = "service-phrase"
     asked: ClassVar[list[str]] = []
 
     def do_POST(self) -> None:
         body = self.rfile.read(int(self.headers["Content-Length"])).decode()
         self.asked.append(f"POST {self.path} {body}")
-        granted = f"password={self.phrase}" in body
-        self._answer(200 if granted else 401, {"access_token": "token"} if granted else {})
+        granted = f"client_secret={self.phrase}" in body
+        token = {"access_token": "token", "expires_in": 300}
+        self._answer(200 if granted else 401, token if granted else {})
 
     def do_GET(self) -> None:
         self.asked.append(f"GET {self.path} {self.headers.get('Authorization')}")
@@ -245,8 +246,7 @@ class Keycloak(BaseHTTPRequestHandler):
         if self.document is not None:
             self._answer(200, self.document)
             return
-        info: dict[str, Any] = {} if self.version is None else {"version": self.version}
-        self._answer(200, {"systemInfo": info})
+        self._answer(200, {} if self.version is None else {"version": self.version})
 
     def _answer(self, status: int, document: Any) -> None:
         body = json.dumps(document).encode()
@@ -282,7 +282,7 @@ def check_settings(
     monkeypatch.setenv("WATERFALL_DATABASE_URL", process_database_url)
     monkeypatch.setenv("WATERFALL_REDIS_URL", redis_url)
     monkeypatch.setenv("WATERFALL_KEYCLOAK_ADDRESS", keycloak)
-    monkeypatch.setenv("WATERFALL_KEYCLOAK_ADMIN_PASSWORD", Keycloak.phrase)
+    monkeypatch.setenv("WATERFALL_SERVICE_CLIENT_SECRET", Keycloak.phrase)
     return load_components_settings()
 
 
@@ -327,14 +327,15 @@ def test_the_components_of_the_platform_of_the_tests_fit_and_the_command_says_wh
 
 @pytest.mark.requirement("WF-CMP-0020-A")
 @pytest.mark.usefixtures("check_settings")
-def test_the_command_signs_in_as_the_administrator_of_the_master_realm_to_read_the_version() -> (
+def test_the_command_signs_in_as_the_service_account_to_read_the_version_from_the_extension() -> (
     None
 ):
     assert components_check.main([]) == 0
-    token, serverinfo = Keycloak.asked
-    assert token.startswith("POST /auth/realms/master/protocol/openid-connect/token ")
-    assert "client_id=admin-cli" in token
-    assert serverinfo == "GET /auth/admin/serverinfo Bearer token"
+    token, version = Keycloak.asked
+    assert token.startswith("POST /auth/realms/waterfall/protocol/openid-connect/token ")
+    assert "grant_type=client_credentials" in token
+    assert "client_id=waterfall-service" in token
+    assert version == "GET /auth/realms/waterfall/server-version Bearer token"
 
 
 @pytest.mark.requirement("WF-CMP-0020-A")
@@ -356,25 +357,27 @@ def test_a_keycloak_that_announces_no_version_fails_saying_so(
 ) -> None:
     Keycloak.version = None
     assert components_check.main([]) == 1
-    assert "the version of Keycloak, not announced, cannot be read" in capsys.readouterr().err
+    error = capsys.readouterr().err
+    assert f"{NAME}: Keycloak does not answer as expected: IdentityProviderError" in error
+    assert error.endswith("(WF-CMP-0020)\n")
 
 
 @pytest.mark.requirement("WF-CMP-0020-A")
 @pytest.mark.usefixtures("check_settings")
-def test_a_keycloak_that_refuses_the_administrator_fails_saying_it_did_not_answer(
+def test_a_keycloak_that_refuses_the_service_account_fails_saying_it_did_not_answer(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setenv("WATERFALL_KEYCLOAK_ADMIN_PASSWORD", "another-password")
+    monkeypatch.setenv("WATERFALL_SERVICE_CLIENT_SECRET", "another-password")
     assert components_check.main([]) == 1
     error = capsys.readouterr().err
-    assert "Keycloak does not answer as expected: HTTPStatusError" in error
+    assert "Keycloak does not answer as expected: IdentityProviderError" in error
     assert "another-password" not in error
 
 
 @pytest.mark.requirement("WF-CMP-0020-A")
 @pytest.mark.usefixtures("check_settings")
-@pytest.mark.parametrize("document", [["not", "an", "object"], {"systemInfo": "text"}, 26])
-def test_a_keycloak_whose_serverinfo_is_not_an_object_fails_saying_it_did_not_answer(
+@pytest.mark.parametrize("document", [["not", "an", "object"], {"version": 26}, 26])
+def test_a_keycloak_whose_server_version_is_not_a_version_fails_saying_it_did_not_answer(
     capsys: pytest.CaptureFixture[str], document: object
 ) -> None:
     Keycloak.document = document
@@ -471,7 +474,7 @@ def test_a_redis_that_does_not_answer_fails_saying_so(
     monkeypatch.setenv("WATERFALL_DATABASE_URL", process_database_url)
     monkeypatch.setenv("WATERFALL_REDIS_URL", "redis://:secret-redis@127.0.0.1:9/0")
     monkeypatch.setenv("WATERFALL_KEYCLOAK_ADDRESS", keycloak)
-    monkeypatch.setenv("WATERFALL_KEYCLOAK_ADMIN_PASSWORD", Keycloak.phrase)
+    monkeypatch.setenv("WATERFALL_SERVICE_CLIENT_SECRET", Keycloak.phrase)
     assert components_check.main([]) == 1
     error = capsys.readouterr().err
     assert f"{NAME}: Redis does not answer: ConnectionError" in error
@@ -488,7 +491,7 @@ def test_a_postgresql_that_does_not_answer_fails_saying_so(
     monkeypatch.setenv("WATERFALL_DATABASE_URL", "postgresql://nobody:secret-pg@127.0.0.1:9/none")
     monkeypatch.setenv("WATERFALL_REDIS_URL", redis_url)
     monkeypatch.setenv("WATERFALL_KEYCLOAK_ADDRESS", keycloak)
-    monkeypatch.setenv("WATERFALL_KEYCLOAK_ADMIN_PASSWORD", Keycloak.phrase)
+    monkeypatch.setenv("WATERFALL_SERVICE_CLIENT_SECRET", Keycloak.phrase)
     assert components_check.main([]) == 1
     error = capsys.readouterr().err
     assert f"{NAME}: PostgreSQL does not answer: OperationalError" in error

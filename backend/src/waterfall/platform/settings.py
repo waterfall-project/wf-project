@@ -738,29 +738,14 @@ class RestoreTestSettings(StorageSettings):
         ]
 
 
-class ComponentsSettings(Settings):
+class ComponentsSettings(Settings, KeycloakSettings):
     """What the check of the components reads, ``waterfall-check-components`` (WF-CMP-0020-A).
 
-    ``database_url`` and ``redis_url`` designate the PostgreSQL and the Redis to check;
-    ``keycloak_address`` is where it reaches Keycloak, or ``keycloak_backchannel`` when the process
-    reaches it by another address, and ``keycloak_admin_user`` and ``keycloak_admin_password`` the
-    administrator of its master realm, the only account to whom ``/admin/serverinfo`` tells the
-    version. It opens no database of its own and serves nothing.
+    ``database_url`` and ``redis_url`` designate the PostgreSQL and the Redis to check; Keycloak is
+    reached as the service does, by its address, its realm and the secret of the service account,
+    which the extension answers with its version (#4641). It opens no database of its own and
+    serves nothing.
     """
-
-    keycloak_address: str = Field(min_length=1, pattern="^https?://")
-    keycloak_backchannel: str | None = Field(default=None, min_length=1, pattern="^https?://")
-    keycloak_admin_user: str = Field(default="admin", min_length=1)
-    keycloak_admin_password: SecretStr = Field(min_length=1)
-
-    def transport_faults(self) -> list[str]:
-        """Add the address this process reaches Keycloak at, which must be in ``https://``."""
-        name = "keycloak_address" if self.keycloak_backchannel is None else "keycloak_backchannel"
-        encrypted = (self.keycloak_backchannel or self.keycloak_address).startswith("https://")
-        return [
-            *super().transport_faults(),
-            *encrypted_fault(name, encrypted=encrypted, wanted="be in https://"),
-        ]
 
 
 class WitnessSettings(PlatformSettings):

@@ -232,8 +232,9 @@ Le service `components` contrôle d'abord les composants (`waterfall-check-compo
 PostgreSQL en version majeure 18 et réglé pour au moins 1 024 verrous par transaction, Redis en
 version 8 ou plus et jamais en mode cluster (Redis Cluster n'est pas pris en charge), Keycloak en
 version 26 ou plus. Un composant qui ne convient pas arrête la plateforme avant les migrations, en le
-disant (`docker compose logs components`) ; Keycloak ne donne sa version qu'à l'administrateur de son
-royaume `master`, dont le mot de passe est `WATERFALL_KEYCLOAK_ADMIN_PASSWORD`. L'API, le worker et le
+disant (`docker compose logs components`) ; il lit la version de Keycloak par l'extension, avec le compte de
+service du royaume (`WATERFALL_SERVICE_CLIENT_SECRET`), et attend donc que `keycloak-realm` ait
+appliqué le royaume : il ne tient pas le mot de passe de l'administrateur de `master`. L'API, le worker et le
 service de restauration refusent aussi de démarrer sur un PostgreSQL qui ne convient pas (#3964).
 
 Le service `migrate` applique ensuite les migrations sous le rôle propriétaire avant que l'API, qui ne

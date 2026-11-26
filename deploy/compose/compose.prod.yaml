@@ -335,16 +335,14 @@ services:
   # Redis and the Keycloak the platform runs on are of the version Waterfall requires (PostgreSQL
   # 18 set for 1 024 locks per transaction, Redis 8 not in cluster mode, Keycloak 26), or the
   # platform goes no further and says which is not (WF-CMP-0020-A, #3964, #4963). Keycloak tells
-  # its version to the administrator of its master realm alone, whose password it reads, as
-  # keycloak-realm does.
+  # its version to the service account of the realm, through its extension (#4641): the check waits
+  # for keycloak-realm, which creates that account and its role, and holds no password of the
+  # administrator of master. keycloak-realm depends on keycloak alone, never on migrate.
   components:
     image: *waterfall-image
     environment:
-      <<: *back-environment
+      <<: [*back-environment, *keycloak-client-environment]
       WATERFALL_DATABASE_URL: *owner-database-url
-      WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
-      WATERFALL_KEYCLOAK_BACKCHANNEL: https://keycloak:8443/auth
-      WATERFALL_KEYCLOAK_ADMIN_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?set WATERFALL_KEYCLOAK_ADMIN_PASSWORD in .env}
     command: ["waterfall-check-components"]
     volumes:
       - *trust
@@ -352,7 +350,7 @@ services:
     depends_on:
       waterfall-database: *done
       redis: *healthy
-      keycloak: *healthy
+      keycloak-realm: *healthy
 
   # Applies the migrations as the owner of the tables, then stops: at each start, so that a new image
   # migrates the schema before the API starts on it (#701, WF-DAT-0140), once the components are

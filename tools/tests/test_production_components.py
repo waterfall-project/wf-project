@@ -45,8 +45,10 @@ def test_the_migrations_wait_for_the_check_of_the_components_run_by_the_image() 
     assert found["components"]["depends_on"] == {
         "waterfall-database": DONE,
         "redis": HEALTHY,
-        "keycloak": HEALTHY,
+        "keycloak-realm": HEALTHY,
     }
+    # keycloak-realm waits for keycloak alone: no cycle with the migrations (#4641).
+    assert found["keycloak-realm"]["depends_on"] == {"keycloak": HEALTHY}
 
 
 @pytest.mark.requirement("WF-CMP-0020-A")
@@ -59,8 +61,9 @@ def test_the_check_reaches_each_component_as_the_platform_does_in_tls_and_holds_
     assert environment["WATERFALL_REDIS_URL"].startswith("rediss://")
     assert environment["WATERFALL_KEYCLOAK_BACKCHANNEL"] == "https://keycloak:8443/auth"
     assert environment["WATERFALL_TLS_AUTHORITY"] == "/trust/root.crt"
-    name = "WATERFALL_KEYCLOAK_ADMIN_PASSWORD"
+    name = "WATERFALL_SERVICE_CLIENT_SECRET"
     assert environment[name] == f"${{{name}:?set {name} in .env}}"
+    assert "WATERFALL_KEYCLOAK_ADMIN_PASSWORD" not in environment
     assert services()["keycloak"]["depends_on"] == {"keycloak-database": DONE}
 
 
