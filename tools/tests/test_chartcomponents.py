@@ -71,7 +71,7 @@ def test_the_chart_declares_the_oldest_version_of_kubernetes_that_is_maintained(
 
 
 @pytest.mark.story("US-2850")
-def test_the_drain_waits_by_the_native_sleep_of_the_hook_but_in_the_api_that_writes_its_file() -> None:
+def test_the_drain_waits_by_the_native_sleep_but_the_api_writes_its_file() -> None:
     objects = rendered()
     serving = [
         container
