@@ -31,7 +31,7 @@ import uvicorn
 from waterfall import __version__
 from waterfall.api.app import PREFIX, create_app
 from waterfall.api.authentication import Services
-from waterfall.api.drain import DrainMiddleware
+from waterfall.api.drain import IDLE_SECONDS, DrainMiddleware
 from waterfall.api.status import StatusSources
 from waterfall.platform.cache import IndicatorsCache
 from waterfall.platform.components import database_accepted
@@ -108,6 +108,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             port=settings.port,
             log_config=None,
             access_log=False,
+            # A connection idle closed before the end of the drain's wait (waterfall.api.drain).
+            timeout_keep_alive=IDLE_SECONDS,
             # In TLS alone when the settings give its certificate (US-2840, TFX-02).
             ssl_certfile=settings.tls_certificate,
             ssl_keyfile=settings.tls_key,

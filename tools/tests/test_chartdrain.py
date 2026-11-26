@@ -44,11 +44,11 @@ def deployments() -> dict[str, dict[str, Any]]:
 
 
 CLOSING = {
-    "preStop": {
-        "exec": {"command": ["sh", "-c", f'touch "$WATERFALL_DRAIN_FILE" && sleep {DRAIN}']}
-    }
+    "preStop": {"exec": {"command": ["sh", "-c", f'touch "$WATERFALL_DRAIN_FILE"; sleep {DRAIN}']}}
 }
-"""The drain of the API: the file of its drain written, then the same wait."""
+"""The drain of the API: the file of its drain written, then the same wait, written or not."""
+WAITING = {"preStop": {"sleep": {"seconds": DRAIN}}}
+"""The drain of the other components: the wait alone."""
 
 
 def test_each_container_that_serves_waits_before_it_is_stopped(
@@ -56,10 +56,11 @@ def test_each_container_that_serves_waits_before_it_is_stopped(
 ) -> None:
     for component, serving in SERVING.items():
         spec = deployments[component]["spec"]["template"]["spec"]
+        drain = CLOSING if component == "api" else WAITING
         waiting = {
             container["name"]
             for container in spec["containers"]
-            if container.get("lifecycle") in ({"preStop": {"sleep": {"seconds": DRAIN}}}, CLOSING)
+            if container.get("lifecycle") == drain
         }
         assert waiting == serving, component
 
