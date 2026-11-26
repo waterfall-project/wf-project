@@ -40,7 +40,7 @@ import { createTranslator } from "next-intl";
 import type { components } from "@/api/generated/schema";
 
 import type { Catalogue } from "./catalogues";
-import { formatDecimal, formatLocale, formatPlanningDay, isPlanningDate } from "./format";
+import { formatConjunction, formatDecimal, formatPlanningDay, isPlanningDate } from "./format";
 import type { Locale } from "./locale";
 
 /**
@@ -118,7 +118,7 @@ export function namedLines(params: Readonly<Params> | undefined): readonly Named
 
 /** A list of names joined as the language of the reader joins them: « a, b et c ». */
 function conjunction(names: readonly string[], locale: Locale): string {
-  return new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(names);
+  return formatConjunction(names, locale);
 }
 
 /** The items of a list a parameter holds that have the shape given; none for any other value. */

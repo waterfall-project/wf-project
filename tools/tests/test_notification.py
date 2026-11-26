@@ -385,6 +385,7 @@ def test_the_alert_of_a_component_unavailable_is_on_the_dashboard_while_postgres
                 "input_series": [
                     {"series": series, "values": values}
                     for series, values in {
+                        'up{job="front"}': "1x10",
                         'up{job="api"}': "1x10",
                         'up{job="worker"}': "1x10",
                         'waterfall_component_up{component="database",instance="a"}': "1x2 0x8",

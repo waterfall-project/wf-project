@@ -350,7 +350,7 @@ issue = "#4981"
 job = "^back / tests"
 test = 'test_each_process_closes_the_services_it_opened_when_it_stops'
 message = "failed to resolve host 'db'"
-frequency = "2 passages : 45005289964 (2026-11-22, pr-4711) et 45722567147 (2026-11-25, pr-4979), tous deux d'`epic/EP-13`"
+frequency = "4 passages : 44960344476 (2026-11-21, pr-4673), 45005289964 (2026-11-22, pr-4711), 45722567147 (2026-11-25, pr-4979), tous trois de la file d'`epic/EP-13`, et 45754715446 (2026-11-26, palier rapide de la pull request #4980, vers `epic/EP-13`) ; corrigée par US-2870/L3 (#4990)"
 cause = "hypothèse : la lecture de la maintenance ne joint pas `db`, que le morceau du back ne résout pas toujours, et la connexion fermée est comptée comme un arrêt"
 
 [[known]]
