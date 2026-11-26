@@ -22,10 +22,19 @@ from sqlalchemy import event, insert, select, update
 from sqlalchemy.orm import Session
 from support import WITNESS, raw_account, wait_for_a_lock
 
-from waterfall.core.projects.interface import ContributorEntry
+from waterfall.core.projects.interface import (
+    ContributorEntry,
+    ContributorsToWrite,
+    Viewer,
+    set_contributors,
+)
 from waterfall.core.projects.interface.contributors import changes
 from waterfall.core.projects.tables import Contributor, Project
+from waterfall.core.users.interface import anonymize_account
 from waterfall.core.users.tables import UserAccount
+from waterfall.platform.audit import Act, AuditEntry
+from waterfall.platform.database import utc_now
+from waterfall.platform.logs import logging_context
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -741,6 +750,66 @@ def test_the_creator_of_a_project_is_inscribed_by_its_creation_and_not_as_a_proj
     assert [(entry["action"], entry["actor"]["user_id"]) for entry in answer.json()["items"]] == [
         (CREATOR_INSCRIBED, str(stage.manager.user_id))
     ]
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+@pytest.mark.parametrize("first", ["listing", "anonymizing"])
+def test_a_project_manager_withdrawn_while_its_account_is_anonymised_is_inscribed_without_its_name(
+    api: ContractClient, stage: Scene, first: str
+) -> None:
+    # The name of a contributor is read under a share lock on its account (``inscribed_names``):
+    # the list written first, its inscription is forgotten by the anonymisation that waited for
+    # it; the anonymisation first, the list that waited reads the account anonymised, and
+    # inscribes no name. Either way the journal keeps no name of an anonymised account.
+    withdrawn = account(stage.database, "Nora", "Blanc")
+    inscribe(stage.database, stage, withdrawn, MANAGER)
+    deactivate(stage.owner, withdrawn)
+    with stage.database.transaction() as session:
+        counter = session.scalars(
+            select(UserAccount.lock_version).where(UserAccount.id == withdrawn)
+        ).one()
+    entries = (
+        ContributorEntry(stage.manager.user_id, MANAGER),
+        ContributorEntry(stage.participant.user_id, CONTRIBUTOR),
+    )
+    listed = ContributorsToWrite(entries, read(api, stage, stage.manager)["lock_version"])
+    author = stage.manager.user_id
+    writes: dict[str, Callable[[Session], object]] = {
+        "listing": lambda session: set_contributors(
+            session,
+            UUID(stage.project["project_id"]),
+            listed,
+            Viewer(author, ()),
+            Act(author, utc_now()),
+        ),
+        "anonymizing": lambda session: anonymize_account(
+            session, withdrawn, counter, Act(author, utc_now())
+        ),
+    }
+    [second] = [name for name in writes if name != first]
+
+    def waiting() -> None:
+        with logging_context(correlation_id=second), stage.database.transaction() as session:
+            writes[second](session)
+
+    with ThreadPoolExecutor(1) as other:
+        with logging_context(correlation_id=first), stage.database.transaction() as session:
+            writes[first](session)
+            sent = other.submit(waiting)
+            wait_for_a_lock(stage.database)
+            assert not sent.done()
+        sent.result(timeout=10)
+    with stage.database.transaction() as session:
+        inscribed = session.execute(
+            select(AuditEntry.action, AuditEntry.object_label).where(
+                AuditEntry.object_kind == "contributor", AuditEntry.object_id == withdrawn
+            )
+        ).all()
+        anonymized = session.scalars(
+            select(UserAccount.anonymized_at).where(UserAccount.id == withdrawn)
+        ).one()
+    assert [tuple(row) for row in inscribed] == [("project_manager_remove", None)]
+    assert anonymized is not None
 
 
 def witness_value(name: str) -> dict[str, Any]:
