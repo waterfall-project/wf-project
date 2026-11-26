@@ -22,7 +22,7 @@ import { compile } from "./compile";
 import { downloaded } from "./download";
 import { seedEstimate } from "./estimate-seed";
 import { openHydrated } from "./hydration";
-import { takeInProgress } from "./in-progress";
+import { applyReport, awaitReport, takeInProgress } from "./in-progress";
 import { inService, test } from "./mode";
 import { employRole, wiringService } from "./own-project";
 import { seedPlanning } from "./planning-seed";
@@ -110,8 +110,6 @@ interface Application {
   readonly page: Page;
   /** The report of the import, which carries the command that applies it. */
   readonly report: Locator;
-  /** The background tasks of the shell, where the application is followed. */
-  readonly tasks: Locator;
   /** The name of the file imported, as the task names it. */
   readonly filename: string;
   /** The context that reads the import back, at `address`, under `headers`. */
@@ -127,22 +125,12 @@ interface Application {
 async function applyAndFollow({
   page,
   report,
-  tasks,
   filename,
   request,
   address,
   headers,
 }: Application): Promise<void> {
-  await report.getByRole("button", { name: "Appliquer l’import" }).click();
-  const confirmation = report.getByRole("form", { name: confirmTitle });
-  await confirmation.getByRole("button", { name: confirm }).click();
-  await expect(confirmation).toHaveCount(0);
-  await page.getByRole("button", { name: FOLLOWING }).click();
-  const application = tasks
-    .getByRole("listitem")
-    .filter({ hasText: `Application d’un import « ${filename} »` });
-  await expect(application.getByText("Réussie")).toBeVisible({ timeout: WORKING });
-  await page.keyboard.press("Escape");
+  await applyReport(page, report, filename);
   await expect(async () => {
     const applied = await request.get(address, { headers });
     expect(applied.status(), "GET import").toBe(200);
@@ -311,10 +299,6 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   ).toHaveText("Planning MS Project", { timeout: WORKING });
   // Downloaded by itself once made: a file named after the project, which is the XML of MS Project.
   const { download, result } = await exportDownloaded(page, exports);
-  // The background tasks of the shell, in its panel, where the import is followed.
-  const tasks = page
-    .getByRole("dialog", { name: "Tâches et messages" })
-    .getByRole("region", { name: "Tâches de fond" });
   expect(result).toMatch(/^\/tasks\/[0-9a-f-]{36}\/result\?/);
   expect(download.suggestedFilename()).toMatch(/^ms-project(-.+)?\.xml$/);
   const xml = await downloaded(download);
@@ -359,13 +343,7 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   const report = page.getByRole("region", {
     name: `Compte rendu de l’import « ${download.suggestedFilename()} »`,
   });
-  // The analysis is a task of the background: the report comes when the screen is read anew.
-  await expect(async () => {
-    if ((await report.getByText(/lignes lues\./).count()) === 0) {
-      await page.reload();
-    }
-    await expect(report.getByText(/lignes lues\./)).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: WORKING });
+  await awaitReport(page, report);
   await expect(report.getByText("Aucun écart avec les données existantes")).toBeVisible();
   await expect(report.getByRole("table", { name: "Lignes rejetées" })).toHaveCount(0);
   await expect(
@@ -387,7 +365,6 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   await applyAndFollow({
     page,
     report,
-    tasks,
     filename: download.suggestedFilename(),
     request,
     address,
@@ -437,10 +414,6 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
   await expect(kinds.getByRole("option", { name: "Devis" })).toHaveCount(1, { timeout: WORKING });
   await kinds.selectOption({ label: "Devis" });
   const { download } = await exportDownloaded(page, exports);
-  // The background tasks of the shell, in its panel, where the import is followed.
-  const tasks = page
-    .getByRole("dialog", { name: "Tâches et messages" })
-    .getByRole("region", { name: "Tâches de fond" });
   const filename = download.suggestedFilename();
   expect(filename).toMatch(/-devis\.xlsx$/);
   // A workbook is a zip archive, whose bytes past 0x7f Prism would have rewritten.
@@ -511,7 +484,6 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
   await applyAndFollow({
     page,
     report,
-    tasks,
     filename,
     request,
     address,

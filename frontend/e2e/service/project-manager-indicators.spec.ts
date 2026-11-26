@@ -15,10 +15,13 @@ import { rowAt } from "../scroll";
 // it creates (WF-INTF-0010-A): priced in the grid of the estimate, its revision marked by the worker
 // and designated as the reference, the code entered to take it In progress — the course of
 // `pricing.spec.ts` — then the screen of the indicators of the revision, which reads the indicators
-// the service serves for this project, not those of the witness. The fake back keeps nothing of the
-// project it is asked to create (`context.spec.ts`), so the path plays against the service alone.
+// the service serves for this project, not those of the witness. Before the marking, the duration of
+// the task is entered in the planning and read again once the screen is opened anew; after the
+// passage In progress, the extraction of the actual costs is imported in two steps from the screen of
+// the exchanges and read on the screen of the actual costs (FLX-07). The fake back keeps nothing of
+// the project it is asked to create (`context.spec.ts`), so the path plays against the service alone.
 
-test("the project manager of the run reads the indicators of a project she creates, prices and takes In progress, its revision marked: the reference budget is the amount priced, the context the revision marked, nothing refused (FBS-4.8), after her planning entered and her actual costs imported (path of the project manager) [WF-INTF-0010-A] [WF-QUA-0050-A]", async ({
+test("the project manager of the run reads the indicators of a project she creates, plans, prices, takes In progress and imports the actual costs of, its revision marked: the reference budget is the amount priced, nothing refused (FBS-4.8, FLX-07) [WF-INTF-0010-A] [WF-INTF-0140-A] [WF-QUA-0050-A] (path of the project manager)", async ({
   page,
   browser,
   request,
@@ -36,7 +39,8 @@ test("the project manager of the run reads the indicators of a project she creat
     manager,
     "Indicateurs du chef de projet",
   );
-  // Planned: the duration of the task entered in the grid of the planning, the service keeping it.
+  // Planned: the duration of the task entered in the grid of the planning, then read again once the
+  // planning is opened anew, which proves the service keeps it.
   await openHydrated(page, seeded.planning);
   const plan = page.getByRole("treegrid", { name: "Grille de planning" });
   const during = await columnsOf(plan, { duration: "Durée" });
@@ -46,6 +50,10 @@ test("the project manager of the run reads the indicators of a project she creat
   await plan.getByRole("textbox", { name: "Durée" }).fill("8 j");
   await page.keyboard.press("Enter");
   await idle(plan);
+  await expect(task.getByRole("gridcell").nth(during.duration)).toContainText("8", {
+    timeout: WORKING,
+  });
+  await openHydrated(page, seeded.planning);
   await expect(task.getByRole("gridcell").nth(during.duration)).toContainText("8", {
     timeout: WORKING,
   });
@@ -81,9 +89,8 @@ test("the project manager of the run reads the indicators of a project she creat
   await openHydrated(page, `${seeded.own.path}/settings`);
   await main.getByRole("button", { name: "Modifier le projet" }).click();
   const identity = page.getByRole("dialog", { name: /^Modifier/ });
-  await identity
-    .getByRole("textbox", { name: /^Code projet/ })
-    .fill(`IND-${seeded.own.label.slice(-8).toUpperCase()}`);
+  const code = `IND-${seeded.own.label.slice(-8).toUpperCase()}`;
+  await identity.getByRole("textbox", { name: /^Code projet/ }).fill(code);
   await identity.getByRole("button", { name: "Enregistrer" }).click();
   await expect(identity).toBeHidden({ timeout: WORKING });
   await openHydrated(page, `${seeded.own.path}/lifecycle`);
@@ -93,7 +100,6 @@ test("the project manager of the run reads the indicators of a project she creat
 
   // The actual costs imported in two steps, the report read then the application confirmed, and
   // read on the screen of the actual costs (FLX-07, WF-INTF-0140-A).
-  const code = `IND-${seeded.own.label.slice(-8).toUpperCase()}`;
   const extracted = "extraction-parcours.xlsx";
   const report = await analyseActualCosts(page, seeded.revision, extracted, [
     [code, "FA-0101", "2026-03-02", 1000],

@@ -5052,14 +5052,17 @@ she creates and takes In progress, she declares a risk, prices its own estimate 
 reviews it, declares it occurred — the task of the worker followed to its success —, prepares an
 amendment and contractualises it, the merge making its revision the reference. The gestures of the
 amendment (`prepare`, `contractualise`) are those of `amendment-flow.ts`, which
-`amendment-service.spec.ts` plays too. The paths of FBS-4.1 to 4.9 and of FLX-01 to FLX-06 all play against the service, in the same run
+`amendment-service.spec.ts` plays too. The paths of FBS-4.1 to 4.9 and of FLX-01 to FLX-07 all play against the service, in the same run
 (`make e2e-service`), each in its file: FBS-4.1 `revision-cycle.spec.ts` and `pricing.spec.ts`; 4.2
 `projects.spec.ts`; 4.3, FLX-01 and FLX-02 `planning-service.spec.ts` and `exchanges.spec.ts`; 4.4
 `pricing.spec.ts`; 4.5 `remaining.spec.ts`; 4.6 `service/project-manager-risks.spec.ts`; 4.7
 `actual-costs.spec.ts`; 4.8 `service/project-manager-indicators.spec.ts`; 4.9 `revision-cycle.spec.ts`
-and `projects.spec.ts`; FLX-03 to FLX-06 `exchanges.spec.ts`. FLX-07 has no screen played: the
-extraction of the actual costs is imported through the API (`importActualCosts`, `in-progress.ts`), the
-screen being the object of issue #4699. EP-08 left no `inService` guard to lift in these lists: those
+and `projects.spec.ts`; FLX-03 to FLX-06 `exchanges.spec.ts`; FLX-07 `service/actual-costs-import.spec.ts` (the extraction of the
+actual costs deposited by the screen of the exchanges, in two steps, `analyseActualCosts` and `applyReport`
+of `in-progress.ts`, which the screen plays; the paths that write them without making them their object
+import them through the API, `importActualCosts`). Each cites its flow, and each of the three paths of
+WF-QUA-0050-A (project manager, manager, administrator) its own, in the title of the test.
+EP-08 left no `inService` guard to lift in these lists: those
 that remain, and the EPICs that lift them, are those of the list below.
 
 The two readers of a project (`service/project-readers.spec.ts`, WF-ADM-0040-A) play against the

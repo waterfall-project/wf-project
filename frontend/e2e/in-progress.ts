@@ -153,15 +153,23 @@ export async function analyseActualCosts(
   await form.getByRole("button", { name: "Analyser le fichier" }).click();
   await expect(page).toHaveURL(/[?&]import=[0-9a-f-]{36}/, { timeout: WORKING });
   const report = page.getByRole("region", { name: `Compte rendu de l’import « ${name} »` });
-  // The analysis is a task of the background: the report comes when the screen is read anew.
+  await awaitReport(page, report);
+  return report;
+}
+
+/**
+ * Wait for the report of an import the analysis opened. The analysis is a task of the background:
+ * the report comes when the screen is read anew, the one line that says how many lines were read.
+ */
+export async function awaitReport(page: Page, report: Locator): Promise<void> {
+  const read = report.getByText(/lues?\./);
   await expect(async () => {
-    if ((await report.getByText(/lues?\./).count()) === 0) {
+    if ((await read.count()) === 0) {
       await page.reload();
       await page.waitForLoadState("domcontentloaded");
     }
-    await expect(report.getByText(/lues?\./)).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: WORKING, intervals: [500, 1_000, 2_000] });
-  return report;
+    expect(await read.count(), "the report of the import says the lines read").toBeGreaterThan(0);
+  }).toPass({ timeout: WORKING });
 }
 
 /** Confirm the application of the report of an import, and follow its task in the shell to its end. */
