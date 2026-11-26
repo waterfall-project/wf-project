@@ -26,8 +26,9 @@ from sqlalchemy import text
 from test_keycloak_platform import ADDRESS_VARIABLE, PASSWORD, master_admin_token, required
 from witness_template import TEST_DATABASE_VARIABLE
 
+from waterfall.core.users.interface import KeptAdministrator
 from waterfall.platform.database import create_database_engine, engine_url
-from waterfall.restore.anonymization import anonymize_realm
+from waterfall.restore.anonymization import anonymize_administration, anonymize_realm, silence
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -52,6 +53,19 @@ PERSONS = text(
     " JOIN realm ON realm.id = user_entity.realm_id"
     " WHERE realm.name = :realm AND user_entity.service_account_client_link IS NULL"
 )
+# The credentials of the persons of a realm, counted.
+CREDENTIALS = text(
+    "SELECT count(*) FROM credential JOIN user_entity ON user_entity.id = credential.user_id"
+    " JOIN realm ON realm.id = user_entity.realm_id WHERE realm.name = :realm"
+)
+REALM_ID = text("SELECT id FROM realm WHERE name = :realm")
+# What would send a mail from a realm, counted: its mail server, and its listeners of events.
+MAILING = text(
+    "SELECT (SELECT count(*) FROM realm_smtp_config WHERE realm_id = :id),"
+    " (SELECT count(*) FROM realm_events_listeners WHERE realm_id = :id)"
+)
+# The relay of the production a realm sends its mails by.
+RELAY = "smtp.entreprise.example"
 # What ties the realm to the outside, counted: its federations of users and what lies under them,
 # with their settings, and its external providers and their mappers, with theirs.
 OUTSIDE = text(
@@ -220,7 +234,9 @@ def test_no_name_and_no_address_of_a_person_of_the_realm_is_left_in_the_database
     # commande anonymise une sauvegarde restaurée […] dans [la base] du fournisseur d'identité » ;
     # « après l'anonymisation, une recherche des adresses et des noms de la source dans les deux
     # bases ne trouve rien » — its accounts, attributes, credentials, links, sessions, and events
-    # of sign-in and of administration; each person disabled, her user name her identifier.
+    # of sign-in and of administration; each person disabled, her user name her identifier, but
+    # the administrator Waterfall keeps (#4068), enabled under the identity Waterfall gave it, its
+    # address its user name, without a password.
     suffix = uuid4().hex[:8]
     named = [
         (f"Quillardet{suffix}", f"Zephyrine{suffix}"),
@@ -244,13 +260,24 @@ def test_no_name_and_no_address_of_a_person_of_the_realm_is_left_in_the_database
     # The events of sign-in name the user, in one column or the other as Keycloak's version keeps
     # long details.
     assert any(column.startswith("public.event_entity.") for column in before), sorted(before)
+    with provider.connect() as connection:
+        subject = connection.execute(
+            text("SELECT id FROM user_entity WHERE email = :email"), {"email": addresses[0]}
+        ).scalar_one()
+    kept = KeptAdministrator(
+        uuid4(), subject, "1", "Administrator", f"administrator-{suffix}@waterfall.test"
+    )
     with provider.begin() as connection:
-        assert anonymize_realm(connection, realm) == len(named)
+        assert anonymize_realm(connection, realm, [kept]) == len(named)
     assert found(provider, needles) == {}
     with provider.connect() as connection:
         persons = connection.execute(PERSONS, {"realm": realm}).all()
+        assert connection.execute(CREDENTIALS, {"realm": realm}).scalar_one() == 0
     assert len(persons) == len(named)
-    assert all(username == subject and not enabled for subject, username, enabled in persons)
+    assert sorted(persons) == sorted(
+        (each, kept.email, True) if each == subject else (each, each, False)
+        for each, _, _ in persons
+    )
 
 
 def _outside(admin: httpx2.Client, realm: str) -> None:
@@ -318,3 +345,74 @@ def test_the_realm_is_left_tied_to_neither_its_directory_nor_its_external_provid
     with provider.connect() as connection:
         assert tuple(connection.execute(OUTSIDE, counted).one()) == (0,) * 6
     assert found(provider, outside) == {}
+
+
+def _administrator(admin: httpx2.Client, username: str, email: str, names: tuple[str, str]) -> None:
+    """Make an administrator of Keycloak, as ``master`` holds them: a user name, a password."""
+    last_name, first_name = names
+    made = admin.post(
+        "/users",
+        json={
+            "username": username,
+            "email": email,
+            "emailVerified": True,
+            "firstName": first_name,
+            "lastName": last_name,
+            "enabled": True,
+            "credentials": [{"type": "password", "value": PASSWORD, "temporary": False}],
+        },
+    )
+    assert made.status_code == 201, made.text
+
+
+@pytest.mark.requirement("WF-EXP-0010-A")
+@pytest.mark.story("US-2960")
+def test_the_administrators_of_keycloak_keep_no_address_and_the_realm_sends_no_mail(
+    realm: str, provider: Engine
+) -> None:
+    # « Aucun environnement hors production ne contient une adresse électronique réelle, hors
+    # l'environnement isolé du test de restauration. » : the realm of the administration, ``master``
+    # — a realm of its own stands for it here, the platform's being shared —, holds the addresses
+    # of its administrators, which its events of administration copy (#5048). They lose their names
+    # and their addresses, a user name that is an address too, and keep their passwords and a user
+    # name that is none. Proper to US-2960: the realm loses its mail server — the relay of the
+    # production, and its account — and its listeners of events.
+    suffix = uuid4().hex[:8]
+    named = (f"Tisserand{suffix}", f"Heloise{suffix}")
+    addressed = (f"Baudricourt{suffix}", f"Ysaline{suffix}")
+    addresses = [f"heloise.{suffix}@entreprise.example", f"ysaline.{suffix}@entreprise.example"]
+    with _administering(f"/{realm}") as admin:
+        _administrator(admin, f"admin-{suffix}", addresses[0], named)
+        _administrator(admin, addresses[1], addresses[1], addressed)
+        mail = {"host": RELAY, "port": "25", "from": f"waterfall-{suffix}@entreprise.example"}
+        assert admin.put("", json={"smtpServer": mail}).status_code == 204
+        listeners = {
+            "eventsEnabled": True,
+            "eventsListeners": ["jboss-logging", "email"],
+            "adminEventsEnabled": True,
+            "adminEventsDetailsEnabled": True,
+        }
+        assert admin.put("/events/config", json=listeners).status_code == 204
+    needles = {*addresses, *named, *addressed}
+    assert {"public.user_entity.email", "public.admin_event_entity.representation"} <= set(
+        found(provider, needles)
+    )
+    with provider.connect() as connection:
+        realm_id = connection.execute(REALM_ID, {"realm": realm}).scalar_one()
+        assert all(connection.execute(MAILING, {"id": realm_id}).one())
+        credentials = connection.execute(CREDENTIALS, {"realm": realm}).scalar_one()
+        before = connection.execute(PERSONS, {"realm": realm}).all()
+    assert credentials == len(addresses)
+    with provider.begin() as connection:
+        assert anonymize_administration(connection, realm) == len(addresses)
+        silence(connection, [realm_id])
+    assert found(provider, needles) == {}
+    assert found(provider, {RELAY}) == {}
+    with provider.connect() as connection:
+        assert tuple(connection.execute(MAILING, {"id": realm_id}).one()) == (0, 0)
+        assert connection.execute(CREDENTIALS, {"realm": realm}).scalar_one() == credentials
+        after = connection.execute(PERSONS, {"realm": realm}).all()
+    # The user name that is no address stays, the other becomes the identifier; both enabled.
+    assert sorted(after) == sorted(
+        (subject, subject if "@" in username else username, True) for subject, username, _ in before
+    )

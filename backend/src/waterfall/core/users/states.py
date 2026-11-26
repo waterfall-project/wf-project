@@ -15,12 +15,14 @@ the backup held it, before its anonymisation, anonymises it again (#988).
 
 A copy of the production is anonymised whole before it is opened elsewhere: every account at once,
 by the platform, out of any session, and the persons the reports of the readings of the accounts
-name with them (WF-EXP-0010, US-2960).
+name with them (WF-EXP-0010, US-2960). The administrators alone stay active, under an identity that
+designates nobody, lest nobody enter the copy (WF-ADM-0120).
 """
 
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import func, literal, select, update
+from sqlalchemy import ColumnElement, func, literal, or_, select, update
 
 from waterfall.core.users.accounts import Stamp, change_columns, lock_account_at
 from waterfall.core.users.commands import DEACTIVATED_CONDITION, anonymized
@@ -39,6 +41,7 @@ from waterfall.platform.audit import (
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from datetime import datetime
     from uuid import UUID
 
@@ -48,6 +51,32 @@ ACTIVE = "active"
 DEACTIVATED = "deactivated"
 # What an anonymised account no longer holds: nothing replaces it (#832).
 FORGOTTEN = ("last_name", "first_name", "email", "avatar", "avatar_media_type")
+# The domain an administrator kept by the anonymisation of a copy is addressed in, reserved: no
+# mail reaches it (RFC 2606, WF-EXP-0010). Its first name; its name is its rank.
+SYNTHETIC_DOMAIN = "waterfall.test"
+SYNTHETIC_FIRST_NAME = "Administrator"
+
+
+@dataclass(frozen=True, slots=True)
+class KeptAdministrator:
+    """An administrator a copy keeps active, under an identity that designates nobody (US-2960).
+
+    ``subject`` is the account of the identity provider, given the same identity.
+    """
+
+    user_id: UUID
+    subject: str
+    last_name: str
+    first_name: str
+    email: str
+
+
+@dataclass(frozen=True, slots=True)
+class CopyAnonymized:
+    """What the anonymisation of a copy did: how many accounts it anonymised, whom it kept."""
+
+    accounts: int
+    administrators: tuple[KeptAdministrator, ...]
 
 
 def set_state(
@@ -151,30 +180,37 @@ def anonymize_again(session: Session) -> list[str]:
     return subjects
 
 
-def anonymize_every_account(session: Session, at: datetime) -> int:
-    """Anonymise every account of a copy of the production, by the platform; give how many.
+def anonymize_every_account(
+    session: Session, at: datetime, administrators: Collection[UUID]
+) -> CopyAnonymized:
+    """Anonymise every account of a copy of the production but its administrators, by the platform.
 
     The rules of the anonymisation of one account (``anonymize``), applied to all at once, active
     ones included, before the copy is opened: their names, their addresses and their avatars become
-    null, each one deactivated and its sessions closed as of ``at``, and the journal forgets their
-    names, as their authors and as their objects (WF-EXP-0010, WF-SEC-0030). An account anonymised
-    already keeps its date. Nothing is inscribed: the copy is not the platform the journal tells.
-    The reports of the readings of the accounts forget what names a person: those the provider
-    held and a reading left, and the addresses it removed (#918, #811). Every account is locked
-    first, in the order of their identifiers, then the lock of the forgetting taken, as one
-    anonymisation takes them.
+    null, each one deactivated and its sessions closed as of ``at`` (WF-EXP-0010). An account
+    anonymised already keeps its date. ``administrators`` — the active accounts that hold the
+    administration, which the caller reads — stay active, lest nobody enter the copy (WF-ADM-0120,
+    #4068): their names, their address and their avatar are replaced by an identity in the reserved
+    domain, of their rank in the order of their identifiers, their sessions closed, and they become
+    local, the copy cut off from the directory and the external providers; one replaced already is
+    not written again. The journal forgets every name, as authors and as objects (WF-SEC-0030).
+    Nothing is inscribed: the copy is not the platform the journal tells. The reports of the
+    readings of the accounts forget what names a person: those the provider held and a reading
+    left, and the addresses it removed (#918, #811). Every account is locked first, in the order of
+    their identifiers, then the lock of the forgetting taken, as one anonymisation takes them.
     """
     session.execute(select(UserAccount.id).order_by(UserAccount.id).with_for_update()).all()
     # GREATEST passes over a null: an account never signed out is closed as of ``at``.
     moment = literal(at, UserAccount.sessions_closed_at.type)
+    closed = func.greatest(UserAccount.sessions_closed_at, moment)
     named = session.scalars(
         update(UserAccount)
-        .where(UserAccount.anonymized_at.is_(None))
+        .where(UserAccount.anonymized_at.is_(None), UserAccount.id.not_in(list(administrators)))
         .values(
             **dict.fromkeys(FORGOTTEN),
             state=DEACTIVATED,
             anonymized_at=at,
-            sessions_closed_at=func.greatest(UserAccount.sessions_closed_at, moment),
+            sessions_closed_at=closed,
             lock_version=UserAccount.lock_version + 1,
             updated_at=at,
             updated_by=None,
@@ -182,6 +218,57 @@ def anonymize_every_account(session: Session, at: datetime) -> int:
         .returning(UserAccount.id)
         .execution_options(synchronize_session=False)
     ).all()
+    kept = _keep(session, administrators, at, closed)
     forget_accounts(session, select(UserAccount.id))
     forget_reported_persons(session)
-    return len(named)
+    return CopyAnonymized(len(named), kept)
+
+
+def _keep(
+    session: Session, administrators: Collection[UUID], at: datetime, closed: ColumnElement[Any]
+) -> tuple[KeptAdministrator, ...]:
+    """Give each administrator its identity in the reserved domain, unless it holds it already."""
+    held = session.execute(
+        select(UserAccount.id, UserAccount.idp_subject)
+        .where(UserAccount.id.in_(list(administrators)))
+        .order_by(UserAccount.id)
+    ).all()
+    kept: list[KeptAdministrator] = []
+    for rank, (user_id, subject) in enumerate(held, start=1):
+        administrator = KeptAdministrator(
+            user_id,
+            subject,
+            last_name=str(rank),
+            first_name=SYNTHETIC_FIRST_NAME,
+            email=f"administrator-{user_id}@{SYNTHETIC_DOMAIN}",
+        )
+        identity = {
+            "last_name": administrator.last_name,
+            "first_name": administrator.first_name,
+            "email": administrator.email,
+        }
+        changed = [
+            *(
+                getattr(UserAccount, name).is_distinct_from(value)
+                for name, value in identity.items()
+            ),
+            UserAccount.avatar.is_not(None),
+            UserAccount.origin != LOCAL,
+        ]
+        session.execute(
+            update(UserAccount)
+            .where(UserAccount.id == user_id, or_(*changed))
+            .values(
+                **identity,
+                avatar=None,
+                avatar_media_type=None,
+                origin=LOCAL,
+                sessions_closed_at=closed,
+                lock_version=UserAccount.lock_version + 1,
+                updated_at=at,
+                updated_by=None,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        kept.append(administrator)
+    return tuple(kept)

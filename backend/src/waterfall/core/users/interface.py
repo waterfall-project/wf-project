@@ -14,7 +14,8 @@ WF-IHM-0090); a local account created, and the identity of an account changed (`
 account deactivated or reactivated, and an account locked at the version read for a write of the
 roles it holds, which notes the change (``states``); a deactivated account anonymised, for good
 (``states``, WF-ADM-0060), and anonymised again after a restoration that named it again (#988);
-every account of a copy of the production anonymised at once, before it is opened (US-2960);
+every account of a copy of the production anonymised at once, before it is opened, its
+administrators but kept active under an identity that designates nobody (US-2960);
 the moment its sessions were last closed — by its holder, or by its
 deactivation —, which refuses a token whose sign-in comes before it (#668, #835); what its holder
 sets alone, its preferences and its avatar (``personal``, WF-ADM-0040, WF-ADM-0080); the schedule of
@@ -107,6 +108,8 @@ from waterfall.core.users.provider import (
     unheld_accounts,
 )
 from waterfall.core.users.states import (
+    CopyAnonymized,
+    KeptAdministrator,
     anonymize,
     anonymize_again,
     anonymize_every_account,
@@ -152,10 +155,12 @@ __all__ = [
     "Author",
     "Avatar",
     "CommandAvailability",
+    "CopyAnonymized",
     "Followed",
     "HeldAccount",
     "Identity",
     "IdentityChange",
+    "KeptAdministrator",
     "NodeCriterion",
     "NodeKey",
     "NotAdmitted",

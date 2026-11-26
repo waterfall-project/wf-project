@@ -14,22 +14,27 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
+from access_rows import role
 from anonymization_support import found, held_by_table
 from migrations_support import scratch_database
 from sqlalchemy import insert, or_, select, text
 from sqlalchemy.orm import Session
 from support import raw_account
 
+from waterfall.core.access_roles.interface import administrators
+from waterfall.core.access_roles.tables import UserAccessRole
 from waterfall.core.users.interface import (
     Skipped,
     SkippedAccount,
     SkippedPerson,
     SyncReport,
     latest_report,
+    read_installation_administrator,
     record_report,
 )
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditActor, AuditEntry, AuditObject, Inscription, record
+from waterfall.platform.installation import THE_ROW, Installation
 from waterfall.platform.logs import logging_context
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.restore import anonymization
@@ -51,6 +56,12 @@ PERSONS = (
     ("Vandermeersch", "Aurèle", "aurele.vandermeersch@entreprise.example"),
     ("Kerguélen", "Brunehilde", "brunehilde.kerguelen@entreprise.example"),
 )
+# The administrators of the copy: the one its bootstrap created, and one of the directory.
+ADMINISTRATORS = (
+    ("Delacourt", "Isaure", "isaure.delacourt@entreprise.example"),
+    ("Montgolfier", "Anselme", "anselme.montgolfier@entreprise.example"),
+)
+ADMINISTRATION = ("users.write", "access_roles.write")
 # A person of the provider a reading left without an account, and a local account it removed.
 LEFT = ("Ostrogradsky", "Philomène", "philomene.ostrogradsky@entreprise.example")
 REMOVED = "orphelin.desmarais@entreprise.example"
@@ -93,8 +104,27 @@ PROVIDER_TABLES = (
         "CREATE TABLE idp_mapper_config (idp_mapper_id text NOT NULL"
         " REFERENCES identity_provider_mapper (id), name text, value text)"
     ),
+    "CREATE TABLE realm_smtp_config (realm_id text NOT NULL, value text, name text NOT NULL)",
+    "CREATE TABLE realm_events_listeners (realm_id text NOT NULL, value text NOT NULL)",
 )
-THE_REALM, OTHER_REALM = "r-1", "r-2"
+THE_REALM, OTHER_REALM, MASTER = "r-1", "r-2", "r-master"
+# The administrators of Keycloak, in ``master``: one named by a name, one by her address.
+ADMINISTERING = (
+    ("Tisserand", "Héloïse", "heloise.tisserand@entreprise.example", "admin"),
+    (
+        "Baudricourt",
+        "Ysaline",
+        "ysaline.baudricourt@entreprise.example",
+        "ysaline.baudricourt@entreprise.example",
+    ),
+)
+# The mail server of a realm, as Keycloak keeps it: the relay of the production and its account.
+RELAY = "smtp.entreprise.example"
+MAIL_SERVER = (("host", RELAY), ("from", "waterfall@entreprise.example"), ("password", "relais"))
+SILENCED = (
+    text("SELECT realm_id, name, value FROM realm_smtp_config ORDER BY 1, 2"),
+    text("SELECT realm_id, value FROM realm_events_listeners ORDER BY 1, 2"),
+)
 # A directory of the production, and the account a federation binds to it as.
 DIRECTORY = "ldaps://annuaire.entreprise.example"
 BINDING = "cn=lecteur,dc=entreprise,dc=example"
@@ -129,17 +159,25 @@ OTHERS = text(
     "SELECT * FROM user_entity WHERE realm_id = 'r-2' OR service_account_client_link IS NOT NULL"
     " ORDER BY id"
 )
-# What the stand-in holds of a person besides her account, then the same of the other realm alone.
+# What the stand-in holds of a person besides her account — of the realm of the administration
+# apart, whose attributes and credentials stay —, then the same of the other realm alone.
 HELD = (
     (
-        text("SELECT user_id, value FROM user_attribute ORDER BY 1"),
+        text(
+            "SELECT user_id, value FROM user_attribute JOIN user_entity ON user_entity.id = user_id"
+            " WHERE user_entity.realm_id <> 'r-master' ORDER BY 1"
+        ),
         text(
             "SELECT user_id, value FROM user_attribute JOIN user_entity ON user_entity.id = user_id"
             " WHERE user_entity.realm_id = 'r-2' ORDER BY 1"
         ),
     ),
     (
-        text("SELECT user_id, user_label FROM credential ORDER BY 1"),
+        text(
+            "SELECT user_id, user_label FROM credential"
+            " JOIN user_entity ON user_entity.id = user_id"
+            " WHERE user_entity.realm_id <> 'r-master' ORDER BY 1"
+        ),
         text(
             "SELECT user_id, user_label FROM credential"
             " JOIN user_entity ON user_entity.id = user_id"
@@ -172,30 +210,46 @@ def provider(database_url: str) -> Iterator[Engine]:
             for statement in PROVIDER_TABLES:
                 connection.execute(text(statement))
             connection.execute(
-                text("INSERT INTO realm VALUES (:one, :name), (:other, 'other')"),
-                {"one": THE_REALM, "other": OTHER_REALM, "name": REALM},
+                text(
+                    "INSERT INTO realm VALUES (:one, :name), (:other, 'other'), (:master, 'master')"
+                ),
+                {"one": THE_REALM, "other": OTHER_REALM, "master": MASTER, "name": REALM},
             )
         yield engine
 
 
 @pytest.fixture
 def copy(witness: Database, owner: Engine, provider: Engine) -> list[Person]:
-    """Name the persons of the copy in both databases; give every name and address it holds."""
-    assert witness
+    """Name the persons of the copy in both databases; give every name and address it holds.
+
+    Two of them administer the installation: the administrator its bootstrap created, and a
+    person of the directory, with an avatar.
+    """
+    administration = role(witness, "Administration", permissions=ADMINISTRATION)
     with owner.begin() as connection:
         accounts = _persons(connection)
+        _administrators(connection, administration)
         _journal(connection, accounts)
         _report(connection)
         named = connection.execute(
-            select(UserAccount.last_name, UserAccount.first_name, UserAccount.email).where(
-                UserAccount.anonymized_at.is_(None)
-            )
+            select(
+                UserAccount.last_name,
+                UserAccount.first_name,
+                UserAccount.email,
+                UserAccount.idp_subject,
+            ).where(UserAccount.anonymized_at.is_(None))
         ).all()
-    copied = [(str(last), str(first), str(email)) for last, first, email in named]
+    copied = [(str(last), str(first), str(email)) for last, first, email, _ in named]
     with provider.begin() as connection:
-        for person in [*copied, LEFT]:
-            _provider_person(connection, THE_REALM, person)
+        # Each person of the realm is the account of Waterfall that bears her subject.
+        for person, (*_, subject) in zip(copied, named, strict=True):
+            _provider_person(connection, THE_REALM, person, subject)
+        _provider_person(connection, THE_REALM, LEFT)
         _provider_person(connection, OTHER_REALM, ELSEWHERE)
+        for last, first, email, username in ADMINISTERING:
+            _provider_person(connection, MASTER, (last, first, email), username=username)
+        for realm in (THE_REALM, OTHER_REALM, MASTER):
+            _mail_server(connection, realm)
         connection.execute(
             text(
                 "INSERT INTO user_entity VALUES ('service', :realm, 'service-account-api', NULL,"
@@ -279,6 +333,29 @@ def _persons(connection: Connection) -> list[UUID]:
     return accounts
 
 
+def _administrators(connection: Connection, administration: UUID) -> None:
+    """Add the administrators of the copy, holding ``administration``: the bootstrap's first."""
+    installed_at = connection.execute(
+        select(Installation.installed_at).where(Installation.id == THE_ROW)
+    ).scalar_one()
+    for number, (last_name, first_name, email) in enumerate(ADMINISTRATORS):
+        values = raw_account(last_name=last_name, first_name=first_name, email=email)
+        if number == 0:
+            values |= {"created_at": installed_at, "created_by": None}
+        else:
+            values |= {
+                "origin": "directory",
+                "avatar": b"\x89PNG",
+                "avatar_media_type": "image/png",
+            }
+        connection.execute(insert(UserAccount).values(values))
+        connection.execute(
+            insert(UserAccessRole).values(
+                user_account_id=values["id"], access_role_id=administration
+            )
+        )
+
+
 def _journal(connection: Connection, accounts: list[UUID]) -> None:
     """Inscribe the first person as the author of a change of each person, herself included."""
     with _session(connection) as session, logging_context(correlation_id=CORRELATION):
@@ -317,10 +394,35 @@ def _session(connection: Connection) -> Session:
     return Session(bind=connection, join_transaction_mode="create_savepoint")
 
 
-def _provider_person(connection: Connection, realm: str, person: Person) -> None:
-    """Add a person to a realm, an attribute, a credential, and the events that name her."""
+def _mail_server(connection: Connection, realm: str) -> None:
+    """Give a realm the mail server of the production, and the listeners of its events."""
+    for name, value in MAIL_SERVER:
+        connection.execute(
+            text("INSERT INTO realm_smtp_config VALUES (:realm, :value, :name)"),
+            {"realm": realm, "name": name, "value": value},
+        )
+    for listener in ("jboss-logging", "email"):
+        connection.execute(
+            text("INSERT INTO realm_events_listeners VALUES (:realm, :value)"),
+            {"realm": realm, "value": listener},
+        )
+
+
+def _provider_person(
+    connection: Connection,
+    realm: str,
+    person: Person,
+    subject: str | None = None,
+    username: str | None = None,
+) -> None:
+    """Add a person to a realm, an attribute, a credential, and the events that name her.
+
+    Her identifier is ``subject``, one of her own if none; her user name ``username``, the first
+    part of her address if none.
+    """
     last_name, first_name, email = person
-    subject = str(uuid4())
+    subject = subject or str(uuid4())
+    username = username or email.partition("@")[0]
     connection.execute(
         text(
             "INSERT INTO user_entity VALUES (:id, :realm, :username, :email, :email, true,"
@@ -329,7 +431,7 @@ def _provider_person(connection: Connection, realm: str, person: Person) -> None
         {
             "id": subject,
             "realm": realm,
-            "username": email.partition("@")[0],
+            "username": username,
             "email": email,
             "first_name": first_name,
             "last_name": last_name,
@@ -393,6 +495,11 @@ def test_after_the_anonymisation_no_address_and_no_name_of_the_source_is_found_i
     # anonymisation. Proper to US-2960: « après l'anonymisation, une recherche des adresses et des
     # noms de la source dans les deux bases ne trouve rien ». The search reads every column of text
     # or of JSON of every table of each base, and finds them before, wherever they were copied.
+    # The administrators stay active, lest nobody enter the copy (WF-ADM-0120, #4068): they are
+    # found nowhere either, by their names nor by their addresses.
+    with Session(owner) as session:
+        held = administrators(session)
+    assert held
     needles = _needles(copy)
     assert {
         "public.user_account.last_name",
@@ -417,6 +524,8 @@ def test_after_the_anonymisation_no_address_and_no_name_of_the_source_is_found_i
     assert _anonymize(monkeypatch, database_url, provider) == 0
     assert found(owner, needles) == {}
     assert found(provider, needles) == {}
+    with Session(owner) as session:
+        assert administrators(session) == held
 
 
 @pytest.mark.story("US-2960")
@@ -430,7 +539,9 @@ def test_every_account_is_anonymised_and_the_journal_forgets_them_the_rest_kept(
     # Proper to US-2960: « les noms, les prénoms, les adresses électroniques et les avatars des
     # comptes sont remplacés, dans la base de Waterfall, journal d'audit compris […] ; les montants,
     # les projets et les dates restent ». Every other table holds what it held, row for row, and
-    # the journal its inscriptions, their labels of accounts but made null.
+    # the journal its inscriptions, their labels of accounts but made null. The administrators
+    # stay active, under an identity in the reserved domain, local, their sessions closed
+    # (WF-ADM-0120, #4068); every other account is anonymised and deactivated.
     kept = held_by_table(owner, but=CHANGED)
     with owner.connect() as connection:
         journal = _journal_but_labels(connection)
@@ -441,25 +552,48 @@ def test_every_account_is_anonymised_and_the_journal_forgets_them_the_rest_kept(
                 )
             ).all()
         )
+    with Session(owner) as session:
+        held = administrators(session)
     assert len(copy) > len(PERSONS)
     assert _anonymize(monkeypatch, database_url, provider) == 0
     assert held_by_table(owner, but=CHANGED) == kept
     with Session(owner) as session:
         accounts = session.scalars(select(UserAccount)).all()
         assert len(accounts) == len(copy) + len(anonymised_before)
+        others = [account for account in accounts if account.id not in held]
         assert {
             (account.last_name, account.first_name, account.email, account.avatar)
-            for account in accounts
+            for account in others
         } == {(None, None, None, None)}
-        assert {(account.state, account.avatar_media_type) for account in accounts} == {
+        assert {(account.state, account.avatar_media_type) for account in others} == {
             ("deactivated", None)
         }
+        administering = sorted(
+            (account for account in accounts if account.id in held), key=lambda each: each.id
+        )
+        assert [
+            (each.first_name, each.last_name, each.email, each.avatar, each.state, each.origin)
+            for each in administering
+        ] == [
+            (
+                "Administrator",
+                str(rank),
+                f"administrator-{each.id}@waterfall.test",
+                None,
+                "active",
+                "local",
+            )
+            for rank, each in enumerate(administering, start=1)
+        ]
+        assert all(each.anonymized_at is None for each in administering)
         # An account anonymised before keeps its date; the others are closed as of the run.
         assert anonymised_before <= {(each.id, each.anonymized_at) for each in accounts}
         before = {user_id for user_id, _ in anonymised_before}
-        now = [account for account in accounts if account.id not in before]
-        assert len(now) == len(copy)
+        now = [account for account in others if account.id not in before]
+        assert len(now) + len(administering) == len(copy)
         assert all(account.sessions_closed_at == account.anonymized_at for account in now)
+        closed = {account.sessions_closed_at for account in now}
+        assert {each.sessions_closed_at for each in administering} == closed
         named = session.scalars(
             select(AuditEntry.id).where(
                 or_(
@@ -492,14 +626,17 @@ def _journal_but_labels(connection: Connection) -> list[tuple[object, ...]]:
 @pytest.mark.story("US-2960")
 def test_the_provider_keeps_its_persons_by_their_subject_and_nothing_else_names_them(
     copy: list[Person],
+    owner: Engine,
     database_url: str,
     provider: Engine,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Proper to US-2960: in the base of the identity provider, a person keeps her identifier — the
     # subject Waterfall knows her by —, which becomes her user name; she is disabled, tied to no
-    # directory, and nothing else of the realm names her. The account of service of a client, and
-    # the persons of another realm, are left as they were.
+    # directory, and nothing else of the realm names her. An administrator Waterfall keeps is given
+    # the identity Waterfall gave it, its address as its user name, and stays enabled, without a
+    # password (#4068). The account of service of a client, and the persons of another realm, are
+    # left as they were.
     with provider.connect() as connection:
         others = _rows(connection, OTHERS)
         subjects = [row[0] for row in _rows(connection, PERSONS_OF_THE_REALM)]
@@ -507,11 +644,31 @@ def test_the_provider_keeps_its_persons_by_their_subject_and_nothing_else_names_
     assert len(subjects) == len(copy) + 1
     assert all(elsewhere)
     assert _anonymize(monkeypatch, database_url, provider) == 0
+    with Session(owner) as session:
+        held = administrators(session)
+        kept = {
+            account.idp_subject: (
+                account.idp_subject,
+                account.email,
+                account.email,
+                account.email,
+                True,
+                account.first_name,
+                account.last_name,
+                True,
+                None,
+            )
+            for account in session.scalars(select(UserAccount).where(UserAccount.id.in_(held)))
+        }
+    assert kept
+    anonymised = {
+        subject: (subject, subject, None, subject, False, None, None, False, None)
+        for subject in subjects
+    }
     with provider.connect() as connection:
         assert _rows(connection, OTHERS) == others
         assert _rows(connection, PERSONS_OF_THE_REALM) == [
-            (subject, subject, None, subject, False, None, None, False, None)
-            for subject in subjects
+            (anonymised | kept)[subject] for subject in subjects
         ]
         assert [_rows(connection, every) for every, _ in HELD] == elsewhere
 
@@ -621,13 +778,121 @@ def test_the_realm_of_the_administration_of_keycloak_is_refused(
     # Proper to US-2960: ``master`` holds the administrators of Keycloak, no installation's
     # persons; disabling them would leave Keycloak without a way to be administered. Named in the
     # settings, it stops the command at start, nothing changed (2).
-    with provider.begin() as connection:
-        connection.execute(text("INSERT INTO realm VALUES ('r-master', 'master')"))
-        _provider_person(connection, "r-master", ("Admin", "Keycloak", "admin@waterfall.test"))
     before = (held_by_table(owner), held_by_table(provider))
     assert _anonymize(monkeypatch, database_url, provider, realm="master") == 2
     assert "WATERFALL_KEYCLOAK_REALM: " in capsys.readouterr().err
     assert (held_by_table(owner), held_by_table(provider)) == before
+
+
+MASTER_PERSONS = text(
+    "SELECT username, email, email_constraint, first_name, last_name, enabled FROM user_entity"
+    " WHERE realm_id = 'r-master' ORDER BY id"
+)
+MASTER_NAMES = text("SELECT id, username FROM user_entity WHERE realm_id = 'r-master' ORDER BY id")
+MASTER_CREDENTIALS = text(
+    "SELECT credential.* FROM credential JOIN user_entity ON user_entity.id = user_id"
+    " WHERE user_entity.realm_id = 'r-master' ORDER BY credential.id"
+)
+MASTER_EVENTS = text(
+    "SELECT (SELECT count(*) FROM event_entity WHERE realm_id = 'r-master'),"
+    " (SELECT count(*) FROM admin_event_entity WHERE realm_id = 'r-master')"
+)
+
+
+@pytest.mark.requirement("WF-EXP-0010-A")
+@pytest.mark.story("US-2960")
+def test_the_administrators_of_keycloak_keep_no_address_and_no_name_of_the_source(
+    copy: list[Person],
+    database_url: str,
+    provider: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # « Aucun environnement hors production ne contient une adresse électronique réelle, hors
+    # l'environnement isolé du test de restauration. » : the realm ``master`` of the copy, which
+    # administers Keycloak, holds the addresses of its administrators, and its events copy them
+    # (#5048). They lose their names and their addresses — the user name that is an address too —,
+    # and their events go; their credentials stay, and a user name that is no address, which
+    # ``keycloak-realm`` gives the password of the environment back by.
+    assert copy
+    addresses = {email for _, _, email, _ in ADMINISTERING}
+    assert {
+        "public.user_entity.username",
+        "public.user_entity.email",
+        "public.user_entity.email_constraint",
+        "public.event_entity.details_json",
+    } <= set(found(provider, addresses))
+    with provider.connect() as connection:
+        named = [
+            (str(subject), str(username)) for subject, username in connection.execute(MASTER_NAMES)
+        ]
+        credentials = _rows(connection, MASTER_CREDENTIALS)
+    assert sorted(username for _, username in named) == sorted(
+        username for *_, username in ADMINISTERING
+    )
+    assert len(credentials) == len(ADMINISTERING)
+    assert _anonymize(monkeypatch, database_url, provider) == 0
+    assert found(provider, addresses) == {}
+    with provider.connect() as connection:
+        assert _rows(connection, MASTER_PERSONS) == [
+            (subject if "@" in username else username, None, subject, None, None, True)
+            for subject, username in named
+        ]
+        assert connection.execute(MASTER_EVENTS).one() == (0, 0)
+        assert _rows(connection, MASTER_CREDENTIALS) == credentials
+
+
+@pytest.mark.story("US-2960")
+def test_no_realm_keeps_its_mail_server_nor_its_listeners_of_events(
+    copy: list[Person],
+    database_url: str,
+    provider: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Proper to US-2960 (#5048): opened, a copy that kept the mail server of the production would
+    # send real mails by its relay, with its account. Every realm loses its mail server and its
+    # listeners of events, the one that mails among them; the relay is found nowhere after.
+    assert copy
+    with provider.connect() as connection:
+        assert all(_rows(connection, query) for query in SILENCED)
+    assert set(found(provider, {RELAY})) == {"public.realm_smtp_config.value"}
+    assert _anonymize(monkeypatch, database_url, provider) == 0
+    with provider.connect() as connection:
+        assert [_rows(connection, query) for query in SILENCED] == [[], []]
+    assert found(provider, {RELAY}) == {}
+
+
+@pytest.mark.story("US-2960")
+@pytest.mark.usefixtures("copy")
+def test_the_command_writes_the_administrators_it_keeps_and_where_their_link_is_had(
+    owner: Engine,
+    database_url: str,
+    provider: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Proper to US-2960 (#4068): nothing is mailed to the administrators kept, whose addresses
+    # reach nobody; the command writes their addresses for the operator, the installation
+    # administrator's with the command that writes its link, the bootstrap's (WF-EXP-0020).
+    capsys.readouterr()
+    assert _anonymize(monkeypatch, database_url, provider) == 0
+    lines = capsys.readouterr().out.splitlines()
+    with Session(owner) as session:
+        held = administrators(session)
+        addresses = dict(
+            session.execute(
+                select(UserAccount.id, UserAccount.email).where(UserAccount.id.in_(held))
+            ).all()
+        )
+        installation = session.get(Installation, THE_ROW)
+        assert installation is not None
+        installer = read_installation_administrator(session, installation.installed_at)
+    assert installer is not None
+    assert installer.user_id in held
+    assert lines[0].startswith(f"waterfall-restore {anonymization.COMMAND}: ")
+    assert sorted(lines[1:]) == sorted(
+        f"{email}{anonymization.INSTALLATION_NOTE if user_id == installer.user_id else ''}"
+        for user_id, email in addresses.items()
+    )
 
 
 @pytest.mark.story("US-2960")
