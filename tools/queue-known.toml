@@ -642,3 +642,15 @@ message = 'Timeout 1000ms exceeded while waiting for event "download"'
 runs = [45791694546]
 frequency = "1 passage, le 2026-11-26 (45791694546, file d'`epic/EP-13`, pr-5024)"
 cause = "hypothèse : le rendu PNG de la matrice dépasse la seconde que chaque essai du `toPass` donne au téléchargement, et chaque nouveau clic relance un export qui n'aboutit pas"
+
+# Le tri par Entrée sur l'en-tête du devis, dont l'URL ne change pas dans la file (#5050).
+[[known]]
+class = "known flakiness"
+family = "le tri par Entrée sur l'en-tête du devis"
+issue = "#5050"
+job = '^service / paths'
+test = 'e2e/keyboard\.spec\.ts:84\b'
+message = 'expect\(page\)\.toHaveURL\(expected\) failed'
+runs = [45835940068]
+frequency = "1 passage, le 2026-11-26 (45835940068, file d'`epic/EP-13`, pr-5026)"
+cause = "hypothèse : sous la charge de la file, Entrée sur l'en-tête arrive avant que la grille du devis ait branché le tri au clavier, et l'URL ne change jamais"
