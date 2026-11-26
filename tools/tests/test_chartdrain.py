@@ -5,8 +5,8 @@
 A pod being removed leaves the Services and the ingress a moment after it is told to stop: until
 then they still send it requests. Each container that serves one waits that moment before it is
 stopped, then ends what it serves within the grace of its pod; and an upgrade makes the new
-instance ready before it removes an old one. That no request fails is held on a cluster by the trial
-of an upgrade under load (US-2850/L2b). Selected by the marker ``chart`` (``make
+instance ready before it removes an old one. That no request fails is held on a cluster, by ``make
+chart-upgrade`` in the full tier (wftools.chartupgrade). Selected by the marker ``chart`` (``make
 test-chart``): they need Helm, which the tools leave out.
 """
 

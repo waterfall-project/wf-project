@@ -93,8 +93,8 @@ imagePullSecrets:
 (US-2850, WF-EXP-0030): once its pod is ending, the Services and the ingress stop sending it
 requests, but each learns it from the cluster a moment later, and sends some until then. The
 container waits that moment before it is stopped, then its server ends the requests it holds,
-within the grace of its pod. Without it, the trial of an upgrade under load (US-2850/L2b) saw 7
-requests of 450 answered 502; with it, none in three passages. The worker has none: stopped, its task is taken again. */}}
+within the grace of its pod. Without it, make chart-upgrade saw 7 requests of 450 answered 502 by an
+upgrade; with it, none in three passages. The worker has none: stopped, its task is taken again. */}}
 {{- define "waterfall.drain" -}}
 lifecycle:
   preStop:
