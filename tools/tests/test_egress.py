@@ -378,4 +378,7 @@ def test_grafana_left_to_its_defaults_is_caught_asking_for_grafana_com(
     found = network.asked()
     assert found
     assert {attempt.client for attempt in found} == {network.address_of(grafana)}
-    assert all(attempt.name.endswith("grafana.com") for attempt in found)
+    # Each name is Grafana's: grafana.com or a subdomain, or grafana.com followed by a search domain
+    # of the host's resolver (a runner's), which the container tries before the name alone.
+    names = [attempt.name for attempt in found]
+    assert all(f".{name}.".find(".grafana.com.") >= 0 for name in names), names
