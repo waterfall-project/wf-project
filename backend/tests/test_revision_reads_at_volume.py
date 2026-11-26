@@ -5,7 +5,9 @@
 ``test_partitions`` holds it for ``cost_structure`` (EP-04, US-0910); here it is held for every
 table the catalog says is revised, those the EPICs created since included, found in the catalog
 rather than in a list: a revised table added later without its partition, or partitioned on
-another key, fails the first two tests, naming it.
+another key, fails the first two tests, naming it. The second explains, for each, the shape of a
+reading of a revision (its project, and its revision when the table names one): it holds the schema
+and that shape, not the statements of the code (issue #5076).
 
 The duration of a reading is not read on a clock, which a loaded runner moves by more than the
 effect looked for. A reading's work is the pages it touches (``EXPLAIN (ANALYZE, BUFFERS)``: hits
@@ -27,7 +29,18 @@ from project_rows import (
     insert_structure,
     projects_with_partitions,
 )
-from sqlalchemy import String, bindparam, column, func, insert, literal_column, select, table, text
+from sqlalchemy import (
+    ARRAY,
+    String,
+    bindparam,
+    column,
+    func,
+    insert,
+    literal_column,
+    select,
+    table,
+    text,
+)
 
 from waterfall.core.planning.tables import Node
 from waterfall.migrations.runner import upgrade
@@ -49,6 +62,28 @@ NODES = 100
 # added later is partitioned, or named here with its reason.
 NOT_PARTITIONED = frozenset({"revision", "project", "undo_entry", "paste_plan", "import_report"})
 
+# The revised tables, partitioned by project: the catalog must give exactly these, so that a new one
+# is named here, and a table that lost its partitioning is not unnoticed.
+PARTITIONED_REVISED = frozenset(
+    {
+        "cost_structure",
+        "estimate_line",
+        "node",
+        "revision_calendar",
+        "revision_category",
+        "revision_indicator",
+        "revision_rate",
+        "revision_role",
+        "risk_evaluation",
+        "risk_reference_share",
+        "risk_review",
+        "structure_reading",
+        "task",
+        "task_link",
+        "task_link_conflict",
+    }
+)
+
 PARTITIONED = text(
     "SELECT parent.relname, attribute.attname, partitioned.partstrat, partitioned.partnatts "
     "FROM pg_partitioned_table AS partitioned "
@@ -66,8 +101,16 @@ REVISED = text(
     "EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = relation.oid "
     "AND attname = 'revision_id' AND NOT attisdropped) "
     "OR EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = relation.oid AND contype = 'f' "
-    "AND confrelid = 'revision'::regclass)) ORDER BY 1"
+    "AND (confrelid = 'revision'::regclass "
+    "OR confrelid IN (SELECT partrelid FROM pg_partitioned_table)))) ORDER BY 1"
 )
+# The tables, among those given, that carry a column of the revision: those a reading of a revision
+# names it on, the others being read by their project alone.
+WITH_REVISION_COLUMN = text(
+    "SELECT attrelid::regclass::text FROM pg_attribute WHERE attname = 'revision_id' "
+    "AND NOT attisdropped AND attrelid = ANY (SELECT oid FROM pg_class WHERE relname = ANY(:names) "
+    "AND relnamespace = 'public'::regnamespace)"
+).bindparams(bindparam("names", type_=ARRAY(String)))
 
 
 def partitioned_by_project(connection: Connection) -> list[str]:
@@ -114,11 +157,21 @@ def test_every_table_a_revision_names_is_partitioned_by_project_or_is_the_revisi
     with owner.connect() as connection:
         partitioned = set(partitioned_by_project(connection))
         revised = set(connection.scalars(REVISED))
+        existing = set(
+            connection.scalars(text("SELECT relname FROM pg_class WHERE relkind IN ('r', 'p')"))
+        )
     assert revised - NOT_PARTITIONED <= partitioned, (
         f"partition by project the tables {sorted(revised - NOT_PARTITIONED - partitioned)}"
     )
-    assert "cost_structure" in partitioned
-    assert len(partitioned) >= 15
+    # An exemption of a table gone, or partitioned since, is stale and fails.
+    assert existing >= NOT_PARTITIONED, f"drop the exemptions {sorted(NOT_PARTITIONED - existing)}"
+    assert not NOT_PARTITIONED & partitioned, (
+        f"drop the exemptions of the partitioned {sorted(NOT_PARTITIONED & partitioned)}"
+    )
+    assert partitioned == PARTITIONED_REVISED, (
+        f"name the new {sorted(partitioned - PARTITIONED_REVISED)}, "
+        f"drop the gone {sorted(PARTITIONED_REVISED - partitioned)}"
+    )
 
 
 def test_the_plan_of_a_reading_of_a_revised_table_reads_the_partition_of_its_project_alone(
@@ -126,19 +179,26 @@ def test_the_plan_of_a_reading_of_a_revised_table_reads_the_partition_of_its_pro
 ) -> None:
     # « Le plan d'exécution d'une lecture de révision ne parcourt que la partition du projet. »
     # For each partitioned table the catalog lists, three projects holding their partitions: the
-    # plan of the reading of the first reads the partition of the first and none of the others, and
-    # the partition is there, which a table the function does not partition for the project is
-    # not.
+    # plan of the reading of the first, by its project and by a revision it holds when the table
+    # names one, reads the partition of the first and none of the others, and the partition is
+    # there, which a table the function does not partition for the project is not. The test holds
+    # the schema and the shape of a reading of a revision, not the statements of the code, which
+    # issue #5076 follows.
     del database
-    with projects_with_partitions(owner, 3) as projects, owner.connect() as connection:
+    with projects_with_partitions(owner, 3) as projects, owner.begin() as connection:
         first = projects[0]
-        for name in partitioned_by_project(connection):
-            reading = str(
-                select(literal_column("*", String))
-                .select_from(table(name))
-                .where(column("project_id") == bindparam("project"))
-            )
-            plan = plan_tree(connection, reading, project=first)
+        revision = uuid4()
+        connection.execute(insert_revision(first, id=revision))
+        names = partitioned_by_project(connection)
+        revised = set(connection.scalars(WITH_REVISION_COLUMN, {"names": names}))
+        for name in names:
+            reading = select(literal_column("*", String)).select_from(table(name))
+            reading = reading.where(column("project_id") == bindparam("project"))
+            values = {"project": first}
+            if name in revised:
+                reading = reading.where(column("revision_id") == bindparam("revision"))
+                values["revision"] = revision
+            plan = plan_tree(connection, str(reading), **values)
             assert relations(plan) == {f"{name}_p_{first.hex}"}, name
 
 
