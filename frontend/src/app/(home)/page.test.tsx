@@ -55,7 +55,13 @@ vi.mock("@/components/projects/project-list-view", async (original) => {
     },
   };
 });
-// `redirect` as Next has it, which the tests of the home that leads nowhere watch.
+// `redirect` as Next has it, which the tests of the home that leads nowhere watch. The count is
+// proven by a mutation (#3131, US-3030): a `redirect("/")` added to the path of an account without
+// the permission to read a project fails the tests of that path — thrown, by the error of Next, six
+// tests (the five of that path that follow the first, and that of the account without a function);
+// caught on its way by a try/catch, by the count alone, the HTML being the same: the two tests that
+// state `redirected.calls` (« says that the account opens no project… » and « says that the
+// account has no role yet when it holds no function at all »).
 const redirected = vi.hoisted(() => ({ calls: 0 }));
 vi.mock("next/navigation", async (original) => {
   const actual = await original<typeof import("next/navigation")>();

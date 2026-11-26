@@ -12,6 +12,7 @@ import {
   editableDecimal,
   editablePercent,
   formatBytes,
+  formatConjunction,
   formatDecimal,
   formatLocale,
   formatMoney,
@@ -430,6 +431,15 @@ describe("the formatters of Intl", () => {
     expect(days[199]).toBe("30 Jun 2026");
     expect(numbers.mock.calls.length).toBeLessThanOrEqual(1);
     expect(dates.mock.calls.length).toBeLessThanOrEqual(1);
+  });
+
+  it("join a list once built for a language, then kept for every cell of the log that lists (#964) [US-3030]", () => {
+    const lists = vi.spyOn(Intl, "ListFormat");
+    const joined = Array.from({ length: 200 }, () => formatConjunction(["a", "b", "c"], "fr"));
+    expect(joined[199]).toBe("a, b et c");
+    expect(formatConjunction(["a", "b", "c"], "en")).toBe("a, b and c");
+    expect(formatConjunction(["a", "b", "c"], "en")).toBe("a, b and c");
+    expect(lists.mock.calls.length).toBeLessThanOrEqual(2);
   });
 
   it("are kept apart for each language, each number of decimals and each currency", () => {

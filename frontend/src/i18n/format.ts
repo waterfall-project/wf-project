@@ -49,6 +49,7 @@ export function formatLocale(locale: Locale): string {
 /** The formatters built, by language and options: a few dozen at most, never let go. */
 const numberFormats = new Map<string, Intl.NumberFormat>();
 const dateFormats = new Map<string, Intl.DateTimeFormat>();
+const listFormats = new Map<string, Intl.ListFormat>();
 
 /** The formatter of `Intl` kept for a language and options, built at its first use. */
 function kept<O extends object, F>(
@@ -82,6 +83,17 @@ function dateFormat(
   options: Intl.DateTimeFormatOptions & { readonly timeZone: string },
 ): Intl.DateTimeFormat {
   return kept(dateFormats, (tag, given) => new Intl.DateTimeFormat(tag, given), locale, options);
+}
+
+/**
+ * Items joined as the language of the reader joins them — « a, b et c », "a, b and c" —, by a
+ * formatter kept once built: a cell of a grid lists at each of its renderings (#964).
+ */
+export function formatConjunction(items: readonly string[], locale: Locale): string {
+  const options: Intl.ListFormatOptions = { type: "conjunction" };
+  return kept(listFormats, (tag, given) => new Intl.ListFormat(tag, given), locale, options).format(
+    items,
+  );
 }
 
 type Decimal = components["schemas"]["Decimal"];
