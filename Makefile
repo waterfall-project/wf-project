@@ -25,7 +25,7 @@ COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
 # Prism is named at the version pinned below: the proxy of `make e2e-service` runs it too. The
 # platform runs under the project of the slot of the worktree (WATERFALL_SERVICE_PROJECT, below).
 # WATERFALL_KEYCLOAK_LOADED=1 says the image of Keycloak was loaded (load-keycloak): the platform then
-# starts it as it is and never builds it again (service.yml, #4790).
+# starts it as it is and never builds it again (ci.yml builds it, service.yml loads it, #4790).
 COMPOSE_SERVICE_FILE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compose/compose.service.yaml \
 	$(if $(WATERFALL_KEYCLOAK_LOADED),-f deploy/compose/compose.keycloak-loaded.yaml)
 COMPOSE_SERVICE = $(COMPOSE_SERVICE_FILE) -p $(WATERFALL_SERVICE_PROJECT)
@@ -520,9 +520,10 @@ lint-compose: ## Validate the Compose files
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
 	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR $(call build-cache-from,keycloak) --tag $(WATERFALL_KEYCLOAK_IMAGE) deploy/keycloak
 
-# The image of Keycloak built once in the run of the chain, by one job (service.yml, #4790): the Maven
-# downloads of its build are made there and nowhere else. save-keycloak writes it to KEYCLOAK_ARCHIVE,
-# which the job uploads; load-keycloak reads it in each part of the paths, which then start the
+# The image of Keycloak built once in the run of the chain, by one job (keycloak-image, in ci.yml, #4790): the
+# Maven downloads of its build are made there and nowhere else. save-keycloak writes it to
+# KEYCLOAK_ARCHIVE, which the job uploads; load-keycloak reads it in each part of the paths
+# (service.yml), which then start the
 # platform with WATERFALL_KEYCLOAK_LOADED=1, so that Compose does not build it again.
 KEYCLOAK_ARCHIVE ?= $(or $(RUNNER_TEMP),/tmp)/keycloak-image.tar
 

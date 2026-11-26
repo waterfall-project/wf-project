@@ -45,9 +45,16 @@ CAPACITIES = ("WATERFALL_DATABASE_CAPACITY_BYTES", "WATERFALL_STORAGE_CAPACITY_B
 DEFAULTED = re.compile(r"^\$\{(WATERFALL_[A-Z0-9_]+):-([^}]*)\}$")
 
 
+class ComposeLoader(yaml.SafeLoader):
+    """A safe loader that knows Compose's `!reset` tag (compose.keycloak-loaded.yaml)."""
+
+
+ComposeLoader.add_constructor("!reset", lambda _loader, _node: None)
+
+
 def services(path: Path = PRODUCTION) -> dict[str, Any]:
-    """Read the services of a Compose file, its `!reset` tag (keycloak-loaded) cleared."""
-    return yaml.safe_load(path.read_text(encoding="utf-8").replace("!reset", ""))["services"]
+    """Read the services of a Compose file, its `!reset` tag read as None."""
+    return ComposeLoader(path.read_text(encoding="utf-8")).get_single_data()["services"]
 
 
 def environment(service: str, path: Path = PRODUCTION) -> dict[str, str]:

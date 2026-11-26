@@ -462,8 +462,8 @@ cause = "hypothèse : la construction d'une image tire apt faute de cache de cou
 
 # Maven Central, à la résolution du greffon `dependency` de `make build-keycloak` (#4790). Depuis la
 # construction unique, le job `keycloak-image` de ci.yml la porte ; `service / paths` est gardé pour
-# classer les passages d'avant. Pas de
-# `runs` : il limiterait l'entrée aux passages nommés, et elle doit classer aussi les suivants.
+# classer les passages d'avant. Pas de `runs` : il limiterait l'entrée aux passages nommés, et elle
+# doit classer aussi les suivants.
 [[known]]
 class = "infrastructure"
 family = "Maven Central, greffons de build-keycloak"
