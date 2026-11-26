@@ -128,8 +128,9 @@ test("a person new to an external provider, who holds no role, signs in to the h
   request,
 }) => {
   const external = await newToTheProvider(request);
-  const page = await workstation(browser);
+  let page: Page | undefined;
   try {
+    page = await workstation(browser);
     await signIn(page, external, "/");
     expect(waterfallAccount(external.email)?.roles).toBe(0);
     await expect(
@@ -142,8 +143,11 @@ test("a person new to an external provider, who holds no role, signs in to the h
     await expect(page.getByRole("main").getByRole("link")).toHaveCount(0);
     await expect(page).toHaveURL("/");
   } finally {
-    await page.context().close();
-    await removeFromTheProvider(request, external);
+    try {
+      await page?.context().close();
+    } finally {
+      await removeFromTheProvider(request, external);
+    }
   }
 });
 
