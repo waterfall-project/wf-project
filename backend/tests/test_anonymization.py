@@ -33,7 +33,15 @@ from waterfall.core.users.interface import (
     record_report,
 )
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.audit import AuditActor, AuditEntry, AuditObject, Inscription, record
+from waterfall.platform.audit import (
+    ACCOUNT_KINDS,
+    AuditActor,
+    AuditEntry,
+    AuditObject,
+    AuditProject,
+    Inscription,
+    record,
+)
 from waterfall.platform.installation import THE_ROW, Installation
 from waterfall.platform.logs import logging_context
 from waterfall.platform.tasks import BackgroundTask
@@ -357,12 +365,20 @@ def _administrators(connection: Connection, administration: UUID) -> None:
 
 
 def _journal(connection: Connection, accounts: list[UUID]) -> None:
-    """Inscribe the first person as the author of a change of each person, herself included."""
+    """Inscribe the first person as the author of a change of each person, herself included.
+
+    And of each person made project manager of a project, the contributor named by her account
+    (WF-SEC-0030, #4127): the journal names her as its object there too.
+    """
+    project = AuditProject(uuid4(), "PRJ-001", "Projet copié")
     with _session(connection) as session, logging_context(correlation_id=CORRELATION):
         author = AuditActor(accounts[0], f"{PERSONS[0][1]} {PERSONS[0][0]}")
         for audited, (last_name, first_name, _) in zip(accounts, PERSONS, strict=True):
-            changed = AuditObject("user", audited, f"{first_name} {last_name}")
+            name = f"{first_name} {last_name}"
+            changed = AuditObject("user", audited, name)
             record(session, Inscription("user_update", author, changed, AT))
+            manager = AuditObject("contributor", audited, name)
+            record(session, Inscription("project_manager_add", author, manager, AT, project))
         session.commit()
 
 
@@ -598,7 +614,8 @@ def test_every_account_is_anonymised_and_the_journal_forgets_them_the_rest_kept(
             select(AuditEntry.id).where(
                 or_(
                     AuditEntry.actor_display_name.is_not(None),
-                    (AuditEntry.object_kind == "user") & AuditEntry.object_label.is_not(None),
+                    AuditEntry.object_kind.in_(ACCOUNT_KINDS)
+                    & AuditEntry.object_label.is_not(None),
                 )
             )
         ).all()
