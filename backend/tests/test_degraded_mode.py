@@ -13,6 +13,9 @@ The three sentences of the Vérif of WF-EXP-0040-A come first, then each line of
 (``make e2e-service``), which no gate stands in for.
 """
 
+import dataclasses
+import socket
+import time
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -45,7 +48,9 @@ from waterfall.api.contract.models import PlatformComponent
 from waterfall.api.status import StatusSources
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
+from waterfall.platform.database import CONNECT_TIMEOUT, Database, create_database_engine
 from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.platform.maintenance import Maintenance
 from waterfall.platform.metrics import COMPONENT_UP
 from waterfall.platform.prometheus import Prometheus
 from waterfall.platform.settings import OperatingParameters
@@ -63,7 +68,6 @@ if TYPE_CHECKING:
     from realm import TestRealm
     from sqlalchemy import Engine
 
-    from waterfall.platform.database import Database
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.settings import ServiceSettings
     from waterfall.platform.storage import Bucket
@@ -466,6 +470,33 @@ def test_a_request_met_by_a_postgresql_that_stopped_logs_the_cause_in_a_line(
     assert written["error"]
     assert written["reason"]
     assert "\n" not in written["reason"]
+
+
+@pytest.mark.requirement("WF-EXP-0040-A")
+def test_a_request_met_by_a_database_that_takes_the_connection_and_never_answers_waits_once(
+    platform: Degradable, stage: Scene
+) -> None:
+    # #4710: the read of the maintenance meets the silence first and says 503 ``database`` itself;
+    # it is no longer read as no maintenance, for the route to wait the same time again.
+    with socket.socket() as mute:
+        mute.bind(("127.0.0.1", 0))
+        mute.listen()
+        address = f"postgresql://nobody:nothing@127.0.0.1:{mute.getsockname()[1]}/nowhere"
+        unreached = Database(create_database_engine(address))
+        served = dataclasses.replace(
+            platform.services,
+            database=unreached,
+            maintenance=Maintenance.of(unreached, platform.services.queue),
+        )
+        api = TestClient(create_app(served), raise_server_exceptions=False)
+        began = time.monotonic()
+        try:
+            answer = api.get(PROJECTS, headers=stage.manager.headers)
+        finally:
+            unreached.dispose()
+        elapsed = time.monotonic() - began
+    refused_naming(answer, "database")
+    assert CONNECT_TIMEOUT <= elapsed < CONNECT_TIMEOUT + 1
 
 
 @pytest.mark.story("US-2860")
