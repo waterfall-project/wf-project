@@ -387,6 +387,43 @@ def test_a_keycloak_whose_server_version_is_not_a_version_fails_saying_it_did_no
 
 @pytest.mark.requirement("WF-CMP-0020-A")
 @pytest.mark.usefixtures("check_settings")
+def test_a_keycloak_out_of_reach_fails_saying_so_and_the_others_are_still_said(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("WATERFALL_KEYCLOAK_ADDRESS", f"http://127.0.0.1:{free_port()}/auth")
+    monkeypatch.setenv("WATERFALL_REDIS_URL", "gopher://nowhere:1")
+    monkeypatch.setattr(components_check, "database_state", server_state(170_000, LOCKS))
+    assert components_check.main([]) == 1
+    error = capsys.readouterr().err
+    assert "Keycloak does not answer as expected: UnavailableError (WF-CMP-0020)" in error
+    assert "Redis does not answer" in error
+    assert "PostgreSQL 17 is not" in error
+    assert "Traceback" not in error
+
+
+@pytest.mark.requirement("WF-CMP-0020-A")
+@pytest.mark.usefixtures("check_settings")
+def test_a_keycloak_that_fails_with_503_fails_saying_so_and_the_others_are_still_said(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def unavailable_answer(self: Keycloak) -> None:
+        self.send_response(503)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    monkeypatch.setattr(Keycloak, "do_POST", unavailable_answer)
+    monkeypatch.setenv("WATERFALL_REDIS_URL", "gopher://nowhere:1")
+    monkeypatch.setattr(components_check, "database_state", server_state(170_000, LOCKS))
+    assert components_check.main([]) == 1
+    error = capsys.readouterr().err
+    assert "Keycloak does not answer as expected: UnavailableError (WF-CMP-0020)" in error
+    assert "Redis does not answer" in error
+    assert "PostgreSQL 17 is not" in error
+    assert "Traceback" not in error
+
+
+@pytest.mark.requirement("WF-CMP-0020-A")
+@pytest.mark.usefixtures("check_settings")
 def test_a_redis_address_of_an_unknown_scheme_fails_saying_so_not_by_a_traceback(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

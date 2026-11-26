@@ -31,6 +31,7 @@ from waterfall.platform.components import (
     redis_faults,
 )
 from waterfall.platform.database import Database, create_database_engine
+from waterfall.platform.errors import UnavailableError
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.settings import ComponentsSettings, SettingsError, load_components_settings
@@ -87,7 +88,15 @@ def check_keycloak(settings: ComponentsSettings) -> tuple[str, list[str]]:
     keycloak = Keycloak(settings, timeout=WAIT_SECONDS)
     try:
         version = KeycloakAdmin(keycloak, settings).server_version()
-    except (IdentityProviderError, httpx2.HTTPError, KeyError, ValueError, TypeError) as error:
+    except (
+        UnavailableError,
+        IdentityProviderError,
+        httpx2.HTTPError,
+        KeyError,
+        ValueError,
+        TypeError,
+    ) as error:
+        # ``Keycloak.send`` gives a Keycloak that is unreachable, or fails (5xx), as unavailable.
         return "Keycloak", [f"Keycloak does not answer as expected: {type(error).__name__}"]
     finally:
         keycloak.close()
