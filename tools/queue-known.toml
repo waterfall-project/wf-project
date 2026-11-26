@@ -607,3 +607,15 @@ message = 'Exception ignored while finalizing socket <ssl\.SSLSocket'
 runs = [45100723995]
 frequency = "1 passage, le 2026-11-23 (45100723995, #4776)"
 cause = "hypothèse : une connexion TLS vers Keycloak laissée ouverte par un test précédent est finalisée pendant celui-ci"
+
+# Un export téléchargé en entier par le relais du front reste non consommé, depuis US-3020/L3 (#4985).
+[[known]]
+class = "regression"
+family = "export consommé après le relais"
+issue = "#4985"
+job = '^service / paths'
+test = 'e2e/(exchanges\.spec\.ts:286|tasks\.spec\.ts:250)\b'
+message = 'toBeNull\(\)'
+runs = [45723233011, 45725156575, 45729314979]
+frequency = "3 passages de suite, le 2026-11-25 et le 26 (45723233011 et 45725156575, #4980 ; 45729314979, #4983), tous depuis 80393b58a (#4978)"
+cause = "hypothèse : `DeliveredResponse` (api/exports.py, #4978) tient pour coupée une réponse dont le relais du front ferme la connexion avant le retour du `send` du dernier message, et ne consomme pas le résultat"
