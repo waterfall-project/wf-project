@@ -281,6 +281,10 @@ paths = [
     "deploy/compose/compose.prod.local.yaml",
     # The registry the trial pushes the images built here to, and starts the platform from.
     "deploy/compose/compose.registry.local.yaml",
+    # The networks without a way out the trial runs it on, and the sink of the names asked from
+    # inside, which the trial reads at its end (US-3010).
+    "deploy/compose/compose.isolated.yaml",
+    "tools/src/wftools/egress.py",
     "deploy/compose/Caddyfile.prod",
     "deploy/compose/production.env.example",
     # The encryption between its services (US-2840): the proxy of the storage, the access to
@@ -392,6 +396,8 @@ paths = [
     "tools/src/wftools/charttrial.py",
     "tools/src/wftools/chartupgrade.py",
     "tools/src/wftools/production.py",
+    # What production.py reads the sink of the names by (US-3010).
+    "tools/src/wftools/egress.py",
     "tools/src/wftools/trialregistry.py",
     "tools/src/wftools/restoration_trial.py",
     "tools/src/wftools/restoretest_trial.py",

@@ -251,7 +251,8 @@ def test_the_environment_of_compose_takes_the_defaults_of_a_local_trial() -> Non
         "WATERFALL_DATABASE_CAPACITY_BYTES": "10737418240",
     }
     command = production.compose_command("p")
-    assert command[-4:] == ["--file", str(PRODUCTION), "--file", str(LOCAL)]
+    # Then the networks without a way out of the trial (US-3010, test_isolated.py).
+    assert command[-6:-2] == ["--file", str(PRODUCTION), "--file", str(LOCAL)]
 
 
 TAG = "0123456789abcdef0123456789abcdef01234567"

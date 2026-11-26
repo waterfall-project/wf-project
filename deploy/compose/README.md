@@ -42,6 +42,10 @@ Il faut :
   Caddy y renvoie tout vers HTTPS ;
 - ce répertoire, `deploy/compose`, copié sur la machine — ou le dépôt cloné.
 
+Sur un réseau sans accès à Internet, les images viennent d'un registre interne, et les noms du
+serveur de messagerie, de l'autorité de certification et du serveur de temps sont ceux du réseau :
+[`docs/exploitation/reseau-isole.md`](../../docs/exploitation/reseau-isole.md) dit comment.
+
 Puis :
 
 1. Choisir l'étiquette des images : une version publiée (`0.1.0`), l'empreinte entière d'un commit
