@@ -553,14 +553,8 @@ def service_environment(service_database_url: str, redis_url: str) -> dict[str, 
 TEST_STORAGE_VARIABLE = "WATERFALL_TEST_STORAGE_URL"
 
 
-@pytest.fixture(scope="session")
-def backups_bucket() -> Iterator[Bucket]:
-    """Give a bucket of its own on the object storage of the tests, emptied and deleted after them.
-
-    ``WATERFALL_TEST_STORAGE_URL`` designates the storage and the key of the tests, as
-    ``http://<key>:<secret>@<host>:<port>``; without it, a test that needs the storage fails and
-    says so: no other stands in for it.
-    """
+def _bucket_of_tests() -> Iterator[Bucket]:
+    """Create a bucket on the object storage of the tests, emptied and deleted after its use."""
     address = os.environ.get(TEST_STORAGE_VARIABLE)
     if not address:
         pytest.fail(
@@ -577,6 +571,23 @@ def backups_bucket() -> Iterator[Bucket]:
     for listed in bucket.client.list_objects_v2(Bucket=name).get("Contents", []):
         bucket.client.delete_object(Bucket=name, Key=listed.get("Key", ""))
     bucket.client.delete_bucket(Bucket=name)
+
+
+@pytest.fixture(scope="session")
+def backups_bucket() -> Iterator[Bucket]:
+    """Give a bucket of its own on the object storage of the tests, emptied and deleted after them.
+
+    ``WATERFALL_TEST_STORAGE_URL`` designates the storage and the key of the tests, as
+    ``http://<key>:<secret>@<host>:<port>``; without it, a test that needs the storage fails and
+    says so: no other stands in for it. The bucket is shared by the tests of a worker.
+    """
+    yield from _bucket_of_tests()
+
+
+@pytest.fixture
+def private_bucket() -> Iterator[Bucket]:
+    """Give a bucket for one test alone, for an assertion on all of what a bucket holds."""
+    yield from _bucket_of_tests()
 
 
 @pytest.fixture

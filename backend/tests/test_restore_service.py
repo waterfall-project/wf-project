@@ -664,7 +664,9 @@ def test_a_restoration_whose_attempts_are_spent_replacing_keeps_the_maintenance_
     assert service.restorer.step()
     assert service.maintenance.current() is None
     assert service.api.get(LIVENESS).json() == {"status": "ok"}
-    assert read_task(installation, answer.json()["task_id"]).status == "succeeded"
+    again = read_task(installation, answer.json()["task_id"])
+    # The problem ``fail_pending`` set when it was abandoned is gone once the task succeeds (#4768).
+    assert (again.status, again.problem) == ("succeeded", None)
 
 
 @pytest.mark.story("US-2940")
@@ -692,6 +694,36 @@ def test_a_maintenance_held_without_its_state_is_given_up_and_kept_for_the_opera
     (failed,) = logs.named("task.failed")
     assert (failed["reason"], failed["databases_changed"]) == ("no_state", True)
     assert service.provider.steps == []
+
+
+@pytest.mark.story("US-2940")
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_maintenance_given_up_without_its_state_is_given_up_again_when_the_operator_restarts_it(
+    installation: Installation, service: Service, logs: Logs
+) -> None:
+    # #4769: the recourse of the README restarts an abandoned restoration; one held without its
+    # state has a payload of nothing, and nothing says what to restore. The service gives it up
+    # again, cleanly — its maintenance kept, no attempt run, no step asked of Keycloak.
+    task_id = written_task(installation.database, "restore", "running")
+    service.maintenance.hold(Restoring(task_id, {}, None, "request-3f6a", 1))
+    owner = create_database_engine(installation.owner["waterfall"])
+    with owner.begin() as connection:
+        connection.execute(text("DELETE FROM platform.restoration"))
+    owner.dispose()
+    service.restorer.queue.deposit(task_id)
+    service.restorer.redeposit()
+    held = service.maintenance.current()
+    assert held is not None
+    assert (held.abandoned, held.payload) == (True, {})
+    operated(installation, RESTORE_AGAIN)
+    service.restorer.redeposit()
+    assert service.restorer.step()
+    again = service.maintenance.current()
+    assert again is not None
+    assert (again.abandoned, again.attempts) == (True, 1)
+    assert [record["reason"] for record in logs.named("task.failed")] == ["no_state", "no_payload"]
+    assert service.provider.steps == []
+    assert service.api.get(LIVENESS).json() == ABANDONED
 
 
 @pytest.mark.story("US-2940")

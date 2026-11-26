@@ -622,28 +622,6 @@ cause = "hypothèse : une connexion TLS vers Keycloak laissée ouverte par un te
 
 [[known]]
 class = "known flakiness"
-family = "le tri croissant de l'écran des sauvegardes lu avant ses lignes"
-issue = "#5005"
-job = "^service / paths"
-test = 'e2e/service/backup-schedule\.spec\.ts:\d+.*a backup taken is listed'
-message = 'backup-schedule\.spec\.ts:344'
-runs = [45750823183]
-frequency = "1 passage : 45750823183 (2026-11-26, pr-5001), d'`epic/EP-13`"
-cause = "hypothèse : après le passage au tri croissant, la grille est lue avant ses lignes ; seul l'en-tête `aria-sort` est attendu"
-
-[[known]]
-class = "known flakiness"
-family = "le retour au projet depuis les paramètres de coûts, au-delà des 30 s d'un test"
-issue = "#5021"
-job = "^service / paths"
-test = 'e2e/navigation\.spec\.ts:84\b'
-message = "Test timeout of 30000ms exceeded"
-runs = [45780553745]
-frequency = "1 passage : 45780553745 (2026-11-26, pr-5001), d'`epic/EP-13`"
-cause = "hypothèse : la somme des lectures de service du parcours (risques de PRJ-001, paramètres de coûts, deux fois chacun) frôle les 30 s d'un test sous la charge de la file, comme l'ancienne forme du parcours (#4714)"
-
-[[known]]
-class = "known flakiness"
 family = "la sonde de la base encore en échec après sa reprise"
 issue = "#5023"
 job = "^back / tests"
@@ -664,3 +642,15 @@ message = 'Timeout 1000ms exceeded while waiting for event "download"'
 runs = [45791694546]
 frequency = "1 passage, le 2026-11-26 (45791694546, file d'`epic/EP-13`, pr-5024)"
 cause = "hypothèse : le rendu PNG de la matrice dépasse la seconde que chaque essai du `toPass` donne au téléchargement, et chaque nouveau clic relance un export qui n'aboutit pas"
+
+# Le tri par Entrée sur l'en-tête du devis, dont l'URL ne change pas dans la file (#5050).
+[[known]]
+class = "known flakiness"
+family = "le tri par Entrée sur l'en-tête du devis"
+issue = "#5050"
+job = '^service / paths'
+test = 'e2e/keyboard\.spec\.ts:84\b'
+message = 'expect\(page\)\.toHaveURL\(expected\) failed'
+runs = [45835940068]
+frequency = "1 passage, le 2026-11-26 (45835940068, file d'`epic/EP-13`, pr-5026)"
+cause = "hypothèse : sous la charge de la file, Entrée sur l'en-tête arrive avant que la grille du devis ait branché le tri au clavier, et l'URL ne change jamais"

@@ -4,8 +4,9 @@
 # The chart of Waterfall (US-2800): linted and rendered in both tiers, its tests holding it against
 # the Compose of production; in the full tier, the three images built as images.yml publishes them,
 # never pushed, then the chart installed on a cluster of kind made for the job, bootstrapped, its
-# API's liveness and the sign-in of its first administrator held (make check-chart). Helm, kind and
-# kubectl are downloaded at the versions and digests wftools.kubetools pins.
+# API's liveness and the sign-in of its first administrator held (make check-chart). The upgrade
+# under load (US-2850, make chart-upgrade) is run by hand and is not part of this job yet (#5020).
+# Helm, kind and kubectl are downloaded at the versions and digests wftools.kubetools pins.
 name: chart
 
 on:
@@ -31,8 +32,12 @@ jobs:
     # The three images and the first start of Keycloak on the cluster are the longest of it.
     timeout-minutes: 40
     steps:
+      # The whole history and its tags: the trial of an upgrade takes the version N from them — the
+      # last published version that carries the chart, or the base and its first parents — and the
+      # chart of N from its commit (US-2850).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       # The cache of the builds of images, written after a merge (images.yml).
       - if: inputs.tier == 'full'

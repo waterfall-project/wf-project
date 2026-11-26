@@ -39,7 +39,7 @@ async function open(page: Page, name: string): Promise<void> {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name, { timeout: WORKING });
 }
 
-test("an administrator creates an account and gives it a role, reads the state of the system, filters the journal of audit and starts a backup [WF-INTF-0030-A]", async ({
+test("an administrator creates an account and gives it a role, reads the state of the system, filters the journal of audit and starts a backup (path of the administrator) [WF-INTF-0030-A] [WF-QUA-0050-A]", async ({
   page,
   browser,
   request,

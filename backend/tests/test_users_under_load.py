@@ -214,17 +214,16 @@ def read_by_the_worker(
     How long from then until the reading is committed: the wait of whatever queued behind it.
     """
     started: list[float] = []
-    followed = identity_sync.follow
+    locking = identity_sync.lock_administrators
 
-    def follow_then(session: Session, person: ProviderAccount, at: datetime) -> object:
-        if not started:
-            started.append(time.perf_counter())
-            meanwhile()
-        return followed(session, person, at)
+    def lock_then(session: Session) -> None:
+        locking(session)
+        started.append(time.perf_counter())
+        meanwhile()
 
     task_id = deposit(database, queue)
     with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(identity_sync, "follow", follow_then)
+        patch.setattr(identity_sync, "lock_administrators", lock_then)
         reading = IdentitySync(provider)
         assert Worker(database, queue, {"identity_sync": reading}, "worker").run_task(task_id)
     return time.perf_counter() - started[0]

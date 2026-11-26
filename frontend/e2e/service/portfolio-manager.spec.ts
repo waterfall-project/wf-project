@@ -69,7 +69,7 @@ test.beforeEach(async ({ request }) => {
   await compileAnswered(request, "/auth/callback", ACCOUNT, ...VIEWS.map(([address]) => address));
 });
 
-test("a holder of the role « Manager » alone opens each of the seven views of the portfolio at the date of the witness, then, from the list, a project of its slice it is no contributor of [WF-INTF-0020-A]", async ({
+test("a holder of the role « Manager » alone opens each of the seven views of the portfolio at the date of the witness, then, from the list, a project of its slice it is no contributor of (path of the manager) [WF-INTF-0020-A] [WF-QUA-0050-A]", async ({
   browser,
   page,
   playwright,
