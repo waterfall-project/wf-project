@@ -70,6 +70,12 @@ qui est propre à ton rôle.
   .waterfall/check.log 2>&1; tail -n 60 .waterfall/check.log` — jamais dans `/tmp/check.log`,
   que deux développeurs se disputeraient ; si l'échec peut venir de la collecte — import,
   configuration, client à régénérer —, lis aussi le début, `head -n 40 .waterfall/check.log`.
+- **Un seul `make check` à la fois dans ton worktree.** S'il dépasse le délai d'une commande et
+  que tu le lances en arrière-plan, attends sa fin avant d'en lancer un autre, ou arrête-le
+  d'abord par son PID. Ne le relance jamais par-dessus le précédent : le 2026-11-26, des
+  `make check` empilés ainsi, et d'autres laissés par des développeurs qui avaient rendu la
+  main, ont tourné à soixante-dix à la fois sur le poste, et les paliers de tous ont duré 30 à
+  45 minutes.
 - **Le créneau.** Depuis US-1100, dans un worktree lié sans créneau, les cibles qui en ont
   besoin — `build-keycloak`, `check-front-image`, `e2e`, `e2e-measure`… — échouent en disant
   `make slot`, et un `make check` qui touche la famille keycloak ou l'image du front échoue
@@ -99,5 +105,5 @@ personne, qui le fait après la revue.
 Avant de rendre la main, ne laisse rien derrière toi (`docs/dev/agents.md`, #1444) : une
 branche de travail que tu as tirée à côté de celle du lot se supprime une fois son contenu sur
 la branche du lot (`git branch -d`, qui refuse une branche non fusionnée), et aucune commande
-que tu as lancée en arrière-plan — serveur de Next, Prism, Chromium — ne tourne encore. La
+que tu as lancée en arrière-plan — serveur de Next, Prism, Chromium, `make check` — ne tourne encore. La
 branche du lot et ton worktree restent : l'agent de livraison les retire après la fusion.
