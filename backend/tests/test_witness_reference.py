@@ -44,22 +44,30 @@ from waterfall.witness.portfolio import default_week
 from waterfall.witness.reference_draw import (
     ACCOUNTS,
     CATEGORIES,
+    DIRECTIONS,
+    FIRST_NAMES,
+    LAST_NAMES,
     NODES,
     PROJECTS,
     RATE_YEARS,
     ROLES,
+    SERVICES,
+    TRADES,
     Draw,
     draw_reference,
 )
 from waterfall.witness.reference_projects import (
+    CLOSED,
     LIVES,
     SITES,
     WORKS,
     draw_project,
     manager_of,
+    numbers_of,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from pathlib import Path
 
     from sqlalchemy.orm import Session
@@ -72,8 +80,11 @@ if TYPE_CHECKING:
 REQUIREMENT = "WF-QUA-0040-A"
 STORY = "US-2950"
 DOMAIN = "@waterfall.test"
-# The projects the command is tried with: the witness's twelve and three drawn.
-TRIED = 15
+# The projects of the portfolio the command is tried with: the witness's nine and three drawn,
+# with the closed ones drawn between them.
+TRIED = 12
+WITNESS_PORTFOLIO = 9
+TRIED_NUMBERS = numbers_of(TRIED - WITNESS_PORTFOLIO)
 
 
 def described() -> Witness:
@@ -87,7 +98,7 @@ def base() -> Base:
 def drawn_projects(base_: Base, count: int = PROJECTS) -> list[Described]:
     reference = draw_reference(base_)
     return [
-        draw_project(number, base_, reference) for number in range(1, count - base_.projects + 1)
+        draw_project(number, base_, reference) for number in numbers_of(count - base_.portfolio)
     ]
 
 
@@ -98,7 +109,7 @@ def test_two_draws_of_the_set_give_the_same_reference_and_the_same_projects() ->
     first, second = base(), base()
     assert draw_reference(first) == draw_reference(second)
     assert drawn_projects(first) == drawn_projects(second)
-    assert drawn_projects(first, 600)[: PROJECTS - first.projects] == drawn_projects(first)
+    assert drawn_projects(first, 600)[: len(drawn_projects(first))] == drawn_projects(first)
     assert Draw("x", 1).below(10**9) == Draw("x", 1).below(10**9) != Draw("x", 2).below(10**9)
 
 
@@ -111,14 +122,20 @@ def test_the_reference_drawn_and_the_witness_hold_the_volumes_of_table_13() -> N
     categories = witness.read(
         reference_load.cost_categories.FILE, reference_load.cost_categories.CostCategories
     )
-    assert (held.nodes, held.roles, held.accounts, held.projects) == (6, 5, 5, 12)
+    counted = (held.nodes, held.roles, held.accounts, held.projects, held.portfolio)
+    assert counted == (6, 5, 5, 12, 9)
     assert len(reference.nodes) + held.nodes == NODES == 40
     assert len(reference.roles) + held.roles == ROLES == 150
     assert len(reference.accounts) + held.accounts == ACCOUNTS == 500
     assert len(categories.items) == CATEGORIES == 200
     assert len(held.rated) == 28
     assert RATE_YEARS == 15
-    assert len(drawn_projects(held)) + held.projects == PROJECTS == 300
+    # The projects "in the portfolio", in pricing and in progress, the witness's counted, are three
+    # hundred; the closed ones, lost, abandoned, completed, come in addition.
+    drawn = drawn_projects(held)
+    closed = [each for each in drawn if _life(each) in CLOSED]
+    assert len(drawn) - len(closed) + held.portfolio == PROJECTS == 300
+    assert 0 < len(closed) < len(drawn)
     # Every code is unique, every role attached to a node drawn and a rated category of labour.
     assert len({each.code for each in reference.nodes}) == len(reference.nodes)
     assert len({each.code for each in reference.roles}) == len(reference.roles)
@@ -135,10 +152,16 @@ def test_the_set_drawn_holds_no_real_address_and_no_real_label_of_project() -> N
     held = base()
     reference = draw_reference(held)
     assert all(each.email.endswith(DOMAIN) for each in reference.accounts)
+    projects = drawn_projects(held)
+    _assert_names_of_the_closed_lists(
+        [each.label for each in reference.nodes],
+        [each.label for each in reference.roles],
+        [(each.last_name, each.first_name) for each in reference.accounts],
+        [None if each.project.client is None else each.project.client.root for each in projects],
+    )
     composed = re.compile(
         rf"^({'|'.join(map(re.escape, WORKS))}) ({'|'.join(map(re.escape, SITES))}) (\d+)$"
     )
-    projects = drawn_projects(held)
     for number, each in enumerate(projects, start=1):
         matched = composed.match(each.project.label)
         assert matched is not None, each.project.label
@@ -173,6 +196,56 @@ def test_the_projects_drawn_take_every_life_within_the_years_the_grid_rates() ->
         assert (each.reference_revision_id is not None) == (
             _life(each) in {"in_progress", "completed"}
         )
+        _assert_tasks_follow_the_reviews(each)
+
+
+def _assert_tasks_follow_the_reviews(project: Described) -> None:
+    """Check a task is finished only before the last review marked, or by a completed project.
+
+    A project in progress keeps a task open; a task not begun by the last review is not finished.
+    """
+    life = _life(project)
+    reviewed = max(
+        (each.marked_at for each in project.revisions if each.marked_at is not None), default=None
+    )
+    if life not in {"in_progress", "completed"}:
+        assert all(each.started_on is None and each.completed_on is None for each in project.tasks)
+        return
+    assert reviewed is not None
+    if life == "completed":
+        assert all(each.completed_on is not None for each in project.tasks)
+    else:
+        assert any(each.completed_on is None for each in project.tasks)
+    for task in project.tasks:
+        if task.completed_on is not None:
+            assert task.started_on is not None
+            assert task.completed_on <= reviewed.date()
+
+
+def _assert_names_of_the_closed_lists(
+    nodes: Iterable[str],
+    roles: Iterable[str],
+    names: Iterable[tuple[str, str]],
+    clients: Iterable[str | None],
+) -> None:
+    """No label of a node, of a role or of a client, no name, outside the lists the draw closes.
+
+    The third sentence of the requirement: what a set holds is drawn from lists of fictitious words.
+    """
+
+    def one_of(words: Iterable[str]) -> str:
+        return "|".join(map(re.escape, words))
+
+    services = rf"({one_of(SERVICES)}) ({one_of(DIRECTIONS)}) \d\d"
+    for label in nodes:
+        assert re.fullmatch(rf"Direction ({one_of(DIRECTIONS)})|{services}", label), label
+    for label in roles:
+        assert re.fullmatch(rf"({one_of(TRADES)}) \d{{3}}", label), label
+    for last_name, first_name in names:
+        assert first_name in FIRST_NAMES
+        assert last_name in LAST_NAMES
+    for client in clients:
+        assert client is None or re.fullmatch(r"Client fictif \d\d", client), client
 
 
 def _life(project: Described) -> str:
@@ -187,6 +260,10 @@ def _life(project: Described) -> str:
 
 def settings(url: str) -> WitnessSettings:
     return WitnessSettings(database_url=SecretStr(url), witness_path=str(WITNESS))
+
+
+def settings_at(url: str, witness_path: Path) -> WitnessSettings:
+    return WitnessSettings(database_url=SecretStr(url), witness_path=str(witness_path))
 
 
 def identifying(database: Database) -> dict[str, list[tuple[object, ...]]]:
@@ -232,10 +309,18 @@ def test_the_set_starts_from_the_witness_and_reaches_the_volumes_of_its_referenc
     after = identifying(witness)
     for name, rows in before.items():
         assert set(rows) <= set(after[name]), name
+    # Nothing the platform holds beside the witness's is outside the lists the draw closes.
+    new = {name: set(after[name]) - set(before[name]) for name in after}
+    _assert_names_of_the_closed_lists(
+        [row[2] for row in new["org_node"]],
+        [row[2] for row in new["resource_role"]],
+        [(row[1], row[2]) for row in new["user_account"]],
+        [None if row[3] == "None" else row[3] for row in new["project"]],
+    )
     assert count(witness, OrgNode) == NODES
     assert count(witness, ResourceRole) == ROLES
     assert count(witness, UserAccount) == ACCOUNTS
-    assert count(witness, Project) == TRIED
+    assert count(witness, Project) == 12 + len(TRIED_NUMBERS)
     with witness.transaction() as session:
         years = set(session.scalars(select(HourlyRate.year).distinct()))
         categories = session.scalar(select(func.count()).select_from(CostCategory))
@@ -244,7 +329,7 @@ def test_the_set_starts_from_the_witness_and_reaches_the_volumes_of_its_referenc
     # The two hundred of the witness, and the provision the bootstrap writes beside them.
     assert categories == CATEGORIES + 1
     assert all(each is not None and each.endswith(DOMAIN) for each in emails)
-    assert [record["projects"] for record in logs.named("reference.loaded")] == [TRIED - 12]
+    assert [record["projects"] for record in logs.named("reference.loaded")] == [len(TRIED_NUMBERS)]
 
 
 @pytest.mark.requirement(REQUIREMENT)
@@ -276,35 +361,59 @@ def test_two_engenderings_one_stopped_and_taken_up_give_the_same_identifying_dat
         assert [record["project"] for record in logs.named("reference.failed")] == ["REF-0002"]
         second = Database(create_database_engine(other))
         try:
-            assert count(second, Project) == 13
+            assert count(second, Project) == 13  # the witness's twelve and REF-0001
             monkeypatch.setattr(reference_load, "write_project", written)
             logs.clear()
             assert reference_load.load_reference(settings(other), TRIED) == 0
             loaded = logs.named("reference.loaded")
             assert [(each["reference"], each["projects"], each["held"]) for each in loaded] == [
-                (False, 2, 1)
+                (False, len(TRIED_NUMBERS) - 1, 1)
             ]
             assert identifying(second) == first
         finally:
             second.dispose()
 
 
+def combination(project: Described) -> tuple[str, int, int, bool]:
+    """Give what the draw varies: life, revisions, risks, and whether the project has 8 tasks."""
+    return (_life(project), len(project.revisions), len(project.risks), len(project.tasks) == 8)
+
+
+def tranche(held: Base) -> dict[tuple[str, int, int, bool], int]:
+    """Give, of each combination the draw of the full set produces, the number of its first project.
+
+    A life, a number of revisions — from one review to six for a project in progress —, none or two
+    risks (each with its own estimate), eight tasks or fewer: about fifty of the three hundred.
+    """
+    found: dict[tuple[str, int, int, bool], int] = {}
+    for number, each in enumerate(drawn_projects(held), start=1):
+        found.setdefault(combination(each), number)
+    return found
+
+
 @pytest.mark.story(STORY)
-def test_a_project_of_each_life_is_written_by_the_rules_of_the_modules(witness: Database) -> None:
-    # The first project of each of the six lives, as the full set holds them, accepted by the rules
-    # the API applies: its transitions are those its description gives (``write_project``).
+def test_a_tranche_of_projects_covering_every_combination_of_the_draw_is_written_by_the_rules(
+    witness: Database,
+) -> None:
+    # The rules of the modules, applied to the projects the draw produces, not to a few of them: one
+    # project for each combination of life, reviews (one to six), risks (none to two), own estimate
+    # and eight tasks the full set holds, accepted as the API accepts them, and written once only.
+    # About fifty projects, a minute or less: the full set, three hundred, is loaded by the command.
     described_, held = described(), base()
     reference = draw_reference(held)
-    firsts: dict[str, int] = {}
-    for number, each in enumerate(drawn_projects(held), start=1):
-        firsts.setdefault(_life(each), number)
+    chosen = tranche(held)
+    covered = list(chosen)
+    assert {each[0] for each in covered} == {name for name, _ in LIVES}
+    assert {each[1] for each in covered if each[0] == "in_progress"} == set(range(3, 9))
+    assert {each[2] for each in covered} == {0, 1, 2}
+    assert {True, False} == {each[3] for each in covered}
     week = default_week(described_)
     with (
         logging_context(correlation_id="reference-lives"),
         witness.transaction() as session,
     ):
         assert reference_load.write_reference(session, described_, reference)
-        for number in sorted(firsts.values()):
+        for number in sorted(chosen.values()):
             project = draw_project(number, held, reference)
             who = (Viewer(manager_of(number, reference), ()), week)
             assert reference_load.write_drawn_project(described_, project, who, session)
@@ -312,7 +421,8 @@ def test_a_project_of_each_life_is_written_by_the_rules_of_the_modules(witness: 
         states = {
             row.code: row.state for row in session.execute(select(Project.code, Project.state))
         }
-    assert {states[f"REF-{number:04d}"] for number in firsts.values()} == {
+        assert (session.scalar(select(func.count()).select_from(Risk)) or 0) > 0
+    assert {states[f"REF-{number:04d}"] for number in chosen.values()} == {
         "pricing",
         "lost",
         "abandoned",
@@ -351,8 +461,10 @@ def test_the_command_loads_the_witness_then_refuses_fewer_projects_than_it_holds
 ) -> None:
     monkeypatch.setenv("WATERFALL_DATABASE_URL", service_database_url)
     monkeypatch.setenv("WATERFALL_WITNESS_PATH", str(WITNESS))
-    assert main(["load-reference", "--projects", "11"]) == 2
-    assert "--projects: 11 is fewer than the 12 projects of the witness" in capsys.readouterr().err
+    assert main(["load-reference", "--projects", "8"]) == 2
+    assert "--projects: 8 is fewer than the 9 projects of the witness in the portfolio" in (
+        capsys.readouterr().err
+    )
     assert count(witness, OrgNode) == 6
     with pytest.raises(SystemExit) as stopped:
         main(["load-reference", "--projects", "many"])
@@ -366,3 +478,14 @@ def test_the_command_stops_with_the_witness_when_the_witness_fails(
     monkeypatch.setenv("WATERFALL_DATABASE_URL", "postgresql://nowhere/waterfall")
     monkeypatch.setenv("WATERFALL_WITNESS_PATH", str(tmp_path / "absent"))
     assert main(["load-reference"]) == 2
+
+
+@pytest.mark.story(STORY)
+def test_a_description_the_witness_lacks_ends_the_command_with_a_log_not_a_trace(
+    tmp_path: Path, logs: Logs
+) -> None:
+    # The description read before the platform is touched: a file absent, a provision lacking, and
+    # the command ends (1) with ``reference.failed``, as any failure of the set does.
+    unreadable = settings_at("postgresql://nowhere/waterfall", tmp_path / "absent")
+    assert reference_load.load_reference(unreadable, PROJECTS) == 1
+    assert [each["project"] for each in logs.named("reference.failed")] == [None]
