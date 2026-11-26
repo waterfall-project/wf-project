@@ -13,6 +13,7 @@ administrator the reading renames (#2227).
 
 import threading
 import time
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -21,7 +22,7 @@ import pytest
 from access_rows import ADMINISTRATION, role
 from fastapi.testclient import TestClient
 from realm import KEY, TestRealm
-from sqlalchemy import insert, select, text
+from sqlalchemy import event, insert, select, text
 from sqlalchemy.exc import DBAPIError
 from support import ContractClient, Logs, Watching, bearer, nowhere, raw_account, wait_for_a_lock
 
@@ -43,6 +44,7 @@ from waterfall.core.users.interface import (
     SkippedAddressHeld,
     SkippedPerson,
     SyncReport,
+    admit_all,
     deactivate_all_unheld,
     deactivate_unheld,
     follow,
@@ -251,6 +253,109 @@ def test_a_person_unknown_to_waterfall_is_created_without_any_role(session: Sess
     assert follow(session, local, NOON) == NotFollowed(NotAdmitted.LOCAL_ACCOUNT, None)
 
 
+@pytest.mark.requirement("WF-ADM-0070-A")
+def test_the_persons_unknown_to_waterfall_are_created_all_at_once_as_one_by_one(
+    database: Database,
+) -> None:
+    # The same as each created alone, by one insertion and one inscription: the reading holds the
+    # lock of the rule for all its writes (#4975). What the insertion leaves — an account found,
+    # a subject twice, an address another account holds, a person refused — is followed one by
+    # one, as before.
+    with database.transaction() as session:
+        found = held(session, email="found@example.org")
+        owner = held(session, email="owner@example.org")
+    persons = [
+        of_provider(raw_account(email=f"new{rank}@example.org", idp_subject=f"kc-new-{rank}"))
+        for rank in range(3)
+    ]
+    relayed = of_provider(
+        raw_account(email="relayed@example.org", idp_subject="kc-relayed"),
+        is_federated=False,
+        is_relayed=True,
+    )
+    twice = of_provider(raw_account(email="twice@example.org", idp_subject="kc-twice"))
+    taken = of_provider(raw_account(email="OWNER@example.org", idp_subject="kc-taken"))
+    nameless = of_provider(raw_account(email="nameless@example.org"), first_name="")
+    twice_again = replace(twice, first_name="Autre")
+    people = [*persons, of_provider(found), relayed, twice, twice_again, taken, nameless]
+    with database.transaction() as session:
+        written = write_accounts(session, people, [], NOON)
+        assert written.counts == {
+            "created": 5,
+            "updated": 2,
+            "unchanged": 1,
+            "restored": 0,
+            "deactivated": 0,
+        }
+        assert len(written.skipped) == 1
+        # The address of an account the directory did not hold is attached to its person.
+        assert session.get_one(UserAccount, owner["id"]).idp_subject == "kc-taken"
+        created = {
+            each.idp_subject: each
+            for each in session.scalars(
+                select(UserAccount).where(UserAccount.idp_subject.like("kc-%"))
+            )
+        }
+        assert sorted(created) == [
+            "kc-new-0",
+            "kc-new-1",
+            "kc-new-2",
+            "kc-relayed",
+            "kc-taken",
+            "kc-twice",
+        ]
+        for subject, each in created.items():
+            if subject != "kc-taken":
+                assert (each.state, each.created_by, each.created_at, each.updated_at) == (
+                    "active",
+                    None,
+                    NOON,
+                    NOON,
+                )
+        # The first of the subject twice is the one created, the second then updates it.
+        assert created["kc-twice"].first_name == "Autre"
+        assert [entry[0] for entry in journal(session)].count("user_update") == 2
+        origins = {entry[2]: entry[3] for entry in journal(session) if entry[0] == "user_create"}
+        assert origins == {
+            created[subject].id: {"origin": origin}
+            for subject, origin in [
+                ("kc-new-0", "directory"),
+                ("kc-new-1", "directory"),
+                ("kc-new-2", "directory"),
+                ("kc-twice", "directory"),
+                ("kc-relayed", "identity_provider"),
+            ]
+        }
+    with database.transaction() as session:
+        assert admit_all(session, [], NOON) == set()
+        assert admit_all(session, [*persons, nameless], NOON) == set()
+
+
+@pytest.mark.requirement("WF-ADM-0070-A")
+def test_the_creations_of_a_reading_are_one_insertion_and_one_inscription(
+    database: Database,
+) -> None:
+    # What the lot of #4975 is for: however many persons are created, the lock of the rule is held
+    # for one insertion of accounts and one of inscriptions, not for a round trip each.
+    people = [
+        of_provider(raw_account(email=f"bulk{rank}@example.org", idp_subject=f"kc-bulk-{rank}"))
+        for rank in range(5)
+    ]
+    inserts: list[str] = []
+
+    def heard(_connection: Any, _cursor: Any, statement: str, *_rest: Any) -> None:
+        if statement.lstrip().upper().startswith("INSERT"):
+            inserts.append(statement.split("(", maxsplit=1)[0].split()[2].strip('"'))
+
+    event.listen(database.engine, "before_cursor_execute", heard)
+    try:
+        with database.transaction() as session:
+            assert admit_all(session, people, NOON) == {each.subject for each in people}
+    finally:
+        event.remove(database.engine, "before_cursor_execute", heard)
+    assert sorted(inserts) == ["audit_entry", "user_account"]
+
+
 def test_what_the_reading_leaves_is_reported_an_account_by_its_identifier_alone(
     database: Database,
 ) -> None:
@@ -318,7 +423,7 @@ def test_an_empty_directory_deactivates_the_others_at_once_and_the_administrator
 
 
 @pytest.mark.requirement("WF-ADM-0120-A")
-def test_an_administrator_is_deactivated_when_another_the_directory_holds_remains(
+def test_an_administrator_is_deactivated_while_one_the_directory_still_holds_stays_active(
     database: Database,
 ) -> None:
     # The guard sees the final state: the ordinary account is deactivated first, at once, and the
