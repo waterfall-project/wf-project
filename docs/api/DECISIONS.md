@@ -13046,8 +13046,9 @@ des `summary` posés dans le contrat sur le `$ref`, qu'OpenAPI 3.1 admet mais qu
 texte de sa valeur, quand le dépôt range tout exemple long sous `fixtures/api/` en objet Example.
 
 Le second point de #1013 — Prism sert le premier exemple de `getUser` pour tout `user_id` — n'est
-pas levé : le premier exemple est désormais le compte actif du témoin (`active`, `user.json`), non
-plus un compte désactivé, et la limite des lectures par identifiant est documentée dans le guide
+pas levé : le premier exemple est le compte actif du témoin (`active`, `user.json`) depuis le commit
+e28c7bd7 (« Audit journal and examples », antérieur à ce lot, qui ne change pas l'ordre des
+exemples), de sorte que Prism ne nomme plus Noé Vidal pour tout `user_id`, et la limite des lectures par identifiant est documentée dans le guide
 (« Ce que le faux back ne fait pas ») ; un sélecteur d'exemple par identifiant, comme celui des
 avenants (`wftools.mock`, #1219), n'est pas ajouté pour un écran que le service sert depuis EP-03.
 
