@@ -29,6 +29,14 @@ drops the former ranks, renames the new ones, writes the triggers and stamps the
 reading no row of the journal. Each step runs again if a later one stopped: the version stays
 ``0055`` until the last, and the checks posed before it only widen.
 
+The two steps that take the exclusive lock of the journal do not wait for it long. Behind a
+transaction that read the journal and stays open — a backup, an export —, the demand of that lock
+queues, and every reading and writing of the journal that comes after it queues behind it, for as
+long as the reading lasts. Each of them waits ``LOCK_WAIT`` at most (``lock_timeout``), in a
+savepoint that, refused (``lock_not_available``), gives back every lock it took — the journal's,
+the contributors' — and lets the queue go; it tries again after ``LOCK_RETRY_SECONDS``, as long as
+the reading lasts, as the environment tries the lock of a run (``take_lock``).
+
 The table ``contributor`` receives its columns of audit (WF-DAT-0070, #3988): the dates by default
 the moment of the write, so that the code before this migration, which writes none, still writes a
 line during an update (WF-DAT-0140), and a line there is dated by the migration, by the platform —
@@ -41,13 +49,16 @@ validated at once and its ranks created in it: it never runs on an installation
 of the descent was committed.
 """
 
+import time
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from alembic import op
+from psycopg.errors import LockNotAvailable
+from sqlalchemy.exc import OperationalError
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
     from datetime import datetime
     from uuid import UUID
 
@@ -165,6 +176,10 @@ RANKED = ("action", "object_kind")
 CHECKS = ("action_known", "object_kind_known", "object_labeled")
 # The name a rank in its new order is created under, beside the former one it replaces.
 NEXT = "_next"
+# How long a step that takes the exclusive lock of the journal waits for it, the readings and
+# writings of the journal queued behind it all the while; and the pause before it tries again.
+LOCK_WAIT = "500ms"
+LOCK_RETRY_SECONDS = 1.0
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -209,6 +224,43 @@ def _create_concurrently(name: str, columns: list[str | sa.TextClause]) -> None:
     op.create_index(name, TABLE, columns, postgresql_concurrently=True)
 
 
+def _locking_briefly(step: Callable[[], None]) -> None:
+    """Run a step that takes an exclusive lock, waiting ``LOCK_WAIT`` at most, until it goes.
+
+    Refused, the step is rolled back to its savepoint, which gives back every lock it took, and
+    tried again after a pause; the ``lock_timeout`` of the transaction is given back after it.
+    """
+    bind = op.get_bind()
+    before = bind.scalar(sa.text("SELECT current_setting('lock_timeout')"))
+    bind.execute(sa.select(sa.func.set_config("lock_timeout", LOCK_WAIT, sa.true())))
+    while True:
+        try:
+            with bind.begin_nested():
+                step()
+        except OperationalError as error:
+            if not isinstance(error.orig, LockNotAvailable):
+                raise
+            time.sleep(LOCK_RETRY_SECONDS)
+        else:
+            break
+    bind.execute(sa.select(sa.func.set_config("lock_timeout", before, sa.true())))
+
+
+def _widen_checks() -> None:
+    _replace_checks(_conditions(ACTIONS, OBJECT_KINDS, 1), not_valid=True)
+
+
+def _swap_ranks_and_stamp() -> None:
+    for column in RANKED:
+        op.drop_index(_rank_index(column), table_name=TABLE)
+        op.execute(f"ALTER INDEX {_rank_index(column) + NEXT} RENAME TO {_rank_index(column)}")
+    _triggers(1)
+    op.add_column(CONTRIBUTOR, _dated("created_at"))
+    op.add_column(CONTRIBUTOR, _author("created_by"))
+    op.add_column(CONTRIBUTOR, _dated("updated_at"))
+    op.add_column(CONTRIBUTOR, _author("updated_by"))
+
+
 def _author(name: str) -> sa.Column[UUID]:
     return sa.Column(
         name,
@@ -230,7 +282,8 @@ def upgrade() -> None:
     """Admit the three actions and the contributor, index the latest, stamp the contributors.
 
     No lock that stops the writes of the journal is held while it is read: the indexes are created
-    ``CONCURRENTLY`` and the checks validated apart, each out of a transaction.
+    ``CONCURRENTLY`` and the checks validated apart, each out of a transaction; the exclusive lock
+    of the journal is awaited ``LOCK_WAIT`` at most at a time.
     """
     ranks = {"action": ACTIONS, "object_kind": OBJECT_KINDS}
     context = op.get_context()
@@ -241,18 +294,11 @@ def upgrade() -> None:
             _create_concurrently(
                 _rank_index(column) + NEXT, [sa.text(_rank(column, ranks[column]))]
             )
-    _replace_checks(_conditions(ACTIONS, OBJECT_KINDS, 1), not_valid=True)
+    _locking_briefly(_widen_checks)
     with context.autocommit_block():
         for name in CHECKS:
             op.execute(f"ALTER TABLE {TABLE} VALIDATE CONSTRAINT ck_{TABLE}_{name}")
-    for column in RANKED:
-        op.drop_index(_rank_index(column), table_name=TABLE)
-        op.execute(f"ALTER INDEX {_rank_index(column) + NEXT} RENAME TO {_rank_index(column)}")
-    _triggers(1)
-    op.add_column(CONTRIBUTOR, _dated("created_at"))
-    op.add_column(CONTRIBUTOR, _author("created_by"))
-    op.add_column(CONTRIBUTOR, _dated("updated_at"))
-    op.add_column(CONTRIBUTOR, _author("updated_by"))
+    _locking_briefly(_swap_ranks_and_stamp)
 
 
 def downgrade() -> None:

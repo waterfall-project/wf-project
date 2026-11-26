@@ -5,9 +5,12 @@
 The migration stamps the contributors already there, admits the three actions and the contributor
 as an object, and lets the label of a contributor be forgotten with its account; its descent
 refuses them again, and fails while the journal holds one. Its upgrade leaves its indexes valid and
-its checks validated, and runs again over an index a stopped run left invalid.
+its checks validated, runs again over an index a stopped run left invalid, and lets the journal be
+written behind a reading of it that lasts.
 """
 
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
@@ -23,6 +26,8 @@ from waterfall.migrations.runner import downgrade, upgrade
 from waterfall.platform.audit import AuditEntry
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from sqlalchemy import Connection, Engine
 
 MOMENT = datetime(2026, 11, 19, tzinfo=UTC)
@@ -258,4 +263,56 @@ def test_over_a_rank_a_stopped_run_left_invalid_the_upgrade_runs_again_whole(
         connection.execute(stopped)
     assert indexes(empty_engine)["ix_audit_entry_action_rank_next"][0] is False
     upgrade(empty_engine, "0056")
+    assert_upgraded_whole(empty_engine)
+
+
+# A demand of the exclusive lock of the journal that waits, not granted.
+QUEUED_FOR_THE_JOURNAL = text(
+    "SELECT count(*) FROM pg_locks WHERE relation = 'audit_entry'::regclass "
+    "AND mode = 'AccessExclusiveLock' AND NOT granted"
+)
+# Past ``LOCK_WAIT`` (half a second) the demand gives way; the margin is the load of the machine.
+WRITE_BOUND_SECONDS = 3
+
+
+def until(engine: Engine, seen: Callable[[Connection], bool], what: str) -> None:
+    """Read the catalogue until ``seen`` holds, thirty seconds at most."""
+    deadline = time.monotonic() + 30
+    with engine.connect() as watching:
+        while time.monotonic() < deadline:
+            if seen(watching):
+                return
+            watching.rollback()
+            time.sleep(0.01)
+    pytest.fail(f"never seen: {what}")
+
+
+@pytest.mark.requirement("WF-DAT-0140-A")
+def test_behind_a_reading_of_the_journal_that_lasts_the_upgrade_lets_the_journal_be_written(
+    empty_engine: Engine,
+) -> None:
+    # A reading of the journal stays open, as a backup does; the upgrade queues for the exclusive
+    # lock behind it. A write of the journal that comes after waits ``LOCK_WAIT`` at most, not the
+    # end of the reading: it ends within its bound, while the upgrade is still waiting. Once the
+    # reading ends, the upgrade ends.
+    upgrade(empty_engine, "0055")
+    with empty_engine.begin() as connection:
+        an_entry(connection, "project_create", "project", uuid4())
+    with ThreadPoolExecutor(1) as pool:
+        with empty_engine.connect() as reading, reading.begin():
+            reading.execute(select(AuditEntry.id)).all()
+            migrating = pool.submit(upgrade, empty_engine, "0056")
+            until(
+                empty_engine,
+                lambda watching: watching.scalar(QUEUED_FOR_THE_JOURNAL) == 1,
+                "the upgrade queued for the journal",
+            )
+            started = time.monotonic()
+            with empty_engine.begin() as writing:
+                writing.execute(text("SET LOCAL lock_timeout = '10s'"))
+                an_entry(writing, "project_create", "project", uuid4())
+            waited = time.monotonic() - started
+            assert not migrating.done()
+        migrating.result(timeout=60)
+    assert waited < WRITE_BOUND_SECONDS
     assert_upgraded_whole(empty_engine)
