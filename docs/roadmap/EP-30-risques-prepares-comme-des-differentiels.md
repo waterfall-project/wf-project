@@ -274,8 +274,9 @@ Question d'US-3070/L3b tranchée par l'auteur le 2026-11-26 (option C) :
 
 - #4911, #4920, #4921 → US-3070/L3b, qui corrige les lectures et retire la famille de bornes
   mesurées, sauf `REDATING` ;
-- #4874, #4883 → en attente de l'issue de spécification #5083 : `REDATING` reste pour
-  `reference-resources.spec.ts:126` et `:300` jusqu'au lot qui la réalise, après US-3090/L1.
+- #4874, #4883 → US-3090/L4 #5085, qui réalise l'issue de spécification #5083, retenue par
+  l'auteur le même jour : `REDATING` reste pour `reference-resources.spec.ts:126` et `:300`
+  jusqu'à ce lot, qui suit US-3090/L1.
 
 ## Conception
 
@@ -911,8 +912,8 @@ mais contredit la Vérif de WF-PRJ-0040-A, et la mise à jour d'un devis propre 
 pas encore. L3b se livre donc avec la correction des lectures, et retire toute la famille de bornes
 sauf `REDATING`, gardée pour `reference-resources.spec.ts:126` et `:300`. Un autre parcours qui
 dépasserait encore `WORKING` dans la file est un constat, pas une borne de plus. Le devis propre
-en retard sur un rechiffrage du référentiel est proposé à la spécification (#5083) ; retenu, un
-lot qui suit US-3090/L1 le réalise et retire `REDATING` (#4874, #4883).
+en retard sur un rechiffrage du référentiel est porté à la spécification (#5083, retenue par
+l'auteur le 2026-11-26) ; US-3090/L4 le réalise et retire `REDATING` (#4874, #4883).
 
 **Hors périmètre.** La gravité et la provision (US-3080) ; la mise à jour et ses refus (US-3090) ;
 la survenance (US-3100) ; les écrans (US-3140) ; le témoin (US-3150).
@@ -1142,6 +1143,10 @@ gravité d'un projet qui n'existe plus.
 - propre à l'US : la fusion d'un avenant, la survenance d'un autre risque, un import et toute saisie
   de la structure principale mettent les devis propres en retard, et ne leur font rien d'autre
   (décision de l'auteur du 2026-11-21) ;
+- `WF-PRJ-0040-A` (Vérif, dans la forme de #5083, retenue par l'auteur le 2026-11-26) : une
+  écriture du référentiel qui redate ou rechiffre la révision en cours — inflation, taux,
+  calendrier par défaut, unités de durée — met de même les devis propres en retard, sans les
+  rejouer ni changer leur gravité ou leur provision ; leur mise à jour les rechiffre (US-3090/L4) ;
 - propre à l'US : une désignation sur une tâche que le projet a terminée depuis est gardée par la
   mise à jour, sans être signalée : c'est la survenance qui l'applique et le signale (US-3100) ;
 - propre à l'US : un risque dont le devis propre est en retard le dit par ses commandes : le
