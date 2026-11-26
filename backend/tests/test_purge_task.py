@@ -356,15 +356,17 @@ def test_the_purge_task_removes_the_history_older_than_the_retention_it_is_given
 def test_the_purge_task_removes_the_archive_of_a_backup_no_row_names_once_it_is_older_than_a_day(
     database: Database,
     queue: TaskQueue,
-    backups_bucket: Bucket,
+    private_bucket: Bucket,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # A bucket of its own: the one of the worker holds the archives other tests took, which no row
+    # of this database names and which the clock moved ahead would sweep.
     # Propre à US-2940 (#4679) : an archive left without its row — the validation of the task
     # failed, or its worker died after the upload — is swept past ``ARCHIVE_DELAY``; a younger one
     # may be about to be named, and a named one stays whatever its age.
     stray, named = f"backup-{uuid4()}.tar", f"backup-{uuid4()}.tar"
     for key in (stray, named):
-        backups_bucket.put(key, b"archive")
+        private_bucket.put(key, b"archive")
     with database.transaction() as session:
         session.execute(
             insert(Backup).values(
@@ -380,8 +382,8 @@ def test_the_purge_task_removes_the_archive_of_a_backup_no_row_names_once_it_is_
                 task_id=ended_task(database, utc_now()),
             )
         )
-    young = purge_run(database, queue, backups_bucket)
-    assert backups_bucket.size(stray) is not None
+    young = purge_run(database, queue, private_bucket)
+    assert private_bucket.size(stray) is not None
     assert task(database, young).result == {
         "objects": 0,
         "deposits": 0,
@@ -389,7 +391,7 @@ def test_the_purge_task_removes_the_archive_of_a_backup_no_row_names_once_it_is_
         "archives": 0,
     }
     monkeypatch.setattr(purge_module, "utc_now", lambda: utc_now() + ARCHIVE_DELAY * 2)
-    old = purge_run(database, queue, backups_bucket)
-    assert backups_bucket.size(stray) is None
-    assert backups_bucket.size(named) is not None
+    old = purge_run(database, queue, private_bucket)
+    assert private_bucket.size(stray) is None
+    assert private_bucket.size(named) is not None
     assert (task(database, old).result or {})["archives"] == 1
