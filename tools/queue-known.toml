@@ -450,17 +450,19 @@ message = '''Failed to fetch https?://(?:deb\.debian\.org|apt\.postgresql\.org)/
 frequency = "aucun passage relevé du 2026-11-05 au 2026-11-12 ; source nommée par #3015"
 cause = "hypothèse : la construction d'une image tire apt faute de cache de couches, et la source ne répond pas ; dépendance absente de l'inventaire d'US-1900"
 
-# Maven Central, à la résolution du greffon `dependency` de `make build-keycloak` (#4790). Pas de
-# `runs` : il limiterait l'entrée aux passages nommés, et elle doit classer aussi les suivants.
+# Maven Central, à la résolution du greffon `dependency` de `make build-keycloak` (#4790). Depuis la
+# construction unique, le job `keycloak-image` de ci.yml la porte ; `service / paths` est gardé pour
+# classer les passages d'avant. Pas de `runs` : il limiterait l'entrée aux passages nommés, et elle
+# doit classer aussi les suivants.
 [[known]]
 class = "infrastructure"
 family = "Maven Central, greffons de build-keycloak"
 issue = "#4790"
-job = '^service / paths(?: \(\d+/\d+\))?$'
+job = '^(?:keycloak-image|service / paths(?: \(\d+/\d+\))?)$'
 step = 'build-keycloak'
 message = "mvn --batch-mode --quiet dependency:go-offline|No plugin found for prefix 'dependency'|repo\\.maven\\.apache\\.org/maven2\\): HTTP Status: 429"
 frequency = "5 passages du 2026-11-19 au 2026-11-25 : `make build-keycloak` de `service / paths` (45111181156, 44990506194, 44965076909, 44955878820) ; le 2026-11-25 (45722567147), à `mvn package`, Maven Central répondant 429"
-cause = "hypothèse : Maven Central ne répond pas, ou trop lentement, pendant la résolution du greffon `dependency` (≈ 300 s avant l'échec), ou limite le débit (429) pendant celle des greffons de `mvn package` ; le dépôt local de Maven n'est pas gardé en cache dans la chaîne"
+cause = "hypothèse : Maven Central ne répond pas, ou trop lentement, pendant la résolution du greffon `dependency` (≈ 300 s avant l'échec), ou limite le débit (429) pendant celle des greffons de `mvn package` ; le dépôt local de Maven n'est pas gardé en cache dans la chaîne. Depuis le 2026-11-26, l'image est construite une fois par passage (job `keycloak-image`, quatre séries de téléchargements en moins) et chargée par les quatre parts"
 
 # ghcr.io, au pull du miroir (`ghcr.io/waterfall-project/mirror/…`) comme au push des images du
 # projet (job `publish` d'`images.yml`, #4916) : une panne de connexion au registre, la même des
@@ -620,17 +622,6 @@ cause = "hypothèse : une connexion TLS vers Keycloak laissée ouverte par un te
 
 [[known]]
 class = "known flakiness"
-family = "le tri croissant de l'écran des sauvegardes lu avant ses lignes"
-issue = "#5005"
-job = "^service / paths"
-test = 'e2e/service/backup-schedule\.spec\.ts:\d+.*a backup taken is listed'
-message = 'backup-schedule\.spec\.ts:344'
-runs = [45750823183, 45810831195]
-frequency = "2 passages : 45750823183 (2026-11-26, pr-5001), 45810831195 (2026-11-26, pr-5037), d'`epic/EP-13`"
-cause = "hypothèse : après le passage au tri croissant, la grille est lue avant ses lignes ; seul l'en-tête `aria-sort` est attendu"
-
-[[known]]
-class = "known flakiness"
 family = "la sonde de la base encore en échec après sa reprise"
 issue = "#5023"
 job = "^back / tests"
@@ -639,3 +630,15 @@ message = 'assert 503 == 200'
 runs = [45783848620]
 frequency = "1 passage : 45783848620 (2026-11-26, palier rapide de la pull request #5001, vers `epic/EP-13`)"
 cause = "hypothèse : après la reprise de la base, la sonde de `/api/v1/health/ready` lit encore une connexion ou un état d'avant l'arrêt, et le test n'attend pas sa reprise"
+
+# L'export PNG de la matrice des risques, dont le téléchargement n'arrive pas dans la file (#5028).
+[[known]]
+class = "known flakiness"
+family = "export PNG de la matrice des risques"
+issue = "#5028"
+job = '^service / paths'
+test = 'e2e/risks\.spec\.ts:235\b'
+message = 'Timeout 1000ms exceeded while waiting for event "download"'
+runs = [45791694546]
+frequency = "1 passage, le 2026-11-26 (45791694546, file d'`epic/EP-13`, pr-5024)"
+cause = "hypothèse : le rendu PNG de la matrice dépasse la seconde que chaque essai du `toPass` donne au téléchargement, et chaque nouveau clic relance un export qui n'aboutit pas"

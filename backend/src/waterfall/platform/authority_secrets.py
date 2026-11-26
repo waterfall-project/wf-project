@@ -219,7 +219,8 @@ def certify(
         owed = found.get("metadata", {}).get("annotations", {}).get(OWED)
         if owed is None:
             return None
-        _restart(cluster, workload, found, owed)
+        if _restart(cluster, workload, found, owed) == MISSING:
+            return "restart owed, workload absent"
         return f"restarted (owed since {owed})"
     key, chain = authorities.issued(authority, workload.name, now)
     root = authority.pem()
@@ -242,17 +243,22 @@ def certify(
     return f"issued ({reason})"
 
 
-def _restart(cluster: Cluster, workload: Workload, secret: Mapping[str, Any], owed: str) -> None:
-    """Restart the pods of a workload, then clear the restart its Secret owes, over its version."""
+def _restart(cluster: Cluster, workload: Workload, secret: Mapping[str, Any], owed: str) -> int:
+    """Restart the pods of a workload, then clear the restart its Secret owes, over its version.
+
+    Give the status of the restart: ``MISSING`` when the workload does not exist yet, whose pods
+    will read the certificate at their first start.
+    """
     restart = {"spec": {"template": {"metadata": {"annotations": {RESTARTED: owed}}}}}
     apps = f"/apis/apps/v1/namespaces/{cluster.namespace}/{workload.resource}/{workload.name}"
-    cluster.expect("PATCH", apps, restart, OK, MISSING)
+    status, _ = cluster.expect("PATCH", apps, restart, OK, MISSING)
     metadata = secret.get("metadata", {})
     annotations = dict(metadata.get("annotations", {}))
     annotations.pop(OWED, None)
     paid = {**secret, "metadata": {**metadata, "annotations": annotations}}
     path = f"/api/v1/namespaces/{cluster.namespace}/secrets/{workload.kept_in}"
     cluster.expect("PUT", path, paid, OK)
+    return status
 
 
 def run(provided: Path, cluster: Cluster, workloads: Sequence[Workload]) -> list[str]:
