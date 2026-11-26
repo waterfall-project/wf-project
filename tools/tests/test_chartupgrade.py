@@ -555,7 +555,12 @@ def test_a_failure_is_witnessed_while_the_passage_runs(
     held = Tally(sent=chartload.LEAST)
     asked: list[int] = []
     monkeypatch.setattr(chartupgrade, "WATCHED", 0.001)
-    monkeypatch.setattr(Upgrade, "witness", lambda _: str(asked.append(1)))
+
+    def witness(_upgrade: Upgrade) -> str:
+        asked.append(1)
+        return "front-1 the API dropped the connection"
+
+    monkeypatch.setattr(Upgrade, "witness", witness)
     upgrade = upgrade_on(Cluster(), tmp_path)
     with upgrade.witnessed(held) as said:
         held.record("the account answered 502")
