@@ -28,7 +28,7 @@ from waterfall.platform.errors import (
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Generator, Mapping
+    from collections.abc import Collection, Generator, Mapping, Sequence
     from datetime import datetime
     from uuid import UUID
 
@@ -107,6 +107,41 @@ def add_account_if_absent(
         .returning(UserAccount.id)
     ).first()
     return find_account_of_subject(session, new.idp_subject), inserted is not None
+
+
+def add_accounts_if_absent(
+    session: Session, news: Sequence[NewAccount], stamp: Stamp
+) -> dict[str, UUID]:
+    """Insert active accounts by one write, but those whose subject or address is taken.
+
+    As ``add_account_if_absent`` each, without finding the account an address keeps from its
+    person: give the identifier of each account inserted, by its subject.
+    """
+    if not news:
+        return {}
+    rows = [
+        {
+            "id": new_id() if new.account_id is None else new.account_id,
+            "last_name": new.last_name,
+            "first_name": new.first_name,
+            "email": new.email,
+            "idp_subject": new.idp_subject,
+            "origin": new.origin,
+            "org_node_id": new.org_node_id,
+            "created_at": stamp.at,
+            "created_by": stamp.author,
+            "updated_at": stamp.at,
+            "updated_by": stamp.author,
+        }
+        for new in news
+    ]
+    inserted = session.execute(
+        insert(UserAccount)
+        .on_conflict_do_nothing()
+        .returning(UserAccount.idp_subject, UserAccount.id),
+        rows,
+    )
+    return dict(inserted.tuples())
 
 
 def address_holder(session: Session, email: str) -> UUID | None:
