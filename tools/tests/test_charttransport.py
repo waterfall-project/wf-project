@@ -4,8 +4,9 @@
 
 « Aucune connexion en clair n'est acceptée par un composant de la plateforme, hors le point de
 métriques, qui n'est pas joignable hors du cluster. » (WF-SEC-0010-A). What the rendered objects say
-is held here: each server serves in TLS alone, with the certificate a container of initialisation of
-its pod issues for the name of its Service, under the authority of the platform — the operator's, or
+is held here: each server serves in TLS alone, with the certificate for the name of its Service
+that a container of initialisation of its pod issues — or, for a data component and the supervision,
+that its Secret holds (US-2850) —, under the authority of the platform — the operator's, or
 the one the chart makes once, at the installation —; each client checks it against the roots of its
 pod; a data component the operator provides is checked against the roots the operator gives apart,
 without which the chart does not render (the author's decisions of 2026-11-22 on #4087). The
@@ -30,18 +31,22 @@ pytestmark = [pytest.mark.chart, pytest.mark.requirement("WF-SEC-0010-A")]
 
 ROOTS = "/trust/root.crt"
 VERIFIED = f"?sslmode=verify-full&sslrootcert={ROOTS}"
-# Each server of the chart: its workload, the container that serves, and the user it runs as, which
-# owns its key.
+# Each server of the chart whose pod issues its certificate: its workload, the container that
+# serves, and the user it runs as, which owns its key.
 SERVERS = {
-    "postgres": ("StatefulSet", "postgres", "999:999"),
-    "redis": ("Deployment", "redis", "999:1000"),
-    "storage": ("StatefulSet", "storage-proxy", "1000:1000"),
     "api": ("Deployment", "api", "1000:1000"),
     "keycloak": ("Deployment", "keycloak", "1000:0"),
     "front": ("Deployment", "front-proxy", "1000:1000"),
-    "prometheus": ("StatefulSet", "prometheus", "65534:65534"),
-    "alertmanager": ("Deployment", "alertmanager", "65534:65534"),
-    "grafana": ("Deployment", "grafana", "472:472"),
+}
+# Each data component and the supervision, whose certificate is a Secret: its workload, the
+# container that serves, and the group of its pod, which reads its key.
+CERTIFIED = {
+    "postgres": ("StatefulSet", "postgres", 999),
+    "redis": ("Deployment", "redis", 999),
+    "storage": ("StatefulSet", "storage-proxy", 1000),
+    "prometheus": ("StatefulSet", "prometheus", 65534),
+    "alertmanager": ("Deployment", "alertmanager", 65534),
+    "grafana": ("Deployment", "grafana", 472),
 }
 OPERATOR: dict[str, Any] = {"secrets": {"existingSecret": "operator", "values": None}}
 EGRESS = [{"ipBlock": {"cidr": "10.0.0.5/32"}}]
@@ -107,6 +112,26 @@ def test_each_server_serves_with_the_certificate_its_pod_issues_for_the_name_of_
         volumes = {volume["name"]: volume for volume in pod(item)["volumes"]}
         assert volumes["authority"]["secret"]["secretName"] == "waterfall-authority"
         assert volumes["certificates"]["emptyDir"]["medium"] == "Memory"
+
+
+def test_each_data_component_serves_with_the_certificate_its_secret_holds_for_its_service(
+    objects: Objects,
+) -> None:
+    for component, (kind, server, group) in CERTIFIED.items():
+        item = of_kind(objects, kind)[component]
+        assert "initContainers" not in pod(item) or [
+            each["name"] for each in pod(item)["initContainers"]
+        ] == ["postgres-volume"], component
+        tls = mounts(named(item, server))["/tls"]
+        assert (tls["name"], tls["readOnly"], "subPath" in tls) == ("certificates", True, False)
+        volumes = {volume["name"]: volume for volume in pod(item)["volumes"]}
+        assert set(volumes) & {"authority", "roots", "trust"} == set(), component
+        # 0440, readable by the group of the pod alone, in which the server runs.
+        assert volumes["certificates"]["secret"] == {
+            "secretName": f"waterfall-{component}-tls",
+            "defaultMode": 0o440,
+        }, component
+        assert pod(item)["securityContext"]["fsGroup"] == group, component
 
 
 def test_no_server_listens_in_the_clear(objects: Objects) -> None:
