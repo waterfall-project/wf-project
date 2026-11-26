@@ -5646,7 +5646,9 @@ its parameters, never a sentence.
   or stripped of all its roles once the write is committed, `createPasswordSetupLink`, which has the
   link made by the extension and records it in the log, without its token, only once done,
   `updateMyPreferences`, which gives the chosen language to the account at Keycloak before writing
-  it and writes nothing as long as it does not answer — does not take `Transaction`, but opens its
+  it and writes nothing as long as it does not answer, `updateUser`, which carries the identity of a
+  local account to Keycloak between two short transactions (check, `carry_identity`, write) and
+  undoes it (`restore_identity`) if the write is refused — does not take `Transaction`, but opens its
   own before and after the call. An absent or invalid token is a 401 `SESSION_REQUIRED`, an expired
   token a 401 `SESSION_EXPIRED`, a token whose login (`auth_time`, failing that `iat`) precedes the
   last closing of the sessions of the account, or falls within its second, a 401 `SESSION_REVOKED` —

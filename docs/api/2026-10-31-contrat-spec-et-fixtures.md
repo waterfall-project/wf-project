@@ -913,7 +913,7 @@ K-04) : 12 réglés, 0 partiel, 1 non réglé (B-07, repris en B-05), 0 sans obj
   trois valeurs, aucune pour `org_node_id`, qu'`updateUser` accepte pourtant (donner, changer ou retirer
   le rattachement).
 - **la fixture dit** : `audit_events_administration.json` ne montre que des `fields: ["last_name"]`
-  (Lucas Petit-Laurent, Noé Vidal-Roux) ; aucun exemple ne change un nœud.
+  (Lucas Petit-Laurent, Noé Vidal-Marchand) ; aucun exemple ne change un nœud.
 - **décision** : `DECISIONS.md:6124-6140` (#706) « les champs d'une identité modifiée … ; les valeurs
   d'une identité modifiée, avant et après, [écartées] » — la décision ne parle que de l'identité et ne
   tranche pas le rattachement ; aucune décision ne dit qu'une modification du seul nœud ne nomme rien.
