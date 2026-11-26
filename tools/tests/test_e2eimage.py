@@ -580,3 +580,29 @@ def test_a_command_played_is_stopped_with_the_tool() -> None:
     assert e2eimage.Docker().play(["sleep", "30"]) == -signal.SIGTERM
     assert time.monotonic() - started < 10
     timer.join()
+
+
+def test_keycloak_maven_repository_is_a_layer_and_package_runs_offline() -> None:
+    # [US-2800] #4790: a cache mount is never exported to the cache of GitHub Actions, so the
+    # layer of the dependencies came back CACHED over an empty repository, and `mvn package`
+    # downloaded everything, with no retry, and took a 429 from Maven Central.
+    dockerfile = (REPOSITORY / "deploy" / "keycloak" / "Dockerfile").read_text(encoding="utf-8")
+    extension = dockerfile.split("AS extension", 1)[1].split("\nFROM ", 1)[0]
+    assert "--mount=type=cache" not in extension
+    copied = extension.index("COPY extension/pom.xml ./")
+    resolving = extension.index("dependency:go-offline")
+    assert copied < resolving < extension.index("COPY extension/src")
+    package = extension.split("COPY extension/src", 1)[1]
+    assert re.search(r"mvn [^\n]*--offline[^\n]* package|mvn [^\n]* -o package", package)
+    # Resolver 2 (Maven 3.10) retries a refused request with a growing pause, 429 included.
+    options = re.search(r'ENV MAVEN_OPTS="([^"]*)"', extension.replace("\\\n", ""))
+    assert options
+    settings = dict(item[2:].split("=", 1) for item in options.group(1).split())
+    prefix = "aether.transport.http.retryHandler."
+    assert int(settings[prefix + "count"]) >= 5
+    assert int(settings[prefix + "intervalMax"]) > int(settings[prefix + "interval"])
+    assert "429" in settings[prefix + "serviceUnavailable"].split(",")
+    known = tomllib.loads((REPOSITORY / "tools" / "queue-known.toml").read_text(encoding="utf-8"))
+    entry = next(e for e in known["known"] if e.get("issue") == "#4790")
+    assert entry["cause"].startswith("établie : ")
+    assert "45876627630" in entry["frequency"]
