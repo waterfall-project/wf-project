@@ -64,9 +64,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Start the API service, or say why it cannot start (WF-SEC-0010).
 
     The service takes no argument but ``--version``: any other one is refused with status 2, but
-    ``install``, which ``waterfall.bootstrap`` takes before it (US-0420), and ``load-witness``,
-    which ``waterfall.witness`` takes before them both (EP-05). The settings are read here before
-    any process starts, so that a missing one stops the service with status 2, naming it.
+    ``install``, which ``waterfall.bootstrap`` takes before it (US-0420), and ``load-witness`` and
+    ``load-reference``, which ``waterfall.witness`` takes before them both (EP-05, US-2950). The
+    settings are read here before any process starts, so that a missing one stops the service with
+    status 2, naming it.
     """
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments == ["--version"]:
@@ -74,7 +75,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if arguments:
         sys.stderr.write(
-            f"usage: {NAME} [--version | install | load-witness]\n"
+            f"usage: {NAME} [--version | install | load-witness"
+            " | load-reference [--projects N]]\n"
             f"{NAME}: unexpected argument: {arguments[0]}\n"
         )
         return 2
