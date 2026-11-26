@@ -6,6 +6,11 @@
 # never pushed, then the chart installed on a cluster of kind made for the job, bootstrapped, its
 # API's liveness and the sign-in of its first administrator held (make check-chart). Helm, kind and
 # kubectl are downloaded at the versions and digests wftools.kubetools pins.
+#
+# The chart installs on two distributions of Kubernetes, without modification (WF-CMP-0020-A,
+# US-2810): kind, where the whole of the trial is held, and k3s, a Kubernetes of another make, by the
+# same values. Each is a job of its own, in parallel: each builds the three images, or takes them
+# from the cache.
 name: chart
 
 on:
@@ -27,6 +32,11 @@ env:
 
 jobs:
   check:
+    name: check (${{ matrix.distribution }})
+    strategy:
+      fail-fast: false
+      matrix:
+        distribution: [kind, k3s]
     runs-on: ubuntu-26.04
     # The three images and the first start of Keycloak on the cluster are the longest of it.
     timeout-minutes: 40
@@ -52,3 +62,4 @@ jobs:
       - run: make check-chart
         env:
           TIER: ${{ inputs.tier }}
+          CHART_TRIALS: ${{ matrix.distribution == 'k3s' && 'chart-trial-k3s' || 'chart-trial' }}

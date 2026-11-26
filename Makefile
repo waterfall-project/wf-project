@@ -75,7 +75,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
 	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-logs-search service-logs-fields service-down measure-core migrate \
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
-	production-trial check-production kube-tools lint-chart test-chart chart-trial check-chart \
+	production-trial check-production kube-tools lint-chart test-chart chart-trial chart-trial-k3s check-chart \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens implementations readmes reuse lint-workflows \
 	lint-shell check slot slot-release e2e-down slots test-services test-services-down \
@@ -344,6 +344,14 @@ lint-chart: kube-tools ## Lint the chart strictly, with the values of the chain 
 # PostgreSQL. The cluster is named after the slot, so that two worktrees never share one.
 chart-trial: export WATERFALL_CHART_CLUSTER ?= waterfall-chart-s$(call slot-value,WATERFALL_SLOT)
 chart-trial: kube-tools ## Install the chart on a throwaway cluster of kind from the images of WATERFALL_IMAGE_TAG (the commit by default, make images first), bootstrap it, hold its liveness, the sign-in of its first administrator and its services without state (one token answered the same by each instance, a worker killed in a marking) and the test of a restoration the platform plans (closed while it runs, gone after), then delete the cluster
+	@$(heavy) $(WFTOOLS).charttrial
+
+# The same chart on the second distribution, k3s in a container, by the very same values: that the
+# chart installs on two distributions without modification (WF-CMP-0020-A, US-2810). It holds the
+# installation, the sign-in of the first administrator and the transport; the rest is held on kind.
+chart-trial-k3s: export WATERFALL_CHART_CLUSTER ?= waterfall-chart-k3s-s$(call slot-value,WATERFALL_SLOT)
+chart-trial-k3s: export WATERFALL_CHART_DISTRIBUTION = k3s
+chart-trial-k3s: kube-tools ## Install the chart on a throwaway cluster of k3s, by the values of kind, from the images of WATERFALL_IMAGE_TAG (make images first), bootstrap it, hold its liveness, the sign-in of its first administrator and its transport, then delete the cluster (WF-CMP-0020-A)
 	@$(heavy) $(WFTOOLS).charttrial
 
 # Keycloak answers before its realm is applied: the application starts once it does, anew at each
@@ -766,9 +774,11 @@ check-service: $(call full-only,e2e-service) ## The paths against the real servi
 # them (production-trial): in the full tier only, as images.yml does again on the images it published.
 check-production: $(call full-only,images production-trial) ## The production platform starts on the images built here, bootstraps and lets its first administrator in, in the full tier only (US-0430)
 
-# The chart linted and rendered in every tier; installed on a cluster of kind from the three images
-# built here, in the full tier only, as check-production starts the Compose (US-2800).
-check-chart: lint-chart test-chart $(call full-only,images chart-trial) ## The chart lints and says what it must; in the full tier, it installs on a throwaway cluster, bootstraps and lets its first administrator in (US-2800)
+# The chart linted and rendered in every tier; installed on a cluster of kind, then of k3s, from the
+# three images built here, in the full tier only, as check-production starts the Compose (US-2800).
+# CHART_TRIALS names the clusters it is installed on, both by default: the chain gives each its job.
+CHART_TRIALS ?= chart-trial chart-trial-k3s
+check-chart: lint-chart test-chart $(call full-only,images $(CHART_TRIALS)) ## The chart lints and says what it must; in the full tier, it installs on throwaway clusters of kind and of k3s, bootstraps and lets its first administrator in (US-2800, US-2810)
 
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap

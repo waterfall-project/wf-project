@@ -20,7 +20,8 @@ import pytest
 from test_chart import Objects, of_kind, rendered
 
 from wftools import chart, charttrial, transport
-from wftools.charttrial import Tools, Trial, TrialError
+from wftools.chartrun import TrialError
+from wftools.charttrial import Tools, Trial
 from wftools.production import Platform
 
 if TYPE_CHECKING:

@@ -349,9 +349,9 @@ jobs:
     if: needs.changes.outputs.production == 'true' && needs.changes.outputs.tier == 'full'
     uses: ./.github/workflows/production.yml
 
-  # The chart (US-2800): linted and rendered in both tiers, installed on a cluster of kind from the
-  # three images built here in the full tier only. Its job waits for the mirror in both, which reads
-  # nothing in the fast tier but is the same condition to keep.
+  # The chart (US-2800): linted and rendered in both tiers, installed on a cluster of kind and on one
+  # of k3s (US-2810) from the three images built here in the full tier only. Its job waits for the
+  # mirror in both, which reads nothing in the fast tier but is the same condition to keep.
   chart:
     needs: [changes, mirror]
     permissions:

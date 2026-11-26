@@ -9,7 +9,8 @@ import pytest
 import yaml
 
 from wftools import chart, chartdata, charttrial
-from wftools.charttrial import Tools, Trial, TrialError
+from wftools.chartrun import TrialError
+from wftools.charttrial import Tools, Trial
 from wftools.production import Platform, ProductionError
 
 if TYPE_CHECKING:
