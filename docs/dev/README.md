@@ -5969,6 +5969,13 @@ advisory lock queues them. The command stops, with the name of the variable, if
 be merged is rebased on the first and takes the next number. The test of the chain fails
 on two heads.
 
+**A table partitioned by project.** A migration that partitions a new table by the identifier
+of a project creates the partition of the projects that exist, as `0031`, `0035` and `0044` do,
+and that of the sets of the reserve too (`project_partition_reserve`, migration `0055`,
+US-2830/L4): a set that lacks a partition is never taken, and the creation of a project then falls
+back on the synchronous creation of its partitions, which waits for a marking under way.
+`tests/test_migration_partition_reserve.py` checks it: a set made at `0055` is whole at the head.
+
 **The rows the migration writes.** The catalogue of permissions, for instance, is a
 data migration, separate from that of the schema. The rows of the installation, for their part, are
 those of the installer: the bootstrap writes them, not a migration (US-0420).

@@ -103,6 +103,8 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "portfolio",
         # The subprojects the provisions of the risks designate (US-3060/L4, #4208).
         "risk_designations",
+        # The sets of partitions the worker makes in advance, which a creation takes (US-2830/L4).
+        "partition_reserve",
     },
     # ``rates``: the update of the rates a revision frames (US-1500/L1).
     "revisions": {

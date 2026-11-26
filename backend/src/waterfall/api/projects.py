@@ -14,7 +14,7 @@ The code of a project bears any character, a slash and dots included (WF-PRJ-001
 
 from datetime import UTC
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Final
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -22,7 +22,7 @@ from pydantic import AfterValidator, AwareDatetime, Field
 from sqlalchemy.orm import Session
 
 from waterfall.api.actors import actor_ref
-from waterfall.api.authentication import Caller, Transaction
+from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.base import ContractModel
 from waterfall.api.contract.models import (
     LockVersion,
@@ -59,12 +59,15 @@ from waterfall.platform.errors import (
     UnprocessableError,
     json_pointer,
 )
+from waterfall.platform.tasks import pending_task, submit
 
 router = APIRouter(tags=["projects"])
 
 CONSULT = "project_settings.read"
 CHANGE = "project_settings.write"
 CREATE = "project_create"
+# The task that makes the sets of partitions the creations take (#4801).
+FILLING: Final = "partition_reserve"
 DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
 CODE_LENGTH = 50
@@ -246,9 +249,17 @@ def get_projects(
     response_model_exclude_unset=True,
 )
 def post_project(
-    body: ProjectCreateBody, actor: Acting, account: Caller, session: Transaction
+    body: ProjectCreateBody,
+    actor: Acting,
+    account: Caller,
+    session: Transaction,
+    services: ServicesOf,
 ) -> Project:
-    """Create a project once the minimal reference holds; its creator is its project manager."""
+    """Create a project once the minimal reference holds; its creator is its project manager.
+
+    Its partitions are a set of the reserve when one is free: the worker is then asked for another,
+    unless a filling is already queued or running (US-2830/L4, #4801).
+    """
     draft = ProjectDraft(
         label=body.label,
         description=body.description,
@@ -256,7 +267,13 @@ def post_project(
         code=body.code,
     )
     act = Act(account.user_id, utc_now())
-    return described(session, [create_project(session, draft, act, viewer_of(actor))])[0]
+
+    def refill() -> None:
+        if pending_task(session, FILLING) is None:
+            submit(session, services.queue, FILLING, None)
+
+    created = create_project(session, draft, act, viewer_of(actor), when_taken=refill)
+    return described(session, [created])[0]
 
 
 @router.get(

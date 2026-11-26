@@ -41,6 +41,7 @@ from waterfall.core.projects.commands import (
 from waterfall.core.projects.interface.contributors import require_project_manager
 from waterfall.core.projects.interface.estimate_facts import hold_estimate, reinflate_estimate
 from waterfall.core.projects.interface.lifecycle import advance
+from waterfall.core.projects.interface.partition_reserve import take_partitions
 from waterfall.core.projects.interface.skeleton import opening_main_with_tasks
 from waterfall.core.projects.interface.work_breakdown import BORN_LOCK_VERSION, follow_project_label
 from waterfall.core.projects.tables import (
@@ -72,7 +73,7 @@ from waterfall.platform.permissions import ALL_PROJECTS_READ
 from waterfall.platform.tasks import projects_with_task_pending
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Generator, Iterable, Mapping
+    from collections.abc import Callable, Collection, Generator, Iterable, Mapping
     from datetime import date, datetime
 
     from sqlalchemy.orm import Session
@@ -559,24 +560,27 @@ def _create(
     session: Session,
     draft: ProjectDraft,
     act: Act,
-    project_id: UUID | None,
-    *,
-    partitioned: bool = False,
+    partitioned: UUID | None,
+    when_taken: Callable[[], None] | None = None,
 ) -> Project:
     """Create a project and what is born with it, once the minimal reference holds.
 
     The lock of the reference is shared before the four questions are asked, and held until the
     commit: a write that could empty the reference waits for the project, or is waited for (#2154).
-    The partitions of the project are created right after, before any write of the transaction:
-    their function waits for no lock while it holds one, and the transaction holds none yet that a
-    writer or another creation waits for (#2603, #2667). Unless ``partitioned``: the witness has
-    created them at the start of its transaction, before its first write (``load_project``). That
-    is a precondition of the caller, not checked here: without them the first insertion of the
-    project fails on its partitioned tables, with no cause named.
+    A project the service creates takes a set of partitions of the reserve, with no DDL, and its
+    identifier; ``when_taken`` is called once it is written, which asks the worker for another
+    (#4801). With the reserve empty, the partitions are created right after, before any write of
+    the transaction: their function waits for no lock while it holds one, and the transaction holds
+    none yet that a writer or another creation waits for (#2603, #2667) — but it waits for a
+    marking that runs, or gives up. A project ``partitioned`` has the identifier given: the witness
+    has created its partitions at the start of its transaction, before its first write
+    (``load_project``). That is a precondition of the caller, not checked here: without them the
+    first insertion of the project fails on its partitioned tables, with no cause named.
     """
     share_reference(session)
-    identifier = new_id() if project_id is None else project_id
-    if not partitioned:
+    taken = take_partitions(session) if partitioned is None else None
+    identifier = partitioned or taken or new_id()
+    if partitioned is None and taken is None:
         session.execute(select(func.create_project_partitions(identifier)))
     missing = missing_prerequisites(session)
     if missing:
@@ -635,22 +639,34 @@ def _create(
     )
     session.flush()
     _inscribe_creation(session, project, act)
+    if taken is not None and when_taken is not None:
+        when_taken()
     return project
 
 
-def create_project(session: Session, draft: ProjectDraft, act: Act, viewer: Viewer) -> ProjectView:
+def create_project(
+    session: Session,
+    draft: ProjectDraft,
+    act: Act,
+    viewer: Viewer,
+    *,
+    when_taken: Callable[[], None] | None = None,
+) -> ProjectView:
     """Create a project, and what is born with it (``createProject``).
 
     Refused while the minimal reference misses a prerequisite, each named (409
     ``REFERENCE_INCOMPLETE``), and if the code is borne by another project (409
     ``ALREADY_EXISTS``). The creator is inscribed project manager; the default work package and
     order item bear the label of the project; the project is born ``created``, its transition
-    written from no state; the creation is inscribed in the journal (WF-SEC-0030).
+    written from no state; the creation is inscribed in the journal (WF-SEC-0030). Its partitions
+    are a set of the reserve when one is free, ``when_taken`` called once the project is written
+    (#4801).
 
     The minimal reference is read under the shared lock of the reference, held to the commit: no
     deactivation can empty it between the reading and the commit (#2154).
     """
-    return _views(session, [_create(session, draft, act, None)], viewer)[0]
+    created = _create(session, draft, act, None, when_taken)
+    return _views(session, [created], viewer)[0]
 
 
 def load_project(session: Session, load: ProjectLoad, act: Act) -> None:
@@ -663,7 +679,7 @@ def load_project(session: Session, load: ProjectLoad, act: Act) -> None:
     here, after the reference and the accounts the witness writes first, they met an autovacuum
     those writes held up, and gave up (#2937).
     """
-    _create(session, load.draft, act, load.project_id, partitioned=True)
+    _create(session, load.draft, act, load.project_id)
 
 
 def compared_code(code: str) -> str:
