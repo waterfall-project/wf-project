@@ -279,6 +279,8 @@ target = "check-service"
 paths = [
     "deploy/compose/compose.prod.yaml",
     "deploy/compose/compose.prod.local.yaml",
+    # The registry the trial pushes the images built here to, and starts the platform from.
+    "deploy/compose/compose.registry.local.yaml",
     "deploy/compose/Caddyfile.prod",
     "deploy/compose/production.env.example",
     # The encryption between its services (US-2840): the proxy of the storage, the access to
@@ -325,6 +327,7 @@ paths = [
     "tools/src/wftools/slots.py",
     "tools/src/wftools/heavyturns.py",
     "tools/src/wftools/production.py",
+    "tools/src/wftools/trialregistry.py",
     "tools/src/wftools/restoration_trial.py",
     "tools/src/wftools/restoretest_trial.py",
     "tools/src/wftools/images.py",
@@ -384,6 +387,7 @@ paths = [
     "tools/src/wftools/chartstateless.py",
     "tools/src/wftools/charttrial.py",
     "tools/src/wftools/production.py",
+    "tools/src/wftools/trialregistry.py",
     "tools/src/wftools/restoration_trial.py",
     "tools/src/wftools/restoretest_trial.py",
     "tools/src/wftools/transport.py",
@@ -392,6 +396,7 @@ paths = [
     "tools/tests/test_chartprometheus.py",
     "tools/tests/test_chartprovided.py",
     "tools/tests/test_chartrestoretest.py",
+    "tools/tests/test_chartsecurity.py",
     "tools/tests/test_chartstateless.py",
     "tools/tests/test_charttransport.py",
     "tools/tests/test_alerts.py",

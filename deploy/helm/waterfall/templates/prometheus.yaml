@@ -81,19 +81,15 @@ spec:
         # A threshold or a target changed starts the pod again, on the new rules.
         checksum/configuration: {{ printf "%s%s" $configuration $rules | sha256sum }}
     spec:
-      {{- include "waterfall.podDefaults" . | nindent 6 }}
       # The user of the image, nobody, who writes its series in the volume.
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65534
-        runAsGroup: 65534
-        fsGroup: 65534
+      {{- include "waterfall.podDefaults" (list . (dict "runAsUser" 65534 "runAsGroup" 65534 "fsGroup" 65534)) | nindent 6 }}
       initContainers:
         {{- include "waterfall.transportInit" (list . "prometheus" 65534 65534) | nindent 8 }}
       containers:
         - name: prometheus
           image: {{ include "waterfall.thirdParty" (list . .Values.prometheus.image) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           args:
             - --config.file=/etc/prometheus/prometheus.yml
             - --web.config.file=/etc/prometheus/web.yml

@@ -20,6 +20,7 @@ import pytest
 import yaml
 
 from wftools import REPOSITORY, production
+from wftools.images import IMAGES
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -227,14 +228,14 @@ def test_a_ratio_above_zero_and_at_most_one_is_a_threshold(tmp_path: Path, ratio
 
 def test_the_environment_of_compose_takes_the_defaults_of_a_local_trial() -> None:
     # The local trial of the platform declares a capacity of 10 GiB for each space, unless the
-    # environment says another.
-    tag = "0123456789abcdef0123456789abcdef01234567"
+    # environment says another; it designates each image by its digest (#3726).
     platform = production.Platform("waterfall.localhost", 443, 80)
     email = "administrateur@waterfall.test"
     given = {"X": "y", "WATERFALL_STORAGE_CAPACITY_BYTES": "5"}
-    assert production.environment_of(given, tag, platform) == {
+    pushed = {image.name: f"sha256:{index:064x}" for index, image in enumerate(IMAGES, start=1)}
+    assert production.environment_of(given, platform, pushed) == {
         **given,
-        "WATERFALL_IMAGE_TAG": tag,
+        **{f"WATERFALL_DIGEST_{name.upper()}": value for name, value in pushed.items()},
         "WATERFALL_DOMAIN": "waterfall.localhost",
         "WATERFALL_ADMIN_EMAIL": email,
         "WATERFALL_ACME_EMAIL": email,
@@ -244,6 +245,42 @@ def test_the_environment_of_compose_takes_the_defaults_of_a_local_trial() -> Non
     }
     command = production.compose_command("p")
     assert command[-4:] == ["--file", str(PRODUCTION), "--file", str(LOCAL)]
+
+
+TAG = "0123456789abcdef0123456789abcdef01234567"
+GIVEN_DIGESTS = {
+    f"WATERFALL_DIGEST_{image.name.upper()}": f"sha256:{index:064x}"
+    for index, image in enumerate(IMAGES, start=1)
+}
+PUSHED = {image.name: "sha256:" + f"{index:x}" * 64 for index, image in enumerate(IMAGES, start=7)}
+
+
+@pytest.mark.story("US-2800")
+def test_the_trial_designates_each_image_by_the_digests_given_before_those_it_pushed() -> None:
+    # The publication's digests, given, prevail: the trial of images.yml runs what it published.
+    assert production.digests_of(GIVEN_DIGESTS, PUSHED) == GIVEN_DIGESTS
+
+
+@pytest.mark.story("US-2800")
+def test_the_trial_designates_each_image_by_the_digest_its_push_said_when_none_is_given() -> None:
+    found = production.digests_of({}, PUSHED)
+    assert found == {f"WATERFALL_DIGEST_{name.upper()}": PUSHED[name] for name in PUSHED}
+
+
+@pytest.mark.story("US-2800")
+def test_the_trial_refuses_two_digests_of_three_which_would_run_images_of_two_origins() -> None:
+    given = {"WATERFALL_DIGEST_FRONT": GIVEN_DIGESTS["WATERFALL_DIGEST_FRONT"]}
+    with pytest.raises(production.ProductionError, match=r"give the digests of the three images"):
+        production.digests_of(given, PUSHED)
+
+
+@pytest.mark.story("US-2800")
+def test_the_trial_refuses_an_image_designated_otherwise_than_by_a_digest() -> None:
+    given = {**GIVEN_DIGESTS, "WATERFALL_DIGEST_KEYCLOAK": "0.3.0"}
+    with pytest.raises(
+        production.ProductionError, match=r"WATERFALL_DIGEST_KEYCLOAK is not the digest"
+    ):
+        production.digests_of(given, PUSHED)
 
 
 # A file of configuration that names a root to trust: Prometheus's ca_file, Grafana's $__file{}.

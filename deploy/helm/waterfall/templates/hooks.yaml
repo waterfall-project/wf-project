@@ -69,6 +69,7 @@ spec:
         - name: waterfall-database
           image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict "runAsUser" 999 "runAsGroup" 999) | nindent 10 }}
           command:
             - sh
             - -c
@@ -87,6 +88,7 @@ spec:
         - name: keycloak-database
           image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict "runAsUser" 999 "runAsGroup" 999) | nindent 10 }}
           command: [psql, --no-psqlrc, --set=ON_ERROR_STOP=1, --file=/files/keycloak-database.sql]
           env:
             {{- include "waterfall.administrator" . | nindent 12 }}
@@ -100,6 +102,7 @@ spec:
         - name: backup-database-role
           image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict "runAsUser" 999 "runAsGroup" 999) | nindent 10 }}
           command: [psql, --no-psqlrc, --set=ON_ERROR_STOP=1, --file=/files/backup-database-role.sql]
           env:
             {{- include "waterfall.administrator" . | nindent 12 }}
@@ -114,6 +117,7 @@ spec:
         - name: migrate
           image: {{ include "waterfall.image" (list . "waterfall") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command: [waterfall-migrate]
           env:
             {{- include "waterfall.backEnvironment" (list . "owner") | nindent 12 }}
@@ -124,6 +128,7 @@ spec:
         - name: service-database-role
           image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict "runAsUser" 999 "runAsGroup" 999) | nindent 10 }}
           command: [psql, --no-psqlrc, --set=ON_ERROR_STOP=1, --file=/files/service-database-role.sql]
           env:
             {{- include "waterfall.administrator" . | nindent 12 }}
@@ -168,6 +173,7 @@ spec:
         - name: storage-buckets
           image: {{ include "waterfall.thirdParty" (list . .Values.storage.bucketsImage) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict "runAsUser" 100 "runAsGroup" 101) | nindent 10 }}
           command: [/bin/sh, /files/storage-buckets.sh]
           env:
             - name: STORAGE_ADDRESS
@@ -217,6 +223,7 @@ spec:
         - name: realm
           image: {{ include "waterfall.image" (list . "keycloak") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command: [/opt/keycloak/bin/apply-realm]
           env:
             {{- include "waterfall.realmEnvironment" . | nindent 12 }}
@@ -253,6 +260,7 @@ spec:
         - name: install
           image: {{ include "waterfall.image" (list . "waterfall") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command: [waterfall-api, install]
           env:
             {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}

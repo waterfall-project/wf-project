@@ -57,7 +57,10 @@ Puis :
    ```
 
 3. Remplir `.env` : le nom de la machine (`WATERFALL_DOMAIN`), l'adresse que Let's Encrypt
-   prévient (`WATERFALL_ACME_EMAIL`), l'étiquette (`WATERFALL_IMAGE_TAG`), l'adresse du premier
+   prévient (`WATERFALL_ACME_EMAIL`), les empreintes des images (`WATERFALL_DIGEST_FRONT`,
+   `WATERFALL_DIGEST_WATERFALL`, `WATERFALL_DIGEST_KEYCLOAK`, les trois lignes de `digests.env`,
+   l'artefact du passage de `images.yml` qui a publié la version, que « Mettre à jour » dit où
+   retrouver), l'adresse du premier
    administrateur (`WATERFALL_ADMIN_EMAIL`), la langue de l'installation, sa devise
    (`WATERFALL_CURRENCY`, trois lettres majuscules, qui ne change plus ensuite) et le nom de
    l'entreprise (`WATERFALL_COMPANY_NAME`, que portent les fichiers exportés), son fuseau horaire
@@ -197,7 +200,27 @@ docker compose -f compose.prod.yaml up --detach --wait keycloak
 ## Mettre à jour
 
 1. Prendre une sauvegarde (ci-dessous).
-2. Changer `WATERFALL_IMAGE_TAG` dans `.env`.
+2. Remplacer dans `.env` les trois empreintes `WATERFALL_DIGEST_…` par celles de la nouvelle
+   version. La plateforme ne désigne ses images que par leur empreinte, jamais par une étiquette,
+   qu'un travail qui peut écrire les paquets du registre pourrait déplacer (#3726). On les trouve :
+
+   - dans l'artefact `digests` du passage d'`images.yml` qui a publié la version : le fichier
+     `digests.env`, dont les trois lignes se copient telles quelles dans `.env`. L'artefact expire
+     après 90 jours et se télécharge avec une session GitHub : on garde ces lignes avec les
+     secrets, version par version, dès qu'on les a ;
+   - à défaut, en les lisant au registre, une image après l'autre :
+
+     ```sh
+     for image in front waterfall keycloak; do
+       docker buildx imagetools inspect ghcr.io/waterfall-project/$image:0.3.0 --format '{{.Manifest.Digest}}'
+     done
+     ```
+
+     Cette lecture se fait **par l'étiquette** de la version (`0.3.0` ici), que quelqu'un qui peut
+     écrire les paquets aurait pu déplacer : on la fait **une fois**, on vérifie que la version et
+     les trois empreintes sont bien celles de la publication annoncée (étiquette de commit de
+     l'image, ou passage d'`images.yml`), et on garde les empreintes lues.
+
 3. Tirer les images et relancer :
 
    ```sh
@@ -470,7 +493,13 @@ Le navigateur, lui, avertit sur ce certificat. `WATERFALL_HTTPS_PORT` et `WATERF
 déplacent les ports publiés ; un port HTTPS autre que 443 entre dans l'adresse de la plateforme.
 
 `make production-trial` fait ainsi l'essai de la chaîne (`wftools.production`) : sur les images de
-`WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut, que `make images` construit —, sous le nom
+`WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut, que `make images` construit —, désignées par
+leur empreinte, comme en production. Si l'environnement donne les trois `WATERFALL_DIGEST_…` (ceux
+de la publication), ce sont ceux-là, du registre de ghcr.io. Sinon l'image construite ici n'a pas
+d'empreinte que Docker retrouve, et le commit d'une pull request n'est pas publié : l'essai démarre un
+registre qui ne vit que le temps de l'essai (`compose.registry.local.yaml`, sur 127.0.0.1), y pousse
+les trois images, lit l'empreinte que chaque envoi annonce et démarre la plateforme depuis ce
+registre (`WATERFALL_REGISTRY`) par ces empreintes, puis le retire. Sous le nom
 `waterfall.localhost`, il démarre la plateforme, l'amorce, vérifie la sonde de vie de l'API, que
 HTTP renvoie à la même page sur l'adresse publiée, port compris, que HTTPS répond avec HSTS et les
 autres en-têtes de Caddy, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se
@@ -520,6 +549,11 @@ sudo mkdir -p /var/log/caddy
 docker login ghcr.io                                       # seulement si l'image du front n'est pas publique
 docker compose -f compose.demo.yaml up --detach --build --wait
 ```
+
+La démonstration désigne l'image du front par une étiquette, `WATERFALL_IMAGE_TAG`, et non par une
+empreinte, à dessein : la désignation par empreinte (#3726) vise la plateforme de production et le
+chart, qui gardent des données ; la maquette n'en garde aucune et ne sert qu'un front contre un faux
+back.
 
 Le compte partagé est `WATERFALL_DEMO_USER` et le mot de passe dont on a mis le hash. Sans eux,
 Caddy répond 401 à toute requête, hors `/robots.txt`, qui interdit l'indexation.

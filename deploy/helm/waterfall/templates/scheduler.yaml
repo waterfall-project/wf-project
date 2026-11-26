@@ -37,6 +37,7 @@ spec:
             - name: schedule
               image: {{ include "waterfall.image" (list . "waterfall") }}
               imagePullPolicy: {{ .Values.images.pullPolicy }}
+              {{- include "waterfall.containerSecurity" (dict) | nindent 14 }}
               command: [waterfall-worker, schedule]
               env:
                 {{- include "waterfall.backEnvironment" (list . "service") | nindent 16 }}

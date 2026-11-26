@@ -36,7 +36,8 @@ PROJECT = "waterfall-restore-test"
 # The variables the Compose file requires, as ``make lint-compose`` stands them in.
 STAND_IN = {
     "WATERFALL_DOMAIN": "waterfall.localhost",
-    "WATERFALL_IMAGE_TAG": "stand-in",
+    "WATERFALL_DIGEST_WATERFALL": "sha256:" + "0" * 64,
+    "WATERFALL_DIGEST_KEYCLOAK": "sha256:" + "0" * 64,
     "WATERFALL_SERVICE_DATABASE_PASSWORD": "stand-in",
     "WATERFALL_STORAGE_SECRET": "stand-in",
     "WATERFALL_RESTORE_TEST_PASSWORD": "stand-in",
