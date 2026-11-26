@@ -14,8 +14,9 @@ oracle of the volumes. Three things are read, each by the interfaces of the modu
   the history of PRJ-001 included, and the portfolio holds the projects of the draw and no other —
   a set engendered twice, or restored, is the same set (WF-QUA-0040);
 - the invariants of the portfolio: its count is the projects it holds in pricing and in progress,
-  and the sum of the reference budgets of its projects in progress, read by the portfolio, is the
-  sum of those same projects', read one by one.
+  and its order book, the sum of the reference budgets of its projects in progress, is the sum of
+  the budgets that the estimate (``portfolio_totals``) reads of each of them, one by one, on the
+  reference of the project.
 
 ``check`` gives the faults, one sentence each; none, the set is whole. The command prints each
 volume it counted, then the faults, and ends 0, or 1 on any fault, or 2 on a setting that lacks.
@@ -27,9 +28,11 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from waterfall import schema
 from waterfall.core.costs.interface import count_cost_lines
+from waterfall.core.estimate.interface import portfolio_totals
 from waterfall.core.portfolio.interface import (
     PortfolioListing,
     read_portfolio_projects,
@@ -38,7 +41,11 @@ from waterfall.core.portfolio.interface import (
 from waterfall.core.portfolio.interface.scope import PortfolioAsked, PortfolioReading
 from waterfall.core.projects.interface import Viewer, count_projects, projects_present
 from waterfall.core.resource_settings.interface import node_labels, roles_present
-from waterfall.core.revisions.interface import count_marked_revisions, revisions_present
+from waterfall.core.revisions.interface import (
+    count_marked_revisions,
+    read_revision_for,
+    revisions_present,
+)
 from waterfall.core.users.interface import read_account_labels
 from waterfall.platform.audit import Act
 from waterfall.platform.database import Database, create_database_engine, utc_now
@@ -87,6 +94,7 @@ class Report:
     expected: Volumes
     faults: list[str] = field(default_factory=list[str])
     compared: int = 0
+    warnings: list[str] = field(default_factory=list[str])
 
 
 def expected_volumes(
@@ -103,6 +111,8 @@ def expected_volumes(
     drawn = [
         draw_project(number, base, reference) for number in numbers_of(wanted - base.portfolio)
     ]
+    # ``revisions.json`` holds the revisions of the witness's own projects; the ten projects of the
+    # slice (``PRJ-30n``) hold theirs in their files, counted through ``sliced``: none is in both.
     marked = sum(
         each.status.value == "marked"
         for each in witness.read(revisions.REVISIONS_FILE, revisions.Revisions).items
@@ -128,7 +138,7 @@ def check(session: Session, witness: Witness, wanted: int, history: History) -> 
     held = Volumes(
         count_projects(session), count_marked_revisions(session), count_cost_lines(session)
     )
-    report = Report(held, expected)
+    report = Report(held, expected, warnings=list(plan.short))
     for name in ("projects", "marked_revisions", "cost_lines"):
         if getattr(held, name) != getattr(expected, name):
             report.faults.append(
@@ -166,9 +176,10 @@ def _check_identifiers(
 
 
 def _check_portfolio(session: Session, manager: Viewer, faults: list[str]) -> int:
-    """Hold the sums of the portfolio: its count, and its order book, are those of its projects.
+    """Hold the sums of the portfolio: its count, its rows and its order book are its projects'.
 
-    Give how many budgets of projects in progress the order book was compared with.
+    Each reference budget a row shows is the one the estimate reads of the project; the order book
+    is their sum. Give how many budgets of projects in progress it was compared with.
     """
     reading = PortfolioReading(at=utc_now())
     asked = PortfolioAsked()
@@ -182,17 +193,31 @@ def _check_portfolio(session: Session, manager: Viewer, faults: list[str]) -> in
             f"portfolio: {len(rows)} projects listed, {listed['meta']['total']} counted, "
             f"{listed['scope']['project_count']} in its scope"
         )
-    budgets = [
-        Decimal(each["reference_budget"])
-        for each in rows
-        if each["state"] == IN_PROGRESS and each["reference_budget"] is not None
-    ]
+    budgets: list[Decimal] = []
+    for each in rows:
+        if each["state"] != IN_PROGRESS or each["reference_budget"] is None:
+            continue
+        shown = Decimal(each["reference_budget"])
+        budgets.append(shown)
+        read = _budget_of(session, UUID(str(each["project_id"])))
+        if read != shown:
+            faults.append(
+                f"portfolio: project {each['project_id']} shows a reference budget {shown}, "
+                f"the estimate reads {read}"
+            )
     if Decimal(value["order_book"]) != sum(budgets, Decimal(0)):
         faults.append(
             f"portfolio: order book {value['order_book']}, "
             f"the sum of its {len(budgets)} projects' budgets {sum(budgets, Decimal(0))}"
         )
     return len(budgets)
+
+
+def _budget_of(session: Session, project_id: UUID) -> Decimal:
+    """Read the reference budget of a project on the estimate, as its own module gives it."""
+    revision_id = read_revision_for(session, project_id, None).revision_id
+    totals = portfolio_totals(session, project_id, revision_id)
+    return sum(totals.budget_by_cost_type.values(), Decimal(0))
 
 
 def main(arguments: Sequence[str]) -> int:
@@ -229,6 +254,8 @@ def main(arguments: Sequence[str]) -> int:
             f"{name}: {getattr(report.held, name)} (expected {getattr(report.expected, name)})\n"
         )
     sys.stdout.write(f"order book: the budgets of {report.compared} projects in progress summed\n")
+    for warning in report.warnings:
+        sys.stderr.write(f"waterfall-api {COMMAND}: warning: {warning}\n")
     for fault in report.faults:
         sys.stdout.write(f"fault: {fault}\n")
     return 1 if report.faults else 0

@@ -380,8 +380,9 @@ service-witness: ## Load the witness, the examples of the contract (fixtures/api
 # The reference set of WF-QUA-0040 (US-2950), on the platform that holds the witness or not: the
 # service `witness` runs `waterfall-api load-reference` in place of `load-witness`, which the command
 # runs first itself. Taken up where it stopped, a project and a month of PRJ-001 each in a transaction
-# of their own; the full set — three hundred projects, a hundred and eighty revisions of PRJ-001, eighteen
-# thousand lines of cost — takes most of an hour. REFERENCE_PROJECTS, REFERENCE_REVISIONS and REFERENCE_COST_LINES say less, for a trial.
+# of their own; the full set — three hundred projects, a hundred and eighty revisions of PRJ-001,
+# eighteen thousand lines of cost — takes most of an hour. REFERENCE_PROJECTS, REFERENCE_REVISIONS and
+# REFERENCE_COST_LINES say less, for a trial.
 # `waterfall-api check-reference` counts what the platform holds and checks the sums of its portfolio:
 # the volumes of the set are verified there, on the platform, never against fixtures/api/volume/.
 REFERENCE_PROJECTS ?= 300

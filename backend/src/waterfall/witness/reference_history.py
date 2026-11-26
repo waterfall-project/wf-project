@@ -41,6 +41,7 @@ from waterfall.core.revisions.interface import (
     load_marking,
     load_revision,
     marked_revisions,
+    revision_version_names,
 )
 from waterfall.witness import costs, revisions
 from waterfall.witness.portfolio import project_manager, write_import
@@ -88,7 +89,8 @@ class Plan:
     """What the history of PRJ-001 writes, read in the description of the witness.
 
     ``project_id`` is PRJ-001's, ``manager`` its project manager; ``marked`` and ``lines`` what the
-    witness gives it, ``steps`` the months to write and ``added`` the lines they bring in all.
+    witness gives it, ``steps`` the months to write and ``added`` the lines they bring in all;
+    ``short`` says, one sentence each, what the history asked is below what the witness holds.
     """
 
     project_id: UUID
@@ -96,6 +98,7 @@ class Plan:
     marked: int
     steps: int
     added: int
+    short: tuple[str, ...] = ()
 
     @classmethod
     def read(cls, witness: Witness, history: History) -> Plan:
@@ -119,7 +122,15 @@ class Plan:
                 f"and no revision to mark them with"
             )
             raise HistoryError(message)
-        return cls(project_id, project_manager(witness).user_id, marked, steps, added)
+        short = tuple(
+            f"{name} {asked} is below the {held} the witness holds of {CODE}: nothing is written"
+            for name, asked, held in (
+                ("revisions", history.marked, marked),
+                ("cost lines", history.cost_lines, held),
+            )
+            if asked < held
+        )
+        return cls(project_id, project_manager(witness).user_id, marked, steps, added, short)
 
     def lines_of(self, step: int) -> int:
         """Count the lines the ``step``-th month imports: an equal share, early months one more."""
@@ -148,12 +159,24 @@ def revision_id_of(step: int) -> UUID:
 def steps_done(session: Session, plan: Plan) -> int:
     """Count the steps the platform holds: the revisions of PRJ-001 marked beyond the witness's.
 
-    Nothing of PRJ-001 held, none: the witness is loaded before the history is.
+    Nothing of PRJ-001 held, none: the witness is loaded before the history is. The surplus is
+    taken for the first months only if it bears their names (``name_of``): a revision marked by
+    hand on PRJ-001 is refused, not counted as a month of the history.
     """
     if not projects_present(session, {plan.project_id}):
         message = f"the history of {CODE} is written on a platform that does not hold {CODE}"
         raise ValueError(message)
-    return len(marked_revisions(session, plan.project_id)) - plan.marked
+    marked = marked_revisions(session, plan.project_id)
+    done = len(marked) - plan.marked
+    names = set(revision_version_names(session, marked).values())
+    stray = [name_of(step) for step in range(1, done + 1) if name_of(step) not in names]
+    if stray:
+        message = (
+            f"{CODE} holds {done} revisions marked beyond the witness's, "
+            f"but not those of its history, which lack {stray[0]!r}"
+        )
+        raise ValueError(message)
+    return done
 
 
 def write_step(session: Session, plan: Plan, step: int, act: Act) -> None:

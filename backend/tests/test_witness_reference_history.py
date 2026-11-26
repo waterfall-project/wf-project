@@ -14,22 +14,31 @@ on one that lacks a part.
 """
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from sqlalchemy import func, select
+from project_rows import unguarded
+from sqlalchemy import delete, func, select, update
 from support import WITNESS
 from test_witness_reference import count, identifying, settings
 from witness_template import TEMPLATE, cloned
 
 from waterfall.core.costs.tables import CostLine
+from waterfall.core.resource_settings.tables import OrgNode, ResourceRole
 from waterfall.core.revisions.interface import current_revision, marked_revisions
 from waterfall.core.revisions.tables import Revision
+from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
 from waterfall.platform.database import Database, create_database_engine, utc_now
-from waterfall.witness import reference_check, reference_history, reference_load
+from waterfall.witness import (
+    portfolio_slice,
+    reference_check,
+    reference_history,
+    reference_load,
+)
 from waterfall.witness.description import Witness
 from waterfall.witness.main import main
+from waterfall.witness.reference_draw import draw_reference
 from waterfall.witness.reference_history import (
     COST_LINES,
     MARKED,
@@ -40,14 +49,17 @@ from waterfall.witness.reference_history import (
     review_of,
     revision_id_of,
 )
-from waterfall.witness.reference_projects import numbers_of
+from waterfall.witness.reference_load import read_base
+from waterfall.witness.reference_projects import numbers_of, project_id_of
+from waterfall.witness.revisions import REVISIONS_FILE, Revisions
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from sqlalchemy import Engine
     from sqlalchemy.orm import Session
     from support import Logs
 
-REQUIREMENT = "WF-QUA-0040-A"
-STORY = "US-2950"
 # The witness's last event is on 2026-06-03: the history starts the month after.
 WITNESS_LAST_EVENT = datetime(2026, 6, 3, 9, 0, tzinfo=UTC)
 # The projects of the portfolio the command is tried with, the witness's alone: the history is
@@ -66,7 +78,8 @@ def short(months: int, lines: int) -> History:
     return History(plan.marked + months, COST_LINES - plan.added + lines)
 
 
-@pytest.mark.requirement(REQUIREMENT)
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.story("US-2950")
 def test_the_history_of_prj_001_reaches_the_volumes_of_a_hundred_and_eighty_revisions() -> None:
     # « … un projet portant mille tâches, quinze ans de révisions mensuelles marquées et dix-huit
     # mille lignes de coût » : the plan, read in the witness, writes the months that bring PRJ-001
@@ -95,7 +108,8 @@ def test_the_history_of_prj_001_reaches_the_volumes_of_a_hundred_and_eighty_revi
     assert len({revision_id_of(step) for step in range(1, plan.steps + 1)}) == plan.steps
 
 
-@pytest.mark.requirement(REQUIREMENT)
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.story("US-2950")
 def test_a_history_that_asks_lines_and_no_revision_to_mark_them_with_is_refused() -> None:
     # The lines of a month come with its marking: lines asked beyond the witness's, no month.
     with pytest.raises(HistoryError):
@@ -104,7 +118,8 @@ def test_a_history_that_asks_lines_and_no_revision_to_mark_them_with_is_refused(
     assert (nothing.steps, nothing.added) == (0, 0)
 
 
-@pytest.mark.requirement(REQUIREMENT)
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.story("US-2950")
 def test_two_draws_of_a_month_of_the_history_give_the_same_lines_and_none_repeats_another() -> None:
     # « Deux engendrements successifs donnent des données identifiantes identiques. » : the lines of
     # a month are drawn from the seed and its number alone, and identify themselves.
@@ -131,7 +146,8 @@ def marked_of(database: Database) -> list[str]:
         return [each for each in names if each is not None]
 
 
-@pytest.mark.requirement(REQUIREMENT)
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.story("US-2950")
 def test_the_history_marks_each_month_and_opens_the_next_by_the_rules_and_the_check_finds_the_set(
     witness: Database, service_database_url: str, logs: Logs
 ) -> None:
@@ -170,7 +186,8 @@ def test_the_history_marks_each_month_and_opens_the_next_by_the_rules_and_the_ch
     )
 
 
-@pytest.mark.requirement(REQUIREMENT)
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.story("US-2950")
 @pytest.mark.usefixtures("witness")
 def test_the_command_checks_the_set_and_ends_one_on_a_fault_two_on_a_setting_that_lacks(
     service_database_url: str,
@@ -204,7 +221,8 @@ def test_the_command_checks_the_set_and_ends_one_on_a_fault_two_on_a_setting_tha
     assert main(["check-reference"]) == 2
 
 
-@pytest.mark.requirement(REQUIREMENT)
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.story("US-2950")
 def test_a_history_stopped_between_two_months_is_taken_up_at_the_next_and_gives_the_same_set(
     witness: Database,
     service_database_url: str,
@@ -246,3 +264,161 @@ def test_a_history_stopped_between_two_months_is_taken_up_at_the_next_and_gives_
             assert count(second, CostLine) == count(witness, CostLine)
         finally:
             second.dispose()
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.story("US-2950")
+def test_the_revisions_of_the_witness_are_counted_once_beside_those_of_its_slice() -> None:
+    # The revisions of ``revisions.json`` and those of the ten projects of the slice are two sets:
+    # a revision in both would be counted twice by the volumes, and the history of PRJ-001 hide it.
+    witness = described()
+    own = {each.revision_id.root for each in witness.read(REVISIONS_FILE, Revisions).items}
+    sliced = {each.revision_id for one in portfolio_slice.read(witness) for each in one.revisions}
+    assert own
+    assert sliced
+    assert own.isdisjoint(sliced)
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.story("US-2950")
+@pytest.mark.usefixtures("witness")
+def test_a_history_asking_less_than_the_witness_holds_says_it_writes_nothing(
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    service_database_url: str,
+) -> None:
+    # Fewer revisions, fewer lines than the witness holds of PRJ-001: no month, said, not silent.
+    plan = Plan.read(described(), NONE)
+    assert plan.steps == 0
+    assert len(plan.short) == 2
+    assert "revisions 0 is below the" in plan.short[0]
+    assert Plan.read(described(), History()).short == ()
+    assert Plan.read(described(), short(0, 0)).short == ()
+    monkeypatch.setenv("WATERFALL_DATABASE_URL", service_database_url)
+    monkeypatch.setenv("WATERFALL_WITNESS_PATH", str(WITNESS))
+    args = ["--projects", "8", "--revisions", "1", "--cost-lines", "0"]
+    assert main(["load-reference", *args]) == 0
+    warned = capsys.readouterr().err
+    assert "load-reference: warning: revisions 1 is below the" in warned
+    assert "warning: cost lines 0 is below the" in warned
+    # The check says it as well, and finds the set it was asked for whole.
+    assert main(["check-reference", *args]) == 0
+    assert "check-reference: warning: revisions 1 is below the" in capsys.readouterr().err
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.story("US-2950")
+def test_a_resumption_on_a_prj_001_marked_by_hand_is_refused(
+    witness: Database, owner: Engine, service_database_url: str
+) -> None:
+    # The surplus of marked revisions is a month of the history only if it bears its name.
+    history = short(2, 150)
+    assert reference_load.load_reference(settings(service_database_url), 8, history) == 0
+    plan = Plan.read(described(), history)
+    with witness.transaction() as session:
+        assert reference_history.steps_done(session, plan) == 2
+    with owner.begin() as connection:
+        unguarded(connection)  # a marked revision is never renamed by the service
+        connection.execute(
+            update(Revision)
+            .where(Revision.version_name == name_of(2))
+            .values(version_name="Marquée à la main")
+        )
+    with witness.transaction() as session, pytest.raises(ValueError, match="not those of its"):
+        reference_history.steps_done(session, plan)
+
+
+def loaded(url: str) -> History:
+    """Load the set of eight projects on the platform, PRJ-001 as the witness leaves it."""
+    assert reference_load.load_reference(settings(url), 8, NONE) == 0
+    return NONE
+
+
+def faults_of(witness: Database, wanted: int = 8) -> list[str]:
+    """Check the set the platform holds, in a transaction of its own."""
+    with witness.transaction() as session:
+        return reference_check.check(session, described(), wanted, NONE).faults
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.story("US-2950")
+def test_the_check_names_the_node_the_role_the_account_the_project_a_platform_lacks(
+    witness: Database, owner: Engine, service_database_url: str
+) -> None:
+    # « Deux engendrements successifs donnent des données identifiantes identiques. » : each
+    # identifier the seed derives, absent or relabelled on the platform, is named by the check.
+    loaded(service_database_url)
+    assert faults_of(witness) == []
+    reference = draw_reference(read_base(described()))
+    node, role, account = reference.nodes[0], reference.roles[0], reference.accounts[0]
+    # A project the platform lacks: four more are asked than it holds, the drawn are named.
+    lacking = [each for each in faults_of(witness, 12) if each.startswith("project ")]
+    assert lacking == sorted(f"project {project_id_of(number)}: absent" for number in numbers_of(4))
+    with owner.begin() as connection:
+        connection.execute(update(OrgNode).where(OrgNode.id == node.node_id).values(label="Autre"))
+    assert faults_of(witness) == [f"node {node.node_id}: absent or relabelled"]
+    # Each removed, as the owner does what the service may not (a deletion).
+    with owner.begin() as connection:
+        unguarded(connection)
+        connection.execute(delete(ResourceRole).where(ResourceRole.id == role.role_id))
+    assert faults_of(witness) == [
+        f"node {node.node_id}: absent or relabelled",
+        f"role {role.role_id}: absent",
+    ]
+    with owner.begin() as connection:
+        unguarded(connection)
+        connection.execute(delete(UserAccount).where(UserAccount.id == account.user_id))
+        connection.execute(delete(OrgNode).where(OrgNode.id == node.node_id))
+    assert faults_of(witness) == [
+        f"node {node.node_id}: absent or relabelled",
+        f"role {role.role_id}: absent",
+        f"account {account.user_id}: absent",
+    ]
+
+
+def amended(result: dict[str, Any], change: Callable[[dict[str, Any]], None]) -> dict[str, Any]:
+    """Give a reading of the portfolio changed by ``change``, as a portfolio that holds a fault."""
+    change(result)
+    return result
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.story("US-2950")
+def test_the_check_names_a_portfolio_whose_count_rows_or_order_book_are_not_its_projects(
+    witness: Database, service_database_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The invariants of the portfolio, each broken: its count, a budget of a row, its order book.
+    loaded(service_database_url)
+    listed = reference_check.read_portfolio_projects
+    valued = reference_check.read_portfolio_value
+    with witness.transaction() as session:
+        report = reference_check.check(session, described(), 8, NONE)
+    assert report.faults == []
+    assert report.compared > 0
+
+    def count_off(*args: Any) -> dict[str, Any]:
+        return amended(listed(*args), lambda each: each["meta"].update(total=999))
+
+    def scope_off(*args: Any) -> dict[str, Any]:
+        return amended(listed(*args), lambda each: each["scope"].update(project_count=999))
+
+    def book_off(*args: Any) -> dict[str, Any]:
+        return amended(valued(*args), lambda each: each.update(order_book="1.00"))
+
+    def row_off(*args: Any) -> dict[str, Any]:
+        def change(each: dict[str, Any]) -> None:
+            row = next(one for one in each["items"] if one["state"] == "in_progress")
+            row["reference_budget"] = "1.00"
+
+        return amended(listed(*args), change)
+
+    for name, patched, fragment in (
+        ("read_portfolio_projects", count_off, "projects listed, 999 counted"),
+        ("read_portfolio_projects", scope_off, "999 in its scope"),
+        ("read_portfolio_value", book_off, "portfolio: order book 1.00, the sum of its"),
+        ("read_portfolio_projects", row_off, "shows a reference budget 1.00, the estimate reads"),
+    ):
+        with monkeypatch.context() as patch:
+            patch.setattr(reference_check, name, patched)
+            found = faults_of(witness)
+        assert any(fragment in each for each in found), (fragment, found)
