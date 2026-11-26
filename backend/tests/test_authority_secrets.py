@@ -3,10 +3,11 @@
 """The hook of the chart issues the certificates of the data components only when due (US-2850).
 
 ``waterfall-authority secrets`` writes the Secret of a data component when it is missing, cannot be
-read, was issued by another authority or expires within six months, and leaves it, and the pods
-that mount it, untouched otherwise: an upgrade does not restart PostgreSQL, Redis, the storage or
-the supervision (the author's decision of 2026-11-26, #4089). A certificate renewed restarts its
-workload, once. The API of Kubernetes is answered here by the test, as the cluster would.
+read, was issued by another authority, holds another root or expires within six months, and leaves
+it, and the pods that mount it, untouched otherwise: an upgrade does not restart PostgreSQL, Redis,
+the storage or the supervision (the author's decision of 2026-11-26, #4089). A certificate renewed
+restarts its workload, once, even when the hook is stopped before it could. The API of Kubernetes
+is answered here by the test, as the cluster would.
 """
 
 import base64
@@ -24,8 +25,9 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 
 from waterfall.platform import authority_secrets
-from waterfall.platform.authority import LEAF_LIFETIME, Authority, issued, made
+from waterfall.platform.authority import LEAF_LIFETIME, ROOT_LIFETIME, Authority, issued, made
 from waterfall.platform.authority_secrets import (
+    OWED,
     RESTARTED,
     Cluster,
     ClusterError,
@@ -43,6 +45,8 @@ pytestmark = [pytest.mark.story("US-2850"), pytest.mark.requirement("WF-EXP-0030
 NOW = datetime(2026, 11, 26, 9, 0, tzinfo=UTC)
 POSTGRES = Workload("statefulsets", "waterfall-postgres")
 SECRETS = "/api/v1/namespaces/waterfall/secrets"
+POSTGRES_SECRET = f"{SECRETS}/waterfall-postgres-tls"
+POSTGRES_WORKLOAD = "/apis/apps/v1/namespaces/waterfall/statefulsets/waterfall-postgres"
 
 
 class Api:
@@ -55,6 +59,8 @@ class Api:
             self.workloads = workloads
         self.requests: list[tuple[str, str, Any]] = []
         self.refused: int | None = None
+        # What a proxy in front of the API answers instead of it, as is, when given.
+        self.page: bytes | None = None
 
     def send(self, method: str, path: str, body: Mapping[str, Any] | None) -> tuple[int, Any]:
         self.requests.append((method, path, copy.deepcopy(body)))
@@ -112,7 +118,7 @@ def test_a_missing_certificate_is_issued_into_the_secret_its_pods_mount(
     authority: Authority,
 ) -> None:
     api = Api()
-    assert certify(api.cluster(), authority, POSTGRES, NOW) == "missing"
+    assert certify(api.cluster(), authority, POSTGRES, NOW) == "issued (missing)"
     assert api.writes() == [("POST", SECRETS)]
     secret = api.secrets["waterfall-postgres-tls"]
     assert secret["type"] == "kubernetes.io/tls"
@@ -148,12 +154,19 @@ def test_a_certificate_close_to_its_end_is_renewed_and_its_workload_restarted_on
     held_by(
         api, authority, NOW - LEAF_LIFETIME + authority_secrets.RENEW_BEFORE - timedelta(days=1)
     )
-    assert certify(api.cluster(), authority, POSTGRES, NOW) == "expiring"
-    workload = "/apis/apps/v1/namespaces/waterfall/statefulsets/waterfall-postgres"
-    assert api.writes() == [("PUT", f"{SECRETS}/waterfall-postgres-tls"), ("PATCH", workload)]
-    put, patch = (body for method, _, body in api.requests if method in {"PUT", "PATCH"})
-    # Written over the version read, which a writer in between would have changed.
+    assert certify(api.cluster(), authority, POSTGRES, NOW) == "issued (expiring)"
+    assert api.writes() == [
+        ("PUT", POSTGRES_SECRET),
+        ("PATCH", POSTGRES_WORKLOAD),
+        ("PUT", POSTGRES_SECRET),
+    ]
+    put, patch, paid = (body for method, _, body in api.requests if method in {"PUT", "PATCH"})
+    # Written over the version read, which a writer in between would have changed, with the restart
+    # it owes; that restart cleared over the version written.
     assert put["metadata"]["resourceVersion"] == "7"
+    assert put["metadata"]["annotations"] == {OWED: NOW.isoformat()}
+    assert paid["metadata"]["resourceVersion"] == "8"
+    assert OWED not in api.secrets["waterfall-postgres-tls"]["metadata"]["annotations"]
     assert leaf(api.secrets["waterfall-postgres-tls"]["data"]).not_valid_after_utc > NOW + (
         LEAF_LIFETIME - timedelta(days=1)
     )
@@ -170,21 +183,84 @@ def test_a_certificate_of_another_authority_or_unreadable_is_issued_again(
     other = made(NOW)
     api = Api()
     held_by(api, other, NOW)
-    assert certify(api.cluster(), authority, POSTGRES, NOW) == "issued by another authority"
+    said = certify(api.cluster(), authority, POSTGRES, NOW)
+    assert said == "issued (issued by another authority)"
     leaf(api.secrets["waterfall-postgres-tls"]["data"]).verify_directly_issued_by(authority.issuer)
     key, chain = issued(authority, POSTGRES.name, NOW)
     _, mismatched = issued(authority, POSTGRES.name, NOW)
     assert due(None, authority, NOW) == "missing"
     assert due({"tls.crt": "not base 64!"}, authority, NOW) == "unreadable"
-    assert due(encoded(key, mismatched, b""), authority, NOW) == "unreadable"
-    assert due(encoded(key, chain, b""), authority, NOW) is None
+    assert due(encoded(key, mismatched, authority.pem()), authority, NOW) == "unreadable"
+    assert due(encoded(key, chain, authority.pem()), authority, NOW) is None
+
+
+def test_a_secret_whose_root_is_not_that_of_the_authority_is_issued_again(
+    authority: Authority,
+) -> None:
+    # Its clients would trust another root than the one the platform signs with.
+    key, chain = issued(authority, POSTGRES.name, NOW)
+    assert due(encoded(key, chain, made(NOW).pem()), authority, NOW) == "another root"
+    assert due(encoded(key, chain, b""), authority, NOW) == "another root"
+    without = encoded(key, chain, authority.pem())
+    del without["ca.crt"]
+    assert due(without, authority, NOW) == "another root"
+
+
+def test_a_certificate_that_ends_with_its_authority_is_not_issued_again_at_each_upgrade() -> None:
+    # An authority with 90 days left signs certificates of 90 days (authority.issued): each would be
+    # « expiring » from its issue, and every upgrade would restart the six components.
+    ending = made(NOW - ROOT_LIFETIME + timedelta(days=90))
+    api = Api()
+    assert certify(api.cluster(), ending, POSTGRES, NOW) == "issued (missing)"
+    end = leaf(api.secrets["waterfall-postgres-tls"]["data"]).not_valid_after_utc
+    assert end == ending.issuer.not_valid_after_utc
+    api.requests.clear()
+    assert certify(api.cluster(), ending, POSTGRES, NOW + timedelta(days=30)) is None
+    assert api.writes() == []
 
 
 def test_a_renewal_before_its_workload_exists_restarts_nothing(authority: Authority) -> None:
     api = Api(workloads=set())
     held_by(api, made(NOW), NOW)
-    assert certify(api.cluster(), authority, POSTGRES, NOW) == "issued by another authority"
-    assert [method for method, _ in api.writes()] == ["PUT", "PATCH"]
+    said = certify(api.cluster(), authority, POSTGRES, NOW)
+    assert said == "issued (issued by another authority)"
+    assert [method for method, _ in api.writes()] == ["PUT", "PATCH", "PUT"]
+    assert OWED not in api.secrets[POSTGRES.kept_in]["metadata"]["annotations"]
+
+
+def test_a_restart_that_failed_is_sent_at_the_next_run_without_issuing_again(
+    authority: Authority,
+) -> None:
+    # The Secret renewed, the restart refused once: the pods would serve the old certificate until
+    # its end, the new one being valid and kept by every later run.
+    api = Api()
+    held_by(api, made(NOW), NOW)
+    failures = [503]
+
+    def failing_once(method: str, path: str, body: Mapping[str, Any] | None) -> tuple[int, Any]:
+        if method == "PATCH" and failures:
+            api.requests.append((method, path, copy.deepcopy(body)))
+            return failures.pop(), {}
+        return api.send(method, path, body)
+
+    cluster = Cluster("waterfall", failing_once)
+    with pytest.raises(ClusterError, match="answered 503 to PATCH"):
+        certify(cluster, authority, POSTGRES, NOW)
+    renewed = copy.deepcopy(api.secrets[POSTGRES.kept_in]["data"])
+    assert api.secrets[POSTGRES.kept_in]["metadata"]["annotations"] == {OWED: NOW.isoformat()}
+    api.requests.clear()
+    later = NOW + timedelta(minutes=1)
+    said = certify(cluster, authority, POSTGRES, later)
+    assert said == f"restarted (owed since {NOW.isoformat()})"
+    assert api.writes() == [("PATCH", POSTGRES_WORKLOAD), ("PUT", POSTGRES_SECRET)]
+    patch = api.requests[1][2]
+    # The time of the renewal, not of the run: a restart sent twice changes the template once.
+    assert patch["spec"]["template"]["metadata"]["annotations"] == {RESTARTED: NOW.isoformat()}
+    assert api.secrets[POSTGRES.kept_in]["data"] == renewed
+    assert api.secrets[POSTGRES.kept_in]["metadata"]["annotations"] == {}
+    api.requests.clear()
+    assert certify(cluster, authority, POSTGRES, later) is None
+    assert api.writes() == []
 
 
 @pytest.mark.parametrize("status", [403, 500])
@@ -226,7 +302,7 @@ class Served(BaseHTTPRequestHandler):
             self.path,
             (self.headers["Authorization"], self.headers["Content-Type"]),
         )
-        content = json.dumps(answered).encode()
+        content = json.dumps(answered).encode() if self.api.page is None else self.api.page
         self.send_response(status)
         self.send_header("Content-Length", str(len(content)))
         self.end_headers()
@@ -294,6 +370,18 @@ def test_the_hook_issues_then_keeps_as_the_service_account_of_its_pod(
     Served.api.refused = 403
     assert authority_secrets.main(command, account, address) == 1
     assert "answered 403" in capsys.readouterr().err
+    # A proxy that answers a page of its own instead of the API: the refusal is said, as such.
+    Served.api.refused = 502
+    Served.api.page = b"<html><body>Bad Gateway</body></html>"
+    assert authority_secrets.main(command, account, address) == 1
+    assert capsys.readouterr().err == (
+        "waterfall-authority secrets: the API of Kubernetes answered 502 to GET "
+        f"{SECRETS}/waterfall-postgres-tls\n"
+    )
+    Served.api.refused = 200
+    assert authority_secrets.main(command, account, address) == 1
+    assert capsys.readouterr().err.endswith("waterfall-postgres-tls, not JSON\n")
+    Served.api.page = None
     missing = ["secrets", f"--provided={tmp_path / 'none'}", "deployments/waterfall-redis"]
     assert authority_secrets.main(missing, account, address) == 1
     assert "the authority cannot be read" in capsys.readouterr().err

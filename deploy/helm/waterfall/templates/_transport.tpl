@@ -153,14 +153,16 @@ server runs in its fsGroup, which Kubernetes gives the files. (list $ "postgres"
   readOnly: true
 {{- end -}}
 
-{{/* The workloads whose certificates the hook writes, those of the components the chart deploys:
-statefulsets/<name> or deployments/<name>, in JSON. */}}
+{{/* The workloads whose certificates the hook writes, those of the components the chart deploys,
+in JSON: each its resource, statefulsets or deployments, its name, and the name of its Secret, by
+waterfall.certificate, as its pods mount it. */}}
 {{- define "waterfall.certified" -}}
 {{- $ := . -}}
 {{- $certified := list -}}
 {{- range $component := list (list "postgres" "statefulsets" $.Values.postgresql.enabled) (list "redis" "deployments" $.Values.redis.enabled) (list "storage" "statefulsets" $.Values.storage.enabled) (list "prometheus" "statefulsets" $.Values.prometheus.enabled) (list "alertmanager" "deployments" true) (list "grafana" "deployments" true) -}}
 {{- if index $component 2 -}}
-{{- $certified = append $certified (printf "%s/%s" (index $component 1) (include "waterfall.name" (list $ (index $component 0)))) -}}
+{{- $named := list $ (index $component 0) -}}
+{{- $certified = append $certified (dict "resource" (index $component 1) "name" (include "waterfall.name" $named) "secret" (include "waterfall.certificate" $named)) -}}
 {{- end -}}
 {{- end -}}
 {{- toJson $certified -}}

@@ -7,20 +7,24 @@ qu'aucun utilisateur ne soit déconnecté. » (WF-EXP-0030-A). A container of in
 the image of Waterfall changed the pods of PostgreSQL, Redis, the storage and the supervision at
 each version, and Kubernetes recreated them: Redis lost every session. Their certificates are now
 issued by a hook into Secrets their pods mount (the author's decision of 2026-11-26, #4089, option
-C): rendered under two versions — the digests of the three images of Waterfall, all that names one —
-their workloads are the same. That the hook writes a Secret only when due is held by the tests of
-``waterfall.platform.authority_secrets``. Selected by the marker ``chart`` (``make test-chart``):
-they need Helm, which the tools leave out.
+C): rendered under two versions — the digests of the three images of Waterfall and the version of
+the chart, all that names one — their workloads are the same. That the hook writes a Secret only
+when due is held by the tests of ``waterfall.platform.authority_secrets``. Selected by the marker
+``chart`` (``make test-chart``): they need Helm, which the tools leave out.
 """
 
 import hashlib
-from typing import Any
+import shutil
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
 from test_chart import Objects, containers, of_kind, pod, rendered
 
 from wftools import chart
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = [
     pytest.mark.chart,
@@ -69,10 +73,26 @@ def hooked(objects: Objects, kind: str) -> dict[str, Any]:
     return of_kind(objects, kind)["certificates"]
 
 
+def next_chart(folder: Path) -> Path:
+    """Copy the chart, its files followed, under a next version of the chart and of Waterfall."""
+    copied = folder / "waterfall"
+    shutil.copytree(chart.CHART, copied)
+    described = copied / "Chart.yaml"
+    text = described.read_text(encoding="utf-8")
+    text = text.replace("\nversion: 0.1.0\n", "\nversion: 0.2.0\n")
+    text = text.replace('\nappVersion: "0.1.0"\n', '\nappVersion: "0.2.0"\n')
+    described.write_text(text, encoding="utf-8")
+    assert yaml.safe_load(text)["version"] == "0.2.0"
+    return copied
+
+
 def test_the_data_components_are_the_same_under_two_versions_of_waterfall(
-    objects: Objects,
+    objects: Objects, tmp_path: Path
 ) -> None:
-    upgraded = rendered({"images": {"digests": NEXT}})
+    # A version of Waterfall is its three images, pinned by their digests: the chart has no tag
+    # (values.yaml, images.digests), and the version of the chart, which its labels name.
+    text = chart.render({"images": {"digests": NEXT}}, chart=next_chart(tmp_path))
+    upgraded = [document for document in yaml.safe_load_all(text) if document]
     for component in CERTIFIED:
         assert workload(upgraded, component)["spec"] == workload(objects, component)["spec"], (
             component
@@ -82,6 +102,15 @@ def test_the_data_components_are_the_same_under_two_versions_of_waterfall(
     assert of_kind(upgraded, "Deployment")["api"]["spec"] != api
     (issuing,) = pod(hooked(upgraded, "Job"))["containers"]
     assert issuing["image"].endswith(NEXT["waterfall"])
+    labels = workload(upgraded, "redis")["metadata"]["labels"]
+    assert labels["app.kubernetes.io/version"] == "0.2.0"
+
+
+def test_the_chart_asks_for_a_cluster_that_knows_the_drain_of_its_pods() -> None:
+    # waterfall.drain waits by a preStop of kind sleep, which Kubernetes knows from 1.30.
+    with pytest.raises(chart.ChartError, match="kubeVersion"):
+        chart.render(options=["--kube-version=1.29.9"])
+    assert chart.render(options=["--kube-version=1.30.0"])
 
 
 def test_no_pod_of_a_data_component_runs_an_image_of_waterfall(objects: Objects) -> None:

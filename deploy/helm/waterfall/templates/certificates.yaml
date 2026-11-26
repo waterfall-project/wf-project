@@ -6,13 +6,14 @@
 # platform into the Secrets their pods mount, <name>-tls (US-2850, #4089, option C; _transport.tpl).
 # A hook, before the installation — after the authority, before the migrations — and before each
 # upgrade: `waterfall-authority secrets` writes a Secret only when it is missing, cannot be read, was
-# issued by another authority, or expires within six months (waterfall.platform.authority_secrets).
-# An ordinary upgrade thus writes nothing, and the pods of those components, whose template names no
-# image of Waterfall, are not restarted: the sessions Redis holds stay (WF-EXP-0030-A). A certificate
-# renewed restarts the pods of its workload, once, as `kubectl rollout restart` does; any upgrade in
-# the last six months of its two years renews it. The Secrets are not objects of the release: they
-# stay at an uninstallation, as the authority does, and a new installation, under a new authority,
-# issues them again.
+# issued by another authority, holds another root, or expires within six months — unless it already
+# ends with the authority (waterfall.platform.authority_secrets). An ordinary upgrade thus writes
+# nothing, and the pods of those components, whose template names no image of Waterfall, are not
+# restarted: the sessions Redis holds stay (WF-EXP-0030-A). A certificate renewed restarts the pods
+# of its workload, once, as `kubectl rollout restart` does — the Secret owes that restart until it
+# is sent, should the hook stop before —; any upgrade in the last six months of its two years renews
+# it. The Secrets are not objects of the release: they stay at an uninstallation, as the authority
+# does, and a new installation, under a new authority, issues them again.
 #
 # Its service account may create a Secret — Kubernetes cannot bound a creation to a name —, read and
 # write those of the certificates alone, and restart their workloads alone; it holds the key of the
@@ -22,10 +23,8 @@
 {{- $secrets := list }}
 {{- $workloads := dict "statefulsets" list "deployments" list }}
 {{- range $certified }}
-{{- $resource := splitList "/" . | first }}
-{{- $workload := splitList "/" . | last }}
-{{- $secrets = append $secrets (printf "%s-tls" $workload) }}
-{{- $_ := set $workloads $resource (append (get $workloads $resource) $workload) }}
+{{- $secrets = append $secrets .secret }}
+{{- $_ := set $workloads .resource (append (get $workloads .resource) .name) }}
 {{- end }}
 {{- $access := dict "helm.sh/hook" "pre-install,pre-upgrade" "helm.sh/hook-weight" "-28" "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
 apiVersion: v1
@@ -109,7 +108,7 @@ spec:
             - secrets
             - --provided=/authority
             {{- range $certified }}
-            - {{ . }}
+            - {{ printf "%s/%s" .resource .name }}
             {{- end }}
           volumeMounts:
             - name: authority
