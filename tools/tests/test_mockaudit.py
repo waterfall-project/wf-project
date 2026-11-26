@@ -865,9 +865,11 @@ def test_each_inscription_read_from_an_example_is_by_the_one_who_last_updated_it
     assert accounts
     assert all(each["audit"]["updated_by"] != mockaudit.PLATFORM for each in accounts)
     # The name the directory gives is one no example gives: the attachment derives from none.
-    named = {each["last_name"] for each in written if "last_name" in each}
-    named |= {each["last_name"] for each in cast("list[Node]", fixture("users")["items"])}
-    assert mockauditadmin.DIRECTORY_LAST_NAME not in named
+    for path in mockwitness.FIXTURES.rglob("*.json"):
+        if path.name != "audit_events_administration.json":
+            assert mockauditadmin.DIRECTORY_LAST_NAME not in path.read_text(encoding="utf-8"), (
+                path.name
+            )
     assert attached["object"]["label"].endswith(mockauditadmin.DIRECTORY_LAST_NAME)
 
 
