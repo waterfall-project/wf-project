@@ -18,6 +18,10 @@ leaf at a time (``load_progress``). The reconciliation gives back the tasks whos
 are not the ones described. Every row bears the act that is given, whose instant the witness
 imposes (``Act.at``).
 
+Both add, instead, what the witness describes to what a structure holds when asked (``additive``):
+the own estimate of a risk, a copy of the main structure to which the witness adds what it
+designates (EP-30, US-3070/L3).
+
 ``load_line_nodes`` does the same for the lines of the revision (EP-07, "Le chargeur du témoin"),
 once the tasks are written: the lines the copy gave are deleted, kept or created by lineage, at the
 identifiers the witness imposes, their facets written by the hooks of the kind ``estimate_line``;
@@ -55,6 +59,7 @@ from waterfall.core.planning.writing import facts_of, hold_before_lock, judge_re
 from waterfall.core.revisions.interface import write_structure
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from datetime import date
     from decimal import Decimal
 
@@ -125,10 +130,17 @@ class ParentAbsentError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class TasksLoad:
-    """What the witness describes of a structure: its planning start, its tasks, in any order."""
+    """What the witness describes of a structure: its planning start, its tasks, in any order.
+
+    ``additive`` the tasks described are added to what the structure holds, reconciled by their
+    lineage alone, after their siblings that are not described, the others left as they are and
+    the planning start too: the own estimate of a risk, the copy of the main structure, to which
+    the witness adds what it designates (EP-30, US-3070/L3).
+    """
 
     planning_start_on: date
     tasks: tuple[TaskLoad, ...]
+    additive: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,17 +153,34 @@ class DatesDisagreeing:
     computed: tuple[WorkInstant, WorkInstant]
 
 
-def _stale(tree: Tree, described: dict[UUID, TaskLoad]) -> list[UUID]:
-    """Name the tasks the copy gave that the witness does not hold as described, subtrees too."""
+def _stale(tree: Tree, described: dict[UUID, TaskLoad], *, additive: bool = False) -> list[UUID]:
+    """Name the tasks the copy gave that the witness does not hold as described, subtrees too.
+
+    ``additive`` a task not described stays, only one described under another identifier goes.
+    """
     stale: set[UUID] = set()
     for node_id in tree.order:
         node = tree.nodes[node_id]
         if node.kind != TASK:
             continue
         found = described.get(node.lineage_id)
+        if found is None and additive and node.parent_id not in stale:
+            continue
         if found is None or found.node_id != node_id or node.parent_id in stale:
             stale.add(node_id)
     return [each for each in tree.order if each in stale]
+
+
+def _after(tree: Tree, others: Collection[UUID]) -> dict[UUID | None, int]:
+    """Give the last rank of the nodes an additive load leaves, under each parent, by its node.
+
+    What the nodes it adds under the same parent are ranked after.
+    """
+    last: dict[UUID | None, int] = {}
+    for each in others:
+        node = tree.nodes[each]
+        last[node.parent_id] = max(last.get(node.parent_id, 0), node.rank)
+    return last
 
 
 def _ranks(tasks: tuple[TaskLoad, ...]) -> dict[UUID, int]:
@@ -206,17 +235,26 @@ def _reconciled(session: Session, place: Place, load: TasksLoad, act: Act) -> No
     project_id = place.project_id
     described = {each.lineage_id: each for each in load.tasks}
     tree = read_tree(session, project_id, place.structure_id)
-    stale = _stale(tree, described)
+    stale = _stale(tree, described, additive=load.additive)
     if stale:
         deleted(session, project_id, tree, stale)
         session.flush()
     gone = set(stale)
     held = {node_id for node_id, node in tree.nodes.items() if node.kind == TASK} - gone
-    for node_id in held:
+    nodes = {each.lineage_id: each.node_id for each in load.tasks}
+    others = {each for each in held if tree.nodes[each].lineage_id not in described}
+    if not load.additive:
+        others = set[UUID]()
+    for node_id in held - others:
         tree.nodes[node_id].rank += _ASIDE
     session.flush()
-    nodes = {each.lineage_id: each.node_id for each in load.tasks}
     ranks = _ranks(load.tasks)
+    if others:
+        # Added after the siblings the load leaves as they are.
+        last = _after(tree, others)
+        for each in load.tasks:
+            parent = None if each.parent_lineage_id is None else nodes[each.parent_lineage_id]
+            ranks[each.lineage_id] += last.get(parent, 0)
     created: list[dict[str, object]] = []
     task_rows: list[dict[str, object]] = []
     for each in _parents_first(load.tasks):
@@ -281,13 +319,18 @@ def _reconciled(session: Session, place: Place, load: TasksLoad, act: Act) -> No
 
 
 def _linked(session: Session, place: Place, load: TasksLoad) -> None:
-    """Replace the links of the structure by those described, at identifiers derived from them."""
-    session.execute(
-        delete(TaskLink)
-        .where(TaskLink.project_id == place.project_id, TaskLink.structure_id == place.structure_id)
-        .execution_options(synchronize_session=False)
-    )
+    """Replace the links of the structure by those described, at identifiers derived from them.
+
+    An additive load replaces those of the tasks described alone.
+    """
     nodes = {each.lineage_id: each.node_id for each in load.tasks}
+    criteria = [
+        TaskLink.project_id == place.project_id,
+        TaskLink.structure_id == place.structure_id,
+    ]
+    if load.additive:
+        criteria.append(TaskLink.successor_id.in_(list(nodes.values())))
+    session.execute(delete(TaskLink).where(*criteria).execution_options(synchronize_session=False))
     rows = [
         {
             "project_id": place.project_id,
@@ -340,9 +383,10 @@ def load_tasks(
     facts_of(session, place, lock=True)
     _reconciled(session, place, load, act)
     _linked(session, place, load)
-    write_structure(
-        session, place.project_id, place.structure_id, (load.planning_start_on, None), act
-    )
+    if not load.additive:
+        write_structure(
+            session, place.project_id, place.structure_id, (load.planning_start_on, None), act
+        )
     replayed(session, place.project_id, place.structure_id, act.at)
     summaries = {each.parent_lineage_id for each in load.tasks}
     for each in load.tasks:
@@ -399,8 +443,55 @@ def _provisions_last(
         node.rank = counted[bearer]
 
 
+def _lines_set_aside(
+    session: Session,
+    place: Place,
+    held: tuple[Tree, frozenset[UUID]],
+    described: dict[UUID, LineNodeLoad],
+    *,
+    additive: bool,
+) -> tuple[Tree, set[UUID], set[UUID]]:
+    """Delete the lines that are not held as described, set aside the ranks of those kept.
+
+    ``held`` the tree read and its provision lines, which stay. Give the tree, the lines it holds,
+    and those an additive load leaves as they are.
+    """
+    project_id = place.project_id
+    tree, provisions = held
+    stale = [
+        node_id
+        for node_id in tree.order
+        if tree.nodes[node_id].kind == LINE
+        and node_id not in provisions
+        and (
+            (tree.nodes[node_id].lineage_id not in described and not additive)
+            or (
+                tree.nodes[node_id].lineage_id in described
+                and described[tree.nodes[node_id].lineage_id].node_id != node_id
+            )
+        )
+    ]
+    if stale:
+        deleted(session, project_id, tree, stale)
+        session.flush()
+        tree = read_tree(session, project_id, place.structure_id)
+    lines = {node_id for node_id, node in tree.nodes.items() if node.kind == LINE}
+    others = {each for each in lines if tree.nodes[each].lineage_id not in described}
+    if not additive:
+        others = set[UUID]()
+    for node_id in lines - others:
+        tree.nodes[node_id].rank += _ASIDE
+    session.flush()
+    return tree, lines, others
+
+
 def load_line_nodes(
-    session: Session, place: Place, lines: tuple[LineNodeLoad, ...], act: Act
+    session: Session,
+    place: Place,
+    lines: tuple[LineNodeLoad, ...],
+    act: Act,
+    *,
+    additive: bool = False,
 ) -> frozenset[UUID]:
     """Reconcile the structure of a revision with the lines the witness describes, by lineage.
 
@@ -408,6 +499,8 @@ def load_line_nodes(
     The lines are deleted, kept and created, the engine replayed once — a role changes the
     calendar of its task — and the lines priced again. Gives the tasks that bear a line. A line
     that names a task the structure does not hold is a defect of the description: it raises.
+    ``additive`` the lines described are added to what the structure holds, after the lines of
+    their task that are not described, which stay as they are (``TasksLoad.additive``).
     """
     project_id = place.project_id
     judge_revision(session, project_id, place.revision_id)
@@ -422,25 +515,14 @@ def load_line_nodes(
         raise ValueError(message)
     described = {each.lineage_id: each for each in lines}
     provisions = provision_lines(session, project_id, place.structure_id)
-    stale = [
-        node_id
-        for node_id in tree.order
-        if tree.nodes[node_id].kind == LINE
-        and node_id not in provisions
-        and (
-            tree.nodes[node_id].lineage_id not in described
-            or described[tree.nodes[node_id].lineage_id].node_id != node_id
-        )
-    ]
-    if stale:
-        deleted(session, project_id, tree, stale)
-        session.flush()
-        tree = read_tree(session, project_id, place.structure_id)
-    held = {node_id for node_id, node in tree.nodes.items() if node.kind == LINE}
-    for node_id in held:
-        tree.nodes[node_id].rank += _ASIDE
-    session.flush()
+    tree, held, others = _lines_set_aside(
+        session, place, (tree, provisions), described, additive=additive
+    )
     laid = _laid(lines)
+    if others:
+        # Added after the lines of their task the load leaves as they are.
+        last = _after(tree, others)
+        laid = [(each, rank + last.get(tasks[each.task_lineage_id], 0)) for each, rank in laid]
     made = [
         {
             "project_id": project_id,
@@ -464,7 +546,8 @@ def load_line_nodes(
     if made:
         with session.no_autoflush:
             session.execute(insert(Node), made)
-    _provisions_last(tree, provisions, laid)
+    if not additive:
+        _provisions_last(tree, provisions, laid)
     session.flush()
     hooks = facets()[LINE]
     # The tasks that bear a line, told of once, before any facet is written: their calendars read

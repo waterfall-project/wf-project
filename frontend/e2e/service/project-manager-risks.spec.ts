@@ -7,7 +7,7 @@ import { MARKING, WORKING } from "../bounds";
 import { columnsOf } from "../columns";
 import { openHydrated } from "../hydration";
 import { inService, test } from "../mode";
-import { identifyRisk } from "../risk-seed";
+import { addOwnTask, identifyRisk } from "../risk-seed";
 
 // The management of the risks (FBS-4.6) by the account « chef de projet » of the run, on a project it
 // creates (WF-INTF-0010-A, US-2650): a risk declared, its own estimate priced, the risk reviewed,
@@ -44,11 +44,7 @@ test("the project manager of the run declares a risk on a project she creates, p
     await openHydrated(page, own);
     const grid = page.getByRole("treegrid", { name: "Grille de devis" });
     const idle = () => expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
-    await page.getByRole("button", { name: "Insérer une tâche" }).click();
-    const creation = page.getByRole("dialog", { name: "Insérer une tâche" });
-    await creation.getByRole("textbox", { name: "Libellé" }).fill("Bâche");
-    await creation.getByRole("button", { name: "Créer" }).click();
-    await expect(page.getByText("« Bâche » créée.")).toBeVisible({ timeout: WORKING });
+    await addOwnTask(page, grid, "Bâche");
     await idle();
     const task = grid.getByRole("gridcell", { name: "Bâche" });
     await task.click();

@@ -6,11 +6,11 @@
 decision of the author of 2026-11-17): the merge of a differential the measure opens itself, one
 cell entered in it, merged by the witness loader (``load_merge``) under the version name
 ``measure``, without a description; the occurrence of an identified risk of the project, its own
-estimate grafted into the main structure (``load_occurrence``). Each is the loader's call, which
-runs the worker's own merge or occurrence with no report to confirm: the merge marks the revision
-and makes it the reference as the worker does, and updates the differential first if it is out of
-date. The transaction is rolled back whole: the next measure, and the other parts, read the witness
-as it was.
+estimate merged into the main structure in the mode occurrence (``load_occurrence``; EP-30). Each
+is the loader's call, which runs the worker's own merge or occurrence with no report to confirm:
+the merge marks the revision and makes it the reference as the worker does, and updates the
+differential first if it is out of date. The transaction is rolled back whole: the next measure,
+and the other parts, read the witness as it was.
 """
 
 from functools import partial
@@ -106,11 +106,11 @@ def _identified(session: Session, target: Target) -> UUID:
 
 
 def _occurred(session: Session, *, target: Target) -> float:
-    """Time the occurrence of an identified risk of the project: its own estimate grafted."""
+    """Time the occurrence of an identified risk of the project: its own estimate merged."""
     risk_id = _identified(session, target)
     act = Act(target.manager_id, utc_now())
     started = perf_counter()
-    load_occurrence(session, target.place.project_id, OccurrenceLoad(risk_id, {}), act)
+    load_occurrence(session, target.place.project_id, OccurrenceLoad(risk_id), act)
     session.flush()
     return perf_counter() - started
 
@@ -121,5 +121,5 @@ def measure_merge(database: Database, target: Target, runs: int) -> Measure:
 
 
 def measure_occurrence(database: Database, target: Target, runs: int) -> Measure:
-    """Measure the occurrence of an identified risk, its own estimate grafted into the main one."""
+    """Measure the occurrence of an identified risk, its own estimate merged into the main one."""
     return _measured("occur a risk", database, partial(_occurred, target=target), runs)

@@ -4401,24 +4401,30 @@ Le témoin se charge une fois par exécution, par un processus à lui, dans une 
 (`backend/tests/witness_template.py`, #4653) : le premier processus dont les tests le demandent
 lance ce chargement dès leur collecte, et ces tests passent après les autres, le temps qu'il se
 fasse. Un test sur le témoin (`witness`, `witness_logged`) reçoit une base à lui, copie du modèle
-(`CREATE DATABASE … TEMPLATE`, 0,2 à 0,4 s pour la créer, 0,1 s pour la supprimer, mesurées sur un poste), supprimée après lui : lignes,
-identifiants, partitions des projets et séquences sont ceux que la commande a écrits, et aucune
-ligne n'est reposée ni aucune partition supprimée. Le service y entre par un rôle de connexion
-membre du rôle du service du modèle, dont la copie garde les droits. Le témoin chargé par chaque
+(`CREATE DATABASE … TEMPLATE`, 0,2 à 0,4 s pour la créer, 0,1 s pour la supprimer, mesurées sur
+un poste), supprimée après lui : lignes, identifiants, partitions des projets et séquences sont
+ceux que la commande a écrits, et aucune ligne n'est reposée ni aucune partition supprimée. Le
+service y entre par un rôle de connexion membre du rôle du service du modèle, dont la copie garde
+les droits. Le témoin chargé par chaque
 processus, puis reposé et ses partitions supprimées autour de chaque test (#2157), prenait le
 tiers du temps des tests. Un test qui change la façon dont la commande le charge le charge
 lui-même, sur la base du processus (`witness_loaded`).
 
-Un test qui se fige échoue au bout de huit minutes, nommé, sa trace là où il s'est arrêté
+Un test qui se fige échoue au bout de quinze minutes, nommé, sa trace là où il s'est arrêté
 (`pytest-timeout`, `timeout` de `backend/pyproject.toml`, par `SIGALRM`) : son processus passe au
 suivant, au lieu de figer sa part de la chaîne jusqu'à l'annulation du travail (#4653). Le plus
-long test qui ne se fige pas charge le témoin lui-même : 216 secondes au plus sur un runner
-(passage 44957647502), et un runner est jusqu'à deux fois plus lent qu'un autre. Le chargement du
-modèle a son échéance, sept minutes (`LOADING_TIMEOUT`, pour 134 à 290 secondes mesurées), sous
-celle d'un test : passé ce délai, le test qui l'attend échoue avec ce que le chargement a dit, le
-chargement s'arrête et la fin de pytest ne l'attend plus. Le délai d'un test couvre l'item entier, démontage compris :
-un démontage qui suit un gel peut se figer à son tour, et le délai du travail (20 minutes) reste
-le filet.
+long test qui ne se fige pas charge le témoin lui-même, deux fois : 167 secondes sur un poste
+(EP-30). Le chargement du modèle a son échéance, treize minutes (`LOADING_TIMEOUT`) : depuis que
+les devis propres des risques naissent entiers, il prend 130 à 140 secondes sur un poste et 280 à
+570 sur un runner (passage 45209389445), ce qu'il dit à la fin de la sortie de sa part (« the
+loading took N s »). Cette échéance laisse au test qui attend deux minutes pour son propre
+travail, sous la sienne : passé ce délai, le test échoue avec ce que le chargement a dit et la
+façon dont il s'est terminé (code de sortie que son surveillant écrit : échec, `SIGALRM` à
+l'échéance, `SIGKILL`), le chargement s'arrête et la fin de pytest ne l'attend plus. Le délai d'un
+test couvre l'item entier, démontage compris : un démontage qui suit un gel peut se figer à son
+tour, et le délai du travail (25 minutes, pour des parts de 8 à 21 minutes : environ 4 minutes de
+marge avec un chargement de 570 secondes, moins d'une si le chargement prend toute son échéance
+de 780) reste le filet.
 
 Un pytest tué (`SIGTERM`, `SIGKILL`) avant sa fin laisse la base `waterfall_witness_*` (et ses
 copies), les rôles `waterfall_witness_*_signing` et `waterfall_witness_*_service` et le répertoire
@@ -5057,6 +5063,13 @@ la garde et l'entrée ci-dessus :
   `revisions.spec.ts` et de `remaining.spec.ts`, l'ouverture et le défilement de la grille, ses fenêtres
   et son pli, le clavier jusqu'à la six millième ligne), les trois cents projets et les dix-huit mille
   lignes de coût du §4.6.2, et l'écran d'état du système.
+- **EP-30 / US-3150** — les parcours `@shared` que le témoin servi par le service écarte : le chargeur
+  fusionne la survenance de 752 au premier niveau de la 102, sous des identifiants tirés, là où le
+  témoin du faux back la tient sous la récapitulative « Retard de livraison des armoires »
+  (`planning.spec.ts`, ses trois parcours de la grille, du Gantt et du pli ; `risks.spec.ts`, le compte
+  rendu de la survenance, dont la ligne de provision relève aussi d'US-3140 ; le montant du Lot 1 de
+  `grid.spec.ts`, 502 234,56 € servi pour 502 434,56 € attendu). US-3150/L1 (#4614) retire ces gardes
+  et cette entrée.
 - **Aucun EPIC ne les renverse** — les parcours qui écrivent PRJ-001, dont le compte de la course n'est
   pas contributeur (#2193) : leurs jumeaux jouent le service sur un projet de la course
   (`FAKE_BACK_ONLY`, `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), ceux qui

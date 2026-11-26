@@ -80,14 +80,22 @@ def _budgeted(session: Session, project_id: UUID, revision_id: UUID) -> None:
     session.flush()
 
 
-def load_lines(session: Session, place: Place, lines: tuple[LineLoad, ...], act: Act) -> None:
+def load_lines(
+    session: Session,
+    place: Place,
+    lines: tuple[LineLoad, ...],
+    act: Act,
+    *,
+    additive: bool = False,
+) -> None:
     """Reconcile the structure of a revision just opened with the lines the witness describes.
 
     A line created is judged as a creation is, but for the hours of its task, judged by the
     engine on the structure the whole description leaves (``HoursJudged``): the roles of a task
     given one by one would be refused against a structure half written. What the lines name of the
     reference is read once for them all (``remembering``). A line kept is changed in place. The
-    budgeted amounts are then those of the lineage in the reference revision.
+    budgeted amounts are then those of the lineage in the reference revision. ``additive`` adds
+    the lines described to what the structure holds (``load_line_nodes``).
     """
     nodes = tuple(
         LineNodeLoad(
@@ -102,5 +110,5 @@ def load_lines(session: Session, place: Place, lines: tuple[LineLoad, ...], act:
     )
     with remembering(session):
         read_ahead(session, place.project_id, [each.node_id for each in lines])
-        load_line_nodes(session, place, nodes, act)
+        load_line_nodes(session, place, nodes, act, additive=additive)
     _budgeted(session, place.project_id, place.revision_id)

@@ -56,7 +56,11 @@ from waterfall.core.planning.interface import (
     list_records,
     open_differential,
 )
-from waterfall.core.revisions.interface import read_cost_structure, structure_facts
+from waterfall.core.revisions.interface import (
+    read_against_base,
+    read_cost_structure,
+    structure_facts,
+)
 from waterfall.platform.errors import (
     NOT_FOUND,
     VALIDATION_FAILED,
@@ -165,13 +169,17 @@ def get_nodes(
     session: Transaction,
     difference: Annotated[str | None, Query()] = None,
 ) -> Response:
-    """Give the nodes of a structure retained, depth first, their totals and its meta."""
+    """Give the nodes of a structure retained, depth first, their totals and its meta.
+
+    A differential, and the own estimate of a risk whole, are read against their base, each node
+    marked (``NodeDifference``; US-3050, EP-30).
+    """
     filters, fields = asked
     marks = listed("difference", difference, DifferenceAsked)
     facts = structure_facts(session, place.project_id, place.structure_id, lock=False)
     if facts.revision_id != place.revision_id:
         raise NotFoundError(NOT_FOUND)
-    if facts.is_differential:
+    if read_against_base(session, place.project_id, facts):
         kept = None if marks is None else tuple(each.value for each in marks)
         found = read_differential(session, place, filters, kept, node_body)
         return read_body(differential_body(found, fields))

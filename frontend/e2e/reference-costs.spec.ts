@@ -34,7 +34,7 @@
  */
 import { expect, type Locator, type Page, type Request } from "@playwright/test";
 
-import { WORKING } from "./bounds";
+import { RATE_PATH_IN_SERVICE, WORKING } from "./bounds";
 import { openFilters, pick } from "./check-menu";
 import { sortUntilAddress } from "./hydration";
 import { inService, test } from "./mode";
@@ -88,6 +88,8 @@ const BY_CODE = "/reference/costs?sort_by=code&sort_order=asc";
 test("reads the settings of the costs outside any project with no mock-up notice, and enters a rate on the dense grid of the hourly rates, the service keeping it (US-0250) @shared [WF-REF-0050-A]", async ({
   page,
 }) => {
+  // The write redates revision 102 of PRJ-001 against the service (`RATE_PATH_IN_SERVICE`, #4911).
+  if (inService) test.setTimeout(RATE_PATH_IN_SERVICE);
   await page.goto(BY_CODE);
   await expect(page).toHaveTitle("Paramètres de coûts — Waterfall");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres de coûts");

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page } from "@playwright/test";
 
-import { WORKING } from "./bounds";
+import { LEAVING_REVISION_102, WAY_BACK_PATH_IN_SERVICE, WORKING } from "./bounds";
 import { compile } from "./compile";
 import { setExpanded } from "./hydration";
 import { inService, test } from "./mode";
@@ -26,7 +26,12 @@ async function open(page: Page, name: string, block?: string) {
     await setExpanded(nav.getByRole("button", { name: block, exact: true }), true);
   }
   await nav.getByRole("link", { name }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+  // Left from a screen of revision 102 against the service, the screen takes past the five seconds of
+  // an assertion (`LEAVING_REVISION_102`, #4911).
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    name,
+    inService ? { timeout: LEAVING_REVISION_102 } : {},
+  );
 }
 
 // Played in service too (`@shared`, EP-05): the reference is served. The role « Manager » of
@@ -94,6 +99,7 @@ test("a user who opened no project reaches the administration and the status scr
 test("the way back to the previous project from a function outside any project finds the same context [WF-IHM-0010-A] @shared", async ({
   page,
 }) => {
+  if (inService) test.setTimeout(WAY_BACK_PATH_IN_SERVICE);
   // From the risks, not from the remaining to commit: the remaining of PRJ-001 is the slowest read
   // of the service (#4326), which the path does not need, and which took it from 26 to 37 s, past
   // the 30 s of a test, under `test.slow` (#4714). The screen of its own reached by a click,

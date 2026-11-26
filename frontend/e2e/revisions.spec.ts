@@ -15,7 +15,14 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 
-import { LOADED, MARKING, WORKING } from "./bounds";
+import {
+  COMPARING_REVISION_102,
+  COMPARISON_PATH_IN_SERVICE,
+  COMPARISON_PLANNING_PATH_IN_SERVICE,
+  LOADED,
+  MARKING,
+  WORKING,
+} from "./bounds";
 import { columnsOf } from "./columns";
 import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
@@ -189,8 +196,10 @@ async function compareToReference(page: Page, screen: string): Promise<Compared>
   const reference = page.getByRole("menuitemradio", { name: /\(référence\)$/ });
   const named = (await reference.innerText()).replace(/\s*\(référence\)$/, "");
   await reference.click();
+  // Against the service, the address waits for the read of revision 102 compared, which overran
+  // `WORKING` (`COMPARING_REVISION_102`, #4911).
   await expect(page).toHaveURL(new RegExp(`${BASE}/${screen}\\?${REFERENCE_PARAMETER}$`), {
-    timeout: WORKING,
+    timeout: inService ? COMPARING_REVISION_102 : WORKING,
   });
   await expect(comparedTo).toContainText(named);
   return { comparedTo, named, compared: new URL(page.url()).search };
@@ -204,8 +213,10 @@ async function compareToReference(page: Page, screen: string): Promise<Compared>
 test("the comparison of the current revision of PRJ-001 to its reference on the estimate, the cell marked and the value of its base read at the keyboard, the totals and the differences of the amounts, the comparison lifted @shared [WF-IHM-0010-A] [WF-IHM-0020-A] [WF-IHM-0150-A] [WF-IHM-0160-A]", async ({
   page,
 }) => {
-  // The estimate of PRJ-001 read twice, compared then not, and walked at the keyboard.
-  test.slow();
+  // The estimate of PRJ-001 read twice, compared then not, and walked at the keyboard. Against the
+  // service, a budget measured in place of `test.slow` (`COMPARISON_PATH_IN_SERVICE`, #4911).
+  if (inService) test.setTimeout(COMPARISON_PATH_IN_SERVICE);
+  else test.slow();
   const { comparedTo, named } = await compareToReference(page, "estimate");
   const estimate = page.getByRole("treegrid", { name: "Grille de devis" });
   await expect(estimate).toBeVisible({ timeout: WORKING });
@@ -261,7 +272,10 @@ test("the comparison of the current revision of PRJ-001 to its reference on the 
   page,
 }) => {
   // The planning and the remaining to commit of PRJ-001, the slowest reads of the comparison.
-  test.slow();
+  // Against the service, the waits at worst add up over `test.slow`: a budget measured in its place
+  // (`COMPARISON_PLANNING_PATH_IN_SERVICE`, #4911, #4912).
+  if (inService) test.setTimeout(COMPARISON_PLANNING_PATH_IN_SERVICE);
+  else test.slow();
   const { comparedTo, named, compared } = await compareToReference(page, "planning");
   const planning = page.getByRole("treegrid", { name: "Grille de planning" });
   // The planning compared is a read slowed by the queue: past 15 s, the screen still « Chargement

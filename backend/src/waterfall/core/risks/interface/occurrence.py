@@ -29,7 +29,6 @@ from waterfall.core.risks.occurring import OccurrenceReport, occurred_among, rep
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
-    from datetime import date
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -43,15 +42,15 @@ __all__ = ["OccurrenceLoad", "OccurrenceReport", "OccurrenceRequest"]
 
 
 def occurrence_report(
-    session: Session, project_id: UUID, risk_id: UUID, viewer: Viewer, today: date
+    session: Session, project_id: UUID, risk_id: UUID, viewer: Viewer, act: Act
 ) -> OccurrenceReport:
     """Tell what the occurrence of an identified risk would do, writing nothing; or refuse (409).
 
     In the order of the 409 of the occurrence: the conditions of the project, then, the risk read
-    (404), those of the risk (``occurring``). ``today`` is the day of the read, in the time zone of
-    the installation: an own estimate that starts before it is told (#4133).
+    (404), those of the risk (``occurring``). ``act`` the reader and the instant of the read: its
+    day, in the time zone of the installation, tells an own estimate that starts before it (#4133).
     """
-    return report_occurrence(session, project_id, risk_id, viewer, today)
+    return report_occurrence(session, project_id, risk_id, viewer, act)
 
 
 def submit_occurrence(

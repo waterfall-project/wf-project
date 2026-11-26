@@ -84,18 +84,19 @@ def structure_nodes(session: Session, project_id: UUID, structure_id: UUID) -> S
 
 
 def restore_structure_nodes(
-    session: Session, place: Place, states: Snapshot, writer: Writer
+    session: Session, place: Place, states: Snapshot, writer: Writer, *, base: bool = False
 ) -> Snapshot:
     """Write back the nodes of a structure created again empty, as ``structure_nodes`` kept them.
 
     Under the lock of the structure, taken here: each node created again under its identifier, at
     the counter that follows the one kept, with its facet, its links and its inscriptions, then the
     structure redated, as the undoing of a deletion of nodes does (``restoring``). Gives the nodes
-    as they are left.
+    as they are left. ``base`` the structure is the base of an own estimate created again with it,
+    which no request names (EP-30).
     """
     if not states:
         return ()
-    facts = facts_of(session, place, lock=True)
+    facts = facts_of(session, place, lock=True, base=base)
     ids = tuple(state.object_id for state in states)
     restoring = Restoring("node_create", ids, ((), states), 0, undoing=False)
     bring_back(session, place, facts, restoring, writer)

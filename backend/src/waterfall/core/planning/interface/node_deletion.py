@@ -46,7 +46,8 @@ def delete_node(
 
     Under the lock of the structure: refused if the structure does not hold the node (404), at
     another version than the one read (412), for a task started or completed, or a summary one of
-    whose subordinates is (409 ``task_not_started``, WF-PLA-0070), for a line of a completed task
+    whose subordinates is, but in the own estimate of a risk, which abandons it whatever its state
+    (409 ``task_not_started``, WF-PLA-0070; EP-30), for a line of a completed task
     of the main structure (409 ``task_not_completed``, WF-RAE-0040; #1767), then for a provision
     line of the main structure, which its risk alone writes (409 ``line_not_provision``,
     ``params.risks``; #4007). The subtree goes, its lines, its links and the inscriptions of its
@@ -67,7 +68,10 @@ def delete_node(
             raise PreconditionFailedError(
                 STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
             )
-        if node_id in tree.tasks and state_of(tree, node_id).progress != NOT_STARTED:
+        started = node_id in tree.tasks and state_of(tree, node_id).progress != NOT_STARTED
+        # The own estimate of a risk abandons a task whatever its state: its occurrence completes
+        # it at its budget (EP-30, "Une désignation sur une tâche terminée s'applique").
+        if started and not write.facts.is_own_estimate:
             raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": TASK_NOT_STARTED})
         parent = node.parent_id
         if node_id not in tree.tasks:

@@ -23,9 +23,8 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import delete, func, select
 
-from waterfall.core.estimate.interface import round_to_cent, structure_amounts
 from waterfall.core.risks.commands import IDENTIFIED
-from waterfall.core.risks.reading import NOUGHT
+from waterfall.core.risks.reading import NOUGHT, provision_of, recorded_severity
 from waterfall.core.risks.tables import RiskEvaluation, RiskReferenceShare
 from waterfall.platform.audit import AuditEntry
 
@@ -124,11 +123,9 @@ def write_shares(designation: ReferenceDesignated) -> None:
     if not evaluations:
         return
     held = {} if before is None else shares_of(session, project_id, before)
-    identified = {each.structure_id for each in evaluations if each.state == IDENTIFIED}
-    amounts = structure_amounts(session, project_id, identified)
     for each in evaluations:
         share = (
-            round_to_cent(amounts[each.structure_id] * each.probability)
+            provision_of(recorded_severity(each), each.probability)
             if each.state == IDENTIFIED
             else held.get(each.risk_id, NOUGHT)
         )

@@ -4362,23 +4362,29 @@ The witness is loaded once a run, by a process of its own, into a template datab
 (`backend/tests/witness_template.py`, #4653): the first process whose tests ask for it starts that
 loading as soon as they are collected, and those tests run after the others, while it is done. A
 test on the witness (`witness`, `witness_logged`) is given a database of its own, a copy of the
-template (`CREATE DATABASE … TEMPLATE`, 0.2 to 0.4 second to create, 0.1 to drop, measured on a workstation), dropped after it: rows,
-identifiers, the partitions of the projects and the sequences are those the command wrote, and no
-row is laid again nor any partition dropped. The service reaches it through a login role member of
-the service role of the template, whose rights the copy keeps. The witness loaded by each process,
+template (`CREATE DATABASE … TEMPLATE`, 0.2 to 0.4 second to create, 0.1 to drop, measured on a
+workstation), dropped after it: rows, identifiers, the partitions of the projects and the
+sequences are those the command wrote, and no row is laid again nor any partition dropped. The
+service reaches it through a login role member of the service role of the template, whose rights
+the copy keeps. The witness loaded by each process,
 then laid again and its partitions dropped around each test (#2157), took a third of the time of the
 tests. A test that changes how the command loads it loads it itself, on the process's database
 (`witness_loaded`).
 
-A test that hangs fails after eight minutes, named, its traceback where it stopped (`pytest-timeout`,
-`timeout` of `backend/pyproject.toml`, by `SIGALRM`): its process goes on with the next, instead of
-freezing its part of the chain until the job is cancelled (#4653). The longest test that does not
-hang loads the witness itself: 216 seconds at most on a runner (run 44957647502), and a runner is up
-to twice as slow as another. The loading of the template has its deadline, seven minutes
-(`LOADING_TIMEOUT`, for 134 to 290 seconds measured), under that of a test: past it, the test that
-waits for it fails with what the loading said, the loading stops, and the end of pytest no longer
-waits for it. The delay of a test covers the whole item, its teardown included: a teardown that
-follows a freeze may freeze in turn, and the delay of the job (20 minutes) remains the net.
+A test that hangs fails after fifteen minutes, named, its traceback where it stopped
+(`pytest-timeout`, `timeout` of `backend/pyproject.toml`, by `SIGALRM`): its process goes on with
+the next, instead of freezing its part of the chain until the job is cancelled (#4653). The longest
+test that does not hang loads the witness itself, twice: 167 seconds on a workstation (EP-30). The
+loading of the template has its deadline, thirteen minutes (`LOADING_TIMEOUT`): since the own
+estimates of the risks are born whole, it takes 130 to 140 seconds on a workstation and 280 to 570
+on a runner (run 45209389445), which it says at the end of the output of its part ("the loading
+took N s"). That deadline leaves the test that waits two minutes for its own work, under its own:
+past it, the test fails with what the loading said and how it ended (the exit status its watcher
+writes: a failure, `SIGALRM` at the deadline, `SIGKILL`), the loading stops, and the end of pytest
+no longer waits for it. The delay of a test covers the whole item, its teardown included: a
+teardown that follows a freeze may freeze in turn, and the delay of the job (25 minutes, for parts
+of 8 to 21 minutes: some 4 minutes of margin with a loading of 570 seconds, under 1 if the
+loading takes its whole deadline of 780) remains the net.
 
 A pytest killed (`SIGTERM`, `SIGKILL`) without reaching its end leaves the database
 `waterfall_witness_*` (and its copies), the roles `waterfall_witness_*_signing` and
@@ -5990,6 +5996,13 @@ the guard and the entry above:
   `revisions.spec.ts` and of `remaining.spec.ts`, the opening and the scroll of the grid, its windows
   and its folding, the keyboard to the six thousandth row), the three hundred projects and the
   eighteen thousand cost lines of §4.6.2, and the status screen of the system.
+- **EP-30 / US-3150** — the `@shared` paths that the witness served by the service departs from: the
+  loader merges the occurrence of 752 into the first level of 102, under drawn identifiers, where the
+  witness of the fake back keeps it under the summary « Retard de livraison des armoires »
+  (`planning.spec.ts`, its three paths of the grid, the Gantt and the fold; `risks.spec.ts`, the report
+  of the occurrence, whose provision line also belongs to US-3140; the amount of Lot 1 of
+  `grid.spec.ts`, 502,234.56 € served for 502,434.56 € expected). US-3150/L1 (#4614) removes these guards
+  and this entry.
 - **No epic reverses them** — the paths that write PRJ-001, whose account of the run is no
   contributor (#2193): their twins play the service on a project of the run (`FAKE_BACK_ONLY`,
   `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), those that enter or paste in

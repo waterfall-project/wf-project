@@ -5,7 +5,7 @@ import { expect } from "@playwright/test";
 import { MARKING, WORKING } from "./bounds";
 import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
-import { identifyRisk } from "./risk-seed";
+import { addOwnTask, identifyRisk } from "./risk-seed";
 
 // What the fake back cannot replay: the success of a task of occurrence (#1830) — its exemples hold
 // the queued task alone, and the contract is not given another — and the risk it then reads occurred.
@@ -53,13 +53,9 @@ test("writes the risk after a cell of its own estimate was entered and the detai
     expect(page.url()).toBe(own);
     const grid = page.getByRole("treegrid", { name: "Grille de devis" });
     await expect(grid).toBeVisible({ timeout: WORKING });
-    // Its own estimate is empty: a task entered there is a write of the structure of the risk, which
-    // advances the counter of the risk (#1626).
-    await page.getByRole("button", { name: "Insérer une tâche" }).click();
-    const creation = page.getByRole("dialog", { name: "Insérer une tâche" });
-    await creation.getByRole("textbox", { name: "Libellé" }).fill("Bâche");
-    await creation.getByRole("button", { name: "Créer" }).click();
-    await expect(page.getByText("« Bâche » créée.")).toBeVisible({ timeout: WORKING });
+    // A task entered in its own estimate, born whole (US-3070), is a write of the structure of the
+    // risk, which advances the counter of the risk (#1626).
+    await addOwnTask(page, grid, "Bâche");
     // Back to the detail in the same tab, without reloading the document: the commands read the risk
     // anew at their mount, and the second review is written from the counter the entry advanced
     // (#1626). The browser of this run reads the page anew on the way back by itself: the case proves
@@ -102,9 +98,11 @@ test("declares a risk occurred against the service: the report, the task succeed
     const detail = page.getByRole("region", { name: "Grue indisponible" });
     await detail.getByRole("button", { name: "Déclarer survenu" }).click();
     const declare = detail.getByRole("form", { name: "Déclarer survenu" });
-    await expect(declare.getByRole("table", { name: /écarts/i })).toBeVisible({
-      timeout: WORKING,
-    });
+    // Its own estimate, born whole, designates nothing (US-3070): the report says no difference,
+    // the provision withdrawn alone (US-3100).
+    await expect(
+      declare.getByRole("region", { name: "Compte rendu de la survenance" }),
+    ).toBeVisible({ timeout: WORKING });
     await declare.getByRole("button", { name: "Déclarer le risque survenu" }).click();
     await expect(
       detail.getByText(/La survenance de « Grue indisponible » est confiée/),

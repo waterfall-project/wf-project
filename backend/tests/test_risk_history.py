@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
+from amendments_support import listed
 from estimate_support import Costing, costing
 from history_support import delete
 from nodes_support import SESSION, entries, refusal, signed_in
@@ -293,8 +294,9 @@ def test_a_deletion_undone_brings_back_the_risk_and_its_own_estimate_and_redone_
     # their identifiers, at 60; the entries of the own estimate went with the deletion (#4154), so
     # the undoing that follows is not theirs. Redone, the deletion takes them all again.
     risk = declared_by(risks, who)
-    nodes = costed_by(risks, who, risk, "200.00")
+    costed_by(risks, who, risk, "200.00")
     held = risks.risk(risk)
+    nodes = [each for each, _ in own_nodes(risks, held["structure_id"])]
     removed = risks.remove(held, who)
     assert removed.status_code == 204, removed.text
     risk_undone(undone(risks, who), "risk_delete", risk)
@@ -308,6 +310,32 @@ def test_a_deletion_undone_brings_back_the_risk_and_its_own_estimate_and_redone_
     risk_undone(undone(risks, who, "redo"), "risk_delete", risk)
     assert risks.read(risk).status_code == 404
     assert not structure_held(stage, held["structure_id"])
+
+
+def up_to_date(risks: Risks, structure_id: str) -> object:
+    """Read whether the own estimate of a structure is up to date, as the structure list says."""
+    held = listed(risks.api, risks.project)
+    return next(each for each in held if each["structure_id"] == structure_id)["is_up_to_date"]
+
+
+@pytest.mark.requirement("WF-RIS-0020-A")
+def test_an_own_estimate_created_again_is_up_to_date_only_if_the_main_structure_kept_its_counter(
+    risks: Risks, project: Costed, who: Person
+) -> None:
+    # The deletion of the risk deletes its provision line, which advances the counter of the main
+    # structure by one exactly: the undoing, with no write between, gives the own estimate back up
+    # to date (EP-30). A write of the main structure between the two leaves it out of date.
+    risk = declared_by(risks, who)
+    removed = risks.remove(risks.risk(risk), who)
+    assert removed.status_code == 204, removed.text
+    risk_undone(undone(risks, who), "risk_delete", risk)
+    assert up_to_date(risks, risks.risk(risk)["structure_id"]) is True
+    second = declared_by(risks, who, label="Pluie")
+    removed = risks.remove(risks.risk(second), who)
+    assert removed.status_code == 204, removed.text
+    project.tree.made("Recette")
+    risk_undone(undone(risks, who), "risk_delete", second)
+    assert up_to_date(risks, risks.risk(second)["structure_id"]) is False
 
 
 @pytest.mark.requirement("WF-IHM-0110-A")

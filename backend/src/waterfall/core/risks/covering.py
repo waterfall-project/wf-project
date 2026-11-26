@@ -20,10 +20,10 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from waterfall.core.estimate.interface import Coverage, round_to_cent, structure_amounts
+from waterfall.core.estimate.interface import Coverage
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.risks.commands import IDENTIFIED, OCCURRED
-from waterfall.core.risks.reading import NOUGHT, occurred_amounts
+from waterfall.core.risks.reading import NOUGHT, occurred_amounts, provision_of, recorded_severity
 from waterfall.core.risks.sharing import reserve_of
 from waterfall.core.risks.tables import RiskEvaluation
 
@@ -49,12 +49,9 @@ def coverage_of(session: Session, project_id: UUID, revision_id: UUID) -> Covera
             RiskEvaluation.state.in_((IDENTIFIED, OCCURRED)),
         )
     ).all()
-    amounts = structure_amounts(
-        session, project_id, {each.structure_id for each in evaluations if each.state == IDENTIFIED}
-    )
     remaining = sum(
         (
-            round_to_cent(amounts[each.structure_id] * each.probability)
+            provision_of(recorded_severity(each), each.probability)
             for each in evaluations
             if each.state == IDENTIFIED
         ),

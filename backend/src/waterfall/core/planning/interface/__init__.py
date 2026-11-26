@@ -97,6 +97,9 @@ from waterfall.core.planning.interface.closing import (
 # ``copying`` (US-1380/L2; moved out of ``nodes`` and written as one statement a table by
 # US-2240/L2): the copy of the nodes of a revision opened from a marked one.
 from waterfall.core.planning.interface.copying import (
+    copy_links as copy_links,
+)
+from waterfall.core.planning.interface.copying import (
     copy_nodes as copy_nodes,
 )
 from waterfall.core.planning.interface.copying import (
@@ -243,6 +246,9 @@ from waterfall.core.planning.interface.lines import (
 )
 from waterfall.core.planning.interface.lines import (
     judge_line_creation as judge_line_creation,
+)
+from waterfall.core.planning.interface.lines import (
+    line_nodes_of as line_nodes_of,
 )
 from waterfall.core.planning.interface.lines import (
     lineages_of as lineages_of,
@@ -653,6 +659,12 @@ from waterfall.core.planning.interface.structures import (
     DifferentialLoad as DifferentialLoad,
 )
 
+# ``structures`` (US-3070/L3): the own estimate of a risk opened whole, with its base; copied again
+# for the witness.
+from waterfall.core.planning.interface.structures import (
+    OwnEstimateOpening as OwnEstimateOpening,
+)
+
 # ``structures`` (US-1380/L1; US-1380/L2, US-1390/L2): the dates, the start and the label.
 from waterfall.core.planning.interface.structures import (
     StructureChange as StructureChange,
@@ -661,7 +673,13 @@ from waterfall.core.planning.interface.structures import (
     load_differential as load_differential,
 )
 from waterfall.core.planning.interface.structures import (
+    load_own_estimate_again as load_own_estimate_again,
+)
+from waterfall.core.planning.interface.structures import (
     open_differential as open_differential,
+)
+from waterfall.core.planning.interface.structures import (
+    open_own_estimate as open_own_estimate,
 )
 from waterfall.core.planning.interface.structures import (
     reschedule as reschedule,

@@ -51,8 +51,12 @@ if TYPE_CHECKING:
 # revision opened a year later prices its lines again by a statement for the set (#3535), not one
 # by line. Since EP-08 the 101 of the witness holds six structures the copy takes up — the main
 # one, the amendment 2 and its base, the three own estimates — where it held one (US-2650/L1): 300
-# leaves a margin for tables added by later epics, and stays far from a copy by row.
-COPY_STATEMENTS_BOUND = 300
+# leaves a margin for tables added by later epics, and stays far from a copy by row. Since
+# US-3070/L3 each own estimate is born whole with its base (EP-30): the 101 holds nine structures,
+# and the copy sends some 420 statements within the year, 450 a year later, some 50 a structure,
+# none by row. 500 is the declared deviation of US-3070/L3: the pruning at the marking, US-3070/L4
+# (#4587), takes the bases of the 101 away and brings the bound back to 300.
+COPY_STATEMENTS_BOUND = 500
 # The volume of the source the bound is read against: a thinner witness would let a copy by row
 # pass under 200 (PRJ-001: some 1 000 tasks, 5 000 lines).
 TASKS_FLOOR = 900

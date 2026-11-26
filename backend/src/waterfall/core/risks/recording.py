@@ -18,7 +18,8 @@ it too, and carries the new counter to the entries (``carry_everywhere``): it is
 rows are what an undoing or a redoing brings back (``undoing``): the identity, to create the risk
 again; its evaluation in the revision; its reviews there; the task that bears its provision line;
 the start of its own estimate and, for a write that creates or deletes the risk, every node of it
-(``whole``). Identifiers, amounts, days and instants are kept as text.
+and of its base, and the counter of the main structure it retained (``whole``; EP-30). Identifiers,
+amounts, days and instants are kept as text.
 """
 
 from contextlib import ExitStack, contextmanager
@@ -32,7 +33,12 @@ from sqlalchemy import select
 from waterfall.core.history import interface as history
 from waterfall.core.history.interface import ObjectState, RecordedChange, UndoStack
 from waterfall.core.planning.interface import bearing_of, structure_nodes
-from waterfall.core.revisions.interface import structure_facts
+from waterfall.core.revisions.interface import (
+    aimed_structure,
+    differential_base,
+    own_estimate_state,
+    structure_facts,
+)
 from waterfall.core.risks.reading import evaluation_of
 from waterfall.core.risks.tables import Risk, RiskReview
 
@@ -125,8 +131,10 @@ def risk_state(
     line = evaluation.provision_node_id
     bearer = None if line is None else bearing_of(session, project_id, [line]).get(line)
     own = evaluation.structure_id
-    start = structure_facts(session, project_id, own, lock=False).planning_start_on
+    facts = structure_facts(session, project_id, own, lock=False)
     nodes = structure_nodes(session, project_id, own) if whole else ()
+    base = differential_base(session, project_id, own) if whole else None
+    based = () if base is None else structure_nodes(session, project_id, base)
     columns = ("label", "description", "mitigation_notes", "created_at", "created_by")
     kept = (
         "revision_id",
@@ -137,6 +145,7 @@ def risk_state(
         "provision_cost_category_id",
         "provision_subproject_id",
         "provision_task_lineage_id",
+        "severity",
         "created_at",
         "created_by",
     )
@@ -146,9 +155,30 @@ def risk_state(
         "evaluation": {name: text(getattr(evaluation, name)) for name in kept},
         "reviews": [{name: text(getattr(each, name)) for name in reviewed} for each in reviews],
         "task_id": None if bearer is None else str(bearer.node_id),
-        "own_estimate": {"planning_start_on": start.isoformat(), "nodes": encoded_nodes(nodes)},
+        "own_estimate": {
+            "planning_start_on": facts.planning_start_on.isoformat(),
+            "nodes": encoded_nodes(nodes),
+            "base_id": text(base),
+            "base_nodes": encoded_nodes(based),
+            **(_state_of(session, project_id, (own, revision_id)) if whole else {}),
+        },
     }
     return ObjectState(risk.id, risk.lock_version, risk.label, rows)
+
+
+def _state_of(session: Session, project_id: UUID, held: tuple[UUID, UUID]) -> dict[str, JsonValue]:
+    """Give the state of an own estimate kept whole: up to date, and the counter of the main.
+
+    ``held`` the own estimate and its revision. What its creation again judges its state by
+    (``undoing``, EP-30).
+    """
+    own, revision_id = held
+    main = aimed_structure(session, project_id, revision_id, None)
+    counter = None if main is None else structure_facts(session, project_id, main, lock=False)
+    return {
+        "up_to_date": own_estimate_state(session, project_id, own).up_to_date,
+        "main_lock_version": None if counter is None else counter.lock_version,
+    }
 
 
 class RiskRecording:

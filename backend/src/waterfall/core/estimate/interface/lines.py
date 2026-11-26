@@ -56,10 +56,18 @@ def revision_has_lines(session: Session, revision_id: UUID) -> bool:
     return revision_bears(session, revision_id, LINE)
 
 
-def load_lines(session: Session, place: Place, lines: tuple[LineLoad, ...], act: Act) -> None:
+def load_lines(
+    session: Session,
+    place: Place,
+    lines: tuple[LineLoad, ...],
+    act: Act,
+    *,
+    additive: bool = False,
+) -> None:
     """Reconcile a revision just opened with the lines the witness describes, by lineage (US-1570).
 
     Lines deleted, changed and created at the identifiers and the instant the witness imposes
     (``Act.at``), priced at the rates of the revision on the dates the engine computes.
+    ``additive`` adds them to what the structure holds: the own estimate of a risk (US-3070/L3).
     """
-    loading.load_lines(session, place, lines, act)
+    loading.load_lines(session, place, lines, act, additive=additive)

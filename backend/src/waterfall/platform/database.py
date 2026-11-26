@@ -38,7 +38,7 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterable, Mapping
+    from collections.abc import Generator, Iterable, Mapping, Sequence
     from uuid import UUID
 
     from sqlalchemy.exc import IntegrityError
@@ -94,12 +94,18 @@ def copies(mapping: Mapping[UUID, UUID], name: str) -> TableValuedAlias:
     ``INSERT … SELECT`` that joins it, the rows never leaving the database, where sending them one
     by one cost the opening of a revision most of its ten seconds (US-2240, #3102).
     """
+    return unnested(name, {"source": list(mapping), "copy": list(mapping.values())})
+
+
+def unnested(name: str, columns: Mapping[str, Sequence[UUID]]) -> TableValuedAlias:
+    """Give columns of identifiers, of one length, as a table named ``name``, one array each.
+
+    As ``copies``, for rows that carry more than one copy: a link, its structure and its two tasks.
+    """
+    arrays = (bindparam(None, list(each), type_=ARRAY(Uuid())) for each in columns.values())
     return (
-        func.unnest(
-            bindparam(None, list(mapping), type_=ARRAY(Uuid())),
-            bindparam(None, list(mapping.values()), type_=ARRAY(Uuid())),
-        )
-        .table_valued(column("source", Uuid()), column("copy", Uuid()))
+        func.unnest(*arrays)
+        .table_valued(*(column(each, Uuid()) for each in columns))
         .render_derived(name=name)
     )
 

@@ -510,15 +510,14 @@ from waterfall.core.estimate.repricing import (
     reprice_after_rate as reprice_after_rate,
 )
 
-# ``severities`` (US-2570/L1): the total of an own estimate and the base of the matrix (EP-08).
+# ``severities`` (US-3070/L3): the gap of an own estimate to its base, the severity (EP-30).
+from waterfall.core.estimate.severities import (
+    own_estimate_gap as own_estimate_gap,
+)
+
+# ``severities`` (US-2570/L1): the gap of an own estimate and the base of the matrix (EP-08).
 from waterfall.core.estimate.severities import (
     risk_base as risk_base,
-)
-from waterfall.core.estimate.severities import (
-    structure_amount as structure_amount,
-)
-from waterfall.core.estimate.severities import (
-    structure_amounts as structure_amounts,
 )
 
 # ``spreading`` (US-1520/L1; US-2040/L2): the line the planned value is computed on, which EP-10

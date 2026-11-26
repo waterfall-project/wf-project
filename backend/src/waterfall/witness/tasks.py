@@ -158,6 +158,22 @@ def write_tasks(
     return len(load_tasks(session, place, load, act))
 
 
+def add_tasks(
+    session: Session,
+    place: Place,
+    written: tuple[date, Iterable[TaskRow]],
+    identified: Callable[[TaskRow], UUID],
+    act: Act,
+) -> None:
+    """Add the tasks described to what a structure holds, its start left as it is (US-3070/L3).
+
+    The own estimate of a risk, the copy of the main structure (``TasksLoad.additive``).
+    """
+    start, tasks = written
+    load = TasksLoad(start, tuple(_load(task, identified(task)) for task in tasks), additive=True)
+    load_tasks(session, place, load, act)
+
+
 def inscribe(session: Session, project_id: UUID, tasks: Iterable[TaskRow], act: Act) -> None:
     """Write the inscriptions of each task described, by its lineage."""
     for task in tasks:

@@ -18,7 +18,11 @@ from typing import TYPE_CHECKING, Any
 
 from waterfall.core.estimate.interface import differential_rows
 from waterfall.core.planning.interface import Place, describe_row, resolve_row_number
-from waterfall.core.revisions.interface import differential_base, structure_facts
+from waterfall.core.revisions.interface import (
+    differential_base,
+    read_against_base,
+    structure_facts,
+)
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
 
 if TYPE_CHECKING:
@@ -33,13 +37,17 @@ if TYPE_CHECKING:
 
 
 def rows_of(session: Session, place: Place, written: Written) -> tuple[DifferentialRow, ...] | None:
-    """Give the rows a structure is read as when it is a differential of the revision; else none.
+    """Give the rows a structure is read as when it is read against its base; else none.
+
+    A differential of the revision, or the own estimate of a risk whole (EP-30).
 
     ``written`` how the reader writes a node whole, whose values the union compares. An unknown
     structure is not found (404).
     """
     facts = structure_facts(session, place.project_id, place.structure_id, lock=False)
-    if not facts.is_differential or facts.revision_id != place.revision_id:
+    if facts.revision_id != place.revision_id:
+        return None
+    if not read_against_base(session, place.project_id, facts):
         return None
     return differential_rows(session, place, written)
 

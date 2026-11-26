@@ -36,10 +36,12 @@ while the main structure bears it (``CostStructure.is_up_to_date``), and lists i
 (``rebase``) available once out of date.
 
 The own estimate of a risk is born with its risk, in the current revision (``create_own_estimate``,
-E-09; US-2570/L1), labelled as its risk. Its counter is the risk's too: each time it advances —
-whatever writes the tree, once the write has priced its lines —, the modules registered follow it
-(``register_own_estimate_counted``): the risks advance the counter of the risk and take its
-severity from the total of the structure again (#1453, WF-RIS-0010).
+E-09; US-2570/L1), labelled as its risk, and with its base, as a differential is (EP-30,
+US-3070/L3): both copies of the main structure, whose start is its own and whose counter it keeps.
+Its counter is the risk's too: each time it advances — whatever writes the tree, once the write has
+priced its lines —, or its base's, the modules registered follow it
+(``register_own_estimate_counted``): the risks advance the counter of the risk and record its
+severity, the gap of the totals of the own estimate and of its base (#1453, WF-RIS-0010).
 
 Filled by US-0960. The witness loads no structure of its own: the main one is born with its
 revision, the others are EP-06's and EP-07's.
@@ -120,8 +122,11 @@ class StructureView:
     commands: tuple[CommandAvailability, ...]
     lock_version: int
     risk_id: UUID | None = None
-    # Whether a differential not merged is up to date; ``None`` for any other structure (US-3050).
+    # Whether a differential not merged, or an own estimate not consumed, is up to date; ``None``
+    # for any other structure (US-3050, EP-30).
     is_up_to_date: bool | None = None
+    # Whether the own estimate of a risk is pruned; ``None`` for any other structure (EP-30).
+    is_pruned: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,7 +152,9 @@ class OpenedDifferential:
 class OwnEstimateCounted:
     """The own estimate of a risk whose counter just advanced, in the transaction of the write.
 
-    Under the lock of the structure, once the write has written and priced its lines.
+    Under the lock of the structure, once the write has written and priced its lines. ``base``
+    tells that the structure written is its base, priced again or redated (EP-30): what the risk
+    designates does not change.
     """
 
     session: Session
@@ -155,6 +162,7 @@ class OwnEstimateCounted:
     revision_id: UUID
     structure_id: UUID
     risk_id: UUID
+    base: bool = False
 
 
 # What follows the counter of the own estimate of a risk, in the order of registration.
@@ -218,8 +226,26 @@ def _counted(
         for held in tuple(session.identity_map.values()):
             if isinstance(held, CostStructure) and held.kind == RISK:
                 session.expire(held, ["main_lock_version"])
+    followed = structure_id
+    if kind == BASE:
+        # The base of an own estimate written — priced again, redated at the opening of a revision
+        # — changes the gap its severity is (EP-30, "La gravité et la provision"): its own
+        # estimate's followers are told, as for a write of the own estimate.
+        held = session.execute(
+            select(CostStructure.id, CostStructure.risk_id).where(
+                CostStructure.project_id == project_id,
+                CostStructure.id
+                == select(CostStructure.differential_id)
+                .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
+                .scalar_subquery(),
+            )
+        ).first()
+        if held is not None:
+            followed, risk_id = held
     if risk_id is not None:
-        counted = OwnEstimateCounted(session, project_id, revision_id, structure_id, risk_id)
+        counted = OwnEstimateCounted(
+            session, project_id, revision_id, followed, risk_id, base=kind == BASE
+        )
         for follower in _OWN_ESTIMATES.entries():
             follower(counted)
     return counter
@@ -250,62 +276,23 @@ def create_main_structure(session: Session, project_id: UUID, revision_id: UUID,
     return structure_id
 
 
-def create_own_estimate(
-    session: Session,
-    revision: tuple[UUID, UUID],
-    risk: tuple[UUID, str],
-    act: Act,
-    kept: tuple[UUID, date] | None = None,
-) -> UUID:
-    """Create the own estimate of a risk in a revision, empty, labelled as it is; give it (E-09).
-
-    ``revision`` is the project and its current revision, ``risk`` the risk and its label. Its
-    planning starts on the day of its creation, as the main structure's; the risks judge the
-    revision before. ``kept`` the identifier and the start of an own estimate deleted with its risk,
-    which the undoing of the deletion, or the redoing of the declaration, creates again
-    (US-2590/L2).
-    """
-    (project_id, revision_id), (risk_id, label) = revision, risk
-    structure_id, start = (new_id(), current_day(act.at)) if kept is None else kept
-    # Born up to date with the main structure, as a differential is (EP-30).
-    main_counter = session.scalar(
-        select(CostStructure.lock_version).where(
-            CostStructure.project_id == project_id,
-            CostStructure.revision_id == revision_id,
-            CostStructure.kind == MAIN,
-        )
-    )
-    session.add(
-        CostStructure(
-            project_id=project_id,
-            id=structure_id,
-            revision_id=revision_id,
-            kind=RISK,
-            label=label,
-            is_merged=False,
-            lineage_id=structure_id,
-            risk_id=risk_id,
-            main_lock_version=NEVER_BORNE if main_counter is None else main_counter,
-            planning_start_on=start,
-            scheduled_at=act.at,
-            lock_version=FIRST_VERSION,
-            created_at=act.at,
-            created_by=act.author,
-            updated_at=act.at,
-            updated_by=act.author,
-        )
-    )
-    session.flush()
-    return structure_id
-
-
 def delete_own_estimate(session: Session, project_id: UUID, structure_id: UUID) -> None:
     """Delete the own estimate of a risk deleted with it, its nodes already deleted (US-2590/L1).
 
     The structure is locked by the caller, which has deleted the evaluation that names it and the
-    nodes it holds; what it abandons goes with it (EP-30).
+    nodes it holds, and those of its base; what it abandons goes with it, and its base before it,
+    which names it (EP-30).
     """
     _delete_abandonments(session, project_id, OwnEstimateAbandonment.structure_id == structure_id)
+    session.execute(
+        delete(CostStructure)
+        .where(
+            CostStructure.project_id == project_id,
+            CostStructure.differential_id == structure_id,
+            CostStructure.kind == BASE,
+        )
+        .execution_options(synchronize_session=False)
+    )
     session.delete(
         session.scalars(
             select(CostStructure).where(
@@ -582,12 +569,13 @@ def structure_counters(
 
 
 def _up_to_date(row: CostStructure, main_counter: int | None) -> bool | None:
-    """Tell whether a differential not merged is up to date; ``None`` for any other structure.
+    """Tell whether a differential, or an own estimate, is up to date; ``None`` for another.
 
-    Up to date while the main structure bears the counter its base was taken at (US-3050); a
-    merged differential, consumed, has no update left, and says nothing of it.
+    Up to date while the main structure bears the counter its base was taken at (US-3050), the own
+    estimate of a risk alike, whole or pruned (EP-30); a merged differential, or a consumed own
+    estimate, has no update left, and says nothing of it.
     """
-    if row.kind != AMENDMENT or row.is_merged:
+    if row.kind not in (AMENDMENT, RISK) or row.is_merged:
         return None
     return bears_main_counter(row, main_counter)
 
@@ -640,6 +628,7 @@ def list_cost_structures(
             lock_version=row.lock_version,
             risk_id=row.risk_id,
             is_up_to_date=_up_to_date(row, main_counter),
+            is_pruned=None if row.kind != RISK else row.pruned_revision_id is not None,
         )
         for row, born in rows
     ]
@@ -778,6 +767,11 @@ class StructureFacts:
     def is_differential(self) -> bool:
         """Tell whether the structure is a differential, read against the main one (WF-REV-0100)."""
         return self.kind == AMENDMENT
+
+    @property
+    def is_own_estimate(self) -> bool:
+        """Tell whether the structure is the own estimate of a risk (WF-RIS-0030)."""
+        return self.kind == RISK
 
 
 def structure_facts(

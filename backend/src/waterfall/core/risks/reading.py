@@ -4,12 +4,14 @@
 
 Its identity is the project's (``risk``), its evaluation the revision's (``risk_evaluation``): the
 probability, the state, the own estimate and the provision line the revision read holds
-(WF-RIS-0030). What is computed is computed at the reading:
+(WF-RIS-0030). Its severity is the one its evaluation recorded in that revision: the gap of the
+totals of its own estimate and of its base, written at each write of the own estimate, never
+computed at the reading (``recorded_severity``, WF-RIS-0010; EP-30, "La gravité et la provision").
+What is computed is computed at the reading:
 
-- its severity, the total of its own estimate in that revision (WF-RIS-0010);
-- its provision: identified, the severity weighted by the probability, to the cent, which its line
-  carries; occurred or dismissed, the share it held in the reference revision, nought without one
-  (WF-RIS-0040, WF-RIS-0050; H-03);
+- its provision: identified, the severity weighted by the probability, to the cent, never below
+  nought (``provision_of``), which its line carries; occurred or dismissed, the share it held in
+  the reference revision, nought without one (WF-RIS-0040, WF-RIS-0050; H-03);
 - the labels of the category, of the subproject and of the task of its provision, the category
   told active when it and its nature are, and its nature of the provision kind (#747);
 - its cell in the matrix of the reference settings: its probability, and its severity as a share of
@@ -31,7 +33,6 @@ from waterfall.core.estimate.interface import (
     risk_base,
     round_to_cent,
     share_of,
-    structure_amounts,
 )
 from waterfall.core.planning.interface import bearing_of
 from waterfall.core.projects.interface import project_facts, subproject_labels
@@ -62,6 +63,24 @@ if TYPE_CHECKING:
 
 PROVISION_KIND = "provision"
 NOUGHT = Decimal("0.00")
+
+
+def recorded_severity(evaluation: RiskEvaluation) -> Decimal:
+    """Give the severity an evaluation recorded, signed; nought where none was recorded.
+
+    Written at each write of the own estimate (``follow_own_estimate``), nought at the declaration
+    (EP-30, "La gravité et la provision").
+    """
+    return NOUGHT if evaluation.severity is None else evaluation.severity
+
+
+def provision_of(severity: Decimal, probability: Decimal) -> Decimal:
+    """Give the provision of a severity weighted by a probability, to the cent, never below nought.
+
+    A negative severity, an opportunity, provisions nothing before it is realised (EP-30, "La
+    gravité et la provision").
+    """
+    return max(NOUGHT, round_to_cent(severity * probability))
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,7 +129,6 @@ class ReadContext:
     facts: ProjectFacts
     matrix: RiskMatrix
     cited: frozenset[UUID]
-    amounts: dict[UUID, Decimal]
     shares: dict[UUID, Decimal]
     categories: dict[UUID, CategoryLabel]
     subprojects: dict[UUID, str]
@@ -235,7 +253,6 @@ def read_context(session: Session, project_id: UUID, founds: Sequence[Found]) ->
         facts=facts,
         matrix=read_reference_settings(session).risk_matrix,
         cited=frozenset(cited),
-        amounts=structure_amounts(session, project_id, {each.structure_id for each in evaluations}),
         # The shares are read on the reference of the project as it stands: while a merge marks its
         # revision and designates it the reference, that is still the one before. The value a
         # risk occurred or dismissed there keeps is the same on both, because ``write_shares``
@@ -311,9 +328,9 @@ def risk_view(
         if evaluation.state == OCCURRED
         else "dismissed"
     )
-    severity = context.amounts[evaluation.structure_id]
+    severity = recorded_severity(evaluation)
     provision = (
-        round_to_cent(severity * evaluation.probability)
+        provision_of(severity, evaluation.probability)
         if state == IDENTIFIED
         else context.shares.get(risk.id, NOUGHT)
     )

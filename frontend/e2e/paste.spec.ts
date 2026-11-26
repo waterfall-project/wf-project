@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page, type Request } from "@playwright/test";
 
-import { WORKING } from "./bounds";
+import { PASTE_PATH_IN_SERVICE, WORKING } from "./bounds";
 import { axeViolations } from "./axe";
 import { columnsOf } from "./columns";
 import { seedEstimate } from "./estimate-seed";
 import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
 import { createOwnProject, openRevision } from "./own-project";
-import { identifyRisk } from "./risk-seed";
+import { addOwnTask, identifyRisk } from "./risk-seed";
 import { rowAt, scrollToPosition } from "./scroll";
 import { isServerAction } from "./server-action";
 
@@ -441,7 +441,8 @@ test("a block pasted in the own estimate of a risk the run identifies is refused
   manager,
 }) => {
   test.skip(!inService, "the fake back keeps no risk and creates no line by a paste");
-  test.slow();
+  // In place of `test.slow`: the budget measured against the service (`PASTE_PATH_IN_SERVICE`, #4911).
+  test.setTimeout(PASTE_PATH_IN_SERVICE);
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
     const { own } = await identifyRisk(
@@ -455,15 +456,13 @@ test("a block pasted in the own estimate of a risk the run identifies is refused
     await openHydrated(page, own);
     const grid = page.getByRole("treegrid", { name: "Grille de devis" });
     const idle = () => expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
-    // Its own estimate is empty: a task is made first, the paste writes under it.
-    await page.getByRole("button", { name: "Insérer une tâche" }).click();
-    const creation = page.getByRole("dialog", { name: "Insérer une tâche" });
-    await creation.getByRole("textbox", { name: "Libellé" }).fill("Bâche");
-    await creation.getByRole("button", { name: "Créer" }).click();
-    await expect(page.getByText("« Bâche » créée.")).toBeVisible({ timeout: WORKING });
+    // Its own estimate is born whole (US-3070): a task is added below the planning seeded, the paste
+    // writes under it. Its rows are counted from that task's.
+    const added = await addOwnTask(page, grid, "Bâche");
     await idle();
+    const first = Number(await added.getAttribute("aria-rowindex")) - 1;
     const at = await columnsOf(grid, COLUMNS);
-    const label = (row: number) => cellAt(grid, row, at.label);
+    const label = (row: number) => cellAt(grid, first + row - 1, at.label);
     await expect(label(1)).toContainText("Bâche", { timeout: WORKING });
     // Then a line under it, from the menu of its cell: the paste starts from a line.
     await label(1).click();

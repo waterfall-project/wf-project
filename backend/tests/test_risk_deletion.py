@@ -116,7 +116,9 @@ def test_a_risk_no_marked_revision_cites_is_deleted_with_its_own_estimate_and_it
         "evaluations": 1,
         "reviews": 1,
         "structures": 1,
-        "own_nodes": 2,
+        # The main structure copied — two tasks, two lines — and the task and the line it adds
+        # (EP-30).
+        "own_nodes": 6,
         "line": 1,
     }
     answer = risks.remove(risk)

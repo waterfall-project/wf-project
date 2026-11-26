@@ -10,7 +10,7 @@ that is not identified refused by 409, ``risk_identified`` missing (WF-RIS-0060)
 checked against the contract (``ContractClient``).
 """
 
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -21,14 +21,12 @@ from nodes_support import mark, refusal
 from occurrence_support import (
     DIAGNOSTIC,
     OWN_PLAN,
+    REWIRING,
     TESTS,
     Occurring,
     beyond_horizon,
-    follows,
     idle_diagnostic,
-    main_task,
     occurring,
-    start_own_estimate,
 )
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
@@ -80,40 +78,24 @@ def _provision(ready: Occurring) -> dict[str, Any]:
 
 
 @pytest.mark.requirement("WF-RIS-0060-A")
-def test_the_report_adds_the_own_estimate_changes_its_bearer_and_removes_the_provision(
+def test_the_report_adds_what_the_own_estimate_designates_and_tells_the_provision(
     ready: Occurring,
 ) -> None:
-    # The tasks and the lines of the own estimate added in the order of its plan, without lineage;
-    # ``Étude``, a leaf become the summary of the tasks grafted, which start a week after it,
-    # changed by its duration and its dates; the provision line removed, its lineage named; no
-    # refusal.
-    provision = _provision(ready)
+    # The occurrence is the merge of the own estimate, in its mode (EP-30, "La survenance"): the
+    # tasks and the lines it adds against its base are added, the main structure it copied left as
+    # it is — ``Étude`` keeps its place and its dates —; the amount of the provision line it
+    # removes; no refusal. The form of the report of a merge is US-3100/L2's.
     study = next(each for each in ready.main() if each["kind"] == "task")
     assert study["task"]["label"] == STUDY
     report = ready.reported()
-    added = [
-        (each["change"], each["target"], each["lineage_id"], each["label"], each["fields"])
-        for each in report["differences"][: len(OWN_PLAN)]
-    ]
-    assert added == [("added", kind, None, label, []) for kind, label in OWN_PLAN]
-    assert report["differences"][len(OWN_PLAN) :] == [
-        {
-            "change": "updated",
-            "target": "task",
-            "lineage_id": study["lineage_id"],
-            "label": STUDY,
-            "predecessor_label": None,
-            "fields": ["duration", "start", "finish"],
-        },
-        {
-            "change": "removed",
-            "target": "estimate_line",
-            "lineage_id": provision["lineage_id"],
-            "label": provision["estimate_line"]["label"],
-            "predecessor_label": None,
-            "fields": [],
-        },
-    ]
+    changes = sorted(
+        (each["change"], each["target"], each["label"])
+        for each in report["differences"]
+        if each["target"] != "link"
+    )
+    assert changes == sorted(("added", kind, label) for kind, label in OWN_PLAN)
+    links = {each["label"] for each in report["differences"] if each["target"] == "link"}
+    assert links == {REWIRING, TESTS}
     assert (report["provision_amount"], report["refusals"]) == (PROVISION, [])
 
 
@@ -197,7 +179,7 @@ def test_a_task_its_roles_leave_without_hours_refuses_the_occurrence(ready: Occu
     # calendar then moved to the weekend around the service, as a change of the reference after the
     # revision was opened: the diagnostic would be left without an hour, and the report names the
     # roles and the task, as the own estimate holds it (WF-PLA-0010).
-    welder, fitter, diagnostic = idle_diagnostic(ready)
+    welder, fitter, _ = idle_diagnostic(ready)
     report = ready.reported()
     assert [each["code"] for each in report["refusals"]] == ["TASK_WITHOUT_WORKING_HOURS"]
     params = report["refusals"][0]["params"]
@@ -205,15 +187,8 @@ def test_a_task_its_roles_leave_without_hours_refuses_the_occurrence(ready: Occu
         str(welder),
         str(fitter),
     }
-    assert params["tasks"] == [
-        {
-            "project_id": str(ready.project.project_id),
-            "node_id": str(diagnostic),
-            "label": DIAGNOSTIC,
-        }
-    ]
-    # The dates are not computed: the task bearing the provision is named by no difference.
-    assert [each["change"] for each in report["differences"]][-1:] == ["removed"]
+    assert [each["label"] for each in params["tasks"]] == [DIAGNOSTIC]
+    # The dates are not computed: no task of the main structure is named updated.
     assert "updated" not in [each["change"] for each in report["differences"]]
 
 
@@ -243,16 +218,12 @@ def test_a_task_grafted_beyond_the_horizon_refuses_the_occurrence_by_its_own_est
     ready: Occurring,
 ) -> None:
     # The diagnostic of the own estimate pushed to 2060, its successors with it: the engine finds
-    # the last to finish beyond the horizon, ``PROJECT_HORIZON_EXCEEDED``, named by its node of the
-    # own estimate and its label, as ``TASK_WITHOUT_WORKING_HOURS`` names its tasks (``ProblemTask``
-    # has no null node; #4151).
+    # the last to finish beyond the horizon, ``PROJECT_HORIZON_EXCEEDED``, named by its label, as
+    # the merge of the occurrence names it (EP-30; #4151).
     beyond_horizon(ready, DIAGNOSTIC)
-    last = next(
-        each for each in ready.own() if each["kind"] == "task" and each["task"]["label"] == TESTS
-    )
     report = ready.reported()
     assert [each["code"] for each in report["refusals"]] == ["PROJECT_HORIZON_EXCEEDED"]
-    assert report["refusals"][0]["params"] == {"task": {"node_id": last["node_id"], "label": TESTS}}
+    assert report["refusals"][0]["params"]["task"]["label"] == TESTS
 
 
 @pytest.mark.requirement("WF-RIS-0060-A")
@@ -292,58 +263,17 @@ def test_without_a_current_revision_a_reader_who_may_not_create_one_is_refused(
     assert refusal(answer) == (409, CONDITION, {"missing_condition": "may_create_revision"})
 
 
-def _monday_before(today: date, weeks: int) -> date:
-    """Give the Monday ``weeks`` weeks before the week of a day: a day the planning may start on."""
-    return today - timedelta(days=today.weekday()) - timedelta(weeks=weeks)
-
-
-@pytest.mark.requirement("WF-RIS-0060-A")
-def test_a_task_linked_to_the_bearer_that_the_graft_moves_is_a_difference_and_a_free_one_is_not(
-    ready: Occurring,
-) -> None:
-    # #4134, decision of the author of 2026-11-19: ``Après étude`` follows ``Étude``, which the
-    # graft makes the summary of the tasks grafted, six working days after it; ``Libre`` follows
-    # nothing. The task linked is one ``updated`` difference more, after the bearer and before the
-    # line removed, its fields its dates by the columns of the grid; the free one is not named.
-    study = next(each for each in ready.main() if each["kind"] == "task")
-    after = main_task(ready, "Après étude", None, "2")
-    main_task(ready, "Libre", None, "2")
-    follows(ready.risks, f"{ready.main_path()}/nodes", after, study)
-    report = ready.reported()
-    named = [(each["change"], each["label"], each["fields"]) for each in report["differences"]]
-    assert named[len(OWN_PLAN) :] == [
-        ("updated", STUDY, ["duration", "start", "finish"]),
-        ("updated", "Après étude", ["start", "finish"]),
-        ("removed", _provision(ready)["estimate_line"]["label"], []),
-    ]
-    assert "Libre" not in [label for _, label, _ in named]
-    assert report["refusals"] == []
-    moved = next(each for each in report["differences"] if each["label"] == "Après étude")
-    assert moved["lineage_id"] == after["lineage_id"]
-
-
 @pytest.mark.requirement("WF-RIS-0060-A")
 def test_an_own_estimate_that_starts_before_the_day_is_told_and_never_refused(
     ready: Occurring,
 ) -> None:
     # #4133, decision of the author of 2026-11-19: the planning start of the own estimate before
-    # the day of the declaration is named by the report, which refuses nothing; moved to a later day
-    # (``updateCostStructure``), the report read before is stale (412 at the confirmation) and the
-    # next one tells nothing.
+    # the day of the declaration is named by the report, which refuses nothing. The own estimate has
+    # no start of its own since EP-30: the main structure's, copied at its birth, which precedes the
+    # day; US-3100/L3 withdraws the warning.
     today = current_day(utc_now())
-    past, later = _monday_before(today, 1), _monday_before(today, -2)
-    assert past < today < later
-    start_own_estimate(ready, past)
+    start = ready.main_structure()["planning_start_on"]
+    assert date.fromisoformat(start) < today
     report = ready.reported()
-    assert report["own_estimate_past_planning_start_on"] == past.isoformat()
+    assert report["own_estimate_past_planning_start_on"] == start
     assert report["refusals"] == []
-    sent = {
-        "confirmed": True,
-        "main_structure_lock_version": report["main_structure_lock_version"],
-        "risk_lock_version": report["risk_lock_version"],
-        "creates_current_revision": report["creates_current_revision"],
-    }
-    start_own_estimate(ready, later)
-    answer = ready.api.post(f"{ready.path}/occurrence", headers=ready.risks.headers, json=sent)
-    assert refusal(answer)[:2] == (412, "STALE_LOCK_VERSION")
-    assert ready.reported()["own_estimate_past_planning_start_on"] is None

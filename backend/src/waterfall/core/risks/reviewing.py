@@ -14,15 +14,15 @@ create it (``may_create_revision``). Then the designations, each refused on its 
 probability out of 0 to 1; for the return to the identified state, the category asked for when the
 one the risk designated is no longer active nor of the provision kind. Nothing is written then.
 
-It writes, whatever the review changes — its confirmation without change included (WF-RIS-0010) —,
-a review dated of the day, which keeps the probability sent, the severity of the own estimate and
-the state retained, and advances the counter of the risk. A risk identified that is dismissed loses
-its provision line, for good; a risk dismissed that is identified again recovers it (WF-RIS-0020):
-under the task it designated if that is still a task of the main structure, else under the first
-task of the first level (WF-RIS-0010, #1227), of the category it designated if that is still active
-and of the provision kind, else of the one the review asks for, and of the subproject it designated;
-a risk that stays identified has its line written again at the probability, the severity weighted
-by it, to the cent.
+It writes, whatever the review changes — its confirmation without change included (WF-RIS-0010) —, a
+review dated of the day, which keeps the probability sent, the severity its evaluation recorded
+(EP-30) and the state retained, and advances the counter of the risk. A risk identified that is
+dismissed loses its provision line, for good; a risk dismissed that is identified again recovers it
+(WF-RIS-0020): under the task it designated if that is still a task of the main structure, else
+under the first task of the first level (WF-RIS-0010, #1227), of the category it designated if that
+is still active and of the provision kind, else of the one the review asks for, and of the
+subproject it designated; a risk that stays identified has its line written again at the
+probability, the severity weighted by it, to the cent, never below nought.
 
 The review is an entry of the history of its writer (``risk_review``, US-2590/L2): its undoing
 gives the risk back its probability, its state and its line, and takes the review away; its redoing
@@ -36,12 +36,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from waterfall.core.cost_settings.interface import category_labels, provision_category_active
-from waterfall.core.estimate.interface import (
-    ProvisionEntry,
-    round_to_cent,
-    set_provision,
-    structure_amount,
-)
+from waterfall.core.estimate.interface import ProvisionEntry, set_provision
 from waterfall.core.planning.interface import (
     create_borne_line,
     delete_borne_line,
@@ -65,7 +60,13 @@ from waterfall.core.risks.declaring import (
     refuse,
 )
 from waterfall.core.risks.entering import Held, enter
-from waterfall.core.risks.reading import PROVISION_KIND, read_found, seen_revisions
+from waterfall.core.risks.reading import (
+    PROVISION_KIND,
+    provision_of,
+    read_found,
+    recorded_severity,
+    seen_revisions,
+)
 from waterfall.core.risks.recording import recorded
 from waterfall.core.risks.tables import RiskReview
 from waterfall.core.risks.views import RiskReviewView
@@ -202,7 +203,6 @@ def review(
 
 def _reviewed(session: Session, entered: Entered, entry: RiskReviewEntry, writer: Writer) -> None:
     """Write the review of a risk entered: its row, its evaluation, its provision line."""
-    project_id = entered.place.project_id
     place, risk, evaluation = entered.place, entered.risk, entered.evaluation
     returning = evaluation.state == DISMISSED and entry.state == IDENTIFIED
     faults = probability_faults(entry.probability)
@@ -211,8 +211,8 @@ def _reviewed(session: Session, entered: Entered, entry: RiskReviewEntry, writer
         category = _category_of_return(session, evaluation, entry, faults)
     if faults:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
-    severity = structure_amount(session, project_id, evaluation.structure_id)
-    amount = round_to_cent(severity * entry.probability)
+    severity = recorded_severity(evaluation)
+    amount = provision_of(severity, entry.probability)
     line = evaluation.provision_node_id
     dismissing = line is not None and entry.state == DISMISSED
     named = line

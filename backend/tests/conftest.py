@@ -48,6 +48,7 @@ from witness_template import (
     dropped,
     finished,
     start,
+    took,
 )
 
 from waterfall.api.app import create_app
@@ -105,6 +106,20 @@ class Node(Protocol):
 def pytest_configure_node(node: Node) -> None:
     """Hand each process of pytest-xdist the directory of the template of the run."""
     node.workerinput[WORKER_INPUT] = str(node.config.stash[TEMPLATE].directory)
+
+
+def pytest_terminal_summary(
+    terminalreporter: pytest.TerminalReporter, config: pytest.Config
+) -> None:
+    """Say, at the end of the run, how long the loading of the template took, if it said it.
+
+    The log of the loading goes with its directory: the duration is read here, in the output of the
+    part of the chain, against the deadline of the loading (``LOADING_TIMEOUT``).
+    """
+    if not hasattr(config, "workerinput"):
+        said = took(config.stash[TEMPLATE])
+        if said is not None:
+            terminalreporter.write_line(f"the template of the witness: {said}")
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:

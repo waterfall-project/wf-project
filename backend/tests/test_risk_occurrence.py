@@ -174,13 +174,13 @@ def test_the_occurrence_merges_the_own_estimate_removes_the_provision_and_marks_
     }
     assert provision not in [each["node_id"] for each in main]
     assert counted(stage) == before
-    # The tasks of the first level of the own estimate are the last under the task that bore the
-    # provision, in their order, the whole plan following it.
-    study = next(each for each in main if each["kind"] == "task" and labels([each]) == [STUDY])
+    # The tasks of the first level of the own estimate are merged where it holds them, at the first
+    # level after those of the main structure, in their order, the whole plan following it: the
+    # occurrence is the merge of the own estimate (EP-30, "La survenance").
     top = [each for each in main if labels([each])[0] in (DIAGNOSTIC, REWORK)]
     assert [(each["parent_id"], labels([each])[0]) for each in top] == [
-        (study["node_id"], DIAGNOSTIC),
-        (study["node_id"], REWORK),
+        (None, DIAGNOSTIC),
+        (None, REWORK),
     ]
     plan = [label for _, label in OWN_PLAN]
     held = labels(main)

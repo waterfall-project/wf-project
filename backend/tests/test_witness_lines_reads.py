@@ -29,7 +29,7 @@ from sqlalchemy import select
 from test_witness_lines import CABLER, INSTALLATION, MERGED, OCCURRED, PROVISION, line_rows
 from test_witness_projects import REVISION_100, REVISION_101, REVISION_102, instant
 from test_witness_tasks import REVISIONS, difference, structure_of
-from witness_support import PRJ_001, READ_AT, example, read
+from witness_support import DELAY, PRJ_001, READ_AT, example, occurred_apart, read
 
 from waterfall.core.estimate.interface import roles_employed
 from waterfall.core.estimate.tables import RevisionCategory
@@ -160,6 +160,37 @@ def amounts_under(items: dict[str, dict[str, Any]], name: str) -> dict[str, Deci
     return sums
 
 
+def occurred_set_apart(
+    body: dict[str, Any], expected: dict[str, Any], *, whole: bool
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]], dict[str, Any]]:
+    """Give a reading of the 102 and its example without the nodes of the occurrence of 752.
+
+    The declared deviation of US-3070/L3, which US-3150/L1 (#4614) lifts (``occurred_apart``): the
+    example reads them under the task that bore the provision of 752, the merge adds them at the
+    first level. Gives the nodes read, those of the example, each row number less the rows of the
+    nodes set apart above it, and the totals of the example, less what they count of them unless
+    the reading is ``whole``, where the service counts them too.
+    """
+    apart = occurred_apart()
+    got = {k: v for k, v in keyed(body["items"]).items() if v.get("origin_risk_id") != str(DELAY)}
+    gone = [each for each in expected["items"] if each["node_id"] in apart]
+    above = sorted(each["row_number"] for each in gone)
+    wanted = {
+        key: {**item, "row_number": item["row_number"] - sum(r < item["row_number"] for r in above)}
+        for key, item in keyed(expected["items"]).items()
+        if key not in apart
+    }
+    totals = dict(expected["totals"])
+    if not whole:
+        lines = [each["estimate_line"] for each in gone if each["kind"] == "estimate_line"]
+        totals["task_count"] -= sum(each["kind"] == "task" for each in gone)
+        totals["estimate_line_count"] -= len(lines)
+        for key in ("hours", "base_amount", "budgeted_amount", "reestimated_amount"):
+            counted = sum((Decimal(each.get(key) or 0) for each in lines), Decimal(0))
+            totals[key] = str(Decimal(totals[key]) - counted)
+    return got, wanted, totals
+
+
 @pytest.mark.parametrize("name", list(READS))
 def test_the_estimate_read_of_the_loaded_witness_is_the_example(
     api: ContractClient, witness: Database, realm: TestRealm, name: str
@@ -173,7 +204,7 @@ def test_the_estimate_read_of_the_loaded_witness_is_the_example(
     base = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes"
     body = read(api, witness, realm, f"{base}{READS[name]}")
     expected = example(name)
-    got, wanted = keyed(body["items"]), keyed(expected["items"])
+    got, wanted, totals = occurred_set_apart(body, expected, whole=name == "volume/nodes_thousand")
     assert list(got) == list(wanted)
     assert PROVISION in got or name == "nodes_estimate_filtered"
     read_on = date.fromisoformat(body["meta"]["scheduled_at"][:10])
@@ -186,19 +217,29 @@ def test_the_estimate_read_of_the_loaded_witness_is_the_example(
             assert not line_differences(item, theirs), (name, item["estimate_line"]["label"])
             assert item["editable_fields"] == theirs["editable_fields"], key
     # The budgeted total counts the provision the reference fixed, as the example (#4274).
-    assert deviations(body["totals"], expected["totals"]) == set()
+    assert deviations(body["totals"], totals) == set()
     assert body["meta"]["summary_depth"] == expected["meta"]["summary_depth"]
     assert body["meta"]["scheduled_at"] == instant(OCCURRED).isoformat().replace("+00:00", "Z")
+
+
+# What the estimate indicators of the 102 differ in from the example: the amounts by work package,
+# the lines the occurrence of 752 adds counted out of the package of the task that bore its
+# provision (``occurred_set_apart``).
+OCCURRED_PACKAGE = {"/by_work_package[]/amount/value"}
+# The row numbers of the plan below the place the example gives the nodes of the occurrence of 752,
+# which the merge adds at the first level (``occurred_set_apart``).
+OCCURRED_ROWS = {"/roles[]/tasks[]/row_number"}
 
 
 @pytest.mark.parametrize("name", ["estimate_indicators", "volume/estimate_indicators_volume"])
 def test_the_indicators_are_the_example(
     api: ContractClient, witness: Database, realm: TestRealm, the_day: None, name: str
 ) -> None:
-    # The provision of 751 and the delta measured to the 101, the reference (EP-08).
+    # The provision of 751 and the delta measured to the 101, the reference (EP-08), but for the
+    # declared deviation of US-3070/L3 that US-3150/L1 (#4614) lifts (``OCCURRED_PACKAGE``).
     del the_day
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/estimate-indicators")
-    assert deviations(body, example(name)) == set()
+    assert deviations(body, example(name)) == OCCURRED_PACKAGE
 
 
 def by_role(plan: dict[str, Any]) -> dict[str, Any]:
@@ -244,8 +285,9 @@ def test_the_workload_of_the_remaining_is_the_example_within_a_rounding_of_a_hun
     del the_day
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/workload?basis=current_remaining")
     expected = example("workload")
-    # The detail of each role too, its tasks the same nodes in the same order (WF-DEV-0090).
-    assert deviations(by_role(body), by_role(expected), Decimal("0.02")) == set()
+    # The detail of each role too, its tasks the same nodes in the same order (WF-DEV-0090), each
+    # at the row of its node.
+    assert deviations(by_role(body), by_role(expected), Decimal("0.02")) == OCCURRED_ROWS
     tasks_are_their_nodes(api, witness, realm, body, REVISION_102)
     assert [each["resource_role_id"][-3:] for each in body["roles"]] != [
         each["resource_role_id"][-3:] for each in expected["roles"]

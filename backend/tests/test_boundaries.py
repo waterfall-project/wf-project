@@ -124,6 +124,8 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         # The own estimate of a risk prepared as a differential: its states, its registries
         # (US-3070/L1).
         "own_estimates",
+        # The own estimate born whole with its base, moved out of ``structures`` (US-3070/L3).
+        "own_estimate_birth",
     },
 }
 # The modules of the planning, the history and the exchanges (EP-06), of the indicators (EP-10), of

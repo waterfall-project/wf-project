@@ -49,6 +49,7 @@ from waterfall.core.revisions.interface.bases import (
     differential_up_to_date,
     holds_its_lineages,
     not_a_base,
+    read_against_base,
 )
 
 # ``closing`` (US-1380/L1): what the later modules do before a revision is marked or abandoned.
@@ -82,6 +83,7 @@ from waterfall.core.revisions.interface.marking import (
 from waterfall.core.revisions.interface.merge_applying import (
     MergeRequest,
     load_merge_at,
+    refuse_by_report,
     run_merge,
     submit_merge,
 )
@@ -100,6 +102,13 @@ from waterfall.core.revisions.interface.merging import (
     merge_report,
     register_merge,
     register_merge_end,
+)
+
+# ``own_estimate_birth`` (US-3070/L3): the own estimate of a risk born whole, with its base.
+from waterfall.core.revisions.interface.own_estimate_birth import (
+    OwnEstimateKept,
+    create_own_estimate,
+    own_estimate_retained,
 )
 
 # ``own_estimates`` (US-3070/L1): the states of an own estimate, what it abandons, the registries of
@@ -217,6 +226,7 @@ from waterfall.core.revisions.interface.shared import (
 
 # ``structures`` (US-0960; the facts the planning reads, US-1380/L2; written, US-1390/L2).
 from waterfall.core.revisions.interface.structures import (
+    NEVER_BORNE,
     CurrentStructure,
     DifferentialName,
     OpenedDifferential,
@@ -228,7 +238,6 @@ from waterfall.core.revisions.interface.structures import (
     consume_own_estimate,
     copy_consumed_estimate,
     create_differential,
-    create_own_estimate,
     current_structures,
     delete_own_estimate,
     list_cost_structures,
@@ -256,6 +265,7 @@ __all__ = [
     "MAIN",
     "MAIN_STRUCTURE",
     "MERGE_MODES",
+    "NEVER_BORNE",
     "OCCURRENCE_MERGE",
     "PRUNE_STAGES",
     "UNMERGED_AMENDMENT_EXISTS",
@@ -276,6 +286,7 @@ __all__ = [
     "OpenedDifferential",
     "OwnEstimateComposing",
     "OwnEstimateCounted",
+    "OwnEstimateKept",
     "OwnEstimatePruning",
     "OwnEstimateState",
     "PruneStage",
@@ -346,12 +357,14 @@ __all__ = [
     "merge_report",
     "not_a_base",
     "open_revision_by_task",
+    "own_estimate_retained",
     "own_estimate_state",
     "own_estimate_state_of",
     "own_estimate_states",
     "provision_written",
     "prune_parts",
     "rate_update_available",
+    "read_against_base",
     "read_cost_structure",
     "read_revision",
     "read_revision_for",
@@ -364,6 +377,7 @@ __all__ = [
     "reference_correctable",
     "reference_history",
     "reference_year_of",
+    "refuse_by_report",
     "register_before_marking",
     "register_closing",
     "register_compose",

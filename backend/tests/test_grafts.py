@@ -34,9 +34,11 @@ from occurrence_support import (
 from projects_support import Scene
 from projects_support import scene as make_scene
 from risks_support import MAKING, STUDY, Costed, costed
-from sqlalchemy import update
+from sqlalchemy import delete, select, update
 
+from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.interface import Graft, Grafted, graft
+from waterfall.core.planning.tables import Node, Task
 from waterfall.core.risks.tables import RiskEvaluation
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -69,8 +71,28 @@ def project(api: ContractClient, stage: Scene) -> Costed:
 
 @pytest.fixture
 def ready(api: ContractClient, project: Costed) -> Occurring:
-    """Give the risk identified in the second revision, its own estimate filled."""
-    return occurring(api, project)
+    """Give the risk identified in the second revision, its own estimate filled, autonomous.
+
+    The own estimate is a copy of the main structure since EP-30 (US-3070/L3), which the graft
+    would copy whole: the copies of the nodes of the main structure are taken out of it around the
+    service, leaving what it adds alone, as the own estimate of EP-08 the graft was written for. The
+    occurrence no longer grafts; US-3100/L3 retires the graft and these tests.
+    """
+    ready = occurring(api, project)
+    own = UUID(ready.read()["structure_id"])
+    main = UUID(ready.main_structure()["structure_id"])
+    with project.stage.owner.begin() as connection:
+        copies = select(Node.id).where(
+            Node.structure_id == own,
+            Node.lineage_id.in_(select(Node.lineage_id).where(Node.structure_id == main)),
+        )
+        held = list(connection.scalars(copies))
+        connection.execute(delete(EstimateLine).where(EstimateLine.node_id.in_(held)))
+        connection.execute(delete(Task).where(Task.node_id.in_(held)))
+        lines = select(Node.id).where(Node.id.in_(held), Node.kind == "estimate_line")
+        connection.execute(delete(Node).where(Node.id.in_(lines)))
+        connection.execute(delete(Node).where(Node.id.in_(held)))
+    return ready
 
 
 def _asked(ready: Occurring, bearer: str | None = None) -> Graft:
@@ -167,8 +189,10 @@ def test_the_tasks_grafted_go_last_under_the_bearer_with_their_plan_kept(
 def test_the_lines_grafted_are_budgeted_at_nought_and_the_provision_is_removed(
     ready: Occurring,
 ) -> None:
-    # The lines keep their figures and their re-estimated amount, at a budgeted amount of nought
-    # though the own estimate, copied after the reference, held one; the provision line has gone;
+    # The lines keep their figures and their re-estimated amount, at a budgeted amount of nought,
+    # as the own estimate holds them: a line it adds is no line of the reference (EP-30, whose own
+    # estimate reads the reference by the lineages of the main structure); the provision line has
+    # gone;
     # the total of ``Étude``, 600 and the provision of 60, moves to 600 and the 200 grafted: by 200
     # less the provision. ``Réalisation`` keeps its total; its float grows with the project.
     own = _by_label(ready.own())
@@ -179,7 +203,7 @@ def test_the_lines_grafted_are_budgeted_at_nought_and_the_provision_is_removed(
     for label, amount in GRAFTED_LINES.items():
         line = after[label]["estimate_line"]
         assert (line["budgeted_amount"], line["reestimated_amount"]) == ("0.00", amount)
-        assert own[label]["estimate_line"]["budgeted_amount"] == amount
+        assert own[label]["estimate_line"]["budgeted_amount"] == "0.00"
         assert line["quantity"] == own[label]["estimate_line"]["quantity"]
     assert provision not in {each["node_id"] for each in after.values()}
     study_before = Decimal(before[STUDY]["task"]["reestimated_amount"])

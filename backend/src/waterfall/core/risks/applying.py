@@ -3,8 +3,9 @@
 """The occurrence of a risk applied, private to the module (``declareRiskOccurrence``; US-2620/L2).
 
 One operation, one transaction, as a background task of the kind ``risk_occurrence`` (WF-ARC-0090):
-the very computation of the report (``graft`` of the planning), applied under the locks, so that
-what the report presented is what is written (WF-RIS-0060; EP-08, "La fusion et la survenance").
+the very computation of the report — the merge of the own estimate in the mode ``occurrence``
+(``merge_parts``, EP-30, "La survenance") —, applied under the locks, so that what the report
+presented is what is written (WF-RIS-0060).
 
 - **The request** judges the confirmation in the order of the contract, under the lock of the
   project, then of the two structures and of the risk (the order of ``enter``): the conditions of
@@ -16,25 +17,25 @@ what the report presented is what is written (WF-RIS-0060; EP-08, "La fusion et 
   project having no current revision, it opens one first, a copy of the last marked one at the
   rates it kept, projected (``open_revision_by_task``), after the counters were judged on the
   revision marked, whose structure the marking froze. Then the evaluation passes to occurred — the
-  cost at occurrence frozen, the total of the own estimate at that instant, the provision line no
-  longer named, which the graft removes —, the own estimate is grafted into the main structure, its
-  tasks marked with the risk, marked merged, a review of the occurrence is written, and the counter
-  of the risk advances. Nothing is marked, the reference does not move, nothing enters the history
+  cost at occurrence frozen, the severity recorded at that instant, the provision line no longer
+  named —, the own estimate is merged into the main structure (a reason of the report refuses it,
+  422, as a merge's does), what it adds marked with the risk, the provision line removed, the own
+  estimate marked merged, a review of the occurrence is written, and the counter of the risk
+  advances. Nothing is marked, the reference does not move, nothing enters the history
   that can be undone. A refusal, or any failure, leaves nothing written.
 - **The locks**, in one order: the natures of cost, the project, the own estimate, the main
   structure, then the risk.
 - **The witness** (``load_occurrence``) declares the occurrence of one of its risks at the instant
-  it imposes, as the worker applies it, without a report to confirm, the copies of the nodes
-  grafted under the identifiers and the lineages it imposes (US-2650/L1).
+  it imposes, as the worker applies it, without a report to confirm (US-2650/L1); the identifiers
+  it imposes on the nodes the merge adds are US-3150's.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from waterfall.core.cost_settings.interface import share_natures
-from waterfall.core.estimate.interface import structure_amount
-from waterfall.core.planning.interface import Graft, bearing_of, graft
+from waterfall.core.planning.interface import Place, Writer, delete_borne_line
 from waterfall.core.projects.interface import (
     current_day,
     lock_project,
@@ -45,14 +46,16 @@ from waterfall.core.projects.interface import (
 from waterfall.core.revisions.interface import (
     aimed_structure,
     consume_own_estimate,
+    merge_parts,
     open_revision_by_task,
+    refuse_by_report,
     revision_draft,
     structure_facts,
 )
 from waterfall.core.risks.commands import IDENTIFIED, OCCURRED, RISK_IDENTIFIED
 from waterfall.core.risks.declaring import refuse
-from waterfall.core.risks.occurring import judge_project, judge_risk
-from waterfall.core.risks.reading import evaluation_of, found_risk, read_found
+from waterfall.core.risks.occurring import judge_project, judge_risk, occurrence_merging
+from waterfall.core.risks.reading import evaluation_of, found_risk, read_found, recorded_severity
 from waterfall.core.risks.tables import RiskReview
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, AuditRevision, Inscription, record
@@ -220,20 +223,15 @@ def run_occurrence_task(
     risk, evaluation, main, main_counter = _locked(session, project_id, risk_id, revision_id)
     if current is not None:
         _judge_counters(request, main_counter, risk)
-    _apply(session, (risk, evaluation, main), act, None)
+    _apply(session, (risk, evaluation, main), Writer(act, None, task_id))
     _inscribe(session, risk, revision_id, act)
 
 
 @dataclass(frozen=True, slots=True)
 class OccurrenceLoad:
-    """The occurrence of a risk of the witness: the risk, and the copies of the nodes grafted.
-
-    ``imposed`` the identifier and the lineage of the copy of each node of its own estimate, by its
-    lineage (US-2650/L1).
-    """
+    """The occurrence of a risk of the witness: the risk."""
 
     risk_id: UUID
-    imposed: Mapping[UUID, tuple[UUID, UUID]]
 
 
 def load_occurrence_at(session: Session, project_id: UUID, load: OccurrenceLoad, act: Act) -> None:
@@ -252,37 +250,36 @@ def load_occurrence_at(session: Session, project_id: UUID, load: OccurrenceLoad,
         revision_draft(session, current)
         revision_id = current
     risk, evaluation, main, _ = _locked(session, project_id, load.risk_id, revision_id)
-    _apply(session, (risk, evaluation, main), act, load.imposed)
+    _apply(session, (risk, evaluation, main), Writer(act, None))
     _inscribe(session, risk, revision_id, act)
 
 
-def _apply(
-    session: Session,
-    held: tuple[Risk, RiskEvaluation, UUID],
-    act: Act,
-    imposed: Mapping[UUID, tuple[UUID, UUID]] | None,
-) -> None:
+def _apply(session: Session, held: tuple[Risk, RiskEvaluation, UUID], writer: Writer) -> None:
     """Write the occurrence of a risk judged, under the locks of its structures and of the risk.
 
-    The cost at occurrence is the total of the own estimate before it is grafted; the evaluation
-    stops naming the provision line before the graft deletes it (its key and its constraint refuse
-    otherwise); the structure grafted into is redated by the graft, which advances its counter.
+    The merge is judged first, as the report presented it: a reason refuses it (422), its first,
+    nothing written. The cost at occurrence is the severity recorded at that instant; the
+    evaluation stops naming the provision line before it is deleted (its key and its constraint
+    refuse otherwise); the merge writes the main structure, which advances its counter.
+    ``writer`` the act of the occurrence and the task that applies it, none for the witness.
     """
     risk, evaluation, main = held
-    project_id = risk.project_id
+    project_id, act = risk.project_id, writer.act
     line = evaluation.provision_node_id
     if line is None:
         msg = "an identified risk bears its provision line in the main structure"
         raise ValueError(msg)
+    merging = occurrence_merging(session, evaluation, main, act)
+    refuse_by_report(merging)
     own = evaluation.structure_id
-    cost = structure_amount(session, project_id, own)
-    bearer = bearing_of(session, project_id, (line,))[line].node_id
+    cost = recorded_severity(evaluation)
     evaluation.state = OCCURRED
     evaluation.provision_node_id = None
     evaluation.occurrence_cost = cost
     evaluation.updated_at, evaluation.updated_by = act.at, act.author
     session.flush()
-    graft(session, Graft(project_id, own, main, bearer, (line,), risk.id, imposed), act)
+    merge_parts(replace(merging, applying=True, shared={}))
+    delete_borne_line(session, Place(project_id, evaluation.revision_id, main), line, writer)
     consume_own_estimate(session, project_id, own)
     risk.updated_at, risk.updated_by = act.at, act.author
     risk.lock_version += 1

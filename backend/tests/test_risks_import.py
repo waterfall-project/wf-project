@@ -5,7 +5,9 @@
 A planning of MS Project is imported on the main structure of a revision that carries the own
 estimate of a risk, then the same file on the own estimate (``structure_id`` of ``openImport``):
 each import leaves the other structure as it was, its tasks, its lines and its counter, the risk's
-counter with the own estimate's (WF-INTF-0090). Every answer is checked against the contract
+counter with the own estimate's (WF-INTF-0090). The own estimate is a differential of the main
+structure since US-3070/L3: what the file adds to it is what it designates, and an import on the
+main structure puts it out of date. Every answer is checked against the contract
 (``ContractClient``).
 """
 
@@ -18,7 +20,7 @@ from estimate_support import Costing, costing
 from fastapi.testclient import TestClient
 from imports_trial import deposited, import_worker, path, read, run
 from paste_support import counter
-from projects_support import Scene
+from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from risks_support import Costed, Risks, costed
 from sqlalchemy import select
@@ -139,42 +141,88 @@ def imported(
     return done
 
 
+def marks_of(tree: Tree) -> list[tuple[str, str]]:
+    """Read the difference of each node of an own estimate to its base, by its label, in order."""
+    return [
+        ((each["task"] or each["estimate_line"])["label"], each["difference"])
+        for each in tree.items()
+    ]
+
+
+def up_to_date(api: ContractClient, project: Costed, structure_id: str) -> bool | None:
+    """Read whether a structure of the current revision is up to date, as the list gives it."""
+    listed = api.get(
+        f"{PROJECTS}/{project.project_id}/revisions/{project.revision_id}/structures",
+        headers=project.stage.manager.headers,
+    ).json()
+    return next(each for each in listed if each["structure_id"] == structure_id)["is_up_to_date"]
+
+
 @pytest.mark.requirement("WF-INTF-0090-A")
-def test_an_import_on_the_main_structure_leaves_the_own_estimate_of_a_risk_as_it_was(
+@pytest.mark.story("US-3070")
+def test_an_import_on_the_main_structure_leaves_what_the_own_estimate_designates_out_of_date(
     api: ContractClient, project: Costed, worker: Worker
 ) -> None:
-    # « L'import d'un planning sur la structure principale d'une révision qui porte un devis propre
-    # de risque laisse ce devis propre inchangé, tâches comprises » : its tasks, its lines, its
-    # counter, and the risk's.
+    # « le même fichier appliqué sur la structure principale laisse inchangé ce que le devis propre
+    # désigne, et le met en retard » (WF-INTF-0090): its nodes and their marks, its counter and the
+    # risk's; the main structure takes the task of the file, which the own estimate does not.
     seven_hours_a_day(project.stage)
     imported(api, project, worker)
     risks = Risks(api, project)
     risk = risks.declared("0.5")
     risks.costed_at(risk, project.revision_id, "200.00")
     own = on(project.tree, risk["structure_id"])
-    before = (content_of(own), counter(own), risk_counter(project, risk))
-    assert [kind for kind, _ in before[0]] == ["task", "estimate_line"]
+    before = (marks_of(own), counter(own), risk_counter(project, risk))
+    assert ("Grue", "added") in before[0]
+    assert up_to_date(api, project, risk["structure_id"]) is True
     done = imported(api, project, worker, file=LATER)
     assert done["structure_id"] == project.tree.structure_id
     assert ("task", "Livraison") in content_of(project.tree)
-    assert (content_of(own), counter(own), risk_counter(project, risk)) == before
+    assert (marks_of(own), counter(own), risk_counter(project, risk)) == before
+    assert up_to_date(api, project, risk["structure_id"]) is False
 
 
 @pytest.mark.requirement("WF-INTF-0090-A")
-def test_the_same_file_imported_on_the_own_estimate_of_a_risk_leaves_the_main_structure_as_it_was(
+@pytest.mark.story("US-3070")
+def test_the_same_file_imported_on_the_own_estimate_of_a_risk_becomes_what_it_designates(
     api: ContractClient, project: Costed, worker: Worker
 ) -> None:
-    # « l'import du même fichier sur ce devis propre laisse la structure principale inchangée » :
-    # the tasks, the lines and the counter of the main structure; the own estimate takes the tasks
-    # of the file, its counter advancing, the risk's with it.
+    # « l'import d'un planning ou d'un devis sur le devis propre (``structure_id``) s'y applique
+    # comme sur un différentiel : ce que le fichier ajoute, change ou ne porte plus devient ce que
+    # le devis propre désigne, et la structure principale est inchangée »: the tasks, the lines
+    # and the counter of the main structure; the own estimate takes the task the file adds, marked
+    # added, its counter advancing, the risk's with it.
     seven_hours_a_day(project.stage)
     imported(api, project, worker)
     risk = Risks(api, project).declared("0.5")
     main_before = (content_of(project.tree), counter(project.tree))
     held = risk_counter(project, risk)
-    done = imported(api, project, worker, risk["structure_id"])
+    done = imported(api, project, worker, risk["structure_id"], LATER)
     assert done["structure_id"] == risk["structure_id"]
     own = on(project.tree, risk["structure_id"])
-    assert content_of(own) == [("task", "Montage"), ("task", "Recette")]
+    marks = dict(marks_of(own))
+    assert marks["Livraison"] == "added"
+    assert (marks["Montage"], marks["Recette"]) == ("unchanged", "unchanged")
     assert (content_of(project.tree), counter(project.tree)) == main_before
     assert risk_counter(project, risk) > held
+
+
+@pytest.mark.requirement("WF-INTF-0090-A")
+@pytest.mark.story("US-3070")
+def test_a_file_imported_on_the_own_estimate_marks_what_it_changes_and_what_it_no_longer_bears(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # « ce que le fichier ajoute, change ou ne porte plus » : of the tasks the file gave the
+    # project, one renamed is read modified, one the file no longer bears is read removed, and the
+    # main structure keeps both as they were.
+    seven_hours_a_day(project.stage)
+    imported(api, project, worker)
+    risk = Risks(api, project).declared("0.5")
+    main_before = (content_of(project.tree), counter(project.tree))
+    file = planning(task(1, "Montage révisé"), task(3, "Livraison"))
+    imported(api, project, worker, risk["structure_id"], file)
+    marks = dict(marks_of(on(project.tree, risk["structure_id"])))
+    assert marks["Montage révisé"] == "modified"
+    assert marks["Recette"] == "removed"
+    assert marks["Livraison"] == "added"
+    assert (content_of(project.tree), counter(project.tree)) == main_before

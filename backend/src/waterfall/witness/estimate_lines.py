@@ -126,7 +126,13 @@ def write_lines(
     place: Place,
     lines: tuple[Iterable[LineRow], Callable[[LineRow], UUID]],
     act: Act,
+    *,
+    additive: bool = False,
 ) -> None:
-    """Reconcile a structure with the lines described; the second of ``lines`` gives their node."""
+    """Reconcile a structure with the lines described; the second of ``lines`` gives their node.
+
+    ``additive`` adds them to what it holds: the own estimate of a risk (``load_lines``).
+    """
     described, identified = lines
-    load_lines(session, place, tuple(_load(line, identified(line)) for line in described), act)
+    loaded = tuple(_load(line, identified(line)) for line in described)
+    load_lines(session, place, loaded, act, additive=additive)
