@@ -375,6 +375,10 @@ paths = [
     "deploy/compose/pg_hba.conf",
     "deploy/compose/prometheus-web.yml",
     "deploy/compose/alertmanager-web.yml",
+    # The command the hook of the certificates runs in the image of Waterfall (US-2850), which the
+    # trial installs.
+    "backend/src/waterfall/platform/authority.py",
+    "backend/src/waterfall/platform/authority_secrets.py",
     # The launcher the Makefile starts the slots by, and the turns of the heavy runs the trial waits for.
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
@@ -398,6 +402,8 @@ paths = [
     "tools/tests/test_chartrestoretest.py",
     "tools/tests/test_chartsecurity.py",
     "tools/tests/test_chartstateless.py",
+    "tools/tests/test_chartdrain.py",
+    "tools/tests/test_chartcertificates.py",
     "tools/tests/test_charttransport.py",
     "tools/tests/test_alerts.py",
     "tools/tests/test_chartnotification.py",

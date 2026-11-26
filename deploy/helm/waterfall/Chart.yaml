@@ -10,4 +10,7 @@ name: waterfall
 description: Waterfall, the management of projects by their estimate, on Kubernetes
 type: application
 version: 0.1.0
+# The drain of the pods that serve waits by a preStop of kind sleep (waterfall.drain), which
+# Kubernetes knows from 1.30.
+kubeVersion: ">=1.30.0-0"
 appVersion: "0.1.0"

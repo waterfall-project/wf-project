@@ -738,6 +738,16 @@ class RestoreTestSettings(StorageSettings):
         ]
 
 
+class ComponentsSettings(Settings, KeycloakSettings):
+    """What the check of the components reads, ``waterfall-check-components`` (WF-CMP-0020-A).
+
+    ``database_url`` and ``redis_url`` designate the PostgreSQL and the Redis to check; Keycloak is
+    reached as the service does, by its address, its realm and the secret of the service account,
+    which the extension answers with its version (#4641). It opens no database of its own and
+    serves nothing.
+    """
+
+
 class WitnessSettings(PlatformSettings):
     """What the loader of the witness reads, ``waterfall-api load-witness`` (WF-QUA-0040, EP-05).
 
@@ -796,6 +806,11 @@ def load_restore_test_settings() -> RestoreTestSettings:
 def load_installation_settings() -> InstallationSettings:
     """Read the settings of the bootstrap, as ``load_settings`` does."""
     return _load(InstallationSettings)
+
+
+def load_components_settings() -> ComponentsSettings:
+    """Read the settings of the check of the components, as ``load_settings`` does."""
+    return _load(ComponentsSettings)
 
 
 def load_witness_settings() -> WitnessSettings:

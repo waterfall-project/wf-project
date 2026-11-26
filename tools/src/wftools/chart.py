@@ -15,7 +15,7 @@ import json
 import subprocess
 import sys
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, cast
 
@@ -88,13 +88,16 @@ def merged(base: Mapping[str, Any], given: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
-def helm(arguments: list[str], values: Mapping[str, Any]) -> str:
-    """Run Helm on the chart with the values given; return its output, or fail with its error."""
+def helm(arguments: list[str], values: Mapping[str, Any], chart: Path = CHART) -> str:
+    """Run Helm on the chart with the values given; return its output, or fail with its error.
+
+    ``chart`` is that of the repository, or a copy a test changed.
+    """
     with tempfile.TemporaryDirectory(prefix="waterfall-chart-") as folder:
         given = Path(folder) / "values.json"
         given.write_text(json.dumps(values), encoding="utf-8")
         done = subprocess.run(
-            [str(kubetools.installed("helm")), *arguments, str(CHART), "--values", str(given)],
+            [str(kubetools.installed("helm")), *arguments, str(chart), "--values", str(given)],
             capture_output=True,
             text=True,
             check=False,
@@ -105,9 +108,18 @@ def helm(arguments: list[str], values: Mapping[str, Any]) -> str:
     return done.stdout
 
 
-def render(values: Mapping[str, Any] | None = None, release: str = RELEASE) -> str:
-    """Render the chart of a release, hooks included, with the chain's values and those given."""
-    return helm(["template", release], merged(chain_values(), values or {}))
+def render(
+    values: Mapping[str, Any] | None = None,
+    release: str = RELEASE,
+    chart: Path = CHART,
+    options: Sequence[str] = (),
+) -> str:
+    """Render the chart of a release, hooks included, with the chain's values and those given.
+
+    ``options`` are given to ``helm template``: ``--kube-version``, for a cluster of another
+    version.
+    """
+    return helm(["template", release, *options], merged(chain_values(), values or {}), chart)
 
 
 def main() -> int:

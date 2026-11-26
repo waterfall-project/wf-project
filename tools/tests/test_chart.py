@@ -249,6 +249,8 @@ def test_the_realm_is_applied_by_a_hook_after_each_installation_and_upgrade(
         for component, item in jobs.items()
     }
     assert hooks == {
+        # The certificates of the data components, before anything reaches them (US-2850).
+        "certificates": ("pre-install,pre-upgrade", -26),
         "migrate": ("post-install,pre-upgrade", -10),
         "buckets": ("post-install,pre-upgrade", -10),
         "realm": ("post-install,post-upgrade", 0),
