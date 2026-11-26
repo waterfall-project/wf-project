@@ -71,8 +71,10 @@ def test_with_its_secrets_the_process_serves_the_application_on_its_address(
     # Built by its factory, once per process: one by default, the workstation and the tests' own.
     assert (served["app"], served["factory"]) == ("waterfall.api.main:application", True)
     assert (served["host"], served["port"], served["workers"]) == ("127.0.0.1", 8123, 1)
-    (line,) = capsys.readouterr().err.splitlines()
-    record = json.loads(line)
+    # The database is out of reach: the check of its version says so, and goes on (WF-CMP-0020-A).
+    checked, starting = (json.loads(line) for line in capsys.readouterr().err.splitlines())
+    assert checked["event"] == "database.not_checked"
+    record = starting
     assert record["event"] == "service.starting"
     assert (record["version"], record["port"], record["processes"]) == (
         waterfall.__version__,
