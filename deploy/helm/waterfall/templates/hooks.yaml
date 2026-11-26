@@ -15,6 +15,8 @@
 #   upgrade;
 # - the application of the realm, after the installation and after each upgrade, as the service
 #   keycloak-realm applies it at each start of the Compose;
+# - the components Keycloak and the Redis of the chart, read once the realm is applied (the Job
+#   `components`, after the installation and each upgrade);
 # - the bootstrap, after the installation alone, once the realm is applied: the link of the first
 #   administrator is in the log of its Job, which stays until the next installation.
 #
@@ -113,26 +115,23 @@ spec:
             - name: files
               mountPath: /files
             {{- include "waterfall.trustMount" . | nindent 12 }}
-        # The components, before the migrations (WF-CMP-0020-A, US-2810): PostgreSQL, Redis and
-        # Keycloak are of the version Waterfall requires, or the Job fails and its log says which
-        # is not (service components of compose.prod.yaml). Before each upgrade, all three are
-        # there. At the installation the Redis and the Keycloak of the chart are not yet — Keycloak
-        # waits for its database, made above, then for its realm, applied after the migrations —
-        # and they are the images the chart pins: PostgreSQL is checked, and Redis when the
-        # operator provides it.
+        # The components the Job can reach, before the migrations (WF-CMP-0020-A, US-2810):
+        # PostgreSQL, made above, and the Redis of the operator when it provides one, are of the
+        # version Waterfall requires, or the Job fails and its log says which is not (service
+        # components of compose.prod.yaml). Keycloak and the Redis of the chart are read after the
+        # realm, by the Job `components` below: Keycloak reads its answers with the service account
+        # of the realm, which that Job applies, and neither exists yet at an installation.
         - name: components
           image: {{ include "waterfall.image" (list . "waterfall") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
           {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command:
             - waterfall-check-components
-            {{- if .Release.IsInstall }}
             - --component
             - postgresql
             {{- if not .Values.redis.enabled }}
             - --component
             - redis
-            {{- end }}
             {{- end }}
           env:
             {{- include "waterfall.backEnvironment" (list . "owner") | nindent 12 }}
@@ -257,6 +256,52 @@ spec:
             {{- include "waterfall.trustMount" . | nindent 12 }}
           resources:
             {{- toYaml .Values.keycloak.realm.resources | nindent 12 }}
+      volumes:
+        {{- include "waterfall.transportVolumes" (list .) | nindent 8 }}
+---
+# The components the realm makes readable, after it (WF-CMP-0020-A, US-2810): Keycloak, whose
+# version the service account of the realm reads, and the Redis of the chart. At the installation
+# neither is there before the realm is applied, and at an upgrade Keycloak cannot be read until it
+# is, when an installation whose realm failed is resumed. Its log says which does not fit, and the
+# release fails, at the installation as at each upgrade: the same command, after the same Job
+# `realm`, as the service `components` of the Compose, which waits for `keycloak-realm`.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "waterfall.name" (list . "components") }}
+  labels:
+    {{- include "waterfall.labels" (list . "components") | nindent 4 }}
+  annotations:
+    {{- include "waterfall.hook" (list "post-install,post-upgrade" 5) | nindent 4 }}
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "components") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      restartPolicy: OnFailure
+      initContainers:
+        {{- include "waterfall.transportInit" (list .) | nindent 8 }}
+      containers:
+        - name: components
+          image: {{ include "waterfall.image" (list . "waterfall") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
+          command:
+            - waterfall-check-components
+            - --component
+            - keycloak
+            {{- if .Values.redis.enabled }}
+            - --component
+            - redis
+            {{- end }}
+          env:
+            {{- include "waterfall.backEnvironment" (list . "owner") | nindent 12 }}
+            {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}
+          volumeMounts:
+            {{- include "waterfall.trustMount" . | nindent 12 }}
       volumes:
         {{- include "waterfall.transportVolumes" (list .) | nindent 8 }}
 ---

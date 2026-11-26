@@ -7,10 +7,12 @@
 puts every container of the platform, and of the test of a restoration, under it.
 """
 
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
 import yaml
+from test_restoretest import SCRIPT, environment, fake_docker
 
 from wftools import REPOSITORY, bounded, production
 
@@ -19,6 +21,7 @@ if TYPE_CHECKING:
 
 pytestmark = [pytest.mark.requirement("WF-CMP-0020-A"), pytest.mark.story("US-2810")]
 
+OVERRIDE = bounded.RESTORE_TEST_OVERRIDE
 PARENT = "waterfall-bounded.slice"
 WORKFLOWS = REPOSITORY / ".github" / "workflows"
 
@@ -64,9 +67,56 @@ def test_compose_reads_the_bound_after_the_files_of_the_platform(tmp_path: Path)
     assert production.compose_command("p")[-1] == str(production.FILES[-1])
 
 
-def test_the_script_of_the_test_reads_the_bound_when_it_is_given() -> None:
-    script = (REPOSITORY / "deploy" / "compose" / "restore-test.sh").read_text(encoding="utf-8")
-    assert bounded.RESTORE_TEST_OVERRIDE in script
+def run_script(folder: Path, override: str | None) -> list[str]:
+    """Run ``restore-test.sh`` against a ``docker`` that writes down what it is asked."""
+    log = fake_docker(folder, hold=False)
+    given = {key: value for key, value in environment(folder).items() if key != OVERRIDE}
+    if override is not None:
+        given[OVERRIDE] = override
+    done = subprocess.run(
+        ["sh", str(SCRIPT)], env=given, capture_output=True, check=False, timeout=60
+    )
+    assert done.returncode == 0
+    return log.read_text(encoding="utf-8").splitlines()
+
+
+def test_the_script_of_the_test_reads_the_bound_after_its_own_file_when_it_is_given(
+    tmp_path: Path,
+) -> None:
+    bound = tmp_path / "bounded-restore-test.yaml"
+    calls = run_script(tmp_path, str(bound))
+    assert calls
+    for call in calls:
+        assert call.startswith(f"compose --file compose.restore-test.yaml --file {bound} ")
+
+
+def test_the_script_of_the_test_reads_only_its_own_file_when_nothing_is_bounded(
+    tmp_path: Path,
+) -> None:
+    for call in run_script(tmp_path, None) + run_script(tmp_path, ""):
+        assert call.startswith("compose --file compose.restore-test.yaml --profile restore-test ")
+
+
+def test_the_trial_fails_when_a_container_of_the_platform_is_outside_the_slice() -> None:
+    def read(command: list[str]) -> tuple[int, str]:
+        if "ps" in command:
+            return 0, "a1\nb2\n"
+        return 0, f"/caddy {PARENT}\n/grafana \n"
+
+    with pytest.raises(production.ProductionError, match=r"outside the slice .*: grafana"):
+        production.check_bounded(["docker", "compose"], read, PARENT)
+
+
+def test_the_trial_fails_when_the_platform_has_no_container_to_inspect() -> None:
+    with pytest.raises(production.ProductionError, match="no container of the platform"):
+        production.check_bounded(["docker", "compose"], lambda _command: (0, ""), PARENT)
+
+
+def test_the_trial_passes_when_every_container_runs_under_the_slice() -> None:
+    def read(command: list[str]) -> tuple[int, str]:
+        return (0, "a1\nb2\n") if "ps" in command else (0, f"/caddy {PARENT}\n/grafana {PARENT}\n")
+
+    production.check_bounded(["docker", "compose"], read, PARENT)
 
 
 ACTION = "./.github/actions/bound-platform"
@@ -87,8 +137,11 @@ def test_the_slice_is_bounded_to_four_cores_and_eight_gigabytes_without_swap_and
 ):
     action = yaml.safe_load((REPOSITORY / ACTION / "action.yml").read_text(encoding="utf-8"))
     (step,) = action["runs"]["steps"]
-    for setting in ("MemoryMax=8G", "MemorySwapMax=0", "CPUQuota=400%", "AllowedCPUs=0-3"):
+    for setting in ("MemoryMax=8G", "MemorySwapMax=0", "CPUQuota=400%"):
         assert setting in step["run"]
     assert "waterfall-bounded.slice" in step["run"]
     assert PARENT == "waterfall-bounded.slice"
     assert "8589934592" in step["run"]
+    # Four cores are the whole of a runner of four: a cpuset would bound nothing, and fail on two.
+    assert "AllowedCPUs" not in step["run"]
+    assert "CPUQuotaPerSecUSec" in step["run"]

@@ -18,10 +18,13 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        printf '[Slice]\nMemoryAccounting=yes\nCPUAccounting=yes\nMemoryMax=8G\nMemorySwapMax=0\nCPUQuota=400%%\nAllowedCPUs=0-3\n' \
+        printf '[Slice]\nMemoryAccounting=yes\nCPUAccounting=yes\nMemoryMax=8G\nMemorySwapMax=0\nCPUQuota=400%%\n' \
           | sudo tee /etc/systemd/system/waterfall-bounded.slice
         sudo systemctl daemon-reload
         sudo systemctl start waterfall-bounded.slice
-        systemctl show waterfall-bounded.slice --property=MemoryMax,MemorySwapMax,CPUQuotaPerSecUSec,AllowedCPUs
+        systemctl show waterfall-bounded.slice --property=MemoryMax,MemorySwapMax,CPUQuotaPerSecUSec
         test "$(systemctl show waterfall-bounded.slice --property=MemoryMax --value)" = 8589934592
         test "$(systemctl show waterfall-bounded.slice --property=MemorySwapMax --value)" = 0
+        # Four cores of CPU time a second, whatever the cores a runner has: a set of cores (a cpuset)
+        # would bound nothing on four, and fail on two.
+        test "$(systemctl show waterfall-bounded.slice --property=CPUQuotaPerSecUSec --value)" = 4s

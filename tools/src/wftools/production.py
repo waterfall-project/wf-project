@@ -389,6 +389,25 @@ def _output(read: Read, command: list[str]) -> str:
     return output
 
 
+def check_bounded(compose: list[str], read: Read, parent: str) -> None:
+    """Fail unless the containers the platform started run under the slice ``parent``.
+
+    A file of Compose the platform did not read, or a runner that did not make the slice, would
+    leave it unbounded, and the trial would pass holding nothing of WF-CMP-0020-A.
+    """
+    names = _output(read, [*compose, "ps", "--all", "--quiet"]).split()
+    if not names:
+        message = f"no container of the platform to run under {parent}"
+        raise ProductionError(message)
+    inspect = ["docker", "inspect", "--format", "{{.Name}} {{.HostConfig.CgroupParent}}", *names]
+    out = [line.split() for line in _output(read, inspect).splitlines() if line.strip()]
+    loose = [line[0].lstrip("/") for line in out if line[1:] != [parent]]
+    if loose or len(out) != len(names):
+        message = f"containers outside the slice {parent}: {', '.join(loose) or 'unread'}"
+        raise ProductionError(message)
+    print(f"  the {len(names)} containers of the platform run under {parent}")
+
+
 def trial(
     compose: list[str], read: Read, platform: Platform, email: str, send: Callable[[Path], Send]
 ) -> tuple[Callable[[], Browser], Send]:
@@ -651,6 +670,8 @@ def hold(
     try:
         if code := run(up):
             return code
+        if parent := started.get(PARENT):
+            check_bounded(compose, read, parent)
         email = started["WATERFALL_ADMIN_EMAIL"]
         signed = trial(compose, read, platform, email, send(platform))
         if restoration is None:

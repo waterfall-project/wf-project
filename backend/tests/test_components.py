@@ -228,6 +228,7 @@ class Keycloak(BaseHTTPRequestHandler):
 
     version: str | None = "26.4.2"
     document: Any = None
+    token: Any = None
     phrase = "service-phrase"
     asked: ClassVar[list[str]] = []
 
@@ -235,7 +236,7 @@ class Keycloak(BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers["Content-Length"])).decode()
         self.asked.append(f"POST {self.path} {body}")
         granted = f"client_secret={self.phrase}" in body
-        token = {"access_token": "token", "expires_in": 300}
+        token = {"access_token": "token", "expires_in": 300} if self.token is None else self.token
         self._answer(200 if granted else 401, token if granted else {})
 
     def do_GET(self) -> None:
@@ -264,7 +265,7 @@ class Keycloak(BaseHTTPRequestHandler):
 @pytest.fixture
 def keycloak() -> Iterator[str]:
     """Serve the Keycloak above on a loopback port; give its address."""
-    Keycloak.version, Keycloak.asked, Keycloak.document = "26.4.2", [], None
+    Keycloak.version, Keycloak.asked, Keycloak.document, Keycloak.token = "26.4.2", [], None, None
     server = HTTPServer(("127.0.0.1", 0), Keycloak)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -412,6 +413,36 @@ def test_a_keycloak_whose_server_version_is_not_a_version_fails_saying_it_did_no
     Keycloak.document = document
     assert components_check.main([]) == 1
     assert "Keycloak does not answer as expected" in capsys.readouterr().err
+
+
+@pytest.mark.requirement("WF-CMP-0020-A")
+@pytest.mark.usefixtures("check_settings")
+@pytest.mark.parametrize(
+    "token",
+    [
+        ["not", "a", "token"],
+        {},
+        {"expires_in": 300},
+        {"access_token": "token"},
+        {"access_token": "token", "expires_in": None},
+        {"access_token": "token", "expires_in": "soon"},
+        {"access_token": "token", "expires_in": True},
+        {"access_token": "token", "expires_in": float("nan")},
+        {"access_token": None, "expires_in": 300},
+        {"access_token": "", "expires_in": 300},
+        {"access_token": 7, "expires_in": 300},
+    ],
+)
+def test_a_keycloak_whose_token_is_not_a_token_fails_saying_it_did_not_answer(
+    capsys: pytest.CaptureFixture[str], token: object
+) -> None:
+    # A token that is no object, or lacks its text or its lifetime, is a Keycloak that did not
+    # answer as expected, not a traceback (#5007).
+    Keycloak.token = token
+    assert components_check.main([]) == 1
+    error = capsys.readouterr().err
+    assert "Keycloak does not answer as expected: IdentityProviderError" in error
+    assert "Traceback" not in error
 
 
 @pytest.mark.requirement("WF-CMP-0020-A")

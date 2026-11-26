@@ -41,7 +41,10 @@ jobs:
     # The three images and the first start of Keycloak on the cluster are the longest of it.
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The fast tier only lints and renders, once: the job of k3s has nothing to install then, and
+      # its steps are left out (the context `matrix` is not allowed in the `if` of a job).
+      - if: inputs.tier == 'full' || matrix.distribution == 'kind'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       # The cache of the builds of images, written after a merge (images.yml).
@@ -53,13 +56,17 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      - if: inputs.tier == 'full' || matrix.distribution == 'kind'
+        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           enable-cache: true
           save-cache: false
           cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
-      - run: make check-chart
+      - if: inputs.tier == 'full' || matrix.distribution == 'kind'
+        run: make check-chart
         env:
           TIER: ${{ inputs.tier }}
           CHART_TRIALS: ${{ matrix.distribution == 'k3s' && 'chart-trial-k3s' || 'chart-trial' }}
+          # The lint and the rendering tests run once, in the job of kind.
+          CHART_CHECKS: ${{ matrix.distribution == 'k3s' && ' ' || 'lint-chart test-chart' }}

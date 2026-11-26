@@ -777,8 +777,11 @@ check-production: $(call full-only,images production-trial) ## The production pl
 # The chart linted and rendered in every tier; installed on a cluster of kind, then of k3s, from the
 # three images built here, in the full tier only, as check-production starts the Compose (US-2800).
 # CHART_TRIALS names the clusters it is installed on, both by default: the chain gives each its job.
+# CHART_CHECKS names the lint and the tests of the rendering: the job of the second cluster leaves
+# them to the first, which has run them (chart.yml).
 CHART_TRIALS ?= chart-trial chart-trial-k3s
-check-chart: lint-chart test-chart $(call full-only,images $(CHART_TRIALS)) ## The chart lints and says what it must; in the full tier, it installs on throwaway clusters of kind and of k3s, bootstraps and lets its first administrator in (US-2800, US-2810)
+CHART_CHECKS ?= lint-chart test-chart
+check-chart: $(CHART_CHECKS) $(call full-only,images $(CHART_TRIALS)) ## The chart lints and says what it must; in the full tier, it installs on throwaway clusters of kind and of k3s, bootstraps and lets its first administrator in (US-2800, US-2810)
 
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap

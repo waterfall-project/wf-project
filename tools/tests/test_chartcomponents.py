@@ -27,17 +27,29 @@ if TYPE_CHECKING:
 pytestmark = [pytest.mark.chart, pytest.mark.requirement("WF-CMP-0020-A")]
 
 
-def check_of(values: Mapping[str, Any] | None = None, *, upgrade: bool = False) -> dict[str, Any]:
-    """Return the step that checks the components in the hook of the migrations."""
+def job_check_of(
+    job: str, values: Mapping[str, Any] | None = None, *, upgrade: bool = False
+) -> dict[str, Any]:
+    """Return the step of the Job ``job`` that checks the components."""
     options = ["--is-upgrade"] if upgrade else []
     documents = yaml.safe_load_all(chart.render(values, options=options))
     objects = [document for document in documents if document]
     (step,) = [
         container
-        for container in containers(of_kind(objects, "Job")["migrate"])
+        for container in containers(of_kind(objects, "Job")[job])
         if container["name"] == "components"
     ]
     return step
+
+
+def check_of(values: Mapping[str, Any] | None = None, *, upgrade: bool = False) -> dict[str, Any]:
+    """Return the step that checks the components in the hook of the migrations."""
+    return job_check_of("migrate", values, upgrade=upgrade)
+
+
+def after_the_realm(values: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Return the step of the Job that checks the components once the realm is applied."""
+    return job_check_of("components", values)
 
 
 @pytest.mark.parametrize("version", ["1.27.0", "1.28.4", "1.29.9", "1.30.0", "1.37.2"])
@@ -101,23 +113,62 @@ def test_the_check_reads_the_components_as_the_command_of_the_compose_does() -> 
     )
 
 
-def test_an_upgrade_checks_the_three_components_which_are_all_there() -> None:
-    assert check_of(upgrade=True)["command"] == ["waterfall-check-components"]
-
-
-def test_an_installation_checks_postgresql_alone_when_the_chart_makes_the_rest() -> None:
-    assert check_of()["command"] == [
+@pytest.mark.parametrize("upgrade", [False, True])
+def test_before_the_migrations_postgresql_is_checked_at_an_installation_and_an_upgrade(
+    upgrade: bool,
+) -> None:
+    # The Redis and the Keycloak of the chart are read after the realm, so that an installation
+    # whose realm failed, resumed by `helm upgrade --install`, is not stopped by a Keycloak that
+    # cannot be read before the realm is applied.
+    assert check_of(upgrade=upgrade)["command"] == [
         "waterfall-check-components",
         "--component",
         "postgresql",
     ]
 
 
-def test_an_installation_on_the_redis_of_the_operator_checks_it_too() -> None:
-    assert check_of(PROVIDED)["command"] == [
+@pytest.mark.parametrize("upgrade", [False, True])
+def test_the_redis_of_the_operator_is_checked_before_the_migrations(upgrade: bool) -> None:
+    command = [
         "waterfall-check-components",
         "--component",
         "postgresql",
         "--component",
         "redis",
     ]
+    assert check_of(PROVIDED, upgrade=upgrade)["command"] == command
+
+
+def test_keycloak_and_the_redis_of_the_chart_are_checked_after_the_realm_is_applied() -> None:
+    assert after_the_realm()["command"] == [
+        "waterfall-check-components",
+        "--component",
+        "keycloak",
+        "--component",
+        "redis",
+    ]
+    # The Redis of the operator was read before the migrations: only Keycloak is left.
+    assert after_the_realm(PROVIDED)["command"] == [
+        "waterfall-check-components",
+        "--component",
+        "keycloak",
+    ]
+    variables = environment(after_the_realm())
+    assert {"WATERFALL_REDIS_URL", "WATERFALL_KEYCLOAK_BACKCHANNEL"} <= variables.keys()
+
+
+def test_the_check_after_the_realm_runs_between_the_realm_and_the_bootstrap_at_both_events() -> (
+    None
+):
+    jobs = of_kind(rendered(), "Job")
+
+    def hook(name: str) -> tuple[set[str], int]:
+        annotations = jobs[name]["metadata"]["annotations"]
+        events = set(annotations["helm.sh/hook"].split(","))
+        return events, int(annotations["helm.sh/hook-weight"])
+
+    realm, components, install = hook("realm"), hook("components"), hook("install")
+    assert components[0] == {"post-install", "post-upgrade"} == realm[0]
+    assert realm[1] < components[1] < install[1]
+    # Its Job fails the release, as the log of a Job that gives up does: no more than six runs.
+    assert jobs["components"]["spec"]["backoffLimit"] == jobs["realm"]["spec"]["backoffLimit"]
