@@ -9,23 +9,34 @@ another key, fails the first two tests, naming it. The second explains, for each
 reading of a revision (its project, and its revision when the table names one): it holds the schema
 and that shape.
 
-The third holds the statements of the code (issue #5076): the functions of the core that serve the
-operations that read a revision are played on a platform of three projects, each with its data, and
-the statements they send to a table of a revision are explained, with their parameters; a plan that
-reads more than one partition of a table — a reading that filters on the revision without its
-project, say — fails and names the statement and the partitions.
+The third holds the statements of the code (issue #5076): the operations that read a revision —
+getRevision, listRevisions, listCostStructures, listNodes, a structure read, the dependencies of a
+computed value, the resolution of a row number, getMilestoneTracking, listRisks, getRisk,
+listRiskReviews, getEstimateIndicators, getMissingRates, getProjectWorkload, getProjectNextState,
+compareRevisions, getRateUpdateProposal, what the skeleton of the planning asks of the main
+structure of a revision, and the lookups of the nodes, tasks and lines of a revision the core
+shares — are played on a platform of three projects, each with its data in every revised table.
+Every statement a reading sends that selects is explained, with its parameters; the plan of each
+reads, of each revised table it names, the partition of the project read and no other, a reading
+that filters on the revision without its project, say, failing and naming the statement and the
+partitions. Each reading explains a statement that reads a partition, and each revised table is
+named by one of them unless it is exempted here, with its reason.
 """
 
 import re
 from contextlib import contextmanager
-from dataclasses import replace
+from dataclasses import dataclass, replace
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from nodes_support import Tree, mark, opened
+from day_indicators_support import material
+from estimate_support import Costing, Lines, costing
+from nodes_support import Tree, inscribed, instant, mark, opened
+from planning_support import DAY
 from project_rows import insert_revision, projects_with_partitions
-from projects_support import MANAGING, Scene, create
+from projects_support import MANAGING, PROJECTS, Scene, create
 from projects_support import scene as make_scene
 from sqlalchemy import (
     ARRAY,
@@ -45,9 +56,23 @@ from waterfall.core.estimate.interface import (
     ComparisonAsked,
     compare_revisions,
     kept_reference,
+    marked_revision_has_lines,
     rate_update_proposal,
+    revision_has_lines,
 )
-from waterfall.core.planning.interface import NodeFilters, Place
+from waterfall.core.planning.interface import (
+    NodeFilters,
+    Place,
+    bearers_of,
+    lines_of,
+    lines_of_revision,
+    node_revisions,
+    node_rows,
+    opening_main_with_tasks,
+    revision_bears,
+    revision_has_tasks,
+    revision_lines,
+)
 from waterfall.core.planning.reading import list_records, read_structure
 from waterfall.core.projects.interface import Viewer
 from waterfall.core.revisions.interface import list_cost_structures, read_revision
@@ -92,6 +117,12 @@ PARTITIONED_REVISED = frozenset(
         "task_link_conflict",
     }
 )
+
+# The revised tables no reading of a revision names, with the reason: none today.
+EXEMPT: dict[str, str] = {}
+
+# The Wednesday of the first week of the planning, a day a manual task is dated on.
+WEDNESDAY = DAY + timedelta(days=2)
 
 # The name of a partition of a project: its table, then ``_p_`` and the project, in hexadecimal.
 PARTITION_NAME = re.compile(r"(?P<parent>[a-z_]+)_p_[0-9a-f]{32}")
@@ -219,22 +250,88 @@ def days(count: str) -> dict[str, Any]:
     return {"duration": {"value": count, "unit": "d"}}
 
 
-def with_data(api: ContractClient, stage: Scene) -> tuple[UUID, UUID, UUID]:
+@dataclass(frozen=True)
+class Data:
+    """What a project of the platform holds: an offer marked, its reference, an amendment opened.
+
+    ``nodes`` are the nodes of the offer by label: the summary ``Études``, its task ``Conception``,
+    a line of it, and the milestone ``Jalon``.
+    """
+
+    stage: Scene
+    offer: UUID
+    amendment: UUID
+    structure_id: UUID
+    risk_id: UUID
+    nodes: dict[str, UUID]
+
+    @property
+    def path(self) -> str:
+        """Give the path of the project."""
+        return f"{PROJECTS}/{self.stage.project['project_id']}"
+
+
+def with_data(api: ContractClient, stage: Scene, costs: Costing, code: str) -> Data:
     """Give a project data in each table a reading of its revisions reads, and two revisions.
 
-    An offer of tasks, one following another, marked: it keeps the images and the rates of the
-    reference; then an amendment, the current revision, which a comparison reads against it.
-    Give the offer, the amendment and the main structure of the offer.
+    An offer of tasks, one following another, a task of a manual summary whose predecessor is late
+    (a link in conflict), a milestone inscribed to a timeline, lines of material and of labour, a
+    risk declared; marked, it is the reference and moves the project In progress. Then an
+    amendment, the current revision, which a comparison reads against the offer, and a review of
+    the risk in it.
     """
+    base = f"{PROJECTS}/{stage.project['project_id']}"
+    headers = stage.manager.headers
     offer = opened(api, stage)
     tree = Tree(api, stage, offer)
+    lines = Lines(tree)
     studies = tree.made("Études")
     design = tree.made("Conception", parent_id=studies["node_id"], task=days("2"))
     follow(tree, tree.made("Plans", parent_id=studies["node_id"], task=days("1")), design)
+    line = lines.made(design, **material(costs, "Matériel", "1000", None))["nodes"][0]
+    lines.made(design, quantity="1", resource_role_id=str(costs.role), hours="10")
     tree.made("Recette", task=days("1"))
-    mark(stage, offer, "v1.0")
+    milestone = tree.made("Jalon", task=days("0"))
+    late = tree.made("Livraison", task=days("5"))
+    summary = tree.made("Montage")
+    manual = {"scheduling_mode": "manual", "start": instant(WEDNESDAY, "0")}
+    fixed = {**manual, "finish": instant(WEDNESDAY, "8")}
+    tree.made("Pose", parent_id=summary["node_id"], task=fixed)
+    follow(tree, tree.node(summary["node_id"]), late)
+    timeline = api.post(f"{base}/timelines", headers=headers, json={"label": "Comité"})
+    assert timeline.status_code == 201, timeline.text
+    inscribed(stage, milestone, timeline.json()["timeline_id"])
+    risk = api.post(
+        f"{base}/risks", headers=headers, json={"label": "Retard", "probability": "0.3"}
+    )
+    assert risk.status_code == 201, risk.text
+    mark(stage, offer)
+    counter = api.get(base, headers=headers).json()["lock_version"]
+    sent = {"revision_id": offer["revision_id"], "confirmed": True, "lock_version": counter}
+    designated = api.put(f"{base}/reference-revision", headers=headers, json=sent)
+    assert designated.status_code == 200, designated.text
+    sent = {"code": code, "lock_version": designated.json()["lock_version"]}
+    coded = api.patch(base, headers=headers, json=sent)
+    assert coded.status_code == 200, coded.text
     amendment = opened(api, stage)
-    return UUID(offer["revision_id"]), UUID(amendment["revision_id"]), UUID(tree.structure_id)
+    held = api.get(f"{base}/risks/{risk.json()['risk_id']}", headers=headers).json()
+    review = {key: held[key] for key in ("probability", "state", "lock_version")}
+    reviewed = api.post(f"{base}/risks/{held['risk_id']}/reviews", headers=headers, json=review)
+    assert reviewed.status_code == 201, reviewed.text
+    nodes = {
+        "Études": UUID(studies["node_id"]),
+        "Conception": UUID(design["node_id"]),
+        "Matériel": UUID(line["node_id"]),
+        "Jalon": UUID(milestone["node_id"]),
+    }
+    return Data(
+        stage,
+        UUID(offer["revision_id"]),
+        UUID(amendment["revision_id"]),
+        UUID(tree.structure_id),
+        UUID(held["risk_id"]),
+        nodes,
+    )
 
 
 @contextmanager
@@ -264,52 +361,129 @@ def partitions_read(connection: Connection, statement: str, parameters: Any) -> 
     return read
 
 
-def test_the_plans_of_the_real_readings_of_a_revision_read_one_partition_of_each_table(
+def strays(found: dict[str, set[str]], expected: dict[str, set[str]]) -> dict[str, list[str]]:
+    """Give, by table, the partitions a plan reads where the project's own is expected."""
+    return {parent: sorted(each) for parent, each in found.items() if each != expected[parent]}
+
+
+def served(api: ContractClient, data: Data, path: str) -> Callable[[Session], object]:
+    """Give the reading of a path of the project, as its manager does; it must be served."""
+
+    def read(_: Session) -> object:
+        answer = api.get(f"{data.path}{path}", headers=data.stage.manager.headers)
+        assert answer.status_code == 200, answer.text
+        return answer.json()
+
+    return read
+
+
+def test_the_plans_of_the_real_readings_of_a_revision_read_the_partition_of_their_project(
     api: ContractClient, owner: Engine, database: Database, realm: TestRealm
 ) -> None:
     # « Le plan d'exécution d'une lecture de révision ne parcourt que la partition du projet. »
-    # The functions of the core the operations that read a revision serve — getRevision,
-    # listCostStructures, listNodes, a structure read, compareRevisions, getRateUpdateProposal —
-    # are played on a platform of three projects, each with its data: a plan that read the
-    # partitions of the other two would show. The statements they send to a revised table are
-    # explained, with their parameters; each reads at most one partition of each table.
+    # The operations that read a revision, and the functions of the core they share, are played on
+    # a platform of three projects, each with its data: a plan that read the partitions of the
+    # other two would show. Every statement they send that selects is explained, with its
+    # parameters; each reads, of each revised table, the partition of the project read.
     stage = make_scene(api, owner, database, realm)
+    costs = costing(database)
     projects = [stage]
     projects += [replace(stage, project=create(api, stage.manager, label=n)) for n in ("B", "C")]
-    revisions = [with_data(api, each) for each in projects]
+    held = [with_data(api, each, costs, f"PRJ-158{n}") for n, each in enumerate(projects)]
+    data = held[0]
     project_id = UUID(stage.project["project_id"])
-    offer, amendment, structure_id = revisions[0]
+    offer, amendment, structure_id = data.offer, data.amendment, data.structure_id
     viewer = Viewer(stage.manager.user_id, MANAGING)
     place = Place(project_id, offer, structure_id)
     asked = ComparisonAsked(offer, amendment, NodeFilters())
+    studies, design, milestone = (data.nodes[each] for each in ("Études", "Conception", "Jalon"))
+    structure = f"/revisions/{offer}/structures/{structure_id}"
+    risk = f"/risks/{data.risk_id}"
     readings: dict[str, Callable[[Session], object]] = {
         "getRevision": lambda each: read_revision(each, project_id, offer, viewer),
         "getRevision (what it keeps)": lambda each: kept_reference(each, project_id, offer),
         "listCostStructures": lambda each: list_cost_structures(each, project_id, offer, viewer),
         "listNodes": lambda each: list_records(each, place, NodeFilters()),
         "listNodes (tasks)": lambda each: list_records(each, place, NodeFilters(kinds=("task",))),
+        "listNodes (a marked revision, its kept reading)": served(api, data, f"{structure}/nodes"),
         "readStructure": lambda each: read_structure(each, place, NodeFilters()),
         "compareRevisions": lambda each: compare_revisions(each, project_id, asked, node_body),
         "getRateUpdateProposal": lambda each: rate_update_proposal(each, project_id, amendment),
+        "getProject (the skeleton)": lambda each: opening_main_with_tasks(each, [project_id]),
+        "listRevisions": served(api, data, "/revisions"),
+        "getComputedValueDependencies (a summary)": served(
+            api, data, f"{structure}/nodes/{studies}/dependencies?field=task.physical_progress"
+        ),
+        "getComputedValueDependencies (a task)": served(
+            api, data, f"{structure}/nodes/{design}/dependencies?field=task.budgeted_amount"
+        ),
+        "getComputedValueDependencies (a line)": served(
+            api,
+            data,
+            f"{structure}/nodes/{data.nodes['Matériel']}/dependencies"
+            "?field=estimate_line.budgeted_amount",
+        ),
+        "resolveRowNumber": served(api, data, f"{structure}/rows/1"),
+        "getMilestoneTracking": served(api, data, "/indicators/milestone-tracking"),
+        "listRisks": served(api, data, "/risks"),
+        "listRisks (a marked revision)": served(api, data, f"/risks?revision_id={offer}"),
+        "getRisk": served(api, data, risk),
+        "getRisk (a marked revision)": served(api, data, f"{risk}?revision_id={offer}"),
+        "listRiskReviews": served(api, data, f"{risk}/reviews"),
+        "listRiskReviews (a marked revision)": served(
+            api, data, f"{risk}/reviews?revision_id={offer}"
+        ),
+        "getEstimateIndicators": served(api, data, "/estimate-indicators"),
+        "getEstimateIndicators (a marked revision)": served(
+            api, data, f"/estimate-indicators?revision_id={offer}"
+        ),
+        "getMissingRates": served(api, data, "/estimate-indicators/missing-rates"),
+        "getProjectWorkload (reference)": served(api, data, "/workload?basis=reference_budget"),
+        "getProjectWorkload (current)": served(api, data, "/workload?basis=current_remaining"),
+        "getProjectWorkload (marked)": served(
+            api, data, f"/workload?basis=marked_remaining&revision_id={offer}"
+        ),
+        "getProjectNextState (a marked revision bears a line)": lambda each: (
+            marked_revision_has_lines(each, project_id)
+        ),
+        "the lines of a revision": lambda each: (
+            lines_of_revision(each, project_id, offer),
+            revision_lines(each, project_id, offer, bases=True),
+            revision_bears(each, project_id, offer, "task"),
+            revision_has_tasks(each, project_id, offer),
+            revision_has_lines(each, project_id, offer),
+        ),
+        "the nodes of a revision": lambda each: (
+            node_rows(each, project_id, [design, milestone]),
+            node_revisions(each, project_id, [design]),
+            lines_of(each, project_id, [design]),
+            bearers_of(each, project_id, [data.nodes["Matériel"]]),
+        ),
     }
     explained: dict[str, list[tuple[str, dict[str, set[str]]]]] = {}
     for name, read in readings.items():
         with statements_of(database.engine) as sent, database.transaction() as session:
             read(session)
         with owner.connect() as connection:
-            parents = partitioned_by_project(connection)
             explained[name] = [
                 (statement, partitions_read(connection, statement, parameters))
                 for statement, parameters in sent
                 if re.match(r"\s*(SELECT|WITH)", statement)
-                and re.search(rf"\b(?:FROM|JOIN)\s+(?:{'|'.join(parents)})\b", statement)
             ]
-    assert all(explained.values()), [name for name, found in explained.items() if not found]
-    wide = [
-        f"{name}: { ({parent: sorted(each) for parent, each in found.items() if len(each) > 1}) }"
-        f"\n{statement}"
+    untouched = [name for name, found in explained.items() if not any(each for _, each in found)]
+    assert not untouched, f"readings that read no partition: {untouched}"
+    # The partition of the project read, for each revised table a statement names, and no other.
+    expected = {parent: {f"{parent}_p_{project_id.hex}"} for parent in PARTITIONED_REVISED}
+    wrong = [
+        f"{name}: {strays(found, expected)}\n{statement}"
         for name, statements in explained.items()
         for statement, found in statements
-        if any(len(each) > 1 for each in found.values())
+        if strays(found, expected)
     ]
-    assert not wide, "\n\n".join(wide)
+    assert not wrong, "\n\n".join(wrong)
+    named = {parent for found in explained.values() for _, each in found for parent in each}
+    assert not EXEMPT.keys() & named, f"drop the exemptions of {sorted(EXEMPT.keys() & named)}"
+    assert named | EXEMPT.keys() == PARTITIONED_REVISED, (
+        f"explain a reading of {sorted(PARTITIONED_REVISED - named - EXEMPT.keys())}, "
+        "or exempt it here with its reason"
+    )
