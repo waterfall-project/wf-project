@@ -48,32 +48,36 @@ ADMIN_CLIENT = "admin-cli"
 
 def check_database(settings: ComponentsSettings) -> tuple[str, list[str]]:
     """Read the state of PostgreSQL: what it is, and why it does not fit."""
-    database = Database(create_database_engine(settings.database_url.get_secret_value()))
+    database: Database | None = None
     try:
+        database = Database(create_database_engine(settings.database_url.get_secret_value()))
         version_number, locks = database_state(database)
     except SQLAlchemyError as error:
         return "PostgreSQL", [f"PostgreSQL does not answer: {type(error).__name__}"]
     finally:
-        database.dispose()
+        if database is not None:
+            database.dispose()
     described = f"PostgreSQL {version_number // 10_000} ({locks} locks per transaction)"
     return described, database_faults(version_number, locks)
 
 
 def check_redis(settings: ComponentsSettings) -> tuple[str, list[str]]:
     """Read the state of Redis: what it is, and why it does not fit."""
-    client = redis.from_url(
-        settings.redis_url.get_secret_value(),
-        decode_responses=True,
-        socket_timeout=WAIT_SECONDS,
-        socket_connect_timeout=WAIT_SECONDS,
-    )
-    described = cast("Described", client)
+    client = None
     try:
+        client = redis.from_url(
+            settings.redis_url.get_secret_value(),
+            decode_responses=True,
+            socket_timeout=WAIT_SECONDS,
+            socket_connect_timeout=WAIT_SECONDS,
+        )
+        described = cast("Described", client)
         information = {**described.info("server"), **described.info("cluster")}
-    except RedisError as error:
+    except (RedisError, ValueError) as error:
         return "Redis", [f"Redis does not answer: {type(error).__name__}"]
     finally:
-        client.close()
+        if client is not None:
+            client.close()
     mode = "cluster" if str(information.get("cluster_enabled", 0)) == "1" else "standalone"
     return f"Redis {information.get('redis_version')} ({mode})", redis_faults(information)
 
@@ -105,7 +109,7 @@ def check_keycloak(settings: ComponentsSettings) -> tuple[str, list[str]]:
     """Read the version of Keycloak: what it is, and why it does not fit."""
     try:
         version = keycloak_version(settings)
-    except (httpx2.HTTPError, KeyError, ValueError) as error:
+    except (httpx2.HTTPError, KeyError, ValueError, TypeError, AttributeError) as error:
         return "Keycloak", [f"Keycloak does not answer as expected: {type(error).__name__}"]
     return f"Keycloak {version}", keycloak_faults(version)
 

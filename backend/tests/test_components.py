@@ -227,6 +227,7 @@ class Keycloak(BaseHTTPRequestHandler):
     """A Keycloak that gives a token to the administrator of its master realm, and its version."""
 
     version: str | None = "26.4.2"
+    document: Any = None
     phrase = "master-phrase"
     asked: ClassVar[list[str]] = []
 
@@ -241,10 +242,13 @@ class Keycloak(BaseHTTPRequestHandler):
         if self.headers.get("Authorization") != "Bearer token":
             self._answer(401, {})
             return
+        if self.document is not None:
+            self._answer(200, self.document)
+            return
         info: dict[str, Any] = {} if self.version is None else {"version": self.version}
         self._answer(200, {"systemInfo": info})
 
-    def _answer(self, status: int, document: dict[str, Any]) -> None:
+    def _answer(self, status: int, document: Any) -> None:
         body = json.dumps(document).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
@@ -260,7 +264,7 @@ class Keycloak(BaseHTTPRequestHandler):
 @pytest.fixture
 def keycloak() -> Iterator[str]:
     """Serve the Keycloak above on a loopback port; give its address."""
-    Keycloak.version, Keycloak.asked = "26.4.2", []
+    Keycloak.version, Keycloak.asked, Keycloak.document = "26.4.2", [], None
     server = HTTPServer(("127.0.0.1", 0), Keycloak)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -365,6 +369,37 @@ def test_a_keycloak_that_refuses_the_administrator_fails_saying_it_did_not_answe
     error = capsys.readouterr().err
     assert "Keycloak does not answer as expected: HTTPStatusError" in error
     assert "another-password" not in error
+
+
+@pytest.mark.requirement("WF-CMP-0020-A")
+@pytest.mark.usefixtures("check_settings")
+@pytest.mark.parametrize("document", [["not", "an", "object"], {"systemInfo": "text"}, 26])
+def test_a_keycloak_whose_serverinfo_is_not_an_object_fails_saying_it_did_not_answer(
+    capsys: pytest.CaptureFixture[str], document: object
+) -> None:
+    Keycloak.document = document
+    assert components_check.main([]) == 1
+    assert "Keycloak does not answer as expected" in capsys.readouterr().err
+
+
+@pytest.mark.requirement("WF-CMP-0020-A")
+@pytest.mark.usefixtures("check_settings")
+def test_a_redis_address_of_an_unknown_scheme_fails_saying_so_not_by_a_traceback(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("WATERFALL_REDIS_URL", "gopher://nowhere:1")
+    assert components_check.main([]) == 1
+    assert "Redis does not answer: ValueError (WF-CMP-0020)" in capsys.readouterr().err
+
+
+@pytest.mark.requirement("WF-CMP-0020-A")
+@pytest.mark.usefixtures("check_settings")
+def test_a_database_address_that_cannot_be_read_fails_saying_so_not_by_a_traceback(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("WATERFALL_DATABASE_URL", "not a url")
+    assert components_check.main([]) == 1
+    assert "PostgreSQL does not answer: ArgumentError (WF-CMP-0020)" in capsys.readouterr().err
 
 
 @pytest.mark.requirement("WF-CMP-0020-A")

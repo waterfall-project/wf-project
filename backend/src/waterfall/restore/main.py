@@ -66,7 +66,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     configure_logging(settings.log_level, secrets=settings.secret_values())
     logger.info("restore.starting", version=__version__)
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
-    if not database_accepted(database, NAME):
+    try:
+        accepted = database_accepted(database, NAME)
+    except BaseException:
+        database.dispose()
+        raise
+    if not accepted:
         database.dispose()
         return 1
     queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)
