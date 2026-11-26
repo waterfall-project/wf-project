@@ -50,7 +50,7 @@ from typing import IO, TYPE_CHECKING
 from sqlalchemy import text
 
 from waterfall import schema
-from waterfall.core.access_roles.interface import administrators
+from waterfall.core.access_roles.interface import administrators, lock_administrators
 from waterfall.core.users.interface import (
     CopyAnonymized,
     KeptAdministrator,
@@ -301,6 +301,9 @@ def anonymize(settings: AnonymizationSettings, out: IO[str]) -> int:
             return 1
         upgrade(waterfall)
         with Database(waterfall).transaction() as session:
+            # The administrators are read under the lock of their rule (WF-ADM-0120), held until
+            # the accounts are written: nothing else may take the administration meanwhile.
+            lock_administrators(session)
             done = anonymize_every_account(session, utc_now(), administrators(session))
             installer = _installation_administrator(session)
         with provider.begin() as connection:
