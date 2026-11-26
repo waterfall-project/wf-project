@@ -23,6 +23,7 @@ requests is the same in every process, or lives in PostgreSQL or Redis (WF-ARC-0
 
 import sys
 from contextlib import ExitStack, asynccontextmanager, nullcontext
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import uvicorn
@@ -30,6 +31,7 @@ import uvicorn
 from waterfall import __version__
 from waterfall.api.app import PREFIX, create_app
 from waterfall.api.authentication import Services
+from waterfall.api.drain import IDLE_SECONDS, DrainMiddleware
 from waterfall.api.status import StatusSources
 from waterfall.platform.cache import IndicatorsCache
 from waterfall.platform.components import database_accepted
@@ -106,6 +108,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             port=settings.port,
             log_config=None,
             access_log=False,
+            # A connection idle closed before the end of the drain's wait (waterfall.api.drain).
+            timeout_keep_alive=IDLE_SECONDS,
             # In TLS alone when the settings give its certificate (US-2840, TFX-02).
             ssl_certfile=settings.tls_certificate,
             ssl_keyfile=settings.tls_key,
@@ -149,7 +153,11 @@ def application() -> FastAPI:
     address = settings.prometheus_address
     prometheus = None if address is None else Prometheus(address, settings.tls_authority)
     sources = StatusSources(settings.operating_parameters(), prometheus)
-    return create_app(services, lifespan, capacities, sources)
+    app = create_app(services, lifespan, capacities, sources)
+    if settings.drain_file is not None:
+        # Outermost: an answer the other middlewares make closes its connection as well.
+        app.add_middleware(DrainMiddleware, flag=Path(settings.drain_file))
+    return app
 
 
 def serve_metrics(app: FastAPI, host: str, port: int) -> Callable[[], None]:
