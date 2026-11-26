@@ -204,8 +204,9 @@ POOL_TIMEOUT = CONNECT_TIMEOUT
 
 # The SQLSTATE of a server that does not answer: a connection exception (class 08) and the shutdown
 # or the start of the server (57P01 to 57P03). A statement the server judged — a lock refused, a
-# deadlock, a statement cancelled — has another, and is not the database out of reach. So does 53300
-# (too many connections): the server answers and refuses, it is full, not out of reach.
+# deadlock, a statement cancelled — has another, and is not the database out of reach. 53300 (too
+# many connections) is another of them: the server answers and refuses, it is full, not out of
+# reach.
 UNREACHABLE_STATES = frozenset({"57P01", "57P02", "57P03"})
 
 

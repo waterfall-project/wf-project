@@ -8,8 +8,8 @@
 # (files/prometheus-alerts.yml), the three thresholds of the values written in their place: a
 # threshold changed changes the ConfigMap, and the pod starts again on it. prometheus.enabled false
 # leaves the collection to a Prometheus of the operator: the ConfigMap and the Services stay, for it
-# to read. It serves in TLS alone (TFX-14, US-2840), with the certificate its container of
-# initialisation issues, as the Compose's does (prometheus-web.yml).
+# to read. It serves in TLS alone (TFX-14, US-2840), with the certificate of its Secret, which the
+# hook of certificates.yaml writes (US-2850), as the Compose's does (prometheus-web.yml).
 {{- $name := include "waterfall.name" (list . "prometheus") }}
 {{- $configuration := include "waterfall.prometheusConfiguration" . }}
 {{- $rules := include "waterfall.alertRules" . }}
@@ -83,8 +83,6 @@ spec:
     spec:
       # The user of the image, nobody, who writes its series in the volume.
       {{- include "waterfall.podDefaults" (list . (dict "runAsUser" 65534 "runAsGroup" 65534 "fsGroup" 65534)) | nindent 6 }}
-      initContainers:
-        {{- include "waterfall.transportInit" (list . "prometheus" 65534 65534) | nindent 8 }}
       containers:
         - name: prometheus
           image: {{ include "waterfall.thirdParty" (list . .Values.prometheus.image) }}
@@ -119,14 +117,14 @@ spec:
             - name: configuration
               mountPath: /etc/prometheus
               readOnly: true
-            {{- include "waterfall.tlsMount" (list . "prometheus") | nindent 12 }}
+            {{- include "waterfall.certificateMount" . | nindent 12 }}
           resources:
             {{- toYaml .Values.prometheus.resources | nindent 12 }}
       volumes:
         - name: configuration
           configMap:
             name: {{ $name }}
-        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}
+        {{- include "waterfall.certificateVolume" (list . "prometheus") | nindent 8 }}
   volumeClaimTemplates:
     - metadata:
         name: data
