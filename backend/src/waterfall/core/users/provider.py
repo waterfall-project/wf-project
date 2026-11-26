@@ -27,6 +27,7 @@ from waterfall.core.users.accounts import (
     NewAccount,
     Stamp,
     add_account_if_absent,
+    add_accounts_if_absent,
     address_holder,
     change_columns,
     find_account_of_subject,
@@ -134,6 +135,54 @@ def admit(
     if inserted:
         inscribe(session, "user_create", account, Act(None, at), {"origin": origin})
     return account, "created" if inserted else "unchanged"
+
+
+def admit_all(session: Session, people: Sequence[ProviderAccount], at: datetime) -> set[str]:
+    """Create by one write the accounts of the persons the provider holds that Waterfall has not.
+
+    As ``admit`` each, by one insertion and one inscription of all the accounts, not one round
+    trip of the database each: the reading holds the lock of the rule for all its writes
+    (WF-ARC-0090), and a directory of five hundred persons met for the first time would hold it as
+    long as the round trips take. A person Waterfall has no account for, admitted, whose address
+    no account holds, is created; give the subjects of those created. The others — an account
+    found, a person refused or whose address is held — are left to ``follow``, which finds the
+    account again, attaches it or refuses it.
+    """
+    admissible: dict[str, ProviderAccount] = {}
+    for person in people:
+        if origin_of(person) is not None and _refusal(person) is None:
+            # A subject twice: the first is created, as one by one, and ``follow`` updates it.
+            admissible.setdefault(person.subject, person)
+    if not admissible:
+        return set()
+    known = session.scalars(
+        select(UserAccount.idp_subject).where(UserAccount.idp_subject.in_(list(admissible)))
+    )
+    for subject in known:
+        del admissible[subject]
+    news = [
+        NewAccount(person.last_name, person.first_name, person.email, person.subject, origin)
+        for person in admissible.values()
+        if (origin := origin_of(person)) is not None
+    ]
+    created = add_accounts_if_absent(session, news, Stamp(None, at))
+    record_all(
+        session,
+        [
+            Inscription(
+                "user_create",
+                None,
+                AuditObject(
+                    "user", created[new.idp_subject], display_name(new.first_name, new.last_name)
+                ),
+                at,
+                params={"origin": new.origin},
+            )
+            for new in news
+            if new.idp_subject in created
+        ],
+    )
+    return set(created)
 
 
 def _attach(

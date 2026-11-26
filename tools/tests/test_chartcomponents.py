@@ -1,10 +1,11 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The chart requires Kubernetes 1.27 and checks the components before its migrations (US-2810).
+"""The chart requires Kubernetes 1.35 and checks the components before its migrations (US-2810).
 
-« Kubernetes dans une version au moins égale à 1.27 » and « Le déploiement échoue en le disant si
+« Kubernetes dans une version au moins égale à 1.27 » (the oldest maintained version, 1.35, since the
+author's decision of 2026-11-26, #4085; #5069 for the specification) and « Le déploiement échoue en le disant si
 un composant est d'une version antérieure à celle exigée. » (WF-CMP-0020-A). The chart declares the
-version of Kubernetes it requires, and keeps the drain of its pods on each one it accepts; the
+version of Kubernetes it requires, the oldest maintained, whose native ``sleep`` it uses for the drain of its pods; the
 command ``waterfall-check-components`` of the image of Waterfall runs, as a step of the hook of the
 migrations, before them. That a refusal fails the deployment is held by the tests of the command
 (``backend/tests/test_components.py``); that the chart installs on two distributions is held on
@@ -52,26 +53,24 @@ def after_the_realm(values: Mapping[str, Any] | None = None) -> dict[str, Any]:
     return job_check_of("components", values)
 
 
-@pytest.mark.parametrize("version", ["1.27.0", "1.28.4", "1.29.9", "1.30.0", "1.37.2"])
-def test_the_chart_installs_on_every_version_of_kubernetes_from_1_27(version: str) -> None:
+@pytest.mark.parametrize("version", ["1.35.0", "1.35.6", "1.36.2", "1.37.2"])
+def test_the_chart_installs_on_every_version_of_kubernetes_from_1_35(version: str) -> None:
     assert chart.render(options=[f"--kube-version={version}"])
 
 
-@pytest.mark.parametrize("version", ["1.26.9", "1.20.0"])
-def test_the_chart_is_refused_on_a_cluster_older_than_1_27_and_says_why(version: str) -> None:
+@pytest.mark.parametrize("version", ["1.34.9", "1.29.0", "1.27.4"])
+def test_the_chart_is_refused_on_a_cluster_older_than_1_35_and_says_why(version: str) -> None:
     with pytest.raises(chart.ChartError, match="kubeVersion"):
         chart.render(options=[f"--kube-version={version}"])
 
 
-def test_the_chart_declares_the_version_of_kubernetes_the_specification_requires() -> None:
+def test_the_chart_declares_the_oldest_version_of_kubernetes_that_is_maintained() -> None:
     declared = yaml.safe_load((chart.CHART / "Chart.yaml").read_text(encoding="utf-8"))
-    assert declared["kubeVersion"] == ">=1.27.0-0"
+    assert declared["kubeVersion"] == ">=1.35.0-0"
 
 
 @pytest.mark.story("US-2850")
-def test_the_drain_of_the_pods_waits_by_a_command_every_version_of_kubernetes_knows() -> None:
-    # The action `sleep` of a hook is Kubernetes 1.30: under 1.29 it is dropped, or refused with the
-    # gate off, and the drain is lost. The sleep of the image is run by every version.
+def test_the_drain_of_the_pods_waits_by_the_native_action_sleep_of_the_hook() -> None:
     objects = rendered()
     serving = [
         container
@@ -81,7 +80,7 @@ def test_the_drain_of_the_pods_waits_by_a_command_every_version_of_kubernetes_kn
     ]
     assert len(serving) == 4
     for container in serving:
-        assert container["lifecycle"] == {"preStop": {"exec": {"command": ["sleep", "10"]}}}
+        assert container["lifecycle"] == {"preStop": {"sleep": {"seconds": 10}}}
 
 
 def test_the_components_are_checked_before_the_migrations_by_the_image_of_waterfall() -> None:

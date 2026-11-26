@@ -206,6 +206,50 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # The image of Keycloak built once for the whole run (#4790), as the front is: the four parts of the
+  # paths against the service download it and load it, and download nothing from Maven Central, which
+  # answered a timeout of dependency:go-offline, then HTTP 429, to four builds at once. `make
+  # build-keycloak` keeps its retries (wftools.retried).
+  keycloak-image:
+    needs: [changes, mirror]
+    if: needs.changes.outputs.service == 'true' && needs.changes.outputs.tier == 'full'
+    runs-on: ubuntu-26.04
+    # The build of the extension and its tests, as keycloak.yml plays it, and the retries of its downloads.
+    timeout-minutes: 20
+    # The mirror is read from the registry, where it may be private.
+    permissions:
+      contents: read
+      packages: read
+    env:
+      WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The cache of the builds of images, written after a merge (images.yml).
+      - uses: ./.github/actions/build-cache
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
+          cache-dependency-glob: tools/uv.lock
+      - run: make build-keycloak
+      - run: make save-keycloak
+        env:
+          KEYCLOAK_ARCHIVE: ${{ runner.temp }}/keycloak-image.tar
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: keycloak-image
+          path: ${{ runner.temp }}/keycloak-image.tar
+          if-no-files-found: error
+          retention-days: 1
+
   # The work image of the end-to-end paths (deploy/e2e, US-1900), whenever e2e or service could run,
   # beside the build of the front: Playwright's image with make, the Python of the tools, pnpm and
   # Docker's client, so that no job of the paths downloads a package of Ubuntu (#2913). Found in the
@@ -330,7 +374,7 @@ jobs:
 
   # Skipped in the fast tier as when nothing it traverses is touched.
   service:
-    needs: [changes, mirror, front-build, e2e-image-publish]
+    needs: [changes, mirror, front-build, keycloak-image, e2e-image-publish]
     if: needs.changes.outputs.service == 'true' && needs.changes.outputs.tier == 'full'
     permissions:
       contents: read
@@ -377,6 +421,7 @@ jobs:
       - back
       - front
       - front-build
+      - keycloak-image
       - e2e-image
       - e2e-image-publish
       - e2e

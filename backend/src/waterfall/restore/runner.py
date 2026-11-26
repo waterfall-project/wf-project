@@ -164,13 +164,18 @@ class Restorer(Worker):
         """Take up the restoration a maintenance holds; ``None`` once it is given up.
 
         Given up once its attempts are spent, once it has held the maintenance beyond its deadline,
-        or held without its state (``give_up``); one abandoned already is left to the operator.
+        or held without its state or its payload (``give_up``); one abandoned already is left to
+        the operator.
         """
         if restoring.abandoned:
             return None
         reason = self.reason_to_give_up(restoring)
         if reason is None and restoring.attempts >= MAX_ATTEMPTS:
             reason = "attempts_spent"
+        if reason is None and not restoring.payload:
+            # The payload a maintenance held without its state was given up with: an operator who
+            # sets it running again finds it given up again, nothing says what to restore (#4769).
+            reason = "no_payload"
         if reason is not None:
             self.give_up(restoring, reason)
             return None

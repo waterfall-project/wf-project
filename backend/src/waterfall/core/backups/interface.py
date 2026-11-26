@@ -121,7 +121,7 @@ from waterfall.platform.tasks import (
 from waterfall.platform.uploads import FileUpload
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
 __all__ = [
     "MANIFEST",
@@ -148,6 +148,7 @@ __all__ = [
     "TakenBackup",
     "add_backup",
     "archive_taken_at",
+    "archives_named",
     "backup_is_due",
     "backup_start_lacks",
     "backup_task_ids",
@@ -221,6 +222,15 @@ def backup_task_ids(session: Session) -> frozenset[UUID]:
     Only the rotation deletes a backup, and its task goes after it (EP-13, "La sauvegarde").
     """
     return frozenset(session.scalars(select(Backup.task_id)))
+
+
+def archives_named(session: Session, keys: Sequence[str]) -> frozenset[str]:
+    """Give, among the keys of archives, those a backup still listed names (#4679).
+
+    What the purge of the backups leaves out of the archives it sweeps: an archive no row names is
+    one a task left behind, its validation failed or its worker dead.
+    """
+    return frozenset(session.scalars(select(Backup.object_key).where(Backup.object_key.in_(keys))))
 
 
 def last_scheduled_outcome(session: Session) -> Outcome | None:

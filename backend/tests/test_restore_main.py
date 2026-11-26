@@ -11,17 +11,23 @@ import pytest
 import waterfall
 from waterfall.platform.database import Database
 from waterfall.platform.queue import RESTORES, STREAM
+from waterfall.platform.settings import (
+    KeycloakSettings,
+    RealmSettings,
+    RestoreTestSettings,
+    load_restore_test_settings,
+    load_worker_settings,
+)
 from waterfall.restore import main as restore_main
 from waterfall.restore.provider import Keycloak
 from waterfall.restore.task import RestoreTask
 from waterfall.restore.trial import Readiness, RestoreTrial
-from waterfall.worker.backup import DATABASES
+from waterfall.worker.backup import DATABASES, REALM, BackupTask
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
-    from waterfall.platform.settings import RestoreTestSettings
     from waterfall.restore.runner import Restorer
 
 
@@ -208,3 +214,25 @@ def test_a_test_of_a_restoration_that_cannot_run_returns_failure_and_says_why(
     (failed,) = [record for record in said if record["event"] == "restore_test.not_run"]
     assert (failed["level"], failed["actor"]) == ("error", "platform")
     assert "ConnectionError" in str(failed["exception"])
+
+
+@pytest.mark.story("US-2940")
+@pytest.mark.usefixtures("platform_environment")
+def test_the_backup_and_the_test_of_a_restoration_read_the_same_realm_by_default(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # [US-2940] #4662: the default realm has one source, ``RealmSettings``: the realm the backup
+    # counts the accounts of is the one the test of a restoration counts again, and neither
+    # redeclares it.
+    for name, value in EPHEMERAL.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv("WATERFALL_RESTORE_TEST_RESTORED_FILE", str(tmp_path / "restored"))
+    monkeypatch.delenv("WATERFALL_KEYCLOAK_REALM", raising=False)
+    assert BackupTask.of(load_worker_settings()).realm == REALM
+    assert load_restore_test_settings().keycloak_realm == REALM
+    assert "keycloak_realm" in RealmSettings.__annotations__
+    for settings in (KeycloakSettings, RestoreTestSettings):
+        assert "keycloak_realm" not in settings.__annotations__
+    monkeypatch.setenv("WATERFALL_KEYCLOAK_REALM", "other")
+    assert BackupTask.of(load_worker_settings()).realm == "other"
+    assert load_restore_test_settings().keycloak_realm == "other"

@@ -53,6 +53,7 @@ from waterfall.core.users.interface import (
     SkippedAddressHeld,
     SkippedPerson,
     SyncReport,
+    admit_all,
     deactivate_all_unheld,
     deactivate_unheld,
     follow,
@@ -257,15 +258,23 @@ def write_accounts(
 ) -> Written:
     """Follow the persons, then deactivate the accounts no longer held; tell what was written.
 
-    Under the lock of the rule, taken before any row: the deactivation of an administrator runs
-    under the guard of the last one, who is kept and reported (WF-ADM-0120); the others, which take
-    no administration away, are deactivated all at once. The journal therefore inscribes the
-    deactivations of the latter first, in a block, then those of the administrators one by one,
-    not the accounts in the order they were read.
+    Under the lock of the rule, taken before any row: the accounts to create are created all at
+    once, the deactivation of an administrator runs under the guard of the last one, who is kept
+    and reported (WF-ADM-0120), and the others, which take no administration away, are deactivated
+    all at once. The journal therefore inscribes the creations first, in a block, and the
+    deactivations of the accounts that are not administrators before those of the administrators:
+    not the actions in the order the accounts were read.
     """
     lock_administrators(session)
     written = Written()
+    # The accounts the provider holds that Waterfall has not are created all at once, then the
+    # others followed one by one: the journal inscribes the creations first, in a block.
+    created = admit_all(session, people, at)
+    written.counts["created"] += len(created)
     for person in people:
+        if person.subject in created:
+            created.remove(person.subject)
+            continue
         followed = follow(session, person, at)
         if isinstance(followed, NotFollowed):
             code = REPORTED.get(followed.reason)

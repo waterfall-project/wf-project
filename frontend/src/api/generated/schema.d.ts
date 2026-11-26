@@ -6757,7 +6757,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         /**
-                         * @description `ok`: the platform serves its operations; `maintenance`: a restore holds it in maintenance, and only this probe and the metrics (`getMetrics`) answer.
+                         * @description `ok`: the platform serves its operations; `maintenance`: a restore holds it in maintenance, and only this probe and the metrics (`getMetrics`) answer. The maintenance may outlast the restore that held it: one given up keeps it (`restoration: abandoned`, below) until the operator lifts it.
                          * @enum {string}
                          */
                         status: "ok" | "maintenance";
