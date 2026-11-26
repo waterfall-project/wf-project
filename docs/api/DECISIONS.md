@@ -6403,7 +6403,7 @@ une liberté déclarée, dans le résumé comme ici :
   « Chiffreur » de la requête qui suit sa création ;
 - un rattachement à l'annuaire, par la plateforme, qu'aucun exemple ne répond : Noé Vidal, tel que
   la liste des comptes le donne, prend le nom que l'annuaire donne à la personne qui porte son
-  adresse, « Vidal-Roux » (`mockaudit.DIRECTORY_LAST_NAME`).
+  adresse, « Vidal-Marchand » (`mockaudit.DIRECTORY_LAST_NAME`).
 
 *Note du 2026-10-30 : la phrase sur les actions sans paramètre est réécrite ; recadrage d'EP-16
 décidé le 2026-10-28.*

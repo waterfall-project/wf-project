@@ -25,7 +25,7 @@ from waterfall.platform.errors import ServiceError
 from waterfall.platform.logs import get_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Mapping
 
     from starlette.types import Receive, Scope, Send
 
@@ -38,9 +38,15 @@ class ObjectResponse(StreamingResponse):
     """Stream an object of the storage as it is read; close it when the response ends."""
 
     def __init__(
-        self, stream: ObjectStream, media_type: str, headers: Mapping[str, str] | None = None
+        self,
+        stream: ObjectStream,
+        media_type: str | None = None,
+        headers: Mapping[str, str] | None = None,
+        content: Iterable[bytes] | None = None,
     ) -> None:
-        super().__init__(stream, media_type=media_type, headers=headers)
+        """Serve ``stream``, or ``content`` read from it, which the response closes either way."""
+        body = stream if content is None else content
+        super().__init__(body, media_type=media_type, headers=headers)
         self.stream = stream
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
