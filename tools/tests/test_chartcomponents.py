@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The chart requires Kubernetes 1.35 and checks the components before its migrations (US-2810).
 
-« Kubernetes dans une version au moins égale à 1.27 » (the oldest maintained version, 1.35, since the
-author's decision of 2026-11-26, #4085; #5069 for the specification) and « Le déploiement échoue en le disant si
-un composant est d'une version antérieure à celle exigée. » (WF-CMP-0020-A). The chart declares the
-version of Kubernetes it requires, the oldest maintained, whose native ``sleep`` it uses for the drain of its pods; the
+« Kubernetes dans une version au moins égale à 1.27 » (the oldest maintained version, 1.35, since
+the author's decision of 2026-11-26, #4085; #5069 for the specification) and « Le déploiement échoue
+en le disant si un composant est d'une version antérieure à celle exigée. » (WF-CMP-0020-A). The
+chart declares the version of Kubernetes it requires, the oldest maintained, whose native ``sleep``
+it uses for the drain of its pods; the
 command ``waterfall-check-components`` of the image of Waterfall runs, as a step of the hook of the
 migrations, before them. That a refusal fails the deployment is held by the tests of the command
 (``backend/tests/test_components.py``); that the chart installs on two distributions is held on
