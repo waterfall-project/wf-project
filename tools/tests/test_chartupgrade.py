@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The upgrade of the chart under load, its rollback and the second upgrade (US-2850).
 
-The cluster is made, N installed, upgraded, rolled back and upgraded again by ``make
-chart-upgrade``, run by hand, not yet in the chain (#5020); these tests hold what the trial decides
-by itself — which version is N, what it is not executed for, what each passage must leave — on a
-cluster played by a fake.
+The cluster is made, N installed, upgraded, rolled back and upgraded again by ``make chart-upgrade``
+in the full tier of the chain (``make check-chart``), from the base of the pull request or of the
+queue; these tests hold what the trial decides by itself — which version is N, what it is not
+executed for, what each passage must leave — on a cluster played by a fake.
 
-The tests citing WF-EXP-0030-A or WF-DAT-0140-A exercise the parts of the trial without closing
-those criteria: the real trial, wired into the full tier by US-2850/L4 (#5029), will close them.
+The tests citing WF-EXP-0030-A (its first and third sentences) and WF-DAT-0140-A (its second) hold
+the parts of the trial by which it closes those criteria: no request failed and no one signed out
+through an upgrade, the rollback on the schema of N+1, no migration already applied run again.
 """
 
 import io
