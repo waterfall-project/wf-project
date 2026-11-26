@@ -371,20 +371,20 @@ describe("the journal of audit", () => {
     ["audit_events_manager_changed", "Changement de la qualité de chef de projet", "Inès Roux"],
     ["audit_events_manager_removed", "Retrait d’un chef de projet", "Inès Roux"],
   ])(
-    "reads the inscription of a project manager of %s by its action, its contributor and no link [WF-SEC-0030-A]",
+    "reads the inscription of a project manager in %s by its action, its contributor and no link of its own [WF-SEC-0030-A]",
     async (fixture, action, account) => {
       server.answers = { ...server.answers, [EVENTS]: fixture };
       const page = await journal({ project_id: PROJECT });
-      const row = rows(page).find((line) => line.includes(action));
-      expect(row).toBeDefined();
-      expect(row).toContain(`${action} Contributeur ${account}`);
-      // The contributor is an account: no page of its own, only the filters of the journal lead from it.
-      const markup = [...gridOf(page).matchAll(/<tr[^>]*>(.*?)<\/tr>/g)]
+      const row = [...gridOf(page).matchAll(/<tr[^>]*>(.*?)<\/tr>/g)]
         .map((line) => line[1] ?? "")
         .find((line) => text(line).includes(action));
-      const links = [...(markup ?? "").matchAll(/<a [^>]*href="([^"]*)"/g)].map((m) => m[1] ?? "");
+      expect(row).toBeDefined();
+      expect(text(row ?? "")).toContain(`${action} Contributeur ${account}`);
+      // The contributor is an account: no page of its own. Beyond the filters of the journal, the row
+      // leads only to its project, by the Project column.
+      const links = [...(row ?? "").matchAll(/<a [^>]*href="([^"]*)"/g)].map((m) => m[1] ?? "");
       const elsewhere = links.filter((link) => !link.startsWith("/admin/audit-log?"));
-      expect(elsewhere.every((link) => /^\/projects\/[^/]+$/.test(link))).toBe(true);
+      expect(elsewhere).toEqual([`/projects/${PROJECT}`]);
       expect(links.some((link) => link.includes("object_kind=contributor"))).toBe(true);
     },
   );
