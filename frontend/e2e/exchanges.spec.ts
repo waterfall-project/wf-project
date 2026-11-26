@@ -283,7 +283,7 @@ test("the estimate and the remaining to commit lead to the one screen of the imp
   ).toHaveAttribute("href", `/projects/${PROJECT}/revisions/${REVISION}/exchanges`);
 });
 
-test("exports the planning as MS Project XML, downloads it once, and imports it back with no difference, as the project manager of the run @shared [WF-DAT-0120-A] [WF-INTF-0010-A] [WF-PLA-0160-A]", async ({
+test("exports the planning as MS Project XML, downloads it once, and imports it back with no difference, as the project manager of the run (FLX-01, FLX-02) @shared [WF-DAT-0120-A] [WF-INTF-0010-A] [WF-PLA-0160-A] [WF-QUA-0050-A]", async ({
   page,
   browser,
   request,
@@ -395,7 +395,7 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   });
 });
 
-test("exports the estimate as an Excel file, downloads it, sees a file that is no estimate refused, then imports the file back in two steps — the report without a difference, the application confirmed and followed in the shell, the lines identical — as the project manager of the run @shared [WF-INTF-0070-A] [WF-INTF-0110-A]", async ({
+test("exports the estimate as an Excel file, downloads it, sees a file that is no estimate refused, then imports the file back in two steps — the report without a difference, the application confirmed and followed in the shell, the lines identical — as the project manager of the run (FLX-03, FLX-04) @shared [WF-INTF-0070-A] [WF-INTF-0110-A] [WF-QUA-0050-A]", async ({
   page,
   browser,
   request,
@@ -643,7 +643,7 @@ test("imports a planning typed at seven hours a day: the calendar gap is on the 
   expect(await tasksOfProject()).toEqual(before);
 });
 
-test("exports the remaining to commit as an Excel file, imports it back in two steps, leaves the screen of the exchanges while it is applied, and reads its outcome in the shell, as the project manager of the run @shared [WF-IHM-0080-A]", async ({
+test("exports the remaining to commit as an Excel file, imports it back in two steps, leaves the screen of the exchanges while it is applied, and reads its outcome in the shell, as the project manager of the run (FLX-05, FLX-06) @shared [WF-IHM-0080-A] [WF-QUA-0050-A]", async ({
   page,
   browser,
   request,

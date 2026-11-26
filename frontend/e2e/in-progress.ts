@@ -5,7 +5,7 @@
  * costs imported by the API: what the paths that write the actual costs start from (US-1620, #2193).
  * The project is the account's own — the witness is never written by a path.
  */
-import { type APIRequestContext, expect, type Page } from "@playwright/test";
+import { type APIRequestContext, expect, type Locator, type Page } from "@playwright/test";
 
 import { MARKING, WORKING } from "./bounds";
 import { openHydrated } from "./hydration";
@@ -118,6 +118,68 @@ export async function bringInProgress(
   return code;
 }
 
+/** The workbook of an extraction of actual costs: the headers of the mapping, then its lines. */
+export function extraction(lines: readonly ExtractedLine[]): Buffer {
+  const rows = lines.map(([element, document, on, amount]) => [
+    element,
+    document,
+    null,
+    on,
+    amount,
+  ]);
+  return workbook([HEADERS, ...rows]);
+}
+
+/**
+ * Deposit an extraction of actual costs from the screen of the exchanges of a revision, as the
+ * project manager does, and wait for the report of its analysis, which comes before anything is
+ * applied (WF-INTF-0080, WF-INTF-0140). Returns the report, for the path to read and to confirm.
+ */
+export async function analyseActualCosts(
+  page: Page,
+  revision: string,
+  name: string,
+  lines: readonly ExtractedLine[],
+): Promise<Locator> {
+  await openHydrated(page, `${revision}/exchanges`);
+  const imports = page.getByRole("region", { name: "Importer un fichier" });
+  await imports.getByRole("button", { name: "Importer des coûts réels" }).click();
+  const form = imports.getByRole("form", { name: "Importer des coûts réels" });
+  await form.getByLabel("Fichier à importer").setInputFiles({
+    name,
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: extraction(lines),
+  });
+  await form.getByRole("button", { name: "Analyser le fichier" }).click();
+  await expect(page).toHaveURL(/[?&]import=[0-9a-f-]{36}/, { timeout: WORKING });
+  const report = page.getByRole("region", { name: `Compte rendu de l’import « ${name} »` });
+  // The analysis is a task of the background: the report comes when the screen is read anew.
+  await expect(async () => {
+    if ((await report.getByText(/lues?\./).count()) === 0) {
+      await page.reload();
+      await page.waitForLoadState("domcontentloaded");
+    }
+    await expect(report.getByText(/lues?\./)).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING, intervals: [500, 1_000, 2_000] });
+  return report;
+}
+
+/** Confirm the application of the report of an import, and follow its task in the shell to its end. */
+export async function applyReport(page: Page, report: Locator, name: string): Promise<void> {
+  await report.getByRole("button", { name: "Appliquer l’import" }).click();
+  const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
+  await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
+  await expect(confirmation).toHaveCount(0);
+  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
+  const application = page
+    .getByRole("dialog", { name: "Tâches et messages" })
+    .getByRole("region", { name: "Tâches de fond" })
+    .getByRole("listitem")
+    .filter({ hasText: `Application d’un import « ${name} »` });
+  await expect(application.getByText("Réussie")).toBeVisible({ timeout: WORKING });
+  await page.keyboard.press("Escape");
+}
+
 /**
  * Import an extraction of actual costs as the project manager does, by the API under her token:
  * the file deposited, the import opened, its analysis awaited, then confirmed and awaited applied
@@ -130,13 +192,6 @@ export async function importActualCosts(
 ): Promise<void> {
   const { headers } = seeded;
   const project = `${API}/projects/${seeded.ids.project}`;
-  const rows = lines.map(([element, document, on, amount]) => [
-    element,
-    document,
-    null,
-    on,
-    amount,
-  ]);
   const deposited = await calls.post(`${API}/file-uploads`, {
     headers,
     multipart: {
@@ -144,7 +199,7 @@ export async function importActualCosts(
       file: {
         name: "couts-reels.xlsx",
         mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        buffer: workbook([HEADERS, ...rows]),
+        buffer: extraction(lines),
       },
     },
   });
