@@ -105,3 +105,19 @@ def test_a_time_zone_the_row_names_wrongly_is_unavailable_not_a_server_error(nam
         reading.zone()
     reading.read_from(lambda: "Europe/Paris")
     assert reading.zone().key == "Europe/Paris"
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+def test_a_command_reading_the_zone_from_its_database_leaves_the_source_of_before() -> None:
+    # A command that opens a database to read the zone from it and disposes it must not leave its
+    # source bound to it: the next reading would open, on the disposed engine, a connection no one
+    # closes (the ``ResourceWarning`` of the reference tests).
+    reading = ProcessTimeZone()
+    reading.read_from(lambda: "Europe/Paris")
+    with reading.reading_from(lambda: "UTC"):
+        assert reading.zone().key == "UTC"
+    assert reading.zone().key == "Europe/Paris"
+    message = "the command failed"
+    with pytest.raises(RuntimeError), reading.reading_from(lambda: "UTC"):
+        raise RuntimeError(message)
+    assert reading.zone().key == "Europe/Paris"

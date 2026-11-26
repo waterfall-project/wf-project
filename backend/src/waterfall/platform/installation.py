@@ -13,6 +13,7 @@ once, the first time it needs the current day, from the database its entry point
 (``TIME_ZONE``).
 """
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -26,7 +27,7 @@ from waterfall.platform.errors import UnavailableError
 from waterfall.platform.logs import get_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
 LANGUAGES = ("fr", "en")
 # The language that follows the browser, then the installation: the realm's own by default.
@@ -138,6 +139,21 @@ class ProcessTimeZone:
         """Read the time zone from ``source`` from now on, forgetting the one read before."""
         self._source = source
         self._zone = None
+
+    @contextmanager
+    def reading_from(self, source: Callable[[], str]) -> Generator[None]:
+        """Read the time zone from ``source`` in the block, and from the source of before after it.
+
+        For a command that reads it from a database it opens and disposes: the reading is lazy, and
+        a source left bound to a database disposed would open, at the first reading after the
+        command, a connection no one closes.
+        """
+        before = self._source, self._zone
+        self.read_from(source)
+        try:
+            yield
+        finally:
+            self._source, self._zone = before
 
     def zone(self) -> ZoneInfo:
         """Give the time zone of the installation, read the first time it is asked."""

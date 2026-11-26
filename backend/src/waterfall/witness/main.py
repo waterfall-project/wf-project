@@ -79,9 +79,11 @@ def load_witness(settings: WitnessSettings) -> int:
     """
     schema.declared()
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
-    TIME_ZONE.read_from(stored_in(database))
     try:
-        with logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM):
+        with (
+            TIME_ZONE.reading_from(stored_in(database)),
+            logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM),
+        ):
             return _load(database, Path(settings.witness_path))
     finally:
         database.dispose()

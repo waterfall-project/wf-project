@@ -239,8 +239,7 @@ def main(arguments: Sequence[str]) -> int:
     witness = Witness(Path(settings.witness_path), Act(None, utc_now()))
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
     try:
-        TIME_ZONE.read_from(stored_in(database))
-        with database.transaction() as session:
+        with TIME_ZONE.reading_from(stored_in(database)), database.transaction() as session:
             report = check(
                 session, witness, parsed.projects, History(parsed.revisions, parsed.cost_lines)
             )

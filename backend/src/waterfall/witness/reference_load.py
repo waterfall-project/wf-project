@@ -175,8 +175,8 @@ def load_reference(settings: WitnessSettings, wanted: int, history: History = FU
             sys.stderr.write(f"waterfall-api {COMMAND}: warning: {warning}\n")
         database = Database(create_database_engine(settings.database_url.get_secret_value()))
         try:
-            TIME_ZONE.read_from(stored_in(database))
-            return _load(database, witness, (base, plan), wanted)
+            with TIME_ZONE.reading_from(stored_in(database)):
+                return _load(database, witness, (base, plan), wanted)
         finally:
             database.dispose()
 
