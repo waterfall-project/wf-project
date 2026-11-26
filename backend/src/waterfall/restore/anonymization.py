@@ -40,8 +40,10 @@ administrators kept are written on the standard output, the installation's said:
 to them, and the operator gives them their access back by the link of the installation, which
 ``waterfall-api install`` writes once the copy is opened (WF-EXP-0020). Run again, it changes
 nothing more and succeeds: a run that failed halfway is run again. A realm the database of the
-provider does not hold stops it before anything is changed (1); so does any failure, said in the
-structured logs.
+provider does not hold stops it before anything is changed (1); so does an installation
+administrator the copy would not keep — deactivated, or without the administration, in the backup
+—, said on the standard error, since the bootstrap would refuse it anonymised and nobody could
+enter the copy (1); so does any failure, said in the structured logs.
 """
 
 import sys
@@ -81,6 +83,14 @@ COMMAND = "anonymize"
 CONFIRMATION = "--yes-this-is-a-copy"
 # What follows the address of the installation administrator kept: where its link is had.
 INSTALLATION_NOTE = " (installation administrator: waterfall-api install writes its link)"
+# Why a copy whose installation administrator would not be kept is refused, and what to do.
+NOT_KEPT = (
+    "waterfall-restore {command}: refused, nothing changed: the installation administrator is not "
+    "an active administrator of the copy, and would be anonymised, which waterfall-api install "
+    "refuses, leaving nobody a link to enter it; give this account its roles of administration "
+    "back, or activate it, in the source, or restore a backup where it holds them, then run it "
+    "again\n"
+)
 
 logger = get_logger(__name__)
 
@@ -280,15 +290,18 @@ def main(arguments: Sequence[str] = ()) -> int:
         return 2
     configure_logging(settings.log_level, secrets=settings.secret_values())
     with logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM):
-        return anonymize(settings, sys.stdout)
+        return anonymize(settings, sys.stdout, sys.stderr)
 
 
-def anonymize(settings: AnonymizationSettings, out: IO[str]) -> int:
+def anonymize(settings: AnonymizationSettings, out: IO[str], err: IO[str]) -> int:
     """Anonymise the two databases of the copy, Waterfall's first; give the status.
 
     The realm is looked for before anything is changed: one the provider does not hold stops it,
     nothing changed in either database. The migrations are applied then, before the accounts of
-    Waterfall are read. The administrators kept are written on ``out`` once both are anonymised.
+    Waterfall are read. An installation administrator the copy would not keep stops it, said on
+    ``err``, before any account is written: anonymised, the bootstrap would refuse it, and the
+    copy would have no way in (#4068). The administrators kept are written on ``out`` once both
+    are anonymised.
     """
     schema.declared()
     waterfall = create_database_engine(settings.database_url.get_secret_value())
@@ -304,8 +317,12 @@ def anonymize(settings: AnonymizationSettings, out: IO[str]) -> int:
             # The administrators are read under the lock of their rule (WF-ADM-0120), held until
             # the accounts are written: nothing else may take the administration meanwhile.
             lock_administrators(session)
-            done = anonymize_every_account(session, utc_now(), administrators(session))
+            held = administrators(session)
             installer = _installation_administrator(session)
+            if installer is not None and installer not in held:
+                # Nothing is written yet: the transaction ends empty, the provider's not begun.
+                return _refuse(err)
+            done = anonymize_every_account(session, utc_now(), held)
         with provider.begin() as connection:
             persons = anonymize_realm(connection, settings.keycloak_realm, done.administrators)
             administering = anonymize_administration(connection)
@@ -327,6 +344,13 @@ def anonymize(settings: AnonymizationSettings, out: IO[str]) -> int:
     return 0
 
 
+def _refuse(err: IO[str]) -> int:
+    """Say why a copy whose installation administrator would not be kept is refused; give 1."""
+    logger.error("anonymization.installation_administrator_not_kept")
+    err.write(NOT_KEPT.format(command=COMMAND))
+    return 1
+
+
 def _installation_administrator(session: Session) -> UUID | None:
     """Give the administrator the bootstrap created, if the copy holds it."""
     installation = session.get(Installation, THE_ROW)
@@ -341,15 +365,12 @@ def _tell(out: IO[str], done: CopyAnonymized, installer: UUID | None) -> None:
 
     Nothing is mailed to them: their addresses reach nobody. The link of the installation, which
     ``waterfall-api install`` writes once the copy is opened, is the installation administrator's;
-    the others are given theirs by an administrator signed in (WF-ADM-0140). An installation
-    administrator not kept is said in the logs: the bootstrap refuses it, anonymised.
+    the others are given theirs by an administrator signed in (WF-ADM-0140).
     """
     out.write(f"waterfall-restore {COMMAND}: administrators kept active, without a password:\n")
     for kept in done.administrators:
         note = INSTALLATION_NOTE if kept.user_id == installer else ""
         out.write(f"{kept.email}{note}\n")
-    if all(kept.user_id != installer for kept in done.administrators):
-        logger.warning("anonymization.installation_administrator_not_kept")
 
 
 def anonymize_realm(

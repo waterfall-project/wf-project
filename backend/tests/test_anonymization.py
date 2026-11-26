@@ -17,7 +17,7 @@ import pytest
 from access_rows import role
 from anonymization_support import found, held_by_table
 from migrations_support import scratch_database
-from sqlalchemy import insert, or_, select, text
+from sqlalchemy import delete, insert, or_, select, text, update
 from sqlalchemy.orm import Session
 from support import raw_account
 
@@ -893,6 +893,55 @@ def test_the_command_writes_the_administrators_it_keeps_and_where_their_link_is_
         f"{email}{anonymization.INSTALLATION_NOTE if user_id == installer.user_id else ''}"
         for user_id, email in addresses.items()
     )
+
+
+@pytest.fixture(params=["deactivated", "without_role"])
+def installer_not_kept(request: pytest.FixtureRequest, copy: list[Person], owner: Engine) -> None:
+    """Take from the installation administrator of the copy its activity, or its roles."""
+    assert copy
+    with owner.begin() as connection:
+        installed_at = connection.execute(
+            select(Installation.installed_at).where(Installation.id == THE_ROW)
+        ).scalar_one()
+        with _session(connection) as session:
+            installer = read_installation_administrator(session, installed_at)
+        assert installer is not None
+        if request.param == "deactivated":
+            connection.execute(
+                update(UserAccount)
+                .where(UserAccount.id == installer.user_id)
+                .values(state="deactivated")
+            )
+        else:
+            connection.execute(
+                delete(UserAccessRole).where(UserAccessRole.user_account_id == installer.user_id)
+            )
+    with Session(owner) as session:
+        held = administrators(session)
+    assert held
+    assert installer.user_id not in held
+
+
+@pytest.mark.story("US-2960")
+@pytest.mark.usefixtures("installer_not_kept")
+def test_an_installation_administrator_the_copy_would_not_keep_stops_it_before_anything_changes(
+    owner: Engine,
+    database_url: str,
+    provider: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Proper to US-2960 (#4068): an installation administrator deactivated, or without its roles,
+    # in the backup would be anonymised, which the bootstrap refuses; the others kept would have
+    # no link, and nobody would enter the copy. Another administrator active, the command stops
+    # before it writes anything in either base, and says why and what to do.
+    before = (held_by_table(owner), held_by_table(provider))
+    capsys.readouterr()
+    assert _anonymize(monkeypatch, database_url, provider) == 1
+    error = capsys.readouterr().err
+    assert "installation administrator" in error
+    assert "restore a backup where it holds them" in error
+    assert (held_by_table(owner), held_by_table(provider)) == before
 
 
 @pytest.mark.story("US-2960")
