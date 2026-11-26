@@ -282,7 +282,13 @@ lot d'EP-13 ne touche ces fichiers :
 - #5015 — front : le parcours d'inactivité de `sign-in.spec.ts` ferme ses contextes hors d'un
   `finally` (le défaut de #3133), avec #5019 ;
 - #5019 — front : le premier parcours de `sign-in.spec.ts` asserte avant le `try` qui retire la
-  personne du fournisseur.
+  personne du fournisseur ;
+- #5052 — back : la réserve de partitions d'US-2830/L4, deux cas éprouvés par lecture seulement (la
+  prise concurrente d'un jeu que le remplissage supprime, les jeux incomplets sur plusieurs
+  parentes), et la complétion d'un jeu comparée à un jeu neuf ;
+- #5072 — front : les parcours contre le service ne citent pas tous la fonction de WF-INTF-0010-A
+  qu'ils jouent ; un contrôle constate que chacune a son parcours (la moitié restante de #4699,
+  dont FLX-07 est couvert par US-2990/L1).
 
 ## Conception
 
