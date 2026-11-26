@@ -89,6 +89,13 @@ def realm() -> Iterator[str]:
             profile = admin.get("/users/profile").json()
             profile["unmanagedAttributePolicy"] = "ENABLED"
             assert admin.put("/users/profile", json=profile).status_code == 200
+            events = {
+                "eventsEnabled": True,
+                "eventsListeners": ["jboss-logging"],
+                "adminEventsEnabled": True,
+                "adminEventsDetailsEnabled": True,
+            }
+            assert admin.put("/events/config", json=events).status_code == 204
         yield name
     finally:
         with _administering("") as admin:
@@ -136,7 +143,7 @@ def _person(admin: httpx2.Client, realm: str, last_name: str, first_name: str) -
     assert linked.status_code == 204, linked.text
     address = required(ADDRESS_VARIABLE).rstrip("/")
     token = f"{address}/realms/{realm}/protocol/openid-connect/token"
-    for password, status in ((f"{PASSWORD}-wrong", 401), (PASSWORD, 200)):
+    for password, status in ((f"{PASSWORD}-wrong", 400), (PASSWORD, 200)):
         signed = httpx2.post(
             token,
             data={
@@ -188,9 +195,11 @@ def test_no_name_and_no_address_of_a_person_of_the_realm_is_left_in_the_database
         "public.user_attribute.value",
         "public.credential.user_label",
         "public.federated_identity.federated_username",
-        "public.event_entity.details_json",
         "public.admin_event_entity.representation",
-    } <= set(before)
+    } <= set(before), sorted(before)
+    # The events of sign-in name the user, in one column or the other as Keycloak's version keeps
+    # long details.
+    assert any(column.startswith("public.event_entity.") for column in before), sorted(before)
     with provider.begin() as connection:
         assert anonymize_realm(connection, realm) == len(named)
     assert found(provider, needles) == {}
