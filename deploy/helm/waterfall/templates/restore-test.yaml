@@ -174,11 +174,13 @@ spec:
         # The authority of the test, made at each test, as compose.restore-test.yaml makes it: the
         # certificates of its PostgreSQL, its Keycloak and its API, for the loopback. The three
         # servers run as the user of the image waterfall, 1000, which makes them and reads the
-        # password, and owns each key: nothing in the pod runs as root (#4664).
+        # password, and owns each key: nothing in the pod runs as root (#4664). The authority gives the
+        # number of its group as of its user: with none, the pod runs it in the group 0, and the
+        # chown of a key to the group 1000 is refused it, its capabilities dropped.
         - name: restore-test-authority
           image: {{ include "waterfall.image" (list . "waterfall") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
-          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
+          {{- include "waterfall.containerSecurity" (dict "runAsUser" 1000 "runAsGroup" 1000) | nindent 10 }}
           command:
             - waterfall-authority
             - --provided=/restore-test-authority/none

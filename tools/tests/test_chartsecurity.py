@@ -113,7 +113,10 @@ def test_the_servers_of_the_test_of_a_restoration_own_their_keys_without_root(
     spec = pods["waterfall-restore-test"]
     initial = {container["name"]: container for container in spec["initContainers"]}
     authority = initial["restore-test-authority"]
-    assert "runAsUser" not in authority["securityContext"]
+    # Its group is named as its user is: the pod runs an image user in the group 0 otherwise, and
+    # the chown of a key to the group 1000 is refused it, its capabilities dropped.
+    assert authority["securityContext"]["runAsUser"] == 1000
+    assert authority["securityContext"]["runAsGroup"] == 1000
     assert [part for part in authority["command"] if part.startswith("restore-test-")] == [
         "restore-test-postgres:1000:1000",
         "restore-test-keycloak:1000:1000",
