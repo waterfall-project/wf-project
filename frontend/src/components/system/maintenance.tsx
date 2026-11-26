@@ -142,10 +142,18 @@ export function useRestorationPhase(taskId: string | undefined): RestorationPhas
   return phase;
 }
 
-/** The message of a restoration not done, by phase; the restoration waiting says `pending`. */
-const WAITING_KEY: Partial<Record<RestorationPhase["kind"], "maintenance" | "abandoned">> = {
-  maintenance: "maintenance",
-  abandoned: "abandoned",
+interface NoticeKeys {
+  readonly title: "title" | "doneTitle" | "abandonedTitle";
+  readonly message: "pending" | "maintenance" | "abandoned" | "done";
+}
+
+const WAITING_KEYS: NoticeKeys = { title: "title", message: "pending" };
+
+/** The title and the message of a restoration, by phase; the restoration waiting says `pending`. */
+const NOTICE_KEYS: Partial<Record<RestorationPhase["kind"], NoticeKeys>> = {
+  maintenance: { title: "title", message: "maintenance" },
+  abandoned: { title: "abandonedTitle", message: "abandoned" },
+  done: { title: "doneTitle", message: "done" },
 };
 
 /** Where the outcome of a restoration is read, and where the sign-in that follows it comes back. */
@@ -188,6 +196,7 @@ export function RestorationNotice({ phase }: { readonly phase: RestorationPhase 
   }
   const done = phase.kind === "done";
   const abandoned = phase.kind === "abandoned";
+  const keys = NOTICE_KEYS[phase.kind] ?? WAITING_KEYS;
   return (
     <section
       role="status"
@@ -200,11 +209,11 @@ export function RestorationNotice({ phase }: { readonly phase: RestorationPhase 
         ) : (
           <Wrench aria-hidden="true" className="size-5 shrink-0" />
         )}
-        {done ? t("doneTitle") : abandoned ? t("abandonedTitle") : t("title")}
+        {t(keys.title)}
       </h1>
       {done ? (
         <>
-          <p>{t("done")}</p>
+          <p>{t(keys.message)}</p>
           <SignIn reauthenticate />
         </>
       ) : (
@@ -215,7 +224,7 @@ export function RestorationNotice({ phase }: { readonly phase: RestorationPhase 
           ) : (
             <LoaderCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0 animate-spin" />
           )}
-          {t(WAITING_KEY[phase.kind] ?? "pending")}
+          {t(keys.message)}
         </p>
       )}
     </section>
