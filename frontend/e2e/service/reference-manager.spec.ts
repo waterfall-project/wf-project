@@ -200,10 +200,10 @@ test(
       await expect(natures.getByRole("row", { name: new RegExp(nature.code) })).toHaveCount(1, {
         timeout: WORKING,
       });
-      // The screen hydrated before the choice: a choice made before is lost, and one made again
-      // while the address is being read asks the server anew and abandons the read in flight — the
-      // server under load takes longer than the 2 s a retry waited (#5008). Chosen once, the
-      // address awaited for the delay of an action.
+      // The screen hydrated before the choice: a choice made before is lost. Chosen once, the
+      // address awaited for the delay of an action. Hypothesis, from the trace of run 45523807226
+      // (#5008): the GET took 3.2 to 5.3 s under load while a retried `choose()` replayed every
+      // 2 s, each replay perhaps starting a navigation that abandons the read in flight.
       await untilHydrated(page);
       await openFilters(page, page.getByRole("region", { name: "Catégories de coût" }));
       const filter = page.getByRole("combobox", { name: "Nature", exact: true });
@@ -259,7 +259,7 @@ test(
       await untilHydrated(page);
       const before = await labels.count();
       await add.click();
-      await expect(labels).toHaveCount(before + 1, { timeout: WORKING });
+      await expect(labels).toHaveCount(before + 1);
       await labels.last().fill(mapped);
       await page.getByRole("button", { name: "Enregistrer la correspondance" }).click();
       await expect(page.getByRole("status").filter({ hasText: "enregistrée" })).toHaveText(
