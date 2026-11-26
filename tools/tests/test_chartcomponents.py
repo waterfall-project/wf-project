@@ -71,7 +71,7 @@ def test_the_chart_declares_the_oldest_version_of_kubernetes_that_is_maintained(
 
 
 @pytest.mark.story("US-2850")
-def test_the_drain_of_the_pods_waits_by_the_native_action_sleep_of_the_hook() -> None:
+def test_the_drain_waits_by_the_native_sleep_of_the_hook_but_in_the_api_that_writes_its_file() -> None:
     objects = rendered()
     serving = [
         container
@@ -80,8 +80,10 @@ def test_the_drain_of_the_pods_waits_by_the_native_action_sleep_of_the_hook() ->
         if "lifecycle" in container
     ]
     assert len(serving) == 4
-    for container in serving:
-        assert container["lifecycle"] == {"preStop": {"sleep": {"seconds": 10}}}
+    native = {"preStop": {"sleep": {"seconds": 10}}}
+    # The API writes the file of its drain before the same wait (US-2850/L4, #5020): a shell, so no
+    # native action; the three others wait by the native action.
+    assert sorted(c["lifecycle"] == native for c in serving) == [False, True, True, True]
 
 
 def test_the_components_are_checked_before_the_migrations_by_the_image_of_waterfall() -> None:
