@@ -20,7 +20,9 @@
 #
 # The addresses are fixed, the services naming the sink by its address: two networks of 254
 # addresses under WATERFALL_ISOLATED_NETWORK, 10.213 unless set — 10.213.0.0/24 for the platform,
-# 10.213.2.0/24 for the storage —, which no other network of the machine may hold.
+# 10.213.2.0/24 for the storage —, which no other network of the machine may hold. The services that
+# run once and leave, which Docker no longer lists when the trial reads the names asked, keep an
+# address of their own, from .0.101 (wftools.production.ENDED): their request is named all the same.
 
 x-sink: &sink
   depends_on:
@@ -83,26 +85,70 @@ services:
   storage:
     <<: *sink
     dns: ["${WATERFALL_ISOLATED_NETWORK:-10.213}.2.53"]
-  authority: *resolved
-  door-authority: *resolved
+  authority:
+    <<: *resolved
+    networks:
+      default:
+        ipv4_address: ${WATERFALL_ISOLATED_NETWORK:-10.213}.0.101
+  door-authority:
+    <<: *resolved
+    networks:
+      default:
+        ipv4_address: ${WATERFALL_ISOLATED_NETWORK:-10.213}.0.102
   front-proxy: *resolved
   front: *resolved
-  postgres-volume: *resolved
+  postgres-volume:
+    <<: *resolved
+    networks:
+      default:
+        ipv4_address: ${WATERFALL_ISOLATED_NETWORK:-10.213}.0.103
   postgres: *resolved
-  waterfall-database: *resolved
-  service-database-role: *resolved
-  backup-database-role: *resolved
+  waterfall-database:
+    <<: *resolved
+    networks:
+      default:
+        ipv4_address: ${WATERFALL_ISOLATED_NETWORK:-10.213}.0.104
+  service-database-role:
+    <<: *resolved
+    networks:
+      default:
+        ipv4_address: ${WATERFALL_ISOLATED_NETWORK:-10.213}.0.107
+  backup-database-role:
+    <<: *resolved
+    networks:
+      default:
+        ipv4_address: ${WATERFALL_ISOLATED_NETWORK:-10.213}.0.108
   redis: *resolved
-  migrate: *resolved
-  components: *resolved
-  install: *resolved
+  migrate:
+    <<: *resolved
+    networks:
+      default:
+        ipv4_address: ${WATERFALL_ISOLATED_NETWORK:-10.213}.0.106
+  components:
+    <<: *resolved
+    networks:
+      default:
+        ipv4_address: ${WATERFALL_ISOLATED_NETWORK:-10.213}.0.105
+  install:
+    <<: *resolved
+    networks:
+      default:
+        ipv4_address: ${WATERFALL_ISOLATED_NETWORK:-10.213}.0.110
   api: *resolved
   worker: *resolved
   scheduler: *resolved
   restore: *resolved
   storage-proxy: *resolved
-  storage-buckets: *resolved
-  keycloak-database: *resolved
+  storage-buckets:
+    <<: *resolved
+    networks:
+      default:
+        ipv4_address: ${WATERFALL_ISOLATED_NETWORK:-10.213}.0.111
+  keycloak-database:
+    <<: *resolved
+    networks:
+      default:
+        ipv4_address: ${WATERFALL_ISOLATED_NETWORK:-10.213}.0.109
   keycloak: *resolved
   keycloak-realm: *resolved
   prometheus: *resolved

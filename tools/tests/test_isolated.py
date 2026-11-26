@@ -151,6 +151,7 @@ def test_every_service_resolves_through_the_sink_and_waits_for_it(
 
 
 def test_the_trial_runs_the_platform_isolated() -> None:
+    # Proper to US-3010: « la chaîne échoue sur toute tentative de connexion au-dehors ».
     assert production.FILES[-1] == ISOLATED
     command = production.compose_command("trial")
     assert command[-2:] == ["--file", str(ISOLATED)]
@@ -182,6 +183,7 @@ def test_the_trial_passes_when_no_name_out_of_the_platform_was_asked(
 
 
 def test_the_trial_fails_on_a_name_out_of_the_platform_naming_the_service() -> None:
+    # Proper to US-3010: « la chaîne échoue sur toute tentative de connexion au-dehors ».
     logs = Logs(
         "query 10.213.0.7 1 grafana.com\nquery 10.213.0.8 28 pool.ntp.org\n"
         "query 10.213.0.7 1 waterfall.localhost\n"
@@ -193,6 +195,30 @@ def test_the_trial_fails_on_a_name_out_of_the_platform_naming_the_service() -> N
         "trial-grafana-1 asked for grafana.com; 10.213.0.8 asked for pool.ntp.org"
     )
     assert logs.asked[1][3:5] == ["trial_default", "trial_storage"]
+
+
+def test_the_trial_names_a_service_that_ended_before_the_networks_were_read() -> None:
+    # Proper to US-3010: « la chaîne échoue sur toute tentative de connexion au-dehors ».
+    # migrate left the networks at the end of the trial: only its fixed address names it.
+    address = f"10.213.0.{production.FIRST_ENDED + production.ENDED.index('migrate')}"
+    logs = Logs(f"query {address} 28 pool.ntp.org\nquery 10.213.0.250 1 elsewhere.org\n")
+    with pytest.raises(ProductionError) as raised:
+        production.check_no_egress(["compose"], logs.read, "trial", "waterfall.localhost")
+    assert str(raised.value) == (
+        "a component tried to leave the network of the platform: "
+        "migrate (ended) asked for pool.ntp.org; 10.213.0.250 asked for elsewhere.org"
+    )
+
+
+@NO_DOCKER
+@UNEXECUTED
+def test_every_service_that_runs_once_keeps_the_fixed_address_that_names_it() -> None:
+    services = compose(PRODUCTION, LOCAL, ISOLATED)["services"]
+    once = {name for name, service in services.items() if service.get("restart") == "no"}
+    assert once == set(production.ENDED)
+    for place, name in enumerate(production.ENDED):
+        address = services[name]["networks"]["default"]["ipv4_address"]
+        assert address == f"10.213.0.{production.FIRST_ENDED + place}", name
 
 
 @NO_DOCKER

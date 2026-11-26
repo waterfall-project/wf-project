@@ -89,6 +89,24 @@ FILES = (
 )
 SINK = "egress-sink"
 """The service of ``compose.isolated.yaml`` that writes down every name asked from inside."""
+ENDED = (
+    "authority",
+    "door-authority",
+    "postgres-volume",
+    "waterfall-database",
+    "components",
+    "migrate",
+    "service-database-role",
+    "backup-database-role",
+    "keycloak-database",
+    "install",
+    "storage-buckets",
+)
+"""The services that run once and leave, by the order of their fixed address, from ``.0.101``.
+
+Docker no longer lists them when the trial reads the names asked, so ``compose.isolated.yaml``
+gives each an address of its own, and the request of a service that has ended is named by it."""
+FIRST_ENDED = 101
 DOMAIN = "waterfall.localhost"
 PROJECT = "waterfall-production-trial"
 ADMIN = "administrateur@waterfall.test"
@@ -445,11 +463,21 @@ def check_no_egress(compose: list[str], read: Read, project: str, domain: str) -
         read, ["docker", "network", "inspect", *networks, "--format", "{{json .Containers}}"]
     )
     named = containers_of(inspected)
-    said = "; ".join(
-        f"{named.get(attempt.client, attempt.client)} asked for {attempt.name}" for attempt in found
-    )
+    said = "; ".join(f"{who(named, attempt.client)} asked for {attempt.name}" for attempt in found)
     message = f"a component tried to leave the network of the platform: {said}"
     raise ProductionError(message)
+
+
+def who(named: dict[str, str], client: str) -> str:
+    """Name the client of a request: a container still on the networks, or a service that ended."""
+    if client in named:
+        return named[client]
+    host = client.rsplit(".", 1)[-1]
+    if client.split(".")[2:3] == ["0"] and host.isdigit():
+        place = int(host) - FIRST_ENDED
+        if 0 <= place < len(ENDED):
+            return f"{ENDED[place]} (ended)"
+    return client
 
 
 def containers_of(inspected: str) -> dict[str, str]:
