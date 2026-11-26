@@ -607,3 +607,14 @@ message = 'Exception ignored while finalizing socket <ssl\.SSLSocket'
 runs = [45100723995]
 frequency = "1 passage, le 2026-11-23 (45100723995, #4776)"
 cause = "hypothèse : une connexion TLS vers Keycloak laissée ouverte par un test précédent est finalisée pendant celui-ci"
+
+[[known]]
+class = "known flakiness"
+family = "le tri croissant de l'écran des sauvegardes lu avant ses lignes"
+issue = "#5005"
+job = "^service / paths"
+test = 'e2e/service/backup-schedule\.spec\.ts:\d+.*a backup taken is listed'
+message = 'backup-schedule\.spec\.ts:344'
+runs = [45750823183]
+frequency = "1 passage : 45750823183 (2026-11-26, pr-5001), d'`epic/EP-13`"
+cause = "hypothèse : après le passage au tri croissant, la grille est lue avant ses lignes ; seul l'en-tête `aria-sort` est attendu"
