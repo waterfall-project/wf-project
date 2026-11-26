@@ -78,6 +78,8 @@ jobs:
     env:
       # The platform lives for the job and is reachable from the runner alone: development values,
       # visible, named as such, as the secrets of a workstation would be (keycloak.yml).
+      # Keycloak's image is loaded, which Compose must not build again (make load-keycloak, #4790).
+      WATERFALL_KEYCLOAK_LOADED: "1"
       WATERFALL_POSTGRES_PASSWORD: chainonlypostgres
       WATERFALL_SERVICE_DATABASE_PASSWORD: chainonlyservice
       WATERFALL_BACKUP_DATABASE_PASSWORD: chainonlybackup
@@ -136,9 +138,15 @@ jobs:
             [ "$attempt" = 4 ] || sleep 20
           done
           exit 1
-      # Keycloak's image built from the cache first: the build of the platform by Compose, on the same
-      # builder, finds it there, where it would otherwise compile its extension again.
-      - run: make build-keycloak
+      # Keycloak's image, built once by the job keycloak-image of ci.yml and loaded here, not built
+      # (#4790): no part downloads anything from Maven Central.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: keycloak-image
+          path: ${{ runner.temp }}
+      - run: make load-keycloak
+        env:
+          KEYCLOAK_ARCHIVE: ${{ runner.temp }}/keycloak-image.tar
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: front-build

@@ -46,8 +46,8 @@ DEFAULTED = re.compile(r"^\$\{(WATERFALL_[A-Z0-9_]+):-([^}]*)\}$")
 
 
 def services(path: Path = PRODUCTION) -> dict[str, Any]:
-    """Read the services of a Compose file."""
-    return yaml.safe_load(path.read_text(encoding="utf-8"))["services"]
+    """Read the services of a Compose file, its `!reset` tag (keycloak-loaded) cleared."""
+    return yaml.safe_load(path.read_text(encoding="utf-8").replace("!reset", ""))["services"]
 
 
 def environment(service: str, path: Path = PRODUCTION) -> dict[str, str]:
