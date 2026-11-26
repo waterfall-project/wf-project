@@ -106,8 +106,11 @@ def test_a_check_of_the_database_that_fails_releases_it_and_the_error_comes_out(
     def dispose(database: Database) -> None:
         released.append(database)
 
+    def keep_logs(*arguments: object, **keywords: object) -> None:
+        del arguments, keywords
+
     # The logs stay those of the fixture: main would point them at the error output of the test.
-    monkeypatch.setattr(restore_main, "configure_logging", lambda *arguments, **keywords: None)
+    monkeypatch.setattr(restore_main, "configure_logging", keep_logs)
     monkeypatch.setattr(restore_main, "database_accepted", broken)
     monkeypatch.setattr(Database, "dispose", dispose)
     with pytest.raises(RuntimeError, match="the check broke"):
