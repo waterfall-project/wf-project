@@ -652,3 +652,15 @@ message = 'assert 503 == 200'
 runs = [45783848620]
 frequency = "1 passage : 45783848620 (2026-11-26, palier rapide de la pull request #5001, vers `epic/EP-13`)"
 cause = "hypothèse : après la reprise de la base, la sonde de `/api/v1/health/ready` lit encore une connexion ou un état d'avant l'arrêt, et le test n'attend pas sa reprise"
+
+# L'export PNG de la matrice des risques, dont le téléchargement n'arrive pas dans la file (#5028).
+[[known]]
+class = "known flakiness"
+family = "export PNG de la matrice des risques"
+issue = "#5028"
+job = '^service / paths'
+test = 'e2e/risks\.spec\.ts:235\b'
+message = 'Timeout 1000ms exceeded while waiting for event "download"'
+runs = [45791694546]
+frequency = "1 passage, le 2026-11-26 (45791694546, file d'`epic/EP-13`, pr-5024)"
+cause = "hypothèse : le rendu PNG de la matrice dépasse la seconde que chaque essai du `toPass` donne au téléchargement, et chaque nouveau clic relance un export qui n'aboutit pas"
