@@ -255,6 +255,16 @@ describe("the return of the sign-in", () => {
     expect(sessionCookieOf(returned)).toBeDefined();
   });
 
+  it("checks the return before it filters the outdated one: a return said outdated with a wrong issuer is refused, not led to the screen aimed at [WF-SEC-0020-A] (#3070)", async () => {
+    const { address, cookie } = await start("/projects");
+    const returning = new URL(outdated(address), "http://front:3000");
+    returning.searchParams.set("iss", "https://intruder.test/realms/waterfall");
+    // The wrong issuer is refused by the exchange, which throws: no redirect, the screen aimed at
+    // is not led to.
+    await expect(back(returning.search, cookie)).rejects.toThrow("invalid response encountered");
+    expect(realm.codes).toEqual([]);
+  });
+
   it("asks nothing of the realm for an error in the return", async () => {
     const { address, cookie } = await start("/projects");
     const state = new URL(address).searchParams.get("state") ?? "";
