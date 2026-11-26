@@ -27,6 +27,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import parse_qs, urlencode, urljoin, urlsplit
 from uuid import uuid4
@@ -83,6 +84,15 @@ EXTENSION_ACTION = "waterfall-password-setup"
 TEST_CLIENT = "waterfall-test"
 # A mail server on a port of the container of Keycloak where nothing listens.
 UNREACHABLE_MAIL_SERVER = {"host": "127.0.0.1", "port": "9", "from": "waterfall@waterfall.test"}
+# The extension, built against the version of Keycloak of the image, which its pom.xml says.
+EXTENSION_POM = Path(__file__).resolve().parents[2] / "deploy/keycloak/extension/pom.xml"
+
+
+def image_version() -> str:
+    """Give the version of Keycloak the image runs, as the pom.xml of the extension says it."""
+    found = re.search(r"<keycloak\.version>([^<]+)</keycloak\.version>", EXTENSION_POM.read_text())
+    assert found is not None, EXTENSION_POM
+    return found.group(1)
 
 
 def required(variable: str) -> str:
@@ -172,6 +182,15 @@ def administering() -> Generator[httpx2.Client]:
     The service account may read the settings of the realm, not change them, nor read its clients.
     """
     address = required(ADDRESS_VARIABLE).rstrip("/")
+    headers = {"Authorization": f"Bearer {master_admin_token()}"}
+    base = f"{address}/admin/realms/{REALM}"
+    with httpx2.Client(base_url=base, headers=headers, timeout=30) as client:
+        yield client
+
+
+def master_admin_token() -> str:
+    """Obtain a token of the administrator of the realm ``master``, who applies the realm."""
+    address = required(ADDRESS_VARIABLE).rstrip("/")
     response = httpx2.post(
         f"{address}/realms/master/protocol/openid-connect/token",
         data={
@@ -183,10 +202,7 @@ def administering() -> Generator[httpx2.Client]:
         timeout=30,
     )
     assert response.status_code == 200, response.text
-    headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
-    base = f"{address}/admin/realms/{REALM}"
-    with httpx2.Client(base_url=base, headers=headers, timeout=30) as client:
-        yield client
+    return cast("str", response.json()["access_token"])
 
 
 @pytest.fixture(scope="module")
@@ -486,6 +502,46 @@ def test_a_token_without_the_role_of_the_extension_gets_no_link_nor_invitation(
     assert (response.status_code, response.json()) == (403, {"error": "not_allowed"})
     invitation = invite(backchannel, local_account.id, token)
     assert (invitation.status_code, invitation.json()) == (403, {"error": "not_allowed"})
+
+
+def version_of(backchannel: httpx2.Client, token: str | None) -> httpx2.Response:
+    """Ask the extension for the version of Keycloak, as the probe of the service does."""
+    headers = {} if token is None else {"Authorization": f"Bearer {token}"}
+    return backchannel.get("/server-version", headers=headers)
+
+
+def test_the_service_account_reads_the_version_of_keycloak(
+    backchannel: httpx2.Client, service_token: str
+) -> None:
+    # #4641: the version of the image, which the administration API gives the service account not.
+    response = version_of(backchannel, service_token)
+    assert (response.status_code, response.json()) == (200, {"version": image_version()})
+
+
+def test_a_caller_without_a_token_of_the_realm_gets_no_version(
+    backchannel: httpx2.Client,
+) -> None:
+    # Nor the administrator of the realm master: their token is not one of the realm of Waterfall.
+    for token in (None, "not-a-token", master_admin_token()):
+        response = version_of(backchannel, token)
+        assert (response.status_code, response.json()) == (401, {"error": "not_authenticated"})
+
+
+def test_a_token_without_the_role_of_the_service_account_gets_no_version(
+    keycloak: httpx2.Client,
+    backchannel: httpx2.Client,
+    admin: httpx2.Client,
+    installation_token: str,
+    local_account: Account,
+) -> None:
+    # A person of the realm, and another client of the realm, which holds a role of the extension
+    # but not that of the service account.
+    set_password(admin, local_account.id, PASSWORD)
+    signed_in = password_grant(keycloak, local_account, PASSWORD)
+    assert signed_in.status_code == 200, signed_in.text
+    for token in (signed_in.json()["access_token"], installation_token):
+        response = version_of(backchannel, token)
+        assert (response.status_code, response.json()) == (403, {"error": "not_allowed"})
 
 
 def test_a_link_is_valid_one_hour_and_the_next_one_invalidates_it(

@@ -482,22 +482,38 @@ def test_the_metrics_expose_no_project_data_identity_nor_secret(
 
 @pytest.mark.requirement("WF-CMP-0020-A")
 def test_the_api_announces_its_version_and_that_of_each_component_its_probe_reads(
-    platform: MakePlatform,
+    platform: MakePlatform, realm: TestRealm
 ) -> None:
     # « L'écran d'état présente la version de chaque composant. » : the metrics the screen reads
-    # give it — the API its own, PostgreSQL and Redis the one their probe reads, one down none.
-    read = platform().collect()
-    announced = {
-        dict(labelled)["component"]: dict(labelled)["version"]
-        for (name, labelled), _ in read.items()
-        if name == COMPONENT_VERSION
-    }
+    # give it — the API its own, PostgreSQL, Redis and Keycloak the one their probe reads, one down
+    # none. Keycloak's is given by the extension to the service account (#4641), which the realm of
+    # test plays here and ``test_keycloak_component_version`` tries against Keycloak.
+    realm.version = "26.8.2"
+    announced = versions_in(platform().collect())
     assert announced["api"] == __version__
     assert announced["database"].split(".")[0] == "18"
     assert announced["cache"]
-    assert "database" not in {
-        dict(labelled)["component"]
-        for (name, labelled), _ in platform("database").collect().items()
+    assert announced["identity_provider"] == "26.8.2"
+    assert "database" not in versions_in(platform("database").collect())
+
+
+@pytest.mark.story("US-2890")
+def test_a_version_of_keycloak_not_given_leaves_it_available_without_a_version(
+    platform: MakePlatform,
+) -> None:
+    # Proper to US-2890: the realm of test answers neither the token of the service account nor the
+    # version, as a Keycloak without the extension; it serves its keys, and is available all the
+    # same, its version not said rather than a wrong one.
+    read = platform().collect()
+    assert value(read, COMPONENT_UP, component="identity_provider") == 1
+    assert "identity_provider" not in versions_in(read)
+
+
+def versions_in(read: Samples) -> dict[str, str]:
+    """Give the version each component announces in the metrics read, by component."""
+    return {
+        dict(labelled)["component"]: dict(labelled)["version"]
+        for (name, labelled), _ in read.items()
         if name == COMPONENT_VERSION
     }
 

@@ -51,7 +51,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from waterfall.platform.database import OBSERVATION_SECONDS, bound_lock_waits, utc_now
 from waterfall.platform.errors import UnavailableError
-from waterfall.platform.keycloak import expect
+from waterfall.platform.keycloak import IdentityProviderError, expect
 from waterfall.platform.logs import get_logger
 from waterfall.platform.maintenance import abandoned_held
 from waterfall.platform.storage import MissingObjectError
@@ -66,6 +66,7 @@ if TYPE_CHECKING:
 
     from waterfall.platform.database import Database
     from waterfall.platform.keycloak import Keycloak
+    from waterfall.platform.keycloak_admin import KeycloakAdmin
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.storage import Bucket
     from waterfall.platform.tasks import Outcome
@@ -359,9 +360,18 @@ def _health(component: str, answer: Future[Any], checked_at: datetime) -> Health
 
 
 def probes_of(
-    database: Database, queue: TaskQueue, bucket: Bucket, keycloak: Keycloak
+    database: Database,
+    queue: TaskQueue,
+    bucket: Bucket,
+    keycloak: Keycloak,
+    administration: KeycloakAdmin,
 ) -> dict[str, Probe]:
-    """Give the probe of each component the API depends on, in the order of ``PROBED``."""
+    """Give the probe of each component the API depends on, in the order of ``PROBED``.
+
+    Keycloak answers when it serves the keys of the realm; its version is then read from the
+    extension, as the service account (#4641). A version that cannot be read is not said, and leaves
+    Keycloak available: its keys, which every request needs, are served.
+    """
 
     def database_probe() -> str | None:
         with database.transaction() as session:
@@ -376,8 +386,13 @@ def probes_of(
     def storage_probe() -> None:
         bucket.reach()
 
-    def identity_provider_probe() -> None:
+    def identity_provider_probe() -> str | None:
         expect(keycloak.send("GET", f"{keycloak.protocol}/certs"), 200)
+        try:
+            return administration.server_version()
+        except (UnavailableError, IdentityProviderError) as fault:
+            logger.warning("probe.version_unread", component="identity_provider", fault=str(fault))
+            return None
 
     return {
         "database": database_probe,
