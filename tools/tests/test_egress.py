@@ -251,9 +251,13 @@ class Network:
             time.sleep(0.5)
 
     def run(self, role: str, *arguments: str, resolved: bool = True) -> str:
-        """Start a container on the network, resolving through the sink; give its name."""
+        """Start a container on the network, resolving through the sink; give its name.
+
+        No search domain, as the isolated Compose: else the container inherits the host's — a
+        runner's — and asks each name it does not find again with that domain after it.
+        """
         name = f"{self.name}-{role}"
-        dns = ("--dns", self.address) if resolved else ()
+        dns = ("--dns", self.address, "--dns-search", ".") if resolved else ()
         started = docker(
             "run", "--detach", "--name", name, "--network", self.name, *dns, *arguments
         )
@@ -378,7 +382,5 @@ def test_grafana_left_to_its_defaults_is_caught_asking_for_grafana_com(
     found = network.asked()
     assert found
     assert {attempt.client for attempt in found} == {network.address_of(grafana)}
-    # Each name is Grafana's: grafana.com or a subdomain, or grafana.com followed by a search domain
-    # of the host's resolver (a runner's), which the container tries before the name alone.
     names = [attempt.name for attempt in found]
-    assert all(f".{name}.".find(".grafana.com.") >= 0 for name in names), names
+    assert all(name == "grafana.com" or name.endswith(".grafana.com") for name in names), names

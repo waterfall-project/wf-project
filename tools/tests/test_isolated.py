@@ -150,6 +150,19 @@ def test_every_service_resolves_through_the_sink_and_waits_for_it(
     assert set(compose(PRODUCTION, LOCAL)["services"]) <= resolved
 
 
+@NO_DOCKER
+@UNEXECUTED
+def test_every_service_that_resolves_has_no_search_domain_to_add_after_a_name(
+    isolated: dict[str, Any],
+) -> None:
+    # The host's search domain, a runner's, would follow a name not found — keycloak while it
+    # restarts — and the sink would name keycloak.<domain>, a server outside that was never asked.
+    services = isolated["services"]
+    for name, service in services.items():
+        if name not in {SINK, DOOR}:
+            assert service.get("dns_search") == ["."], name
+
+
 def test_the_trial_runs_the_platform_isolated() -> None:
     # Proper to US-3010: « la chaîne échoue sur toute tentative de connexion au-dehors ».
     assert production.FILES[-1] == ISOLATED

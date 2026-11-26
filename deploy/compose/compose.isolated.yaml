@@ -28,6 +28,9 @@ x-sink: &sink
   depends_on:
     egress-sink:
       condition: service_healthy
+  # No search domain: else Docker gives each container the host's, and a name not found — a service
+  # restarting — is asked again followed by it, a name the sink would count as one outside.
+  dns_search: ["."]
 x-resolved: &resolved
   <<: *sink
   dns: ["${WATERFALL_ISOLATED_NETWORK:-10.213}.0.53"]
