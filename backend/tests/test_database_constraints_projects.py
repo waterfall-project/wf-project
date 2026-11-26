@@ -63,7 +63,16 @@ TABLES: tuple[type[Base], ...] = (
     Revision,
     CostStructure,
 )
-STAMPED = (Project, Subproject, WorkPackage, OrderItem, Deliverable, Revision, CostStructure)
+STAMPED = (
+    Project,
+    Contributor,
+    Subproject,
+    WorkPackage,
+    OrderItem,
+    Deliverable,
+    Revision,
+    CostStructure,
+)
 COUNTED = (Project, Subproject, Revision, CostStructure)
 
 type Refusal = tuple[type[Base], dict[str, object], str]
