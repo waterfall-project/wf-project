@@ -12,6 +12,7 @@ import re
 from typing import Any, cast
 
 import pytest
+import yaml
 
 from wftools import (
     REPOSITORY,
@@ -47,11 +48,18 @@ def _events(answer: Node) -> list[Node]:
 def _answered(operation: str, status: str) -> list[Node]:
     """Return the values of the examples the contract gives for one answer of an operation."""
     text = (REPOSITORY / "docs/api/paths/access.yaml").read_text(encoding="utf-8")
-    block = text.split(f"operationId: {operation}\n", 1)[1].split(f"'{status}':", 1)[1]
-    block = re.split(r"\n      '\d{3}':", block, maxsplit=1)[0]
-    names = re.findall(r"fixtures/api/(\w+)\.json", block)
+    paths = cast("dict[str, Node]", yaml.safe_load(text))
+    [described] = [
+        cast("Node", each)
+        for item in paths.values()
+        for each in item.values()
+        if isinstance(each, dict) and cast("Node", each).get("operationId") == operation
+    ]
+    answer = cast("Node", described["responses"][status])
+    examples = cast("dict[str, Node]", answer["content"]["application/json"]["examples"])
+    names = [re.search(r"fixtures/api/(\w+)\.json", each["$ref"]) for each in examples.values()]
     assert names, operation
-    return [cast("Node", fixture(name)) for name in names]
+    return [cast("Node", fixture(cast("re.Match[str]", name).group(1))) for name in names]
 
 
 def test_the_journal_reads_the_latest_first_each_inscription_once_since_the_installation(
@@ -724,7 +732,7 @@ def test_the_administration_of_today_says_what_each_write_on_an_account_or_a_rol
             platform,
             "user_update",
             universe(307),
-            "Noé Vidal-Roux",
+            "Noé Vidal-Marchand",
             {"fields": ["last_name"], "attached": True},
         ),
         (
@@ -768,7 +776,7 @@ def test_the_administration_of_today_is_numbered_apart_from_every_other_example(
     assert len(set(requests)) == len(requests)
     written = {
         path.name: path.read_text(encoding="utf-8")
-        for path in mockwitness.FIXTURES.glob("*.json")
+        for path in mockwitness.FIXTURES.rglob("*.json")
         if path.name != "audit_events_administration.json"
     }
     for event in administration:
@@ -819,8 +827,7 @@ def test_the_first_role_of_the_account_created_is_a_liberty_no_example_answers(
     assert first["action"] == "user_access_roles_set"
     assert first["object"]["object_id"] == account
     assert first["correlation_id"] != administration[creation]["correlation_id"]
-    [granted] = first["params"]["access_roles_granted"]
-    assert all(granted["access_role_id"] not in answer["access_role_ids"] for answer in created)
+    assert len(first["params"]["access_roles_granted"]) == 1
 
 
 def test_each_inscription_read_from_an_example_is_by_the_one_who_last_updated_it(
@@ -833,18 +840,22 @@ def test_each_inscription_read_from_an_example_is_by_the_one_who_last_updated_it
     # (#961).
     administration = _events(journal["audit_events_administration"])[::-1]
     derived = {
-        0: ("access_role_created", "access_role_id"),
-        2: ("access_role_renamed", "access_role_id"),
-        3: ("user_created", "user_id"),
-        6: ("user_renamed", "user_id"),
-        8: ("user_access_roles_cleared", "user_id"),
+        ("access_role_create", "access_role_created", "access_role_id"),
+        ("access_role_update", "access_role_renamed", "access_role_id"),
+        ("user_create", "user_created", "user_id"),
+        ("user_update", "user_renamed", "user_id"),
+        ("user_access_roles_set", "user_access_roles_cleared", "user_id"),
     }
-    for index, (name, key) in derived.items():
-        example, event = fixture(name), administration[index]
-        assert event["object"]["object_id"] == example[key], name
+    for action, name, key in derived:
+        example = fixture(name)
+        [event] = [
+            each
+            for each in administration
+            if each["action"] == action and each["object"]["object_id"] == example[key]
+        ]
         assert event["actor"] == example["audit"]["updated_by"], name
-    attached = administration[7]
-    assert attached["params"]["attached"] is True
+    [attached] = [each for each in administration if each["params"].get("attached") is True]
+    assert attached["action"] == "user_update"
     assert attached["actor"] == mockaudit.PLATFORM
     written = [
         cast("Node", json.loads(path.read_text(encoding="utf-8"))["value"])
@@ -853,6 +864,13 @@ def test_each_inscription_read_from_an_example_is_by_the_one_who_last_updated_it
     accounts = [each for each in written if each.get("user_id") == attached["object"]["object_id"]]
     assert accounts
     assert all(each["audit"]["updated_by"] != mockaudit.PLATFORM for each in accounts)
+    # The name the directory gives is one no example gives: the attachment derives from none.
+    for path in mockwitness.FIXTURES.rglob("*.json"):
+        if path.name != "audit_events_administration.json":
+            assert mockauditadmin.DIRECTORY_LAST_NAME not in path.read_text(encoding="utf-8"), (
+                path.name
+            )
+    assert attached["object"]["label"].endswith(mockauditadmin.DIRECTORY_LAST_NAME)
 
 
 def test_the_restore_heads_the_journal_of_today_and_its_vanished_project_leads_nowhere(

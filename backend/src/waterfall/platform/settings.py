@@ -247,7 +247,17 @@ class Settings(PlatformSettings):
         ]
 
 
-class KeycloakSettings(PlatformSettings):
+class RealmSettings(PlatformSettings):
+    """The realm of the installation, whose accounts a backup counts and its test counts again.
+
+    The one place the default realm is written (#4662): the backup, the test of a restoration and
+    the processes that reach Keycloak all read ``keycloak_realm`` from here.
+    """
+
+    keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
+
+
+class KeycloakSettings(RealmSettings):
     """What a process that reaches Keycloak reads besides.
 
     ``keycloak_address`` is where the browser reaches Keycloak, which names the issuer of every
@@ -258,7 +268,6 @@ class KeycloakSettings(PlatformSettings):
 
     keycloak_address: str = Field(min_length=1, pattern="^https?://")
     keycloak_backchannel: str | None = Field(default=None, min_length=1, pattern="^https?://")
-    keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
     service_client_secret: SecretStr = Field(min_length=1)
 
     def transport_faults(self) -> list[str]:
@@ -517,6 +526,9 @@ class ApiSettings(ServiceSettings):
     alone; neither, in HTTP, as on the workstation. ``metrics_port`` is a port of its own where it
     serves its metrics over HTTP, and nothing else (``getMetrics``, TFX-09): none by default, and
     then they are served on the port of the API alone.
+    ``drain_file`` is the file whose presence says the instance is being stopped: from then on,
+    each answer closes its connection (``waterfall.api.drain``, US-2850); none by default, as on
+    the workstation, where nothing drains.
     ``prometheus_address`` is where it reaches the query API of Prometheus, for the status screen
     (TFX-14): in ``https://``, the certificate checked against ``tls_authority``, when an authority
     is given (US-2840); none by default, and then the screen says the metrics unavailable. The
@@ -532,6 +544,7 @@ class ApiSettings(ServiceSettings):
     metrics_port: Annotated[
         Annotated[int, Field(ge=1, le=65535)] | None, BeforeValidator(_none_when_empty)
     ] = None
+    drain_file: Annotated[str | None, BeforeValidator(_none_when_empty)] = None
     prometheus_address: Annotated[
         Annotated[str, Field(pattern="^https?://")] | None, BeforeValidator(_none_when_empty)
     ] = None
@@ -589,7 +602,21 @@ def _served_pair(certificate: str, key: str) -> None:
         raise ValueError(message) from error
 
 
-class ScheduleSettings(Settings):
+class ReserveSettings(PlatformSettings):
+    """What the worker and the schedule both read: the size of the reserve of partitions (#4801).
+
+    ``partition_reserve_size`` is how many sets of partitions the worker keeps made in advance for
+    the projects to come, three by default, nought to inhibit the reserve (the filling then does
+    nothing, the taking finds none and every creation makes its own partitions): a creation takes
+    one with no DDL, and makes its own — waiting for a marking that runs — only when the reserve is
+    empty (US-2830/L4). The worker fills
+    the reserve up to it, and the schedule deposits the filling when the reserve holds fewer.
+    """
+
+    partition_reserve_size: int = Field(default=3, ge=0)
+
+
+class ScheduleSettings(Settings, ReserveSettings):
     """What ``waterfall-worker schedule`` reads: the database and Redis, nothing else (TFX-10).
 
     ``purge_interval`` is how long the platform waits between two purges of what expired, ten
@@ -611,7 +638,7 @@ class ScheduleSettings(Settings):
     restore_test_interval: int = Field(default=2_592_000, ge=1)
 
 
-class WorkerSettings(ServiceSettings):
+class WorkerSettings(ServiceSettings, ReserveSettings):
     """What the worker reads besides: the two databases a backup dumps, as the role of the backup.
 
     ``metrics_port`` is where it serves its metrics, on the address of ``host`` (WF-OBS-0010).
@@ -706,7 +733,7 @@ class RestoreSettings(ServiceSettings):
     realm_requests: str = Field(min_length=1)
 
 
-class RestoreTestSettings(StorageSettings):
+class RestoreTestSettings(StorageSettings, RealmSettings):
     """What the test of a restoration reads, ``waterfall-restore test`` (WF-EXP-0060, US-2930).
 
     ``database_url`` designates the database of Waterfall of the production, as the role of the
@@ -727,7 +754,6 @@ class RestoreTestSettings(StorageSettings):
     restore_test_authority: Roots = None
     restore_test_restored_file: str = Field(min_length=1)
     restore_test_patience: int = Field(default=1800, ge=1)
-    keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
 
     def transport_faults(self) -> list[str]:
         """Add the API of the ephemeral platform, which must be reached in ``https://``."""

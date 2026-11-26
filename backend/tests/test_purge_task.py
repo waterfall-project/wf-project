@@ -19,22 +19,28 @@ from task_handlers import deposit, task
 from waterfall.core.backups.tables import Backup
 from waterfall.core.users.tables import IdentitySyncReport
 from waterfall.platform.database import utc_now
+from waterfall.platform.errors import UnavailableError
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.settings import load_worker_settings
 from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import LIFETIME, FileUpload, Whole, object_key_of, record_whole
 from waterfall.worker import purge as purge_module
-from waterfall.worker.purge import PurgeTask
+from waterfall.worker.purge import ARCHIVE_DELAY, PurgeTask
 from waterfall.worker.runner import Timing, Worker
 from waterfall.worker.schedule import every
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from support import Logs
+
     from waterfall.platform.database import Database
     from waterfall.platform.queue import TaskQueue
 
 UNDO = timedelta(hours=12)
 THIRTY_DAYS = timedelta(days=30)
+COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
 
 
 def purge_run(
@@ -254,7 +260,10 @@ def test_the_purge_task_deletes_the_deposit_expired_and_its_object_once_it_is_co
     with database.transaction() as session:
         assert session.get(FileUpload, upload_id) is None
     ran = task(database, purged)
-    assert (ran.status, ran.result) == ("succeeded", {"objects": 1, "deposits": 0, "tasks": 0})
+    assert (ran.status, ran.result) == (
+        "succeeded",
+        {"objects": 1, "deposits": 0, "tasks": 0, "archives": 0},
+    )
 
 
 @pytest.mark.requirement("WF-DAT-0120-A")
@@ -346,3 +355,133 @@ def test_the_purge_task_removes_the_history_older_than_the_retention_it_is_given
     purge_run(database, queue, backups_bucket)
     ((before, now),) = called
     assert now - before == UNDO
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+@pytest.mark.story("US-2940")
+def test_the_purge_task_removes_the_archive_of_a_backup_no_row_names_once_it_is_older_than_a_day(
+    database: Database,
+    queue: TaskQueue,
+    private_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A bucket of its own: the one of the worker holds the archives other tests took, which no row
+    # of this database names and which the clock moved ahead would sweep.
+    # Propre à US-2940 (#4679) : an archive left without its row — the validation of the task
+    # failed, or its worker died after the upload — is swept past ``ARCHIVE_DELAY``; a younger one
+    # may be about to be named, and a named one stays whatever its age.
+    stray, named = f"backup-{uuid4()}.tar", f"backup-{uuid4()}.tar"
+    for key in (stray, named):
+        private_bucket.put(key, b"archive")
+    with database.transaction() as session:
+        session.execute(
+            insert(Backup).values(
+                id=uuid4(),
+                taken_at=utc_now(),
+                size_bytes=7,
+                verification="passed",
+                origin="scheduled",
+                is_retained=False,
+                object_key=named,
+                application_version="test",
+                schema_revision="0048",
+                task_id=ended_task(database, utc_now()),
+            )
+        )
+    young = purge_run(database, queue, private_bucket)
+    assert private_bucket.size(stray) is not None
+    assert task(database, young).result == {
+        "objects": 0,
+        "deposits": 0,
+        "tasks": 0,
+        "archives": 0,
+    }
+    monkeypatch.setattr(purge_module, "utc_now", lambda: utc_now() + ARCHIVE_DELAY * 2)
+    old = purge_run(database, queue, private_bucket)
+    assert private_bucket.size(stray) is None
+    assert private_bucket.size(named) is not None
+    assert (task(database, old).result or {})["archives"] == 1
+
+
+def left_archives(bucket: Bucket, count: int) -> list[str]:
+    """Put ``count`` archives no row names in the bucket; give their keys."""
+    keys = [f"backup-{uuid4()}.tar" for _ in range(count)]
+    for key in keys:
+        bucket.put(key, b"archive")
+    return keys
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+@pytest.mark.story("US-2940")
+def test_the_purge_task_sweeps_no_more_archives_than_its_limit_and_the_next_pass_the_rest(
+    database: Database,
+    queue: TaskQueue,
+    private_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # #4679: the sweep of the archives is bounded; what exceeds the limit is for the next pass.
+    monkeypatch.setattr(purge_module, "ARCHIVES_LIMIT", 2)
+    keys = left_archives(private_bucket, 3)
+    monkeypatch.setattr(purge_module, "utc_now", lambda: utc_now() + ARCHIVE_DELAY * 2)
+    first = purge_run(database, queue, private_bucket)
+    assert (task(database, first).result or {})["archives"] == 2
+    assert sum(private_bucket.size(key) is not None for key in keys) == 1
+    second = purge_run(database, queue, private_bucket)
+    assert (task(database, second).result or {})["archives"] == 1
+    assert all(private_bucket.size(key) is None for key in keys)
+
+
+def unavailable(*_: Any, **__: Any) -> Any:
+    """Stand for a storage that does not answer."""
+    raise UnavailableError(COMPONENT_UNAVAILABLE, {"component": "object_storage"})
+
+
+def unlisted_archives(listing: Callable[..., list[str]]) -> Callable[..., list[str]]:
+    """Give a listing that fails for the archives of the backups alone, the others untouched."""
+
+    def listed(prefix: str, *args: Any) -> list[str]:
+        if prefix == purge_module.ARCHIVES_PREFIX:
+            return unavailable()
+        return listing(prefix, *args)
+
+    return listed
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+@pytest.mark.story("US-2940")
+def test_a_purge_task_whose_storage_cannot_list_the_archives_succeeds_and_sweeps_none(
+    database: Database,
+    queue: TaskQueue,
+    private_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+    logs: Logs,
+) -> None:
+    # #4679: the storage out of reach is logged, and no reason to fail the task.
+    key = left_archives(private_bucket, 1)[0]
+    listing = unlisted_archives(private_bucket.keys_before)
+    monkeypatch.setattr(private_bucket, "keys_before", listing)
+    monkeypatch.setattr(purge_module, "utc_now", lambda: utc_now() + ARCHIVE_DELAY * 2)
+    purged = purge_run(database, queue, private_bucket)
+    assert task(database, purged).status == "succeeded"
+    assert (task(database, purged).result or {})["archives"] == 0
+    assert len(logs.named("purge.archives_unlisted")) == 1
+    assert private_bucket.size(key) is not None
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+@pytest.mark.story("US-2940")
+def test_a_purge_task_whose_removal_of_an_archive_fails_succeeds_and_logs_the_key(
+    database: Database,
+    queue: TaskQueue,
+    private_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+    logs: Logs,
+) -> None:
+    # #4679: an archive that cannot be removed stays for the next pass, and the task is done.
+    key = left_archives(private_bucket, 1)[0]
+    monkeypatch.setattr(private_bucket, "remove", unavailable)
+    monkeypatch.setattr(purge_module, "utc_now", lambda: utc_now() + ARCHIVE_DELAY * 2)
+    purged = purge_run(database, queue, private_bucket)
+    assert task(database, purged).status == "succeeded"
+    assert [record["key"] for record in logs.named("purge.archive_not_removed")] == [key]
+    assert private_bucket.size(key) is not None

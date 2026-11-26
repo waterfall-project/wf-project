@@ -3248,7 +3248,8 @@ its side; a failure of the chain is therefore reproduced by the same command.
 | `make lint-chart` | checks the chart (`deploy/helm/waterfall`) by `helm lint --strict`, with the values of the chain (`wftools.chart`, US-2800) |
 | `make test-chart` | renders the chart by Helm and asserts what its objects say, against the production Compose: the distinct deployments, the API and the worker multiplied by a value, the services, the ingress, the secret and the volumes, the hooks, the CronJobs, the same images and the same files, `HOSTNAME` set for the front (#826); the tests of the marker `chart`, which `make test-tools` leaves out |
 | `make chart-trial` | installs the chart on a throwaway kind cluster, `WATERFALL_CHART_CLUSTER` (`waterfall-chart-s<slot>`), with Traefik for the ingress, from the images of the tag `WATERFALL_IMAGE_TAG` — the commit by default, `make images` first —, under `waterfall.localhost` on a free port of the loopback; asserts that the installation succeeds, its hooks included — migrations, realm, bootstrap —, that the liveness probe of the API answers and that the first administrator signs in, by the functions of `wftools.production`, then deletes the cluster (`wftools.charttrial`); a heavy run, which waits for its turn |
-| `make check-chart` | the `chart` family: `lint-chart` and `test-chart` at every tier; at the full tier, `make images`, without a push, then `make chart-trial` |
+| `make chart-upgrade` | upgrades the chart under load, on a throwaway kind cluster of its own (`waterfall-upgrade-s<slot>`): installs the version N — the last published version that carries the chart, or else `BASE` or its nearest first parent whose images are published, its chart extracted from the commit —, upgrades it to the branch (images of `WATERFALL_IMAGE_TAG`, `make images` first), rolls back to N, then upgrades again; under requests of the first administrator none of which may fail, asserts the migrations before the instances, no pod of PostgreSQL, Redis or the storage restarted, the rollback on the schema of N+1 and no migration run twice; without a base that carries the chart, declares itself not executed (`wftools.chartupgrade`, US-2850); a heavy run |
+| `make check-chart` | the `chart` family: `lint-chart` and `test-chart` at every tier; at the full tier, `make images`, without a push, then `make chart-trial` and `make chart-upgrade` |
 | `make mirror`                                                           | checks that ghcr.io holds, by their digest, the images of Docker Hub the files name behind the mirror; `PUSH=yes` copies those that are missing (`wftools.mirror`, « The chain »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `make mirror-sync`                                                      | copies the manifest of the images of Docker Hub, `deploy/images/Dockerfile`, which Dependabot follows, into the `Dockerfile`s, the Compose files and the workflows, tag and digest, without touching the prefix of the mirror, YAML anchors included; run again, it changes nothing; fails naming what the copy does not settle (an image absent from the manifest, a manifest line nothing uses or malformed; `wftools.mirror sync`, « The chain »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
@@ -3862,7 +3863,10 @@ strictly and `make test-chart` renders it by Helm and holds its objects against 
 at the full tier only, `make check-chart` builds the three images like `images.yml`, without pushing
 them, then installs the chart on a cluster of kind made for the trial, bootstraps it, asserts the
 liveness probe of the API, that Keycloak's console and the `master` realm are not served, and lets
-the first administrator in (`make chart-trial`, `wftools.charttrial`). Helm, kind and kubectl are
+the first administrator in (`make chart-trial`, `wftools.charttrial`); then, on a cluster of its
+own, upgrades the version N to these images under load, rolls back and upgrades again (`make
+chart-upgrade`, `wftools.chartupgrade`, US-2850), from the base of the pull request or of the
+queue, which `chart.yml` passes it (`BASE`). Helm, kind and kubectl are
 downloaded at the versions and digests that `wftools.kubetools` pins.
 
 The families, the paths that wake them, the generated paths and those of the tests are
@@ -5048,14 +5052,17 @@ she creates and takes In progress, she declares a risk, prices its own estimate 
 reviews it, declares it occurred — the task of the worker followed to its success —, prepares an
 amendment and contractualises it, the merge making its revision the reference. The gestures of the
 amendment (`prepare`, `contractualise`) are those of `amendment-flow.ts`, which
-`amendment-service.spec.ts` plays too. The paths of FBS-4.1 to 4.9 and of FLX-01 to FLX-06 all play against the service, in the same run
+`amendment-service.spec.ts` plays too. The paths of FBS-4.1 to 4.9 and of FLX-01 to FLX-07 all play against the service, in the same run
 (`make e2e-service`), each in its file: FBS-4.1 `revision-cycle.spec.ts` and `pricing.spec.ts`; 4.2
 `projects.spec.ts`; 4.3, FLX-01 and FLX-02 `planning-service.spec.ts` and `exchanges.spec.ts`; 4.4
 `pricing.spec.ts`; 4.5 `remaining.spec.ts`; 4.6 `service/project-manager-risks.spec.ts`; 4.7
 `actual-costs.spec.ts`; 4.8 `service/project-manager-indicators.spec.ts`; 4.9 `revision-cycle.spec.ts`
-and `projects.spec.ts`; FLX-03 to FLX-06 `exchanges.spec.ts`. FLX-07 has no screen played: the
-extraction of the actual costs is imported through the API (`importActualCosts`, `in-progress.ts`), the
-screen being the object of issue #4699. EP-08 left no `inService` guard to lift in these lists: those
+and `projects.spec.ts`; FLX-03 to FLX-06 `exchanges.spec.ts`; FLX-07 `service/actual-costs-import.spec.ts` (the extraction of the
+actual costs deposited by the screen of the exchanges, in two steps, `analyseActualCosts` and `applyReport`
+of `in-progress.ts`, which the screen plays; the paths that write them without making them their object
+import them through the API, `importActualCosts`). Each cites its flow, and each of the three paths of
+WF-QUA-0050-A (project manager, manager, administrator) its own, in the title of the test.
+EP-08 left no `inService` guard to lift in these lists: those
 that remain, and the EPICs that lift them, are those of the list below.
 
 The two readers of a project (`service/project-readers.spec.ts`, WF-ADM-0040-A) play against the
@@ -5648,7 +5655,9 @@ its parameters, never a sentence.
   or stripped of all its roles once the write is committed, `createPasswordSetupLink`, which has the
   link made by the extension and records it in the log, without its token, only once done,
   `updateMyPreferences`, which gives the chosen language to the account at Keycloak before writing
-  it and writes nothing as long as it does not answer — does not take `Transaction`, but opens its
+  it and writes nothing as long as it does not answer, `updateUser`, which carries the identity of a
+  local account to Keycloak between two short transactions (check, `carry_identity`, write) and
+  undoes it (`restore_identity`) if the write is refused — does not take `Transaction`, but opens its
   own before and after the call. An absent or invalid token is a 401 `SESSION_REQUIRED`, an expired
   token a 401 `SESSION_EXPIRED`, a token whose login (`auth_time`, failing that `iat`) precedes the
   last closing of the sessions of the account, or falls within its second, a 401 `SESSION_REVOKED` —
@@ -5968,6 +5977,13 @@ advisory lock queues them. The command stops, with the name of the variable, if
 **A single head.** Two migrations that start from the same parent form two heads: the second to
 be merged is rebased on the first and takes the next number. The test of the chain fails
 on two heads.
+
+**A table partitioned by project.** A migration that partitions a new table by the identifier
+of a project creates the partition of the projects that exist, as `0031`, `0035` and `0044` do,
+and that of the sets of the reserve too (`project_partition_reserve`, migration `0055`,
+US-2830/L4): a set that lacks a partition is never taken, and the creation of a project then falls
+back on the synchronous creation of its partitions, which waits for a marking under way.
+`tests/test_migration_partition_reserve.py` checks it: a set made at `0055` is whole at the head.
 
 **The rows the migration writes.** The catalogue of permissions, for instance, is a
 data migration, separate from that of the schema. The rows of the installation, for their part, are

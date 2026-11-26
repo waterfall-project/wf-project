@@ -3267,7 +3267,8 @@ commande.
 | `make lint-chart` | contrôle le chart (`deploy/helm/waterfall`) par `helm lint --strict`, avec les valeurs de la chaîne (`wftools.chart`, US-2800) |
 | `make test-chart` | rend le chart par Helm et affirme ce que ses objets disent, contre le Compose de production : les déploiements distincts, la multiplication de l'API et du worker par une valeur, les services, l'ingress, le secret et les volumes, les crochets, les CronJobs, les mêmes images et les mêmes fichiers, `HOSTNAME` posé pour le front (#826) ; les tests du marqueur `chart`, que `make test-tools` écarte |
 | `make chart-trial` | installe le chart sur un cluster kind jetable, `WATERFALL_CHART_CLUSTER` (`waterfall-chart-s<créneau>`), avec Traefik pour l'ingress, à partir des images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit par défaut, `make images` d'abord —, sous `waterfall.localhost` sur un port libre de la boucle locale ; affirme que l'installation aboutit, ses crochets compris — migrations, royaume, amorçage —, que la sonde de vie de l'API répond et que le premier administrateur se connecte, par les fonctions de `wftools.production`, puis supprime le cluster (`wftools.charttrial`) ; une exécution lourde, qui attend son tour |
-| `make check-chart` | la famille `chart` : `lint-chart` et `test-chart` à chaque palier ; au palier complet, `make images`, sans poussée, puis `make chart-trial` |
+| `make chart-upgrade` | met à jour le chart sous charge, sur un cluster kind jetable à lui (`waterfall-upgrade-s<créneau>`) : installe la version N — la dernière version publiée qui porte le chart, à défaut `BASE` ou son plus proche premier parent dont les images sont publiées, son chart extrait du commit —, la met à jour vers la branche (images de `WATERFALL_IMAGE_TAG`, `make images` d'abord), revient à N, puis remet à jour ; sous des requêtes du premier administrateur dont aucune ne doit échouer, affirme les migrations avant les instances, aucun pod de PostgreSQL, de Redis ou du stockage redémarré, le retour arrière sur le schéma de N+1 et aucune migration rejouée ; sans base qui porte le chart, se déclare non exécuté (`wftools.chartupgrade`, US-2850) ; une exécution lourde |
+| `make check-chart` | la famille `chart` : `lint-chart` et `test-chart` à chaque palier ; au palier complet, `make images`, sans poussée, puis `make chart-trial` et `make chart-upgrade` |
 | `make mirror`                                                           | vérifie que ghcr.io tient, par leur empreinte, les images de Docker Hub que les fichiers nomment derrière le miroir ; `PUSH=yes` copie celles qui manquent (`wftools.mirror`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `make mirror-sync`                                                      | recopie le manifeste des images de Docker Hub, `deploy/images/Dockerfile`, que Dependabot suit, dans les `Dockerfile`, les fichiers Compose et les workflows, étiquette et empreinte, sans toucher au préfixe du miroir, ancres YAML comprises ; relancée, elle ne change rien ; échoue en nommant ce que la recopie ne règle pas (image absente du manifeste, ligne du manifeste inutilisée ou mal formée ; `wftools.mirror sync`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
@@ -3892,7 +3893,10 @@ et `make test-chart` le rend par Helm et tient ses objets contre `compose.prod.y
 complet seulement, `make check-chart` construit les trois images comme `images.yml`, sans les
 pousser, puis installe le chart sur un cluster de kind fait pour l'essai, l'amorce, affirme la sonde
 de vie de l'API, que la console de Keycloak et le royaume `master` ne sont pas servis, et laisse
-entrer le premier administrateur (`make chart-trial`, `wftools.charttrial`). Helm, kind et kubectl
+entrer le premier administrateur (`make chart-trial`, `wftools.charttrial`) ; puis, sur un cluster à
+lui, met à jour sous charge la version N vers ces images, revient en arrière et remet à jour
+(`make chart-upgrade`, `wftools.chartupgrade`, US-2850), à partir de la base de la pull request ou
+de la file, que `chart.yml` lui passe (`BASE`). Helm, kind et kubectl
 sont téléchargés aux versions et aux empreintes que `wftools.kubetools` épingle.
 
 Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
@@ -5099,14 +5103,17 @@ et porte En cours, il déclare un risque, chiffre son devis propre (une tâche e
 réexamine, le déclare survenu — la tâche du worker suivie jusqu'à sa réussite —, prépare un avenant
 et le contractualise, la fusion faisant de sa révision la référence. Les gestes de l'avenant
 (`prepare`, `contractualise`) sont ceux d'`amendment-flow.ts`, que rejoue aussi
-`amendment-service.spec.ts`. Les parcours de FBS-4.1 à 4.9 et de FLX-01 à FLX-06 se jouent tous
+`amendment-service.spec.ts`. Les parcours de FBS-4.1 à 4.9 et de FLX-01 à FLX-07 se jouent tous
 contre le service, dans la même course (`make e2e-service`), chacun dans son fichier : FBS-4.1
 `revision-cycle.spec.ts` et `pricing.spec.ts` ; 4.2 `projects.spec.ts` ; 4.3, FLX-01 et FLX-02
 `planning-service.spec.ts` et `exchanges.spec.ts` ; 4.4 `pricing.spec.ts` ; 4.5 `remaining.spec.ts` ;
 4.6 `service/project-manager-risks.spec.ts` ; 4.7 `actual-costs.spec.ts` ; 4.8
 `service/project-manager-indicators.spec.ts` ; 4.9 `revision-cycle.spec.ts` et `projects.spec.ts` ;
-FLX-03 à FLX-06 `exchanges.spec.ts`. FLX-07 n'a pas son écran joué : l'extraction des coûts réels
-s'importe par l'API (`importActualCosts`, `in-progress.ts`), l'écran étant l'objet de l'issue #4699.
+FLX-03 à FLX-06 `exchanges.spec.ts` ; FLX-07 `service/actual-costs-import.spec.ts` (l'extraction
+des coûts réels déposée par l'écran des échanges, en deux temps, `analyseActualCosts` et
+`applyReport` d'`in-progress.ts`, que joue l'écran ; les parcours qui écrivent sans en faire leur objet
+l'importent par l'API, `importActualCosts`). Chacun cite son flux, et chacun des trois parcours
+de WF-QUA-0050-A (chef de projet, manager, administrateur) le sien, dans le titre du test.
 EP-08 n'a laissé aucune garde `inService` à lever dans ces listes : celles qui restent, et les
 EPIC qui les lèvent, sont celles de la liste ci-dessous.
 
@@ -5770,7 +5777,9 @@ ses paramètres, jamais une phrase.
   privé de tous ses rôles une fois l'écriture validée, `createPasswordSetupLink`, qui fait faire le
   lien par l'extension et ne l'inscrit au journal, sans son jeton, qu'une fois fait,
   `updateMyPreferences`, qui donne la langue choisie au compte chez Keycloak avant de l'écrire et
-  n'écrit rien tant qu'il ne répond pas — ne prend pas `Transaction`, mais ouvre les siennes avant
+  n'écrit rien tant qu'il ne répond pas, `updateUser`, qui reporte chez Keycloak l'identité d'un
+  compte local entre deux transactions courtes (vérifier, `carry_identity`, écrire) et la défait
+  (`restore_identity`) si l'écriture est refusée — ne prend pas `Transaction`, mais ouvre les siennes avant
   et après l'appel. Un jeton absent ou invalide est
   un 401 `SESSION_REQUIRED`, un jeton expiré un 401 `SESSION_EXPIRED`, un jeton dont la
   connexion (`auth_time`, à défaut `iat`) précède la dernière fermeture des sessions du compte, ou
@@ -6097,6 +6106,13 @@ verrou consultatif les met à la queue. La commande s'arrête, avec le nom de la
 **Une seule tête.** Deux migrations qui partent du même parent forment deux têtes : la seconde à
 être fusionnée se rebase sur la première et prend le numéro suivant. Le test de la chaîne échoue
 sur deux têtes.
+
+**Une table partitionnée par projet.** Une migration qui partitionne une table nouvelle par
+l'identifiant d'un projet crée la partition des projets qui existent, comme `0031`, `0035` et
+`0044`, et aussi celle des jeux de la réserve (`project_partition_reserve`, migration `0055`,
+US-2830/L4) : un jeu à qui il manque une partition n'est jamais pris, et la création d'un projet
+retombe alors sur la création synchrone de ses partitions, qui attend un marquage en cours.
+`tests/test_migration_partition_reserve.py` le vérifie : un jeu fait en `0055` est entier à la tête.
 
 **Les lignes que la migration écrit.** Le catalogue des permissions, par exemple, est une
 migration de données, séparée de celle du schéma. Les lignes de l'installation, elles, sont

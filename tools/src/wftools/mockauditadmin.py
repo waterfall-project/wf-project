@@ -58,7 +58,7 @@ WITHDRAWN = ("cost_settings.write", "resource_settings.write")
 of the catalogue: those of the writing of the settings of costs and resources, which it holds."""
 
 
-DIRECTORY_LAST_NAME = "Vidal-Roux"
+DIRECTORY_LAST_NAME = "Vidal-Marchand"
 """The last name the directory gives the person whose address Noé Vidal holds, which the
 attachment of the administration gives his account: a liberty of that variant (#707, #961)."""
 

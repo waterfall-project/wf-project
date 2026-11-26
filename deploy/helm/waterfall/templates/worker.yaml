@@ -42,6 +42,8 @@ spec:
               value: {{ .Values.worker.backgroundTaskRetentionDays | quote }}
             - name: WATERFALL_UNKNOWN_KIND_WAIT_SECONDS
               value: {{ .Values.worker.unknownKindWaitSeconds | quote }}
+            - name: WATERFALL_PARTITION_RESERVE_SIZE
+              value: {{ .Values.worker.partitionReserveSize | quote }}
             - name: WATERFALL_BACKUP_DATABASE_URL
               value: {{ include "waterfall.databaseUrl" (list . "waterfall_backup" "$(WATERFALL_BACKUP_DATABASE_PASSWORD)" "waterfall") | quote }}
             - name: WATERFALL_KEYCLOAK_DATABASE_URL

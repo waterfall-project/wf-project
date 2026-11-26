@@ -41,8 +41,18 @@ def test_a_request_that_ends_on_the_account_of_the_administrator_is_not_a_failur
         (Answer(502, (), "bad gateway"), "answered 502"),
         (Answer(503, (), ""), "answered 503"),
         (Answer(200, (), "<main>somebody else</main>"), "does not name the first administrator"),
+        (
+            Answer(200, (), "<title>Compte &#x2014; indisponible</title><main></main>"),
+            f"administrator: {PLATFORM.address}/account, 'Compte — indisponible'",
+        ),
+        (
+            Answer(
+                200, (), '<title>Compte</title><script>{\\"digest\\":\\"WATERFALL_X\\"}</script>'
+            ),
+            "'Compte', digest WATERFALL_X",
+        ),
     ],
-    ids=["502", "503", "another account"],
+    ids=["502", "503", "another account", "a page that says what it is", "an error streamed"],
 )
 def test_a_request_that_does_not_end_on_the_account_is_a_failure_that_says_why(
     answer: Answer, said: str

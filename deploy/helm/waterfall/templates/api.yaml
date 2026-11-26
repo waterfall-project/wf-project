@@ -53,9 +53,12 @@ spec:
           image: {{ include "waterfall.image" (list . "waterfall") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
           {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
-          {{- include "waterfall.drain" . | nindent 10 }}
+          {{- include "waterfall.drainClosing" . | nindent 10 }}
           env:
             {{- include "waterfall.backEnvironment" (list . "service") | nindent 12 }}
+            # The file the drain writes once the pod is ending (waterfall.drainClosing).
+            - name: WATERFALL_DRAIN_FILE
+              value: /tmp/waterfall-draining
             {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}
             {{- include "waterfall.storageEnvironment" . | nindent 12 }}
             - name: WATERFALL_INDICATORS_CACHE_TTL

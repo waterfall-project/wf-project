@@ -34,9 +34,10 @@ def rotate(session: Session, retained_count: int) -> list[str]:
     the failure is represented. The mark is judged again by the deletion: a backup marked meanwhile
     survives it.
 
-    This deviates deliberately from the letter of WF-ADM-0170-A ("the oldest backups not marked
-    beyond the retention"), which counted the failed ones: with a retention of seven and seven
-    failures newer than a good backup, the last restorable one would go.
+    This is the rule of WF-ADM-0170-A as the specification states it (1.0.8, #4401): the retention
+    counts the backups verified alone, the failed ones go before any other, and the last backup
+    verified is never deleted — with a retention of seven and seven failures newer than a good
+    backup, the last restorable one stays.
     """
     unmarked = ~Backup.is_retained
     passed = Backup.verification == "passed"

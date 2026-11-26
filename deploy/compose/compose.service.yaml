@@ -234,6 +234,8 @@ services:
       WATERFALL_BACKGROUND_TASK_RETENTION_DAYS: ${WATERFALL_BACKGROUND_TASK_RETENTION_DAYS:-30}
       # How long a task of a kind it does not run waits for a newer worker, then fails (#809).
       WATERFALL_UNKNOWN_KIND_WAIT_SECONDS: ${WATERFALL_UNKNOWN_KIND_WAIT_SECONDS:-3600}
+      # How many sets of partitions it keeps made for the projects to come (US-2830/L4).
+      WATERFALL_PARTITION_RESERVE_SIZE: ${WATERFALL_PARTITION_RESERVE_SIZE:-3}
     command: ["waterfall-worker"]
     restart: unless-stopped
     depends_on:
@@ -261,6 +263,7 @@ services:
       <<: *back-environment
       WATERFALL_SCHEDULE_INTERVAL: ${WATERFALL_SCHEDULE_INTERVAL:-300}
       WATERFALL_PURGE_INTERVAL: ${WATERFALL_PURGE_INTERVAL:-600}
+      WATERFALL_PARTITION_RESERVE_SIZE: ${WATERFALL_PARTITION_RESERVE_SIZE:-3}
     init: true
     command:
       - sh
