@@ -9,7 +9,7 @@ reads ``WATERFALL_DATABASE_URL`` and ``WATERFALL_KEYCLOAK_DATABASE_URL``, the ow
 databases, and ``WATERFALL_KEYCLOAK_REALM``, the realm of the installation; a setting that lacks
 stops it at start, named (2).
 
-It applies the migrations, then anonymises, in one transaction for each database:
+It anonymises each database in one transaction, the provider's first:
 
 - **the identity provider's**, which is not a module of Waterfall and is read in its tables, as the
   backup counts them (``worker.inventory``): every person of the realm — the accounts of service of
@@ -18,9 +18,9 @@ It applies the migrations, then anonymises, in one transaction for each database
   external provider or to the directory, her credentials and her consents; she is disabled. The
   events of the realm, of sign-in and of administration, which copy names and addresses, and its
   sessions, are deleted. A table that the version of Keycloak does not have is passed over;
-- **Waterfall's**: every account anonymised at once, by the rules of the anonymisation of one
-  account, and the journal of audit forgets their names (``anonymize_every_account``, WF-ADM-0060,
-  WF-SEC-0030).
+- **Waterfall's**, the migrations applied first: every account anonymised at once, by the rules of
+  the anonymisation of one account, and the journal of audit forgets their names
+  (``anonymize_every_account``, WF-ADM-0060, WF-SEC-0030).
 
 The amounts, the projects and their dates stay: only the accounts designate persons. Run again, it
 changes nothing more and succeeds: a run that failed halfway is run again. A realm the database of

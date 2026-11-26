@@ -20,8 +20,15 @@ from sqlalchemy import insert, or_, select, text
 from sqlalchemy.orm import Session
 from support import raw_account
 
-from waterfall.core.users.interface import SkippedPerson, SyncReport, record_report
-from waterfall.core.users.tables import IdentitySyncReport, UserAccount
+from waterfall.core.users.interface import (
+    Skipped,
+    SkippedAccount,
+    SkippedPerson,
+    SyncReport,
+    latest_report,
+    record_report,
+)
+from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditActor, AuditEntry, AuditObject, Inscription, record
 from waterfall.platform.logs import logging_context
 from waterfall.platform.tasks import BackgroundTask
@@ -47,6 +54,8 @@ PERSONS = (
 # A person of the provider a reading left without an account, and a local account it removed.
 LEFT = ("Ostrogradsky", "Philomène", "philomene.ostrogradsky@entreprise.example")
 REMOVED = "orphelin.desmarais@entreprise.example"
+# An account of Waterfall the reading left, named by its identifier alone.
+ACCOUNT_LEFT = SkippedAccount(UUID("0b4c2a3e-7d51-4f0e-9c6a-2f8e1d3b5a70"), "LAST_ADMINISTRATOR")
 # A person of another realm, which the anonymisation does not touch.
 ELSEWHERE = ("Ailleurs", "Personne", "personne.ailleurs@autre.example")
 # The tables of the identity provider the stand-in holds, with the columns of Keycloak's.
@@ -203,7 +212,8 @@ def _report(connection: Connection) -> None:
     )
     with _session(connection) as session:
         person = SkippedPerson("kc-left", LEFT[0], LEFT[1], LEFT[2], "EMAIL_MISSING")
-        record_report(session, SyncReport(task_id, AT, 0, 0, 0, 0, [person], [REMOVED]))
+        skipped: list[Skipped] = [person, ACCOUNT_LEFT]
+        record_report(session, SyncReport(task_id, AT, 1, 2, 3, 4, skipped, [REMOVED]))
         session.commit()
 
 
@@ -360,7 +370,12 @@ def test_every_account_is_anonymised_and_the_journal_forgets_them_the_rest_kept(
             )
         ).all()
         assert named == []
-        assert session.scalars(select(IdentitySyncReport.task_id)).all() == []
+        # The report keeps its counts and what names no person; the person left and the address
+        # removed go.
+        report = latest_report(session)
+        assert report is not None
+        assert (report.created, report.updated, report.deactivated, report.restored) == (1, 2, 3, 4)
+        assert (report.skipped, report.removed) == ([ACCOUNT_LEFT], [])
     with owner.connect() as connection:
         assert _journal_but_labels(connection) == journal
 

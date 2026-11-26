@@ -14,18 +14,19 @@ knows it by with it: its acts stay attributed to it. A restoration that brings b
 the backup held it, before its anonymisation, anonymises it again (#988).
 
 A copy of the production is anonymised whole before it is opened elsewhere: every account at once,
-by the platform, out of any session, its reports of the readings of the accounts with it
-(WF-EXP-0010, US-2960).
+by the platform, out of any session, and the persons the reports of the readings of the accounts
+name with them (WF-EXP-0010, US-2960).
 """
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import delete, func, literal, select, update
+from sqlalchemy import func, literal, select, update
 
 from waterfall.core.users.accounts import Stamp, change_columns, lock_account_at
 from waterfall.core.users.commands import DEACTIVATED_CONDITION, anonymized
 from waterfall.core.users.identity import LOCAL, inscribe, inscribed_actor
-from waterfall.core.users.tables import IdentitySyncReport, UserAccount
+from waterfall.core.users.provider import forget_reported_persons
+from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import (
     Act,
     AuditEntry,
@@ -158,10 +159,10 @@ def anonymize_every_account(session: Session, at: datetime) -> int:
     null, each one deactivated and its sessions closed as of ``at``, and the journal forgets their
     names, as their authors and as their objects (WF-EXP-0010, WF-SEC-0030). An account anonymised
     already keeps its date. Nothing is inscribed: the copy is not the platform the journal tells.
-    The reports of the readings of the accounts go too: they name the persons of the provider the
-    readings left, and the addresses they removed (#918, #811). Every account is locked first, in
-    the order of their identifiers, then the lock of the forgetting taken, as one anonymisation
-    takes them.
+    The reports of the readings of the accounts forget what names a person: those the provider
+    held and a reading left, and the addresses it removed (#918, #811). Every account is locked
+    first, in the order of their identifiers, then the lock of the forgetting taken, as one
+    anonymisation takes them.
     """
     held = session.scalars(select(UserAccount.id).order_by(UserAccount.id).with_for_update()).all()
     # GREATEST passes over a null: an account never signed out is closed as of ``at``.
@@ -182,5 +183,5 @@ def anonymize_every_account(session: Session, at: datetime) -> int:
         .execution_options(synchronize_session=False)
     ).all()
     forget_accounts(session, held)
-    session.execute(delete(IdentitySyncReport))
+    forget_reported_persons(session)
     return len(named)

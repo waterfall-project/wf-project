@@ -528,3 +528,23 @@ def latest_report(session: Session) -> SyncReport | None:
         [_read(each) for each in row.skipped],
         row.removed,
     )
+
+
+def forget_reported_persons(session: Session) -> None:
+    """Withdraw from every report what names a person: those left, and the addresses removed.
+
+    For a copy of the production anonymised (US-2960): a person the provider held and a reading
+    left is kept with her names and her address (#918), and a local account removed by its address
+    (#811). Their entries go; an account of Waterfall, named by its identifier alone, and a person
+    whose address an account bore, by her subject alone, stay (#920), and so do the counts.
+    """
+    reports = session.execute(
+        select(IdentitySyncReport.task_id, IdentitySyncReport.skipped).with_for_update()
+    ).all()
+    for task_id, skipped in reports:
+        unnamed = [each for each in skipped if each.get("last_name") is None]
+        session.execute(
+            update(IdentitySyncReport)
+            .where(IdentitySyncReport.task_id == task_id)
+            .values(skipped=unnamed, removed=[])
+        )
