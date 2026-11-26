@@ -55,7 +55,7 @@ class DeliveredResponse(StreamingResponse):
     Starlette runs the background task of a response after the stream whatever became of the
     connection: with the ASGI ``spec_version`` below 2.4, a ``http.disconnect`` cancels the stream
     and the task still runs. So the end is watched here, whatever the version: the last message
-    (``more_body`` false) was accepted by the server, and no ``http.disconnect`` was received. The
+    (``more_body`` false) was handed to the server, and no ``http.disconnect`` was received. The
     ``chunks`` are closed on every path: whole, cut, or failed.
     """
 
@@ -79,9 +79,16 @@ class DeliveredResponse(StreamingResponse):
 
         async def watched_send(message: Message) -> None:
             nonlocal ended
-            await send(message)
-            if message["type"] == "http.response.body" and not message.get("more_body", False):
-                ended = True
+            last = message["type"] == "http.response.body" and not message.get("more_body", False)
+            # The last message is held delivered as it is handed to the server: the client of a
+            # relay leaves as soon as it has the last byte, and its ``http.disconnect`` can be read
+            # while this ``send`` is still pending (#4985). A send that fails did not hand it over.
+            ended = ended or last
+            try:
+                await send(message)
+            except Exception:
+                ended = False
+                raise
 
         try:
             await super().__call__(scope, watched_receive, watched_send)

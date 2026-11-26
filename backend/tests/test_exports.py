@@ -373,6 +373,29 @@ def test_the_stream_of_a_download_is_closed_on_every_path_and_delivered_only_who
 
 
 @pytest.mark.requirement("WF-DAT-0120-A")
+def test_a_client_that_leaves_at_the_last_byte_has_had_its_download_delivered() -> None:
+    # #4985: the relay of the front closes as soon as it has the last byte; its ``http.disconnect``
+    # is read while the ``send`` of the last message is pending, and the file was handed over.
+    chunks = Chunks()
+    calls: list[int] = []
+    response = DeliveredResponse(cast("ObjectStream", chunks), lambda: calls.append(1))
+    last_byte = asyncio.Event()
+
+    async def receive() -> Message:
+        await last_byte.wait()
+        return {"type": "http.disconnect"}
+
+    async def send(message: Message) -> None:
+        if message["type"] == "http.response.body" and not message.get("more_body"):
+            last_byte.set()
+            await asyncio.sleep(0.1)
+
+    asyncio.run(response(stream_scope("/x", {}, "2.3"), receive, send))
+    assert chunks.closed >= 1
+    assert calls == [1]
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
 @pytest.mark.usefixtures("trial")
 def test_an_export_whose_object_is_gone_is_a_result_that_does_not_exist(
     api: ContractClient, stage: Scene, worker: Worker, backups_bucket: Bucket
