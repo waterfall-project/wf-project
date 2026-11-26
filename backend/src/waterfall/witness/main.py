@@ -12,7 +12,8 @@ the structured logs. Run again on a platform that holds the witness, it writes n
 saying so.
 
 The command ``waterfall-api`` starts here: ``load-witness`` loads, ``load-reference`` loads the
-witness then the reference set (``reference_load``, US-2950), anything else is the bootstrap's,
+witness then the reference set (``reference_load``, US-2950), ``check-reference`` checks it
+(``reference_check``), anything else is the bootstrap's,
 which passes on to the API what is not its own.
 """
 
@@ -33,7 +34,7 @@ from waterfall.platform.identifiers import drawn_in_order
 from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
 from waterfall.platform.settings import SettingsError, WitnessSettings, load_witness_settings
-from waterfall.witness import reference_load
+from waterfall.witness import reference_check, reference_load
 from waterfall.witness.description import Witness
 from waterfall.witness.loader import load_slices
 
@@ -55,6 +56,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments[:1] == [reference_load.COMMAND]:
         return reference_load.main(arguments[1:], lambda: main([COMMAND]))
+    if arguments[:1] == [reference_check.COMMAND]:
+        return reference_check.main(arguments[1:])
     if arguments != [COMMAND]:
         return bootstrap.main(arguments)
     try:
