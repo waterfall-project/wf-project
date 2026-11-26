@@ -293,9 +293,38 @@ def test_the_command_states_its_version_without_checking_anything(
     assert capsys.readouterr().out == f"{NAME} {waterfall.__version__}\n"
 
 
-def test_any_argument_but_the_version_is_refused(capsys: pytest.CaptureFixture[str]) -> None:
-    assert components_check.main(["--now"]) == 2
-    assert capsys.readouterr().err.startswith(f"usage: {NAME} [--version]\n")
+@pytest.mark.parametrize(
+    "arguments",
+    [["--now"], ["--component"], ["--component", "storage"], ["redis"], ["--component=redis"]],
+)
+def test_any_argument_but_the_version_and_the_components_is_refused(
+    capsys: pytest.CaptureFixture[str], arguments: list[str]
+) -> None:
+    assert components_check.main(arguments) == 2
+    assert capsys.readouterr().err.startswith(f"usage: {NAME} [--version | [--component ")
+
+
+@pytest.mark.requirement("WF-CMP-0020-A")
+def test_the_components_named_are_the_only_ones_checked_and_none_named_checks_every_one(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], process_database_url: str
+) -> None:
+    # At an installation the chart reaches PostgreSQL alone: its Redis and its Keycloak are not
+    # there yet, and a check that went to them would fail an installation that is sound.
+    monkeypatch.setenv("WATERFALL_DATABASE_URL", process_database_url)
+    monkeypatch.setenv("WATERFALL_REDIS_URL", "redis://:secret-redis@127.0.0.1:9/0")
+    monkeypatch.setenv("WATERFALL_KEYCLOAK_ADDRESS", "http://127.0.0.1:9/auth")
+    monkeypatch.setenv("WATERFALL_SERVICE_CLIENT_SECRET", Keycloak.phrase)
+    assert components_check.main(["--component", "postgresql"]) == 0
+    said = capsys.readouterr()
+    assert said.out.startswith(f"{NAME}: PostgreSQL 18 ")
+    assert "Redis" not in said.out + said.err
+    assert components_check.main(["--component", "redis", "--component", "keycloak"]) == 1
+    error = capsys.readouterr().err
+    assert "Redis does not answer" in error
+    assert "Keycloak does not answer" in error
+    assert "PostgreSQL" not in error
+    assert components_check.main([]) == 1
+    assert "PostgreSQL" not in capsys.readouterr().err
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")
