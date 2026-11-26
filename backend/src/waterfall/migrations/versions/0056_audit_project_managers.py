@@ -27,7 +27,7 @@ lock of the table without reading it, and commits; out of it again, each is vali
 the table under a lock that lets the writes go. Last, the transaction the migration is stamped in
 drops the former ranks, renames the new ones, writes the triggers and stamps the contributors,
 reading no row of the journal. Each step runs again if a later one stopped: the version stays
-``0054`` until the last, and the checks posed before it only widen.
+``0055`` until the last, and the checks posed before it only widen.
 
 The table ``contributor`` receives its columns of audit (WF-DAT-0070, #3988): the dates by default
 the moment of the write, so that the code before this migration, which writes none, still writes a
@@ -51,8 +51,8 @@ if TYPE_CHECKING:
     from datetime import datetime
     from uuid import UUID
 
-revision: str = "0055"
-down_revision: str | None = "0054"
+revision: str = "0056"
+down_revision: str | None = "0055"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

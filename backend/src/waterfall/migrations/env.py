@@ -29,7 +29,7 @@ def take_lock(connection: Connection) -> None:
     A lock of the session, not of the transaction: Alembic may commit between two steps, and the
     lock must hold until the last migration is written. It is tried, not awaited by
     ``pg_advisory_lock``: an instance that waited in that statement would hold its snapshot all the
-    while, and an index created ``CONCURRENTLY`` (``0055``) by the instance that holds the lock
+    while, and an index created ``CONCURRENTLY`` (``0056``) by the instance that holds the lock
     waits for every older snapshot of the database — each would wait for the other, a deadlock.
     """
     while True:

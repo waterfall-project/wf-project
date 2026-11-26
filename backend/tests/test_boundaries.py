@@ -97,12 +97,12 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "skeleton",
         "days",
         "estimate_facts",
-        # What a backup counts, which the test of its restoration compares (US-2930/L1).
+        # What a backup counts (US-2930/L1), what the portfolio reads (US-2670/L1), the subprojects
+        # the risks designate (US-3060/L4), the sets of partitions a creation takes (US-2830/L4).
         "inventory",
-        # What the portfolio reads of several projects at once (US-2670/L1, EP-11).
         "portfolio",
-        # The subprojects the provisions of the risks designate (US-3060/L4, #4208).
         "risk_designations",
+        "partition_reserve",
     },
     # ``rates``: the update of the rates a revision frames (US-1500/L1).
     "revisions": {

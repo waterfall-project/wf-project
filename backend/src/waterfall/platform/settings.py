@@ -596,7 +596,21 @@ def _served_pair(certificate: str, key: str) -> None:
         raise ValueError(message) from error
 
 
-class ScheduleSettings(Settings):
+class ReserveSettings(PlatformSettings):
+    """What the worker and the schedule both read: the size of the reserve of partitions (#4801).
+
+    ``partition_reserve_size`` is how many sets of partitions the worker keeps made in advance for
+    the projects to come, three by default, nought to inhibit the reserve (the filling then does
+    nothing, the taking finds none and every creation makes its own partitions): a creation takes
+    one with no DDL, and makes its own — waiting for a marking that runs — only when the reserve is
+    empty (US-2830/L4). The worker fills
+    the reserve up to it, and the schedule deposits the filling when the reserve holds fewer.
+    """
+
+    partition_reserve_size: int = Field(default=3, ge=0)
+
+
+class ScheduleSettings(Settings, ReserveSettings):
     """What ``waterfall-worker schedule`` reads: the database and Redis, nothing else (TFX-10).
 
     ``purge_interval`` is how long the platform waits between two purges of what expired, ten
@@ -618,7 +632,7 @@ class ScheduleSettings(Settings):
     restore_test_interval: int = Field(default=2_592_000, ge=1)
 
 
-class WorkerSettings(ServiceSettings):
+class WorkerSettings(ServiceSettings, ReserveSettings):
     """What the worker reads besides: the two databases a backup dumps, as the role of the backup.
 
     ``metrics_port`` is where it serves its metrics, on the address of ``host`` (WF-OBS-0010).

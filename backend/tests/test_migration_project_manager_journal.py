@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The project managers in the journal, the contributors stamped: migration 0055 (US-2980/L1).
+"""The project managers in the journal, the contributors stamped: migration 0056 (US-2980/L1).
 
 The migration stamps the contributors already there, admits the three actions and the contributor
 as an object, and lets the label of a contributor be forgotten with its account; its descent
@@ -71,7 +71,7 @@ def test_a_contributor_there_before_the_migration_is_dated_by_it_and_written_by_
 ) -> None:
     # The columns of audit of a contributor (#3988): a line inscribed before them is dated by the
     # migration, its authors null — the platform —, no one knowing who wrote it.
-    upgrade(empty_engine, "0054")
+    upgrade(empty_engine, "0055")
     project = uuid4()
     with empty_engine.begin() as connection:
         user = an_account(connection)
@@ -85,7 +85,7 @@ def test_a_contributor_there_before_the_migration_is_dated_by_it_and_written_by_
         )
     with empty_engine.connect() as connection:
         before = connection.scalar(CLOCK)
-    upgrade(empty_engine, "0055")
+    upgrade(empty_engine, "0056")
     with empty_engine.connect() as connection:
         after = connection.scalar(CLOCK)
         row = (
@@ -121,14 +121,14 @@ def test_the_descent_fails_while_the_journal_holds_a_project_manager_or_a_contri
     empty_engine: Engine, action: str, kind: str, refused: str
 ) -> None:
     # The journal is never deleted nor rewritten: a descent that refused again what it holds would
-    # make it lie; it fails, and the schema stays at 0055 with the line.
-    upgrade(empty_engine, "0055")
+    # make it lie; it fails, and the schema stays at 0056 with the line.
+    upgrade(empty_engine, "0056")
     with empty_engine.begin() as connection:
         an_entry(connection, action, kind, an_account(connection))
     with pytest.raises(DBAPIError, match=refused):
-        downgrade(empty_engine, "0054")
+        downgrade(empty_engine, "0055")
     with empty_engine.connect() as connection:
-        assert connection.scalar(VERSION) == "0055"
+        assert connection.scalar(VERSION) == "0056"
         assert connection.scalar(select(func.count()).select_from(AuditEntry)) == 1
         columns = connection.scalars(
             text(
@@ -155,12 +155,12 @@ def labels(engine: Engine) -> dict[str, str | None]:
 def test_after_the_descent_the_triggers_refuse_again_to_forget_the_label_of_a_contributor(
     empty_engine: Engine,
 ) -> None:
-    # At 0055 the label of a contributor whose account is anonymised may be forgotten
+    # At 0056 the label of a contributor whose account is anonymised may be forgotten
     # (WF-ADM-0060, test_contributors); after the descent the triggers of 0011 forget the label of
-    # an account alone. The checks of 0054 refuse a contributor before any trigger: they are
+    # an account alone. The checks of 0055 refuse a contributor before any trigger: they are
     # dropped here, so that the triggers alone answer, for an account and for a contributor.
-    upgrade(empty_engine, "0055")
-    downgrade(empty_engine, "0054")
+    upgrade(empty_engine, "0056")
+    downgrade(empty_engine, "0055")
     with empty_engine.begin() as connection:
         for name in ("object_kind_known", "object_labeled"):
             connection.execute(

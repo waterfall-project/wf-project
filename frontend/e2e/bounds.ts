@@ -130,3 +130,17 @@ export const ADMINISTRATOR_PATH = 300_000;
  * times `WORKING`, three times `MARKING`, which is the room a task is given to be taken.
  */
 export const BACKUP_DONE = 180_000;
+
+/**
+ * How long the path of the project manager is given, whole, in milliseconds
+ * (`service/project-manager-indicators.spec.ts`): a project created and its planning entered, its
+ * estimate priced, a revision marked, designated as the reference and the project taken In
+ * progress, the extraction of its actual costs imported in two steps and read, a second revision
+ * marked, the indicators read. Each of its waits keeps its own bound (`WORKING`, `MARKING`): two
+ * markings (`MARKING`, 120 s), thirteen waits of `WORKING` in the path and its helpers (195 s) and
+ * ten openings of a screen that each keep `WORKING` too (150 s), some 465 s in all. This is the
+ * budget under that sum, not a measure — a path where every wait overran would exceed it —: a pass
+ * on a quiet slot (2026-11-26) took 18.9 s, and 360 s is nineteen times that, for the sign-in and
+ * the screens of a runner under load.
+ */
+export const PROJECT_MANAGER_PATH = 360_000;

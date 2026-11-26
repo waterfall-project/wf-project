@@ -92,11 +92,13 @@ def test_the_worker_of_the_chart_keeps_what_the_worker_of_the_compose_keeps(
 ) -> None:
     # propre à US-2830 : « background_task_retention_days est un paramètre d'exploitation » :
     # the two retentions of the purge are set on the worker of the chart as on the Compose's.
-    # And, of US-2850, the wait of a task of a kind the worker does not run.
+    # And, of US-2850, the wait of a task of a kind the worker does not run; of US-2830/L4, the
+    # size of the reserve of partitions.
     names = (
         "WATERFALL_UNDO_RETENTION_HOURS",
         "WATERFALL_BACKGROUND_TASK_RETENTION_DAYS",
         "WATERFALL_UNKNOWN_KIND_WAIT_SECONDS",
+        "WATERFALL_PARTITION_RESERVE_SIZE",
     )
     compose = services()["worker"]["environment"]
     (container,) = pod(of_kind(objects, "Deployment")["worker"])["containers"]
@@ -312,6 +314,10 @@ def test_the_tasks_planned_are_one_cronjob_that_runs_the_one_command_of_the_sche
     assert not [name for name in variables if "STORAGE" in name or "KEYCLOAK" in name]
     assert {"WATERFALL_DATABASE_URL", "WATERFALL_REDIS_URL"} <= variables.keys()
     assert variables["WATERFALL_PURGE_INTERVAL"] == "600"
+    # US-2830/L4: the size of the reserve of partitions, read by the worker too, as the Compose's.
+    reserve = services()["scheduler"]["environment"]["WATERFALL_PARTITION_RESERVE_SIZE"]
+    assert variables["WATERFALL_PARTITION_RESERVE_SIZE"] == "3"
+    assert reserve == "${WATERFALL_PARTITION_RESERVE_SIZE:-3}"
     # US-3040: the reading of the accounts is scheduled by the database, not by a variable.
     assert not [name for name in variables if "IDENTITY_SYNC" in name]
 

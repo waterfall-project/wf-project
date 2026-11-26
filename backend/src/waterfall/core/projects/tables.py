@@ -169,7 +169,7 @@ class Contributor(Stamped):
     Added, changed in its kind or removed with the whole list, under the counter of the project;
     stamped by its writer, the platform for the loader of the witness (WF-DAT-0070, #3988). The
     dates default to the moment of the write, for a line the code before them writes during an
-    update (WF-DAT-0140), and for the lines there at their migration (``0055``), which it dates.
+    update (WF-DAT-0140), and for the lines there at their migration (``0056``), which it dates.
     """
 
     __tablename__ = "contributor"
@@ -267,3 +267,19 @@ class Deliverable(Stamped):
     order_item_id: Mapped[UUID] = mapped_column(ForeignKey(OrderItem.id, ondelete="RESTRICT"))
     label: Mapped[str] = mapped_column(Text(collation=CODE_POINTS))
     position: Mapped[int] = mapped_column(Integer)
+
+
+class PartitionReserve(Base):
+    """A set of partitions the worker made in advance, for a project not yet created (#4801).
+
+    The identifier is the one the project that takes the set receives: no row of ``project`` names
+    it before, so that nothing that counts or lists the projects sees a set in reserve. The worker
+    inscribes and a creation deletes, each by a function of the owner of the tables (migration
+    ``0055``); the role of the service only reads the reserve.
+    """
+
+    __tablename__ = "project_partition_reserve"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    # The sets are taken in the order they were made.
+    reserved_at: Mapped[datetime] = mapped_column(UtcDateTime, server_default=func.now())

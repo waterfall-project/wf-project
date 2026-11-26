@@ -43,6 +43,8 @@ spec:
                 {{- include "waterfall.backEnvironment" (list . "service") | nindent 16 }}
                 - name: WATERFALL_PURGE_INTERVAL
                   value: {{ .Values.scheduler.purgeInterval | quote }}
+                - name: WATERFALL_PARTITION_RESERVE_SIZE
+                  value: {{ .Values.worker.partitionReserveSize | quote }}
                 {{- if .Values.restoreTest.enabled }}
                 - name: WATERFALL_RESTORE_TEST_JOB
                   value: /restore-test/job.json

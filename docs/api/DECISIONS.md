@@ -13074,7 +13074,7 @@ de plus.
   qu'il affichait au moment de l'action, `revision` nul, `project` le projet de la liste.
   L'anonymisation d'un compte oublie ce nom comme celui d'un compte objet (WF-ADM-0060) : le libellé
   d'un contributeur peut être nul, et la base admet de le rendre nul pour un compte anonymisé
-  (migration `0055`).
+  (migration `0056`).
 - **Les trois exemples** de `listAuditEvents`, engendrés par `wftools.mockauditmanagers` et tenus
   par `tools/tests/test_mockauditmanagers.py`, lisent le journal du projet témoin, numérotés à part :
   `manager_changed`, la suite de `contributors_set` — Inès Roux passée cheffe de projet par Camille
@@ -13090,7 +13090,7 @@ de plus.
 
 Écartés : un paramètre qui dirait le sens du changement de qualité (`to_kind`), qu'`AuditParams`
 n'a pas et que la décision exclut — un lecteur le déduit de l'inscription précédente du même
-contributeur, et, pour une ligne écrite avant la migration `0055`, qui n'en a pas, de la liste
+contributeur, et, pour une ligne écrite avant la migration `0056`, qui n'en a pas, de la liste
 d'aujourd'hui seulement ; inscrire aussi les participants, que WF-SEC-0030 ne nomme pas ; désigner l'objet par
 le projet, qui perdrait le compte inscrit, ou par le compte (`user`), qui confondrait l'inscription
 d'un chef de projet avec l'administration du compte dans les filtres du journal.
