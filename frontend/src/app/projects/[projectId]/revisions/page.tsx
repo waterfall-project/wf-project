@@ -30,7 +30,8 @@ import { RevisionCommands } from "@/components/commands/object-commands";
 import { ContextBanner } from "@/components/context/context-banner";
 import type { Revision } from "@/components/context/read-only";
 import { ImportReport } from "@/components/exchanges/import-report";
-import { readShownImport } from "@/components/exchanges/shown-import";
+import { PurgedImport } from "@/components/exchanges/import-list";
+import { readEntry, readShownImport } from "@/components/exchanges/shown-import";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { Project } from "@/components/context/reading";
 import { RevisionHistory, revisionCreation } from "@/components/revisions/revision-history";
@@ -83,13 +84,14 @@ function RevisionsHeader({
 export default async function RevisionsPage(props: ProjectPageProps) {
   const address = await projectAddress(props, "revisions");
   const search = pageSearch(await props.searchParams);
-  const [read, revisions, session, shown] = await Promise.all([
+  const [read, revisions, session, named] = await Promise.all([
     readProjectScreen(address),
     // The same read as the banner's, once per request.
     listProjectRevisions(address.projectId),
     requestSession(),
     readShownImport(address.projectId, search),
   ]);
+  const shown = readEntry(named);
   return (
     <PendingAddress>
       <ContextBanner reading={read} />
@@ -103,6 +105,7 @@ export default async function RevisionsPage(props: ProjectPageProps) {
             start={contextAddress(address.pathname, read.context)}
           />
         )}
+        {named.kind === "purged" ? <PurgedImport /> : null}
         <RevisionHistory
           revisions={revisions}
           context={read.context}

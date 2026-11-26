@@ -265,7 +265,9 @@ test("a project, its settings and its lifecycle show what the fake back serves, 
   await nav.getByRole("link", { name: "Paramètres de projets" }).click();
   await expect(main.getByRole("heading", { level: 1 })).toHaveText("Paramètres de projets");
   const subprojects = main.getByRole("grid", { name: "Sous-projets" });
-  await expect(subprojects.getByRole("row", { name: /^SP-CMD Poste de commande/ })).toBeVisible();
+  await expect(
+    subprojects.getByRole("row", { name: /^PRJ-001\/SP-CMD Poste de commande/ }),
+  ).toBeVisible();
   const contributors = main.getByRole("grid", { name: "Contributeurs" });
   await expect(
     contributors.getByRole("row", { name: /Alix Moreau\s+Contributeur\s+Désactivé/ }),
@@ -514,37 +516,39 @@ test("the settings of a project create and modify a sub-project, present unavail
     "Conditions non remplies : sous-projet cité par aucune révision marquée, aucun coût réel " +
     "imputé au sous-projet et aucune ligne de devis de la révision en cours portant le " +
     "sous-projet.";
-  for (const code of ["SP-CMD", "SP-ESS"]) {
+  for (const code of ["PRJ-001/SP-CMD", "PRJ-001/SP-ESS"]) {
     const deletion = subprojects.getByRole("button", { name: new RegExp(`^Supprimer.+${code}`) });
     await expect(deletion).toHaveAttribute("aria-disabled", "true");
     await expect(deletion).toHaveAccessibleDescription(unmet);
   }
-  await subprojects.getByRole("button", { name: /^Supprimer.+SP-ESS/ }).dispatchEvent("click");
+  await subprojects
+    .getByRole("button", { name: /^Supprimer.+PRJ-001\/SP-ESS/ })
+    .dispatchEvent("click");
   await expect(section.getByRole("status").filter({ hasText: /./ }).first()).toContainText(
-    `Supprimer « SP-ESS » : indisponible. ${unmet}`,
+    `Supprimer « PRJ-001/SP-ESS » : indisponible. ${unmet}`,
   );
   // Cited and charged, it lacks more than the passing of its lines, which the estimate alone
   // lifts: no link leads there (EP-14/L53).
   await expect(section.getByRole("link", { name: /^Voir au devis/ })).toHaveCount(0);
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(subprojects.getByRole("row", { name: /^SP-ESS/ })).toHaveCount(1);
+  await expect(subprojects.getByRole("row", { name: /^PRJ-001\/SP-ESS/ })).toHaveCount(1);
 
-  await subprojects.getByRole("button", { name: /^Modifier.+SP-ESS/ }).click();
-  let form = page.getByRole("dialog", { name: /^Modifier.+SP-ESS/ });
+  await subprojects.getByRole("button", { name: /^Modifier.+PRJ-001\/SP-ESS/ }).click();
+  let form = page.getByRole("dialog", { name: /^Modifier.+PRJ-001\/SP-ESS/ });
   await form.getByRole("textbox", { name: "Libellé" }).fill("Essais, mise en service et réception");
   await form.getByRole("button", { name: "Enregistrer" }).click();
   await expect(form).toHaveCount(0);
-  await expect(subprojects.getByRole("row", { name: /^SP-ESS/ })).toContainText(
+  await expect(subprojects.getByRole("row", { name: /^PRJ-001\/SP-ESS/ })).toContainText(
     "Essais, mise en service et réception",
   );
 
   await section.getByRole("button", { name: "Nouveau sous-projet" }).click();
   form = page.getByRole("dialog", { name: "Nouveau sous-projet" });
-  await form.getByRole("textbox", { name: "Code ERP" }).fill("SP-REC");
+  await form.getByRole("textbox", { name: "Code ERP" }).fill("PRJ-001/SP-REC");
   await form.getByRole("textbox", { name: "Libellé" }).fill("Réception sur site");
   await form.getByRole("button", { name: "Créer" }).click();
   await expect(section.getByRole("status").filter({ hasText: /./ }).first()).toContainText(
-    "SP-REC",
+    "PRJ-001/SP-REC",
   );
 
   // A proposal is applied only once confirmed, and the list saved.

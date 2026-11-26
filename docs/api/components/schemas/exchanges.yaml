@@ -223,8 +223,13 @@ Import:
         application; `failed`, the task of its analysis or of its application failed
         (`task.problem`), without writing anything (WF-INTF-0080); `refused`, the application
         was refused — when checking again the permission, the contributor status or the state of
-        the project, or because the report rejected the file —, the file is deleted
-        (WF-ARC-0100), and the import no longer applies (I-01, #1789). Only an `analysed` import
+        the project, because the report rejected the file, or because the structure has been
+        written since the analysis (`import_structure_unchanged`, #4420) —, the file is deleted
+        (WF-ARC-0100), and the import no longer applies (I-01, #1789). An import `abandoned` or
+        `expired` is deleted, its report included, by the pass of the purge that follows its
+        abandonment or its expiry: neither the list nor the reading returns it any more, and every
+        operation on it is a 404 (§4.4.1, WF-DAT-0080); an import `applied`, `failed` or
+        `refused` stays, in the log of the imports (#4425). Only an `analysed` import
         applies (`import_awaiting_decision`); an `applying` or `applied` import cannot be
         abandoned (`import_not_applied`), and abandoning an import that ended without writing —
         `abandoned`, `expired`, `failed`, `refused` — returns 204 without effect.
@@ -242,11 +247,13 @@ Import:
         The report of the analysis, null as long as it is running or when it failed; returned by
         reading an import (`ImportDetail`), omitted by the list.
     task:
-      allOf: [{ $ref: ../common.yaml#/BackgroundTaskRef }]
+      anyOf: [{ $ref: ../common.yaml#/BackgroundTaskRef }, { type: 'null' }]
       description: >-
         The last background task of the import, that of its analysis or of its application, which
         the screen follows (WF-IHM-0080); returned by reading an import (`ImportDetail`), omitted by
-        the list.
+        the list. Null once that task has been deleted, at the end of the retention of its result
+        (`OperatingParameters.background_task_retention_days`, §4.4.1, WF-DAT-0080), and for an
+        import that has none: the import is still read, and the screen follows no task (#4425).
     available_commands:
       type: array
       description: >-
@@ -260,7 +267,8 @@ ImportDetail:
   description: >-
     An import as reading it (`getImport`) and opening it (`openImport`) return it: an
     `Import`, whose properties it takes over, and always its report — null as long as the analysis
-    is running or when it failed —, its task and its commands, which the list omits (I-06, #1780).
+    is running or when it failed —, its task — null once deleted, or when it has none (#4425) —
+    and its commands, which the list omits (I-06, #1780).
   allOf:
     - $ref: '#/Import'
     - type: object
@@ -270,8 +278,11 @@ ImportDetail:
           anyOf: [{ $ref: '#/ImportReport' }, { type: 'null' }]
           description: The report of the analysis, that of `Import`, always returned here.
         task:
-          allOf: [{ $ref: ../common.yaml#/BackgroundTaskRef }]
-          description: The last background task of the import, that of `Import`, always returned here.
+          anyOf: [{ $ref: ../common.yaml#/BackgroundTaskRef }, { type: 'null' }]
+          description: >-
+            The last background task of the import, that of `Import`, always returned here; null
+            once deleted at the end of the retention of its result, or for an import that has
+            none (#4425).
         available_commands:
           type: array
           description: The commands of the import, those of `Import`, always returned here.
@@ -284,7 +295,8 @@ ImportCommand:
     The commands of an import (WF-IHM-0090; I-01, I-02, #1789): applying it (`applyImport`),
     available for an `analysed` import whose report accepts the file — otherwise
     `import_awaiting_decision`, then `import_file_accepted` —, the rights and
-    state conditions checked again at execution being stated only by the 409; abandoning it
+    state conditions checked again at execution, and the structure written since the analysis
+    (`import_structure_unchanged`, #4420), being stated only by the 409; abandoning it
     (`abandonImport`), unavailable for an import applied or being applied,
     `import_not_applied`.
 
@@ -313,6 +325,7 @@ ImportReport:
     - date_mismatches
     - signals
     - requires_confirmation_reasons
+    - unknown_wbs_elements
     - unit_constants
     - calendar_gap
   description: >-
@@ -369,9 +382,9 @@ ImportReport:
         reason; the others apply (WF-INTF-0080). Among them, for an estimate or a remaining to
         commit, a line that would leave a subproject that has received actual costs, the report
         naming that subproject (`ImportRejection`, WF-INTF-0100, WF-INTF-0120); for an actual
-        cost extraction, a line whose WBS element does not have the expected form or designates
-        another project (WF-CRE-0020), each counted in the log among the rejected lines
-        (`CostImport.rejected_count`, WF-CRE-0050).
+        cost extraction, a line whose WBS element is neither the code of the project nor that of
+        one of its subprojects, compared whole (WF-CRE-0020; #3966), each counted in the log among
+        the rejected lines (`CostImport.rejected_count`, WF-CRE-0050).
       items: { $ref: '#/ImportRejection' }
     refusals:
       type: array
@@ -437,22 +450,38 @@ ImportReport:
         an MS Project file is kept and signalled in the report" (WF-PLA-0020; #1271, #1289) —,
         and what it corrects: a summary task in manual mode in the file, imported in automatic
         mode, "signalled with the date difference" (WF-INTF-0040). A piece of information, not a
-        reason for confirmation or rejection. Empty when there is nothing to signal, and for
-        Excel imports.
+        reason for confirmation or rejection. For a remaining to commit, a line other than labour
+        whose amount the application writes — its unit disbursement rounded to the cent, its
+        quantity and the inflation coefficient of its task kept — is not the amount the file
+        carries (`AMOUNT_ROUNDED`, WF-INTF-0120; #4428). Empty when there is nothing to signal,
+        and for an estimate and an actual cost extraction.
       items: { $ref: '#/ImportSignal' }
     requires_confirmation_reasons:
       type: array
       description: >-
-        Reasons for an explicit confirmation, specific to actual costs: lines of another
-        project, rejected, or an unknown subproject, kept by its code (WF-CRE-0020). A line of
-        another project counts for `lines_outside_project` even when it is rejected
-        `DUPLICATE_COST_LINE`, another line of the file bearing its document and its item
-        (#2724): the confirmation guards against a file of the wrong project, which a double does
-        not excuse. A difference in dates or durations is no longer one: it is stated by
+        Reasons for an explicit confirmation, specific to actual costs: lines rejected for their
+        WBS element, neither the code of the project nor that of one of its subprojects
+        (`lines_outside_project`, `WBS_ELEMENT_OUTSIDE_PROJECT`, WF-CRE-0020), which
+        `unknown_wbs_elements` names. The confirmation guards against a file of the wrong project
+        (#2724): such a line is judged for its element alone, never compared with the lines of the
+        project for `DUPLICATE_COST_LINE`, and no line of the project is rejected because of it
+        (BRC-04; #3966). A line of a subproject code that no subproject bears is such a line
+        (#3966). A difference in dates or durations is no longer one: it is stated by
         `date_mismatches`.
       items:
         type: string
-        enum: [lines_outside_project, unknown_subproject]
+        enum: [lines_outside_project]
+    unknown_wbs_elements:
+      type: array
+      description: >-
+        For an actual cost extraction, each WBS element of the file that is neither the code of
+        the project nor that of one of its subprojects, compared whole, once, with the number of
+        its lines, in the order in which the file first carries it — "the report names each
+        unknown WBS element and the number of its lines" (WF-CRE-0020; #3966): what subprojects
+        to declare before importing the file again, which then charges them their lines. Its
+        lines are rejected (`WBS_ELEMENT_OUTSIDE_PROJECT`, `rejected`). Empty when every element
+        is known, and for the other kinds of import.
+      items: { $ref: '#/ImportUnknownWbsElement' }
     unit_constants:
       anyOf: [{ $ref: '#/ImportUnitConstants' }, { type: 'null' }]
       description: >-
@@ -694,6 +723,24 @@ ImportIgnored:
         name, the progress or the costs. Never more than `count`.
       items: { type: string }
 
+ImportUnknownWbsElement:
+  type: object
+  required: [wbs_element, line_count]
+  description: >-
+    A WBS element of an actual cost extraction that is neither the code of the project nor that
+    of one of its subprojects, and the number of the lines of the file that carry it, all rejected
+    (`ImportReport.unknown_wbs_elements`, WF-CRE-0020; #3966).
+  properties:
+    wbs_element:
+      type: string
+      description: >-
+        The element as the file carries it, compared whole: `A.ABC.26001/10002`, `10001` and
+        `A.ABC.26002` are three elements (WF-CRE-0020). Empty for the lines without an element.
+    line_count:
+      type: integer
+      minimum: 1
+      description: The lines of the file that carry it.
+
 ImportCompletedTask:
   type: object
   required: [lineage_id, label, completed_on]
@@ -738,9 +785,9 @@ ImportSignal:
   type: object
   required: [lineage_id, label, column, code, params]
   description: >-
-    A value of the file kept and signalled (`ImportReport.signals`): the task, the column that
-    carries the value, and the reason, with the parameters it carries in a refusal
-    (`Problem.params`), so that entry and import are expressed in the same sentence
+    A value of the file kept, corrected or rounded, and signalled (`ImportReport.signals`): the
+    task or the line, the column that carries the value, and the reason, with the parameters it
+    carries in a refusal (`Problem.params`), so that entry and import are expressed in the same sentence
     (WF-ARC-0110). Thus `NON_WORKING_DAY`, a start or finish date of a manual task on a day
     without any working hour in its applicable calendar, kept as it is, the start and the finish
     at hour `0`: `params.date` the date of the file, `next_working_day` the next working day
@@ -751,24 +798,38 @@ ImportSignal:
     entry dates on a summary task: a summary task that the file carries in manual mode, imported
     in automatic mode, its dates deriving from its subordinates, the column `scheduling_mode`,
     `params.start` and `params.finish` the dates of the file; the difference with the dates that
-    Waterfall recalculates is in `date_mismatches` (WF-INTF-0040, WF-PLA-0040).
+    Waterfall recalculates is in `date_mismatches` (WF-INTF-0040, WF-PLA-0040). And
+    `AMOUNT_ROUNDED`, for a remaining to commit, a line other than labour whose amount the
+    application writes is not the amount the file carries: the import keeps the quantity of the
+    line and writes its unit disbursement, the amount divided by the quantity and the inflation
+    coefficient of its task, rounded to the cent, and a division followed by a rounding does not
+    give back the amount — 1,234.56 entered on a quantity of 1,000 write 1,230.00. The line, by
+    its lineage and its label, the column `unit_disbursement`, `params.typed_amount` the amount
+    of the file and `params.written_amount` the amount the application writes, both as strings
+    (`Money`); a line whose amount divides exactly is not signalled, and the rule of the
+    calculation does not change (WF-INTF-0120; #4428).
   properties:
     lineage_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: The lineage of the task; null for a task that the import creates.
-    label: { type: string }
+      description: >-
+        The lineage of the task, or of the line for `AMOUNT_ROUNDED`; null for a task that the
+        import creates.
+    label:
+      type: string
+      description: The label of the task, or of the line for `AMOUNT_ROUNDED`.
     column:
       allOf: [{ $ref: revisions.yaml#/NodeColumn }]
       description: >-
-        The column of the planning grid that carries the value: `start` or `finish` for
-        `NON_WORKING_DAY`, `scheduling_mode` for `SUMMARY_TASK_DERIVED`.
+        The column of the grid that carries the value: of the planning grid, `start` or `finish`
+        for `NON_WORKING_DAY`, `scheduling_mode` for `SUMMARY_TASK_DERIVED`; of the
+        remaining-to-commit grid, `unit_disbursement` for `AMOUNT_ROUNDED`.
     code:
       allOf:
         - $ref: ../common.yaml#/ErrorCode
-        - enum: [NON_WORKING_DAY, SUMMARY_TASK_DERIVED]
+        - enum: [NON_WORKING_DAY, SUMMARY_TASK_DERIVED, AMOUNT_ROUNDED]
       description: >-
         The reason for the signal, an error code so that entry and import are expressed in the same
-        sentence: `NON_WORKING_DAY` and `SUMMARY_TASK_DERIVED` only; a new signal
+        sentence: `NON_WORKING_DAY`, `SUMMARY_TASK_DERIVED` and `AMOUNT_ROUNDED` only; a new signal
         extends this list, through a change to the contract.
     params: { $ref: ../common.yaml#/ProblemParams }
 
@@ -809,30 +870,33 @@ ImportRejection:
     extraction, a line for which another line of the file carries the same document and the same
     item, null included: `DUPLICATE_COST_LINE`, each of these lines rejected, `params.rows`
     naming the rows of the others in the order of the file — the line cannot be identified, and
-    none is preferred to the other (WF-INTF-0140, D-4; EP-16/US-0630). For an estimate or a
-    remaining to commit, likewise a line whose lineage — the « ID ligne » column — another line of
-    the file carries, on the same tab or on another: `DUPLICATE_LINEAGE`, each of these lines
-    rejected, `params.lines` naming the tab and the row of the others in the order of the file,
-    and the line of the revision that the lineage names left as it is (WF-INTF-0100,
-    WF-INTF-0120; #2798). And a line rejected for
-    its WBS element (WF-CRE-0020), `params.wbs_element` the element as the file carries it:
-    `WBS_ELEMENT_INVALID`, an element that does not have the form of a project code optionally
-    followed by a slash and a subproject code — empty, or with nothing before the slash —, only
-    the slash separating the two codes, and the project code possibly containing dots
-    (`A.ABC.26001/10001`, WF-PRJ-0010) — an element with nothing after the slash,
-    `A.ABC.26001/`, is one as well (#2721);
-    `WBS_ELEMENT_OUTSIDE_PROJECT`, an element of another project, `params.project_code` the
-    project code read, which is not that of the imported project. The amount of a line is
+    none is preferred to the other (WF-INTF-0140, D-4; EP-16/US-0630). Only the lines whose WBS
+    element is the code of the project or that of one of its subprojects are compared: a line of
+    another element is rejected for its element, and no line of the project is rejected because
+    of it (BRC-04; #3966). For an estimate or a remaining to commit, likewise a line whose lineage
+    — the « ID ligne » column — another line of the file carries, on the same tab or on another:
+    `DUPLICATE_LINEAGE`, each of these lines rejected, `params.lines` naming the tab and the row of
+    the others in the order of the file, and the line of the revision that the lineage names left
+    as it is (WF-INTF-0100, WF-INTF-0120; #2798). And a line rejected for its WBS element
+    (WF-CRE-0020):
+    `WBS_ELEMENT_OUTSIDE_PROJECT`, an element that is neither the code of the project nor that of
+    one of its subprojects, compared whole, without being cut nor supposed of any form — empty,
+    of another project, a subproject code without the code of the project, a subproject not
+    declared —, `params.wbs_element` the element as the file carries it; the report names each
+    such element once, with the number of its lines (`ImportReport.unknown_wbs_elements`;
+    #3966). The amount of a line is
     rounded to the cent, half away from zero — `-0.005` gives `-0.01` — before it is judged
     against its bounds (#2721). A cell of a line of an actual cost extraction that is refused
     (`VALUE_REQUIRED`, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE`, `NUMBER_INVALID`, `DATE_INVALID`)
-    names its column in `params.column`, by the identifier of the mapping (#2722). A line whose
-    subproject code is that of no subproject is not rejected: imported and charged to the project alone, it
-    requires confirmation (`unknown_subproject`). For an estimate or a remaining to commit, a
+    names its column in `params.column`, by the identifier of the mapping (#2722). For an
+    estimate or a remaining to commit, a
     line that cites a task, a role or a subproject that the revision does not have
     (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`), `params.value` the value of
     the cell as the file carries it, so that the user finds it without reading their file again
-    (WF-INTF-0100); and a line that designates its task by a label that several tasks carry,
+    (WF-INTF-0100) — for a remaining to commit, whose sheet designates its subproject by the code
+    at its head, `params.value` the name of the sheet and `params.subproject_code` the code its head
+    bears, unknown, absent from a head without a code (WF-INTF-0120; #4898) —; and a line that
+    designates its task by a label that several tasks carry,
     when the "Tâches" sheet does not know it: `AMBIGUOUS_TASK_LABEL`, `params.label` this label
     and `params.tasks` the tasks that carry it, by their lineage and their label (annex B,
     WF-INTF-0080). For an estimate, a line whose cell of a column of numbers — the quantity, the
@@ -868,7 +932,9 @@ ImportRejection:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
         The sheet that carries the line, by its name as the file carries it: the work package of
-        an estimate, the subproject of a remaining to commit, or a sheet that Waterfall names,
+        an estimate, the subproject of a remaining to commit — designated by the code at the head
+        of its sheet, never by the name of the sheet, which may be renamed (WF-INTF-0120; #3966)
+        —, or a sheet that Waterfall names,
         "Hors lot" or "Hors sous-projet", whose name does not depend on the language (annex B,
         WF-INTF-0180). Null for a single-sheet file — an MS Project schedule, an actual cost
         extraction (WF-INTF-0040, WF-INTF-0140) — (#1162).
@@ -898,7 +964,10 @@ ReportRefusal:
     (WF-PLA-0170); `PROJECT_HORIZON_EXCEEDED`, the duration of the project extended beyond
     fifteen years, `params.task` (WF-PLA-0150); for an MS Project schedule, also
     `PROVISION_WITHOUT_TASK`, a main structure left without a task while it carries the
-    provision line of a risk, `params.risks` (WF-RIS-0010; #4011); for a merge, also
+    provision line of a risk, `params.risks` (WF-RIS-0010; #4011), and
+    `TASK_WITHOUT_WORKING_HOURS`, a task left without a working hour, named by its lineage and
+    its label, the lineage null for a task that the file creates, with the roles of its labour
+    lines, none for a task created (`ProblemImportedTask`, WF-PLA-0010; #4799); for a merge, also
     `TASK_WITHOUT_WORKING_HOURS` (WF-PLA-0010), `LINK_CYCLE`, a loop of links that the merge
     would close, `params.cycle`, and `LINK_FORBIDDEN`, a link that it would create between a
     summary task and its subordinate, `params.link` (WF-PLA-0030). Each is the reason on which
@@ -1022,16 +1091,16 @@ ActualCostColumn:
   description: >-
     Column of an actual cost line carried by the imported file, named as the sort of
     `listActualCosts` names it (WF-CRE-0010): the date and the number of the document, the
-    number of the item in the document, its amount, its subproject — the code read in the WBS
-    element (`subproject_code`); a re-import that changes it recalculates the charging of the
-    line, and the report states it with an `updated` difference on this column (WF-CRE-0020,
-    WF-INTF-0140). A kept column of the file (`ActualCostLine.passthrough`, WF-CRE-0010) is
-    named `passthrough.<column>`, as the sort names it: a re-import that changes its value —
-    the supplier of a document — is an `updated` difference on it, and not an unchanged line.
-    The document number identifies the line together with the item of the document
-    (`document_item`): both serve for sorting and are never a difference field
-    (`ImportDifference.label`, `ImportDifference.document_item`; D-4). The tracked scope and the
-    exclusion reason, which the server deduces, are not columns of the file.
+    number of the item in the document, its amount, its subproject — the code of the subproject
+    its WBS element designates (`subproject_code`); a re-import that changes the element
+    recalculates the charging of the line, and the report states it with an `updated`
+    difference on this column (WF-CRE-0020, WF-INTF-0140). A kept column of the file
+    (`ActualCostLine.passthrough`, WF-CRE-0010) is named `passthrough.<column>`, as the sort names
+    it: a re-import that changes its value — the supplier of a document — is an `updated`
+    difference on it, and not an unchanged line. The document number identifies the line together
+    with the item of the document (`document_item`): both serve for sorting and are never a
+    difference field (`ImportDifference.label`, `ImportDifference.document_item`; D-4). The tracked
+    scope and the exclusion reason, which the server deduces, are not columns of the file.
   anyOf:
     - type: string
       enum: [document_date, document_number, document_item, amount, subproject]

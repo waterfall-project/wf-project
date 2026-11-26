@@ -253,7 +253,7 @@ def test_an_import_of_a_kind_without_a_format_is_neither_listed_nor_counted_and_
     # no requirement: the kind read by no format is a detail of the registry, no Vérif's subject.
     kept = opened_as(api, stage, stage.manager, "ms_project_schedule")
     orphan = opened_as(api, stage, stage.manager, "remaining")
-    served: Registry[tuple[ExchangeKind, Format[Any]]] = Registry()
+    served: Registry[tuple[ExchangeKind, Format[Any, Any]]] = Registry()
     for kind, form in imports.formats().items():
         if kind != "remaining":
             served.register((kind, form))

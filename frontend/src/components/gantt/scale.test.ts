@@ -12,6 +12,7 @@ import {
   revealedOffset,
   SCALE_LEVELS,
   scaleTicks,
+  visibleSpan,
   widthAt,
   zoomed,
 } from "./scale";
@@ -129,5 +130,21 @@ describe("the scale of the Gantt", () => {
     expect(revealedOffset({ from: 0.2, to: 0.9 }, 1440, 400, 500)).toBe(288);
     expect(revealedOffset({ from: 0.95, to: 1 }, 1440, 400, 500)).toBe(1040);
     expect(revealedOffset({ from: 0, to: 0.1 }, 300, 400, 0)).toBe(0);
+  });
+
+  it("draws the whole axis fitted or unmeasured, and a stretch of whole days around the frame zoomed [US-3350]", () => {
+    const axis = { first: at("2026-01-01"), last: at("2027-01-01") };
+    const whole = { from: axis.first, to: axis.last };
+    expect(visibleSpan(axis, undefined, 400, 0)).toEqual(whole);
+    expect(visibleSpan(axis, 3650, 0, 0)).toEqual(whole);
+    // 3 650 points for 365 days: 10 a day, a frame of 400 held in half frames of 200.
+    const middle = visibleSpan(axis, 3650, 400, 1000);
+    expect(middle).toEqual({ from: at("2026-03-22"), to: at("2026-06-10") });
+    expect(middle.from % DAY).toBe(0);
+    // It holds the frame wherever it stands, and moves by half frames only.
+    expect(visibleSpan(axis, 3650, 400, 1199)).toEqual(middle);
+    expect(visibleSpan(axis, 3650, 400, 1200)).not.toEqual(middle);
+    expect(visibleSpan(axis, 3650, 400, 0).from).toBe(axis.first);
+    expect(visibleSpan(axis, 3650, 400, 3250).to).toBe(axis.last);
   });
 });

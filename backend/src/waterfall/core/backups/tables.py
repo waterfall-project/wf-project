@@ -108,7 +108,7 @@ class Backup(Base):
 
 # The schedule as the platform ships it: daily at 01:00 UTC, seven kept, no external copy
 # (WF-ADM-0170, WF-EXP-0050), its counter at 1, as a created object's (`LockVersion`), and by the
-# platform. Migration 0047 writes it.
+# platform. Migration 0051 writes it.
 SHIPPED_SCHEDULE: dict[str, object] = {
     "id": SINGLE_ROW,
     "is_enabled": True,

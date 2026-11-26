@@ -30,7 +30,7 @@ const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 
 // What the users entered, never translated: the same text in every language (WF-INTF-0170).
 const PROJECT_LABEL = "Modernisation du poste de commande";
-const SUBPROJECT_NAME = "SP-CMD — Poste de commande";
+const SUBPROJECT_NAME = "PRJ-001/SP-CMD — Poste de commande";
 
 /** What a path reads in one language: the names its catalogue gives the controls it uses. */
 interface Language {

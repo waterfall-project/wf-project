@@ -94,9 +94,9 @@ def test_an_invoice_is_imputed_to_the_subproject_of_the_lot_of_its_task_by_its_c
         assert by_number[tasks[line.text]].number >= GENERATED
     # The lots « Ligne d'essais » and « Utilités » of the first phase have completed tasks; those
     # of the control station follow the factory acceptance of 30 June, and none has.
-    assert {line.code for line in invoices} == {"SP-ESS", None}
-    assert sum(1 for line in invoices if line.code == "SP-ESS") == 12
-    assert all(line.code != "SP-CMD" for line in invoices)
+    assert {line.code for line in invoices} == {"PRJ-001/SP-ESS", None}
+    assert sum(1 for line in invoices if line.code == "PRJ-001/SP-ESS") == 12
+    assert all(line.code != "PRJ-001/SP-CMD" for line in invoices)
 
 
 def test_an_invoice_is_brought_by_the_imports_whose_period_holds_its_day_not_the_undated() -> None:
@@ -156,7 +156,7 @@ def test_the_consultation_lists_the_invoices_with_the_lines_written_by_hand() ->
     assert screens["document_number"] == "FA-2026-0521"
     tests = [item for item in items if item["subproject_id"] == universe(802)]
     assert len(tests) == 12
-    assert all(item["subproject_code"] == "SP-ESS" for item in tests)
+    assert all(item["subproject_code"] == "PRJ-001/SP-ESS" for item in tests)
     # The tracked scope given alone: the lines written by hand, as the variant on the core reads.
     alone = mockcosts.tracked(COSTS)
     assert len(alone) == len(COSTS) - 1
@@ -172,5 +172,5 @@ def test_the_summary_of_the_consultation_says_no_invoice_when_no_drawn_task_has_
     invoices = mockcosts.drawn()
     told = mockcosts.invoiced(invoices)
     assert told.startswith(f"Les {len(invoices)} tâches tirées autour du cœur et terminées, du ")
-    assert "SP-ESS" in told
+    assert "PRJ-001/SP-ESS" in told
     assert told in cast("str", mockcosts.examples()["actual_costs.json"]["summary"])

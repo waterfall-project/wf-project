@@ -254,20 +254,20 @@ SCHEDULE_COLUMNS = text(
 
 
 @pytest.mark.story("US-2910")
-def test_the_schedule_of_the_backups_that_exists_is_dated_by_its_last_writing_at_0048(
+def test_the_schedule_of_the_backups_that_exists_is_dated_by_its_last_writing_at_0052(
     empty_engine: Engine,
 ) -> None:
-    # #4375: 0048 dates the timing of the schedule there by its last writing, ``updated_at``, so
+    # #4375: 0052 dates the timing of the schedule there by its last writing, ``updated_at``, so
     # that an installation that exists does not owe at once the occurrence it had passed before its
     # update; the column is then required, and the descent drops it.
-    upgrade(empty_engine, "0047")
+    upgrade(empty_engine, "0051")
     written_at = datetime(2026, 11, 15, 8, 30, tzinfo=UTC)
     with empty_engine.begin() as connection:
         connection.execute(
             text("UPDATE backup_schedule SET updated_at = :at, retained_count = 9"),
             {"at": written_at},
         )
-    upgrade(empty_engine, "0048")
+    upgrade(empty_engine, "0052")
     with empty_engine.connect() as connection:
         row = connection.execute(
             text("SELECT timing_changed_at, updated_at, retained_count FROM backup_schedule")
@@ -275,6 +275,6 @@ def test_the_schedule_of_the_backups_that_exists_is_dated_by_its_last_writing_at
         columns = dict(connection.execute(SCHEDULE_COLUMNS).all())
     assert tuple(row) == (written_at, written_at, 9)
     assert columns["timing_changed_at"] == "NO"
-    downgrade(empty_engine, "0047")
+    downgrade(empty_engine, "0051")
     with empty_engine.connect() as connection:
         assert "timing_changed_at" not in dict(connection.execute(SCHEDULE_COLUMNS).all())

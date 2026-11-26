@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The throwaway registry of the trial of the production platform (make production-trial, US-2800):
+# the images the trial runs are built here, never pushed to ghcr.io, and a Docker without the store
+# of containerd holds no digest for an image that no registry has given it, nor does Compose find
+# it by `name@sha256:…`. The trial pushes the three images here, reads the digest the registry says
+# of each, and starts the platform on them by that digest, as an operator does (WATERFALL_REGISTRY
+# of compose.prod.yaml). Reachable from the machine alone, on a port Docker picks; it holds nothing
+# once the trial removes it.
+name: waterfall-production-registry
+
+services:
+  registry:
+    image: ${WATERFALL_MIRROR:-}registry:3.1.0@sha256:8a7c1aae9db5028cbc1cfe83e5969d270a50e8bc0b72eef3cc5657542ec383c9
+    ports:
+      - "127.0.0.1::5000"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:5000/v2/"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: "no"

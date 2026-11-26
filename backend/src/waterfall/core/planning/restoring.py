@@ -38,7 +38,6 @@ from sqlalchemy import select
 
 from waterfall.core.history.interface import UNDO_CONFLICT, ObjectState
 from waterfall.core.planning.attachments import ORDER_ITEM_ID, WORK_PACKAGE_ID, carriers, strays
-from waterfall.core.planning.dating import conflicts_of
 from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.interface.structures import structure_state
 from waterfall.core.planning.lineage_lock import lock_lineage
@@ -47,7 +46,7 @@ from waterfall.core.planning.rescheduling import Holding
 from waterfall.core.planning.shaping import PARKED, deleted
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import Node, Task, TaskLink, Timeline, TrackingEntry
-from waterfall.core.planning.tree import read_links, read_tree, tracking_of
+from waterfall.core.planning.tree import read_conflicts, read_links, read_tree, tracking_of
 from waterfall.core.planning.writing import redated_structure
 from waterfall.core.projects.interface import work_breakdown_items
 from waterfall.core.revisions.interface import structure_facts, write_structure
@@ -486,7 +485,7 @@ def _restore_structure(
     [state] = restoring.restored
     rows = cast("Mapping[str, str]", state.rows["structure"])
     start = date.fromisoformat(rows["planning_start_on"])
-    conflicts = conflicts_of(read_links(session, place.project_id, place.structure_id))
+    conflicts = read_conflicts(session, place.project_id, place.structure_id)
     write_structure(
         session, place.project_id, place.structure_id, (start, rows["label"]), writer.act
     )
@@ -517,7 +516,7 @@ def bring_back(
         return _restore_structure(session, place, facts, restoring, writer)
     project_id, structure_id = place.project_id, place.structure_id
     tree = read_tree(session, project_id, structure_id)
-    conflicts = conflicts_of(read_links(session, project_id, structure_id))
+    conflicts = read_conflicts(session, project_id, structure_id)
     restoration = _judged(session, project_id, tree, restoring)
     removed = restoration.removed
     former = tuple(

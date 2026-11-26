@@ -310,6 +310,17 @@ def test_a_bound_of_the_capacity_malformed_or_inverted_is_refused_on_its_paramet
         "VALIDATION_FAILED",
         [("/query/headcount_min", "NUMBER_INVALID"), ("/query/headcount_max", "NUMBER_INVALID")],
     )
+    hours = api.get(
+        f"{ROLES}?monthly_hours_min=1.5.2&monthly_hours_max=abc", headers=sessions.changing
+    )
+    assert refusal(hours) == (
+        422,
+        "VALIDATION_FAILED",
+        [
+            ("/query/monthly_hours_min", "NUMBER_INVALID"),
+            ("/query/monthly_hours_max", "NUMBER_INVALID"),
+        ],
+    )
 
 
 def without_correlation_of(name: str) -> dict[str, Any]:

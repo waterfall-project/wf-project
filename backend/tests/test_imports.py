@@ -38,21 +38,23 @@ from imports_trial import (
     upload,
     withdraw,
 )
-from projects_support import Scene, contribute, person, put_in_state
+from projects_support import READING, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
-from sqlalchemy import insert, inspect, select, update
+from sqlalchemy import delete, event, insert, inspect, select, update
 from support import ContractClient
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.api.imports import DEPOSITORS
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
-from waterfall.core.exchanges.interface import purge, remove_purged, stored_before
+from waterfall.core.exchanges.interface import formats, purge, remove_purged, stored_before
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
-from waterfall.platform.tasks import submit
+from waterfall.platform.storage import Bucket
+from waterfall.platform.tasks import BackgroundTask, submit
 from waterfall.platform.uploads import LIFETIME, FileUpload
 
 if TYPE_CHECKING:
@@ -66,7 +68,6 @@ if TYPE_CHECKING:
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.settings import ServiceSettings
-    from waterfall.platform.storage import Bucket
     from waterfall.worker.runner import Worker
 
 
@@ -154,6 +155,51 @@ def test_a_deposit_refused_writes_nothing(
         assert [field["pointer"] for field in body["fields"]] == [pointer]
     with stage.database.transaction() as session:
         assert session.scalars(select(FileUpload)).all() == []
+
+
+@pytest.mark.requirement("WF-ADM-0020-A")
+def test_the_permissions_of_a_deposit_are_those_of_the_formats() -> None:
+    # The guard of the deposit lists the permission of each format of an import by hand: the one
+    # list may not drift from the others.
+    assert set(DEPOSITORS) == {form.permission for form in formats().values()}
+
+
+@pytest.mark.requirement("WF-ADM-0020-A")
+@pytest.mark.parametrize("permission", DEPOSITORS)
+def test_a_deposit_asks_for_one_of_the_permissions_of_an_import(
+    api: ContractClient,
+    stage: Scene,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+    permission: str,
+) -> None:
+    # Vérif : « Réciproquement, un rôle privé d'une permission empêche l'action correspondante,
+    # quel que soit l'acteur auquel l'utilisateur ressemble. » An account that holds none of the
+    # four permissions of an import deposits nothing: 403, the first of them named, nothing written
+    # to the storage nor to the database; one of them is enough (#4423). The bucket is shared by
+    # the tests that run beside this one: what is written to it is counted here, not listed.
+    written: list[str] = []
+    put = Bucket.put
+
+    def counted(bucket: Bucket, key: str, content: bytes, media_type: str | None = None) -> None:
+        written.append(key)
+        put(bucket, key, content, media_type)
+
+    monkeypatch.setattr(Bucket, "put", counted)
+    content = trial_file(*ROWS)
+    viewer = person(stage.database, realm, "all_projects_read", name="Lou")
+    refused = upload(api, viewer, content)
+    assert refusal(refused) == (403, "PERMISSION_MISSING", {"missing_permission": "planning.write"})
+    # The permission comes before the purpose: a backup deposited here is refused 403, not 422.
+    backup = upload(api, viewer, content, purpose="external_backup")
+    assert refusal(backup) == (403, "PERMISSION_MISSING", {"missing_permission": "planning.write"})
+    with stage.database.transaction() as session:
+        assert session.scalars(select(FileUpload)).all() == []
+    assert written == []
+    holder = person(stage.database, realm, permission, name="Sam")
+    kept = upload(api, holder, content)
+    assert kept.status_code == 201, kept.text
+    assert written == [f"uploads/{kept.json()['upload_id']}"]
 
 
 def project_rows(database: Database) -> list[list[dict[str, Any]]]:
@@ -276,6 +322,24 @@ def test_an_opening_is_refused_for_a_head_its_format_does_not_recognise(
         assert session.scalars(select(ImportReport)).all() == []
 
 
+@pytest.mark.story("US-3190")
+def test_a_head_parsed_before_the_lock_is_refused_at_its_place_in_the_order_of_the_contract(
+    api: ContractClient, stage: Scene, trial: TrialFormat
+) -> None:
+    # The head is parsed before the lock of the project, its refusal kept: the conditions of the
+    # opening come first, as before (US-3190/L2), and the deposit is left usable by the refusal.
+    project_id = stage.project["project_id"]
+    upload_id = deposited(api, stage.manager, b"PROJECT XML\n")
+    trial.condition = "project_before_in_progress"
+    response = open_import(api, stage.manager, project_id, upload_id)
+    assert refusal(response)[2] == {"missing_condition": "project_before_in_progress"}
+    trial.condition = None
+    assert refusal(open_import(api, stage.manager, project_id, upload_id))[:2] == (
+        422,
+        "FILE_FORMAT_UNREADABLE",
+    )
+
+
 @pytest.mark.usefixtures("trial")
 def test_an_opening_on_a_backup_deposit_names_the_deposit(
     api: ContractClient, stage: Scene, database: Database
@@ -358,14 +422,17 @@ def test_an_opening_is_refused_for_the_state_of_the_project_in_the_order_of_the_
 
 
 def test_an_opening_is_refused_without_the_permission_of_its_kind_or_the_quality(
-    api: ContractClient, stage: Scene, trial: TrialFormat
+    api: ContractClient, stage: Scene, trial: TrialFormat, realm: TestRealm
 ) -> None:
     project_id = stage.project["project_id"]
     upload_id = deposited(api, stage.outsider, trial_file(*ROWS))
     outside = open_import(api, stage.outsider, project_id, upload_id)
     assert refusal(outside)[:2] == (404, "NOT_FOUND")
-    reader_upload = deposited(api, stage.reader, trial_file(*ROWS))
-    reading = open_import(api, stage.reader, project_id, reader_upload)
+    # A reader of every project who may import the actual costs, and not the kind of the trial:
+    # its deposit passes, which one of the permissions of an import opens (#4423), its opening not.
+    reader = person(stage.database, realm, *READING, "actual_costs.write", name="Dominique")
+    reader_upload = deposited(api, reader, trial_file(*ROWS))
+    reading = open_import(api, reader, project_id, reader_upload)
     assert refusal(reading) == (403, "PERMISSION_MISSING", {"missing_permission": trial.permission})
 
 
@@ -416,7 +483,8 @@ def test_a_report_written_without_its_unit_constants_and_calendar_gap_is_read_wi
 ) -> None:
     # A report analysed before ``unit_constants`` (#2580) or ``calendar_gap`` (#2977), or by the
     # code that precedes them during an update, lacks the keys: it is read as the constants and the
-    # calendars of the file not differing, not refused by the contract.
+    # calendars of the file not differing, not refused by the contract. No analysis writes
+    # ``unknown_wbs_elements`` yet (#3966): it is read empty.
     import_id = analysed(api, stage, worker)["import_id"]
     report = dict(stored(database, import_id).report or {})
     del report["unit_constants"]
@@ -426,7 +494,13 @@ def test_a_report_written_without_its_unit_constants_and_calendar_gap_is_read_wi
             update(ImportReport).where(ImportReport.id == UUID(import_id)).values(report=report)
         )
     found = read(api, stage, import_id)
-    assert found["report"] == {**report, "unit_constants": None, "calendar_gap": None}
+    assert "unknown_wbs_elements" not in report
+    assert found["report"] == {
+        **report,
+        "unit_constants": None,
+        "calendar_gap": None,
+        "unknown_wbs_elements": [],
+    }
 
 
 @pytest.mark.requirement("WF-INTF-0080-A")
@@ -463,7 +537,8 @@ def test_an_expired_report_is_read_expired_and_can_no_longer_be_applied(
     api: ContractClient, stage: Scene, worker: Worker, database: Database, trial: TrialFormat
 ) -> None:
     # « Un compte rendu expiré ne peut plus être appliqué, et son fichier n'est plus sur le
-    # stockage objet. » : its expiry judged at the reading; the purge deletes the file (L2).
+    # stockage objet. » : its expiry judged at the reading; the purge deletes the file and the row
+    # (``test_purge.py``, US-3250).
     del trial
     import_id = analysed(api, stage, worker)["import_id"]
     with database.transaction() as session:
@@ -484,6 +559,56 @@ def test_an_expired_report_is_read_expired_and_can_no_longer_be_applied(
     assert stored(database, import_id).status == "analysed"
     assert api.delete(path(stage, import_id), headers=stage.manager.headers).status_code == 204
     assert stored(database, import_id).status == "analysed"
+
+
+@pytest.mark.requirement("WF-DAT-0080-A")
+@pytest.mark.usefixtures("trial")
+def test_an_import_whose_task_was_purged_is_read_with_a_null_task_not_a_500(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database
+) -> None:
+    # « Une tâche de fond terminée depuis plus que la rétention de son résultat n'est plus dans la
+    # base » : the import it ran is read all the same, 200, its task null (US-3250); one that never
+    # had a task, as those of the witness, is read so too.
+    import_id = analysed(api, stage, worker)["import_id"]
+    task_id = stored(database, import_id).task_id
+    assert read(api, stage, import_id)["task"]["task_id"] == str(task_id)
+    # The purge of the tasks is EP-13's, and the application role may not delete one: the owner.
+    with stage.owner.begin() as connection:
+        connection.execute(delete(BackgroundTask).where(BackgroundTask.id == task_id))
+    found = read(api, stage, import_id)
+    assert (found["status"], found["task"]) == ("analysed", None)
+    assert found["report"] is not None
+    with database.transaction() as session:
+        session.execute(
+            update(ImportReport).where(ImportReport.id == UUID(import_id)).values(task_id=None)
+        )
+    assert read(api, stage, import_id)["task"] is None
+
+
+@pytest.mark.story("US-3250")
+@pytest.mark.usefixtures("trial")
+def test_the_list_of_the_imports_does_not_load_their_report(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database
+) -> None:
+    # ``listImports`` says no report: the column is left out of its query, and the page is the same.
+    import_id = analysed(api, stage, worker)["import_id"]
+    statements: list[str] = []
+
+    def record(*arguments: Any) -> None:
+        statements.append(arguments[2])
+
+    engine = database.engine
+    event.listen(engine, "before_cursor_execute", record)
+    try:
+        response = api.get(path(stage), headers=stage.manager.headers)
+    finally:
+        event.remove(engine, "before_cursor_execute", record)
+    assert response.status_code == 200, response.text
+    assert [each["import_id"] for each in response.json()["items"]] == [import_id]
+    assert "report" not in response.json()["items"][0]
+    selects = [each for each in statements if "FROM import_report" in each]
+    assert selects
+    assert all("import_report.report" not in each for each in selects)
 
 
 @pytest.mark.requirement("WF-ARC-0100-A")

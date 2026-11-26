@@ -12,16 +12,19 @@ d'extension"), filled by the planning at the import of its interface:
   WF-ADM-0110), and the roles whose calendars leave them so (``params.resource_roles``). EP-06
   judges the default calendar (``tasks_left_idle``), EP-07 the roles of the lines — a calendar
   changed, and a role given another calendar (``updateResourceRole``, US-1500);
-- ``register_recalculation``: the constants of the units of duration, the hours of a calendar and
-  the designation of the default redate, in their transaction, the structures of the current
-  revisions (``reschedule_current_structures``), their dates' instant moved on to that of the
-  change. The reference is locked first — the object written and the advisory lock of its rule —,
-  the structures after it, by the recalculation, in the order of (``project_id``, ``id``). A line
+- ``register_recalculation``: the constants of the units of duration, the hours of a calendar —
+  any, the default or that of a role —, the designation of the default and a role given another
+  calendar redate and price again, in their transaction, the structures of the current revisions
+  (``reschedule_current_structures``), their dates' instant moved on to that of the change. The
+  reference is locked first — the advisory lock of its rule, then the object written —, the
+  structures after it, by the recalculation, in the order of (``project_id``, ``id``). A line
   priced again past its column is refused at the fields of the change that carry it, which the
-  change names (``entered``: the days or the constants changed, none for a designation; #3401).
+  change names (``entered``: the days or the constants changed, ``/calendar_id`` for a role, none
+  for a designation; #3401).
 
 Declared by US-1380/L1; US-1390/L2 fills what the planning registers, and gives the recalculation
-the instant of the change; US-2400/L1 gives it the fields that carry the change.
+the instant of the change; US-2400/L1 gives it the fields that carry the change; US-3320 calls it
+for every calendar and for a role.
 """
 
 from dataclasses import dataclass

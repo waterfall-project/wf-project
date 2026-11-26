@@ -97,6 +97,7 @@ import {
 import {
   comparedDifference,
   FoldedRunRow,
+  type RunEnd,
   useRunCommands,
   useRunSlots,
   withFoldToggle,
@@ -104,7 +105,7 @@ import {
 import { useRoomBelow } from "./frame-width";
 import { EDGE_REM, floorOf, ROW_REM, withBar } from "./grid-floor";
 import { HEADER_ROW, samePosition, useCursor, useGridKeyboard } from "./grid-keyboard";
-import { configColumn, useGridTable } from "./grid-table";
+import { configColumn, type GridTable, useGridTable } from "./grid-table";
 import { type Filtering, keptOpenOf, panelLayout } from "./filter-bar";
 import { GridToolbar, toggledColumns } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
@@ -216,10 +217,12 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
   readonly undo?: UndoControl | undefined;
   /**
    * What holds the grid, given the rows it shows — those of the answer, as its writes left them —:
-   * the Gantt of the planning lays them out once for all its cells (`GanttRows`). One element
-   * around the grid, never a prop of each row (défaut n° 14).
+   * and the row of its active cell — the Gantt of the planning lays them out once for all its cells
+   * (`GanttRows`), and brings the bar of the active row into its frame. One element around the grid,
+   * never a prop of each row (défaut n° 14).
    */
-  readonly around?: ((rows: readonly Row[], grid: ReactNode) => ReactNode) | undefined;
+  readonly around?:
+    ((rows: readonly Row[], grid: ReactNode, active: Row | undefined) => ReactNode) | undefined;
   /** The filters of the screen, as menus in the bar of the grid (#2916/L6); none, the bar as it is. */
   readonly treeFilters?: ReactNode;
   /**
@@ -305,6 +308,19 @@ function comparedTotals<Totals>(
   caption: (totals: Totals) => string,
 ): ComparedTotals<Totals> | undefined {
   return comparison === undefined || written !== undefined ? undefined : { ...comparison, caption };
+}
+
+/** The columns pinned at the end that the row of a run folded away leaves a cell, and what each draws. */
+function runEnds<Row extends RowData, Sort extends string, Totals>(
+  table: GridTable<Row>,
+  config: GridConfig<Row, Sort, Totals>,
+  before: number,
+): RunEnd[] {
+  return table.getEndVisibleLeafColumns().map((column) => ({
+    id: column.id,
+    pinning: pinningOf(table, column.id, "z-10"),
+    content: configColumn(config, column.id)?.runCell?.(before) ?? null,
+  }));
 }
 
 /** Render a dense grid, the address last asked shared. */
@@ -892,6 +908,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
                       before={slot.before}
                       index={item.index}
                       span={columns.length}
+                      ended={runEnds(table, config, slot.before)}
                       commands={runs}
                     />
                   ) : null}
@@ -934,5 +951,10 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       </Table>
     </div>
   );
-  return held(<FoldContext value={folding.view}>{grid}</FoldContext>, shownRows, around);
+  return held(
+    <FoldContext value={folding.view}>{grid}</FoldContext>,
+    shownRows,
+    around,
+    shownRows[cursor.active.row],
+  );
 }

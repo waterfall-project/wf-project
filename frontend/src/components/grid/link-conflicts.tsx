@@ -41,19 +41,21 @@ export const RowNumbers = createContext<(nodeId: string) => number | undefined>(
 export function useConflictNames(node: ConflictedNode): readonly string[] {
   const t = useTranslations("planningGrid");
   const rowOf = useContext(RowNumbers);
-  const rowNumber = (conflict: LinkConflict, side: "predecessor" | "successor") => {
-    const id = conflict[`${side}_node_id`];
-    return (
-      (id === node.node_id ? node.row_number : undefined) ??
-      node.predecessors?.find((link) => link.predecessor_node_id === id)?.predecessor_row_number ??
-      rowOf(id)
-    );
-  };
+  const rowNumber = (id: string) =>
+    (id === node.node_id ? node.row_number : undefined) ??
+    node.predecessors?.find((link) => link.predecessor_node_id === id)?.predecessor_row_number ??
+    rowOf(id);
   return (node.task?.link_conflicts ?? []).map((conflict) =>
     t("conflict", {
-      predecessor: rowNumber(conflict, "predecessor")?.toString() ?? "",
+      predecessor: rowNumber(conflict.predecessor_node_id)?.toString() ?? "",
       code: t("linkCode", { link: conflict.link_type }),
-      successor: rowNumber(conflict, "successor")?.toString() ?? "unknown",
+      successor: rowNumber(conflict.successor_node_id)?.toString() ?? "unknown",
+      // The manual task the link cannot satisfy is named when it is not the successor itself, a
+      // summary task under which it lies (`manual_node_id`, WF-PLA-0020).
+      manual:
+        conflict.manual_node_id === conflict.successor_node_id
+          ? "unknown"
+          : (rowNumber(conflict.manual_node_id)?.toString() ?? "unknown"),
     }),
   );
 }

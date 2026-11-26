@@ -84,17 +84,32 @@ def constants_of(project: MsProject) -> UnitConstants:
     )
 
 
+def written_constants(constants: UnitConstants) -> tuple[int, int, int]:
+    """Give the constants as the export writes them: minutes a day and a week, days a month.
+
+    Integers of the schema (``MinutesPerDay``, ``MinutesPerWeek``, ``DaysPerMonth``), each rounded
+    and at least 1: the installation bounds its constants above nought only, and a file carrying
+    a nought constant is refused by the reader (US-3180b), which an export must never write — 0.4
+    days a month is written 1 (#4826).
+    """
+    return (
+        max(1, round(constants.hours_per_day * MINUTES_PER_HOUR)),
+        max(1, round(constants.hours_per_week * MINUTES_PER_HOUR)),
+        max(1, round(constants.days_per_month)),
+    )
+
+
 def carried(constants: UnitConstants) -> UnitConstants:
     """Give constants as a file carries them: whole minutes a day and a week, whole days a month.
 
-    What the export writes of the constants of the installation (``MinutesPerDay``,
-    ``MinutesPerWeek``, ``DaysPerMonth`` are integers of the schema): 21.67 days a month come back
-    22, which is not a constant of another installation.
+    What the export writes of the constants of the installation (``written_constants``): 21.67
+    days a month come back 22, which is not a constant of another installation.
     """
+    per_day, per_week, per_month = written_constants(constants)
     return UnitConstants(
-        decimal_of(Fraction(round(constants.hours_per_day * MINUTES_PER_HOUR), MINUTES_PER_HOUR)),
-        decimal_of(Fraction(round(constants.hours_per_week * MINUTES_PER_HOUR), MINUTES_PER_HOUR)),
-        Decimal(round(constants.days_per_month)),
+        decimal_of(Fraction(per_day, MINUTES_PER_HOUR)),
+        decimal_of(Fraction(per_week, MINUTES_PER_HOUR)),
+        Decimal(per_month),
     )
 
 
@@ -180,10 +195,18 @@ def calendars_of(project: MsProject) -> dict[int, FileCalendar]:
 
 def calendar_of(
     project: MsProject, calendars: Mapping[int, FileCalendar], task: MsTask
-) -> FileCalendar | None:
-    """Give the calendar a task is dated on in the file: its own, else the project's."""
-    uid = project.calendar_uid if task.calendar_uid is None else task.calendar_uid
-    return None if uid is None else calendars.get(uid)
+) -> FileCalendar:
+    """Give the calendar a task is dated on in the file: its own, else the project's.
+
+    A calendar the file names and does not carry is none; a project without one is on the calendar
+    MS Project assumes (``STANDARD``), as the calendar gap reads it (US-3180): a file of another
+    tool keeps its manual tasks at their dates.
+    """
+    for uid in (task.calendar_uid, project.calendar_uid):
+        found = None if uid is None else calendars.get(uid)
+        if found is not None:
+            return found
+    return STANDARD
 
 
 def hours_of(span: timedelta) -> Fraction:

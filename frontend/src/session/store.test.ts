@@ -30,6 +30,25 @@ import {
 
 withTestRedis();
 
+/** The commands of the clients of the store that fail with the error given, in place of Redis. */
+const answers = vi.hoisted((): { get?: Error } => ({}));
+
+vi.mock("@redis/client", async (original) => {
+  const actual = await original<typeof import("@redis/client")>();
+  return {
+    ...actual,
+    createClient: ((...options: Parameters<typeof actual.createClient>) => {
+      const client = actual.createClient(...options);
+      const get = client.get.bind(client);
+      Object.defineProperty(client, "get", {
+        value: (...args: Parameters<typeof get>) =>
+          answers.get === undefined ? get(...args) : Promise.reject(answers.get),
+      });
+      return client;
+    }) as typeof actual.createClient,
+  };
+});
+
 /** The time to live Redis gives a key, in seconds. */
 async function ttl(key: string): Promise<number> {
   const client = await createClient({ url: process.env.WATERFALL_TEST_REDIS_URL ?? "" }).connect();
@@ -296,6 +315,41 @@ describe("a failure to reach Redis", () => {
       expect(unreached(new AggregateError([new Error("another"), failure]))).toBe(true);
     },
   );
+
+  it.each([
+    "LOADING Redis is loading the dataset in memory",
+    "READONLY You can't write against a read only replica.",
+    "MASTERDOWN Link with MASTER is down and replica-serve-stale-data is set to 'no'.",
+    "ERR max number of clients reached",
+  ])("holds a Redis that cannot serve for now as out of reach: %s [US-2860]", (reply) => {
+    const failure = new ErrorReply(reply);
+    expect(unreached(failure)).toBe(true);
+    expect(unreached(new Error("the command failed", { cause: failure }))).toBe(true);
+    expect(unreached(new ReconnectStrategyError(failure, failure))).toBe(true);
+  });
+
+  it("fails as Redis out of reach when a command of the client is answered that Redis is loading [US-2860]", async () => {
+    const loading = new ErrorReply("LOADING Redis is loading the dataset in memory");
+    await closeStore();
+    answers.get = loading;
+    try {
+      const failure: unknown = await readSession(randomUUID()).catch((thrown: unknown) => thrown);
+      expect(failure).toBeInstanceOf(StoreUnreachable);
+      expect((failure as StoreUnreachable).cause).toBe(loading);
+    } finally {
+      delete answers.get;
+      await closeStore();
+    }
+  });
+
+  it.each([
+    "ERR unknown command 'FOO'",
+    "WRONGTYPE Operation against a key holding the wrong kind of value",
+    "NOAUTH Authentication required.",
+    "ERR syntax error",
+  ])("keeps any other reply of Redis an unexpected error: %s [US-2860]", (reply) => {
+    expect(unreached(new ErrorReply(reply))).toBe(false);
+  });
 
   it("is told by the last attempt of a connection given up, never by the giving up alone", () => {
     const refused = systemError("ECONNREFUSED");

@@ -36,11 +36,10 @@ updated in it after the last write of its main structure, then entered. The revi
 amendments opened and the risks declared bear the identifiers of the examples; whatever no example
 names is drawn in order (``drawn_in_order``), the same at every loading. The actual costs come
 after the lines, at the instants of their events (``witness.costs``, EP-09): the imports applied,
-the line excluded and the extraction expired, by the project manager, the account an import is
-requested by; their description is checked against the chronology before its first event, so that
-one that strays writes nothing at all (``check``). A marking keeps the
-indicators of its revision as the worker's does (EP-10): the loader imports their interface
-(``loader.EXTENDING``).
+the line excluded, by the project manager, the account an import is requested by; their description
+is checked against the chronology before its first event, so that one that strays writes nothing at
+all (``check``). A marking keeps the indicators of its revision as the worker's does (EP-10): the
+loader imports their interface (``loader.EXTENDING``).
 """
 
 from typing import TYPE_CHECKING
@@ -84,7 +83,6 @@ from waterfall.witness.timeline import (
     CostImportApplied,
     CostLineExcluded,
     DesignationAttempted,
-    ImportExpired,
     ProjectCreated,
     RateUpdateApplied,
     RevisionMarked,
@@ -237,7 +235,7 @@ class _Walk:
                 self._enter(write, act)
             case StateTransition():
                 self._check(write, event)
-            case CostImportApplied() | CostLineExcluded() | ImportExpired():
+            case CostImportApplied() | CostLineExcluded():
                 self._cost(write, act)
 
     def check(self) -> None:
@@ -247,7 +245,7 @@ class _Walk:
         was refused only once the whole witness before them had been written, then rolled back.
         """
         for event, write in timeline.read(self.witness).writes():
-            if isinstance(write, CostImportApplied | CostLineExcluded | ImportExpired):
+            if isinstance(write, CostImportApplied | CostLineExcluded):
                 if self.costs is None:
                     self.costs = costs.Costs.read(self.witness)
                 costs.check(self.costs, write, timeline.at(self.witness, event.occurred_at).at)
@@ -397,7 +395,7 @@ class _Walk:
             raise ValueError(message)
         return name, revision.description
 
-    def _cost(self, write: CostImportApplied | CostLineExcluded | ImportExpired, act: Act) -> None:
+    def _cost(self, write: CostImportApplied | CostLineExcluded, act: Act) -> None:
         """Make a write of the actual costs at its instant, by the project manager (EP-09).
 
         An import is requested by an account, which the platform is not: the manager of the

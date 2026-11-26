@@ -169,6 +169,7 @@ REVISED = (
     "revision_role",
     "revision_calendar",
     "revision_category",
+    "task_link_conflict",
     "task_link",
     "task",
     "node",
@@ -240,7 +241,7 @@ def partitioned_projects(connection: Connection) -> list[UUID]:
 def drop_every_partition(owner: Engine) -> None:
     """Drop the partitions of every project, a transaction for each project (#4051).
 
-    One transaction for all held a lock on every partition at once — fourteen tables a project,
+    One transaction for all held a lock on every partition at once — fifteen tables a project,
     five projects a fabric of the portfolio —, beyond what the server holds; each project now holds
     its own, released at its commit.
     """

@@ -25,6 +25,7 @@ import {
   parseDecimal,
   percentRatio,
   ratioPercent,
+  shareOfDecimal,
 } from "./format";
 import type { Locale } from "./locale";
 
@@ -311,6 +312,22 @@ describe("two decimals compared", () => {
     // A float would make the two equal: 2^53 + 1 has no double of its own.
     expect(Number("9007199254740993") === Number("9007199254740992")).toBe(true);
     expect(compareDecimals("9007199254740993", "9007199254740992")).toBeGreaterThan(0);
+  });
+});
+
+describe("the share a decimal takes of another", () => {
+  it("divides the digits as whole numbers, bounded to 0 and 1 by their exact comparison", () => {
+    expect(shareOfDecimal("4", "8")).toBe(0.5);
+    expect(shareOfDecimal("2.5", "8")).toBe(0.3125);
+    expect(shareOfDecimal("0.00", "8.0")).toBe(0);
+    expect(shareOfDecimal("-3", "8")).toBe(0);
+    expect(shareOfDecimal("9", "8")).toBe(1);
+    expect(shareOfDecimal("8.00", "8")).toBe(1);
+    // A float would make the two equal and round the part to 1: the digits tell them apart.
+    expect(shareOfDecimal("9007199254740992", "9007199254740993")).toBeLessThan(1);
+    expect(shareOfDecimal("1", "0")).toBeUndefined();
+    expect(shareOfDecimal("1", "-8")).toBeUndefined();
+    expect(shareOfDecimal("x", "8")).toBeUndefined();
   });
 });
 

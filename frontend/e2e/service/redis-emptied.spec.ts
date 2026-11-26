@@ -97,7 +97,8 @@ async function projectWithARevision(page: Page): Promise<{ own: OwnProject; revi
 }
 
 test(
-  "after Redis is emptied the platform goes on, the user signs in again and finds her project and its revision [WF-ARC-0040-A]",
+  "after Redis is emptied the platform goes on, the user signs in again and finds her project " +
+    "and its revision [WF-ARC-0040-A]",
   { tag: "@platform-wide" },
   async ({ browser, playwright }) => {
     test.setTimeout(240_000);
@@ -111,7 +112,8 @@ test(
 
       emptyCache();
 
-      // Her session of the front is gone: she signs in again, and the screen she asked for is there.
+      // Her session of the front is gone: she signs in again, and the screen she asked for is
+      // there.
       await reconnect(page, person, screen);
 
       // Her project is on her home, and the platform serves it as it did.
@@ -124,7 +126,8 @@ test(
 );
 
 test(
-  "a marking asked before Redis is emptied and not taken is run once the worker is back [WF-ARC-0040-A]",
+  "a marking asked before Redis is emptied and not taken is run once the worker is back " +
+    "[WF-ARC-0040-A]",
   { tag: "@platform-wide" },
   async ({ browser, playwright }) => {
     test.setTimeout(300_000);

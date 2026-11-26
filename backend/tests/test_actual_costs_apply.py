@@ -7,8 +7,9 @@ US-1610/L2 writes its tests here ("Les tests du back"): an extraction opened, an
 through the service, then applied by the worker in the transaction of its task — the lines inserted
 or updated on their document and item, their imputation computed again, their exclusion kept, the
 entry of the log and its four counts —, the same file imported twice, two periods that overlap, an
-amount changed, a line imputed again, and an application that waits for the creation of a
-subproject. Every answer of the service is checked against the contract.
+amount changed, a line imputed again, the four phrases of the Vérif of WF-CRE-0020-A, and an
+application that reads the subprojects under the lock. Every answer of the service is checked
+against the contract.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -72,7 +73,7 @@ if TYPE_CHECKING:
     from waterfall.platform.storage import Bucket
     from waterfall.worker.runner import Worker
 
-ELEMENT = f"{CODE}/{SUBPROJECT}"
+ELEMENT = SUBPROJECT
 # A day after every line of the tests: the sum of the lines tracked until it is their whole sum.
 LATER = date(2099, 12, 31)
 
@@ -108,7 +109,7 @@ def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRea
 
 @pytest.fixture
 def lot(api: ContractClient, stage: Scene) -> str:
-    """Give the subproject 10001 of the project of the stage."""
+    """Give the subproject A.ABC.26001/10001 of the project of the stage."""
     return subproject(api, stage)
 
 
@@ -404,25 +405,30 @@ def test_a_line_imported_again_with_another_wbs_element_is_imputed_again(
 ) -> None:
     # « Une ligne réimportée avec un autre élément d'OTP change d'imputation. » : by the real
     # application of an import, the line found by its document and its item, its subproject computed
-    # again from its code — another subproject, a code no subproject bears, none —, compared as
-    # stored, its exclusion kept.
-    cabling = UUID(subproject(api, stage, "10001"))
-    automation = UUID(subproject(api, stage, "10002"))
+    # again from its element compared whole — another subproject, the code of the project —, its
+    # exclusion kept; an element no code is rejects the line, which stays where it is (#3966).
+    cabling = UUID(subproject(api, stage, f"{CODE}/10001"))
+    automation = UUID(subproject(api, stage, f"{CODE}/10002"))
     imported(api, stage, worker, extraction([line(element=f"{CODE}/10001", number="FA-9")]))
     [first] = lines(stage)
-    assert first.subproject_id == cabling
+    assert (first.subproject_id, first.subproject_code) == (cabling, f"{CODE}/10001")
     exclude(stage, "FA-9", "Hors périmètre")
 
     imputations: list[tuple[UUID | None, str | None]] = []
-    for element in (f"{CODE}/10002", f"{CODE}/99999", CODE):
+    for element in (f"{CODE}/10002", CODE):
         report = imported(api, stage, worker, extraction([line(element=element, number="FA-9")]))
         assert report["differences"][0]["fields"] == ["subproject"]
         [held] = lines(stage)
         assert (held.id, held.is_in_tracked_scope) == (first.id, False)
         imputations.append((held.subproject_id, held.subproject_code))
 
-    assert imputations == [(automation, "10002"), (None, "99999"), (None, None)]
+    assert imputations == [(automation, f"{CODE}/10002"), (None, None)]
     assert counts(log(api, stage)["items"][0]) == (0, 1, 0, 0)
+    report = imported(api, stage, worker, extraction([line(element="10002", number="FA-9")]))
+    assert report["unknown_wbs_elements"] == [{"wbs_element": "10002", "line_count": 1}]
+    [held] = lines(stage)
+    assert (held.subproject_id, held.subproject_code) == (None, None)
+    assert counts(log(api, stage)["items"][0]) == (0, 0, 0, 1)
 
 
 @pytest.mark.requirement("WF-CRE-0010-A")
@@ -482,6 +488,7 @@ def test_each_line_imported_bears_its_four_attributes_and_its_columns_kept(
 
 
 @pytest.mark.requirement("WF-CRE-0050-A")
+@pytest.mark.usefixtures("lot")
 def test_the_log_presents_each_import_dated_with_its_author_and_its_counts_latest_first(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
@@ -553,13 +560,15 @@ def test_an_application_is_inscribed_in_the_journal_with_its_kind_and_not_in_the
 
 
 @pytest.mark.requirement("WF-CRE-0020-A")
-def test_an_application_waits_for_the_creation_of_a_subproject_and_imputes_to_it(
+def test_an_application_reads_the_subprojects_under_the_lock_of_the_project(
     api: ContractClient, stage: Scene, worker: Worker, database: Database
 ) -> None:
-    # The application reads the subprojects under the lock of the project: a subproject created
-    # while it waits receives the line the analysis said of an unknown subproject.
+    # The application reads the subprojects under the lock of the project, as the codes stand at
+    # the import that applies: a subproject created while it waits receives the line the analysis
+    # rejected for its unknown element. A subproject created after it imputes nothing (#3966).
     found = analysed(api, stage, worker, extraction([line(element=ELEMENT, number="FA-1")]))
-    assert found["report"]["requires_confirmation_reasons"] == ["unknown_subproject"]
+    assert found["report"]["requires_confirmation_reasons"] == ["lines_outside_project"]
+    assert found["report"]["unknown_wbs_elements"] == [{"wbs_element": ELEMENT, "line_count": 1}]
     response = apply(api, stage, found["import_id"])
     assert response.status_code == 202, response.text
     manager = Viewer(stage.manager.user_id, frozenset({"project_settings.write"}))
@@ -580,6 +589,110 @@ def test_an_application_waits_for_the_creation_of_a_subproject_and_imputes_to_it
     [held] = lines(stage)
     assert (held.subproject_id, held.subproject_code) == (created.subproject_id, SUBPROJECT)
     assert read(api, stage, found["import_id"])["status"] == "applied"
+
+
+# The file of the Vérif of WF-CRE-0020-A: an element of the project, one of its subproject, then
+# the four elements rejected — a subproject not declared, on two lines, a subproject code without
+# the code of the project, another project, none.
+VERIF = extraction(
+    [
+        line(element=CODE, number="FA-2026-0409", item="10"),
+        line(element=f"{CODE}/10001", number="FA-2026-0412", item="10"),
+        line(element=f"{CODE}/10002", number="FA-2026-0415", item="10"),
+        line(element=f"{CODE}/10002", number="FA-2026-0415", item="20"),
+        line(element="10001", number="FA-2026-0417", item="10"),
+        line(element="A.ABC.26002", number="FA-2026-0418", item="10"),
+        line(element=None, number="FA-2026-0421", item="10"),
+    ]
+)
+
+
+def imputed_lines(stage: Scene) -> list[tuple[str, str | None, UUID | None, str | None]]:
+    """Give each line of the project by its document and item, with its subproject and its code."""
+    return [
+        (row.document_number, row.document_item, row.subproject_id, row.subproject_code)
+        for row in lines(stage)
+    ]
+
+
+@pytest.mark.requirement("WF-CRE-0020-A")
+def test_the_element_of_the_project_and_that_of_its_subproject_are_imputed_whole(
+    api: ContractClient, stage: Scene, worker: Worker, lot: str
+) -> None:
+    # « Sur le projet de code A.ABC.26001, qui porte le sous-projet de code A.ABC.26001/10001, une
+    # ligne d'élément A.ABC.26001 est importée et imputée au seul projet, et une ligne d'élément
+    # A.ABC.26001/10001 est imputée à ce sous-projet. »
+    imported(api, stage, worker, VERIF)
+    assert imputed_lines(stage) == [
+        ("FA-2026-0409", "10", None, None),
+        ("FA-2026-0412", "10", UUID(lot), f"{CODE}/10001"),
+    ]
+
+
+@pytest.mark.requirement("WF-CRE-0020-A")
+@pytest.mark.usefixtures("lot")
+def test_the_unknown_elements_are_rejected_and_named_with_the_number_of_their_lines(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « Une ligne d'élément A.ABC.26001/10002, une ligne d'élément 10001, une ligne d'élément
+    # A.ABC.26002 et une ligne d'élément vide sont rejetées, et le compte rendu nomme chacun de ces
+    # éléments et le nombre de ses lignes. » : once each, in the order of the file, the element as
+    # the file carries it; the confirmation asked for them (#2724).
+    report = imported(api, stage, worker, VERIF)
+    assert [(each["row"], each["code"], each["params"]) for each in report["rejected"]] == [
+        (row, "WBS_ELEMENT_OUTSIDE_PROJECT", {"wbs_element": element})
+        for row, element in (
+            (4, f"{CODE}/10002"),
+            (5, f"{CODE}/10002"),
+            (6, "10001"),
+            (7, "A.ABC.26002"),
+            (8, ""),
+        )
+    ]
+    assert report["unknown_wbs_elements"] == [
+        {"wbs_element": f"{CODE}/10002", "line_count": 2},
+        {"wbs_element": "10001", "line_count": 1},
+        {"wbs_element": "A.ABC.26002", "line_count": 1},
+        {"wbs_element": "", "line_count": 1},
+    ]
+    assert report["requires_confirmation_reasons"] == ["lines_outside_project"]
+    assert [row[0] for row in imputed_lines(stage)] == ["FA-2026-0409", "FA-2026-0412"]
+    assert counts(log(api, stage)["items"][0]) == (2, 0, 0, 5)
+
+
+@pytest.mark.requirement("WF-CRE-0020-A")
+def test_a_subproject_created_receives_its_lines_at_the_reimport_alone(
+    api: ContractClient, stage: Scene, worker: Worker, lot: str
+) -> None:
+    # « Après création du sous-projet de code A.ABC.26001/10002, le réimport du même fichier lui
+    # impute ses lignes. » : the creation imputes nothing of itself — the lines were rejected, none
+    # waits —; the reimport imputes them, and names no element of them any more.
+    imported(api, stage, worker, VERIF)
+    created = UUID(subproject(api, stage, f"{CODE}/10002"))
+    assert len(lines(stage)) == 2
+    report = imported(api, stage, worker, VERIF)
+    assert report["differences"] == [
+        {
+            "change": "added",
+            "target": "actual_cost_line",
+            "lineage_id": None,
+            "label": "FA-2026-0415",
+            "document_item": item,
+            "fields": [],
+        }
+        for item in ("10", "20")
+    ]
+    assert [each["wbs_element"] for each in report["unknown_wbs_elements"]] == [
+        "10001",
+        "A.ABC.26002",
+        "",
+    ]
+    assert imputed_lines(stage) == [
+        ("FA-2026-0409", "10", None, None),
+        ("FA-2026-0412", "10", UUID(lot), f"{CODE}/10001"),
+        ("FA-2026-0415", "10", created, f"{CODE}/10002"),
+        ("FA-2026-0415", "20", created, f"{CODE}/10002"),
+    ]
 
 
 def test_an_application_without_its_import_or_its_account_is_a_defect(

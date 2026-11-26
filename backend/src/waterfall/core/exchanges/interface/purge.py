@@ -2,17 +2,20 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The purge of the exchanges: the imports expired, the deposits expired, the exports old.
 
-The task ``purge`` of the worker calls ``purge`` in its transaction (EP-06, "La purge"): it moves to
-``expired`` the imports ``analysed`` whose report expired, and to ``failed`` those whose task failed
-without leaving its trace (the attempts spent, never abandoned) — the file of either goes —; it
-deletes the rows of the deposits expired — those of EP-03 included, a deposit left in parts being
-aborted —, sparing the object of a deposit an import still keeps; it marks consumed the results of
-the exports of more than twenty-four hours, their file going; and it gives what the storage must
-lose, to which it adds what no row designates any more: the old objects of ``uploads/`` past the
-life of a deposit, those of ``exports/`` past the life of an export, and the deposits in parts of
-``uploads/`` left open past the life of a deposit (WF-DAT-0120-A). The worker hands all that to
-``remove_purged`` once the transaction is validated, as EP-03 deletes its deposits: an object is
-never deleted for a row a failed transaction keeps.
+The task ``purge`` of the worker calls ``purge`` in its transaction (EP-06, "La purge"): it deletes
+the imports ``analysed`` whose report expired and those ``abandoned``, report included, and moves to
+``failed`` those whose task failed without leaving its trace (the attempts spent, never abandoned) —
+the file of each goes —, the imports ``applied``, ``failed`` and ``refused`` staying (US-3250,
+WF-DAT-0080-A). An import reads ``expired`` until the pass that finds its report expired, the state
+being read and never written, and is unknown after it (404). The pass deletes the rows of the
+deposits expired — those of EP-03 included, a deposit left in parts being aborted —, sparing the
+object of a deposit an import still keeps. It marks consumed the results of the exports of more than
+twenty-four hours, their file going. And it gives what the storage must lose, to which it adds what
+no row designates any more: the old objects of ``uploads/`` past the life of a deposit, those of
+``exports/`` past the life of an export, and the deposits in parts of ``uploads/`` left open past
+the life of a deposit (WF-DAT-0120-A). The worker hands all that to ``remove_purged`` once the
+transaction is validated, as EP-03 deletes its deposits: an object is never deleted for a row a
+failed transaction keeps.
 
 A storage that cannot be cleaned leaves what it holds to the next pass: the sweep of the prefixes
 finds again every object, and every deposit in parts, whose row is gone — the deposit in parts
@@ -41,7 +44,7 @@ from waterfall.platform.errors import UnavailableError
 from waterfall.platform.logs import get_logger
 from waterfall.platform.storage import MissingObjectError
 from waterfall.platform.tasks import BackgroundTask
-from waterfall.platform.uploads import LIFETIME, FileUpload
+from waterfall.platform.uploads import LIFETIME, FileUpload, expire_uploads
 from waterfall.platform.uploads import PREFIX as UPLOADS_PREFIX
 
 if TYPE_CHECKING:
@@ -130,19 +133,32 @@ def purge(session: Session, now: datetime, stored: Stored | None = None) -> Purg
 
 
 def _imports_ended(session: Session, now: datetime) -> list[str]:
-    """Pass ``expired`` the imports whose report expired, ``failed`` those whose task failed.
+    """Delete the imports whose report expired and those abandoned, pass ``failed`` the others.
+
+    An import ``analysed`` whose report expired, and one ``abandoned`` — the file of which its
+    abandonment deleted, unless the storage was out of reach then —, go with their report, in the
+    pass that finds them so: the state ``expired`` is read, never written. The rows an earlier
+    version wrote ``expired`` go too, in the first pass that meets them. ``applied`` stays, which
+    a line of costs may name; so do ``failed`` and ``refused``, the journal of the imports naming
+    them. The deletion removes the row first: the file it gave is deleted once the pass is
+    validated, and a deletion the storage fails leaves the object to the sweep.
 
     A task that failed without a trace leaves its import running, the attempts spent: the import
     reads ``failed``, and the purge writes it so, its report expiring no more. Each statement locks
     the rows it writes, and re-reads them under the lock: an import applied in the meantime is not
     touched.
     """
-    expired = session.scalars(
-        update(ImportReport)
-        .where(ImportReport.status == "analysed", ImportReport.expires_at <= now)
-        .values(status="expired")
-        .returning(ImportReport.object_key)
+    expired = session.execute(
+        delete(ImportReport)
+        .where(
+            (ImportReport.status == "analysed") & (ImportReport.expires_at <= now)
+            | ImportReport.status.in_(("abandoned", "expired"))
+        )
+        .returning(ImportReport.object_key, ImportReport.upload_id)
     ).all()
+    # The deposits these imports employed expire with them, never free again (WF-DAT-0120): the
+    # pass deletes their rows next, in the same transaction.
+    expire_uploads(session, [each.upload_id for each in expired], now)
     failed_tasks = select(BackgroundTask.id).where(BackgroundTask.status == "failed")
     failed = session.scalars(
         update(ImportReport)
@@ -150,7 +166,12 @@ def _imports_ended(session: Session, now: datetime) -> list[str]:
         .values(status="failed", expires_at=None)
         .returning(ImportReport.object_key)
     ).all()
-    return [*expired, *failed]
+    return [*(each.object_key for each in expired), *failed]
+
+
+def _not_consumed(consumed: ColumnElement[str]) -> ColumnElement[bool]:
+    """Give the condition that the mark ``consumed`` of a result is not set."""
+    return consumed.is_distinct_from("true")
 
 
 def _exports_old(session: Session, now: datetime) -> list[str]:
@@ -161,6 +182,8 @@ def _exports_old(session: Session, now: datetime) -> list[str]:
             BackgroundTask.kind == "export",
             BackgroundTask.status == "succeeded",
             BackgroundTask.finished_at <= now - EXPORT_LIFETIME,
+            # Neither read nor locked again once consumed (US-3250).
+            _not_consumed(BackgroundTask.result["consumed"].astext),
         )
         .with_for_update()
         .execution_options(populate_existing=True)
@@ -277,7 +300,7 @@ def _named_exports(session: Session, keys: Sequence[str]) -> set[str]:
             select(key).where(
                 BackgroundTask.kind == "export",
                 _among(key, keys, Text()),
-                BackgroundTask.result["consumed"].astext.is_distinct_from("true"),
+                _not_consumed(BackgroundTask.result["consumed"].astext),
             )
         )
     )

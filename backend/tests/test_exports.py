@@ -12,7 +12,7 @@ downloaded is US-1420/L2's.
 import asyncio
 import contextlib
 from datetime import date
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 import pytest
@@ -27,7 +27,7 @@ from task_handlers import deposit
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.api.exports import disposition
+from waterfall.api.exports import DeliveredResponse, disposition
 from waterfall.core.exchanges.interface import ExportedFile, ExportOrder, exporters
 from waterfall.core.planning.interface import MS_PROJECT_EXPORTER
 from waterfall.core.revisions.commands import RevisionState, revision_commands
@@ -42,6 +42,8 @@ from waterfall.worker.exchanges import ExportTask
 from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
@@ -51,7 +53,7 @@ if TYPE_CHECKING:
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.settings import ServiceSettings
-    from waterfall.platform.storage import Bucket
+    from waterfall.platform.storage import Bucket, ObjectStream
 
 TASKS = "/api/v1/tasks"
 AT_ONCE = Timing(claim_after=0, block=0.01, redeposit_every=0)
@@ -176,16 +178,11 @@ def stored(bucket: Bucket, key: str) -> int | None:
     return bucket.size(key)
 
 
-async def pulled_then_dropped(app: ASGIApp, path: str, headers: dict[str, str]) -> int:
-    """Read the first piece of an answer, then drop the connection; give the pieces received.
-
-    The client stops reading as one whose network breaks does: the server fails to send the next
-    piece, and its stream is closed where it stands.
-    """
-    received: list[bytes] = []
-    scope: Scope = {
+def stream_scope(path: str, headers: dict[str, str], spec_version: str) -> Scope:
+    """Give the scope of a download read by a client of the given ASGI ``spec_version``."""
+    return {
         "type": "http",
-        "asgi": {"version": "3.0", "spec_version": "2.4"},
+        "asgi": {"version": "3.0", "spec_version": spec_version},
         "http_version": "1.1",
         "method": "GET",
         "scheme": "http",
@@ -198,16 +195,48 @@ async def pulled_then_dropped(app: ASGIApp, path: str, headers: dict[str, str]) 
         "server": ("testserver", 80),
     }
 
+
+async def pulled_then_dropped(
+    app: ASGIApp,
+    path: str,
+    headers: dict[str, str],
+    cut: tuple[str, str] = ("2.4", "send_error"),
+) -> int:
+    """Read the first piece of an answer, then drop the connection; give the pieces received.
+
+    ``cut`` is the ASGI ``spec_version`` of the server and the way the client leaves. With
+    ``send_error`` (the default) the server fails to send the next piece, and its stream is closed
+    where it stands. With ``disconnect`` it is told ``http.disconnect`` after the first piece
+    instead, as uvicorn does under the ``spec_version`` 2.3, which cancels the stream and still
+    runs the background of the response. With ``at_the_end``, every piece of the file is received,
+    and the connection breaks as the answer closes: the file is all handed over.
+    """
+    spec_version, how = cut
+    by_disconnect = how == "disconnect"
+    at_the_end = how == "at_the_end"
+    received: list[bytes] = []
+    first_piece = asyncio.Event()
+
     async def receive() -> Message:
-        return {"type": "http.request", "body": b"", "more_body": False}
+        # A client that says nothing: the receive waits, as a real one does, until it is cancelled.
+        await (first_piece if by_disconnect else asyncio.Event()).wait()
+        return {"type": "http.disconnect"}
 
     async def send(message: Message) -> None:
-        if message["type"] == "http.response.body" and message.get("body"):
+        if message["type"] != "http.response.body":
+            return
+        if message.get("body"):
             received.append(message["body"])
+        if by_disconnect:
+            first_piece.set()
+            await asyncio.sleep(0.2)
+        elif (not at_the_end and message.get("body")) or (
+            at_the_end and not message.get("more_body")
+        ):
             raise ConnectionResetError
 
     with contextlib.suppress(ClientDisconnect):
-        await app(scope, receive, send)
+        await app(stream_scope(path, headers, spec_version), receive, send)
     return len(received)
 
 
@@ -235,13 +264,28 @@ def test_an_export_downloaded_to_the_end_is_no_longer_on_the_storage(
 
 @pytest.mark.requirement("WF-DAT-0120-A")
 @pytest.mark.usefixtures("trial")
+@pytest.mark.parametrize(
+    "cut",
+    [("2.4", "send_error"), ("2.3", "send_error"), ("2.3", "disconnect")],
+)
 def test_an_interrupted_download_leaves_the_export_available_to_be_downloaded_again(
-    api: ContractClient, stage: Scene, worker: Worker, backups_bucket: Bucket
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    backups_bucket: Bucket,
+    cut: tuple[str, str],
 ) -> None:
+    # #3977: uvicorn announces 2.3, where Starlette runs the background of the response after a
+    # ``http.disconnect`` too; the file is kept whatever the version and the way the client left.
     task_id, _ = exported(api, stage, worker)
     key = f"exports/{task_id}.png"
     pieces = asyncio.run(
-        pulled_then_dropped(api.client.app, f"{TASKS}/{task_id}/result", stage.manager.headers)
+        pulled_then_dropped(
+            api.client.app,
+            f"{TASKS}/{task_id}/result",
+            stage.manager.headers,
+            cut,
+        )
     )
     assert pieces == 1
     assert stored(backups_bucket, key) == len(CONTENT)
@@ -249,6 +293,171 @@ def test_an_interrupted_download_leaves_the_export_available_to_be_downloaded_ag
     again = result(api, stage, task_id)
     assert (again.status_code, again.content) == (200, CONTENT)
     assert stored(backups_bucket, key) is None
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+@pytest.mark.usefixtures("trial")
+def test_a_download_cut_after_its_last_piece_leaves_the_export_available_to_be_downloaded_again(
+    api: ContractClient, stage: Scene, worker: Worker, backups_bucket: Bucket
+) -> None:
+    # #3977: the connection breaks once the file is handed over, as the answer closes.
+    task_id, _ = exported(api, stage, worker)
+    key = f"exports/{task_id}.png"
+    pieces = asyncio.run(
+        pulled_then_dropped(
+            api.client.app,
+            f"{TASKS}/{task_id}/result",
+            stage.manager.headers,
+            ("2.4", "at_the_end"),
+        )
+    )
+    assert pieces == 1
+    assert stored(backups_bucket, key) == len(CONTENT)
+    assert task_of(api, stage, task_id)["result_url"] == f"{TASKS}/{task_id}/result"
+    again = result(api, stage, task_id)
+    assert (again.status_code, again.content) == (200, CONTENT)
+    assert stored(backups_bucket, key) is None
+
+
+class Chunks:
+    """A stream of two chunks that counts its closings, as ``ObjectStream`` closes its body."""
+
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+        self.closed = 0
+        self._pieces = iter([b"ab", b"cd"])
+
+    def __iter__(self) -> Chunks:
+        return self
+
+    def __next__(self) -> bytes:
+        if self.fail:
+            raise OSError
+        return next(self._pieces)
+
+    def close(self) -> None:
+        self.closed += 1
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+@pytest.mark.parametrize(
+    ("how", "delivered_calls"), [("whole", 1), ("cut", 0), ("failed", 0), ("disconnected", 0)]
+)
+def test_the_stream_of_a_download_is_closed_on_every_path_and_delivered_only_whole(
+    how: str, delivered_calls: int
+) -> None:
+    # #897, #3977: the storage stream is closed whole, cut, or failed, and the file is deleted
+    # only after the answer went to its end.
+    chunks = Chunks(fail=how == "failed")
+    calls: list[int] = []
+    response = DeliveredResponse(cast("ObjectStream", chunks), lambda: calls.append(1))
+
+    async def receive() -> Message:
+        if how == "disconnected":
+            await asyncio.sleep(0.05)
+            return {"type": "http.disconnect"}
+        await asyncio.Event().wait()
+        raise AssertionError
+
+    async def send(message: Message) -> None:
+        if how == "cut" and message.get("body"):
+            raise ConnectionResetError
+        if how == "disconnected":
+            await asyncio.sleep(0.2)
+
+    async def run() -> None:
+        with contextlib.suppress(ClientDisconnect, ConnectionResetError, OSError):
+            await response(stream_scope("/x", {}, "2.3"), receive, send)
+
+    asyncio.run(run())
+    assert chunks.closed >= 1
+    assert len(calls) == delivered_calls
+
+
+def run_download(
+    handed: Callable[[Message], Awaitable[None]],
+    *,
+    leaves_on: Callable[[Message], bool],
+    while_sending: bool = False,
+) -> tuple[Chunks, list[int]]:
+    """Run a download whose client leaves as soon as the message ``leaves_on`` is sent to it.
+
+    The ``receive`` gives ``http.disconnect`` once that message was handed to ``send`` (with
+    ``while_sending``, as it is handed: the send is then still pending). ``send`` does what
+    ``handed`` does (``at_once``: uvicorn does not wait on a client that has its bytes).
+    """
+    chunks = Chunks()
+    calls: list[int] = []
+    response = DeliveredResponse(cast("ObjectStream", chunks), lambda: calls.append(1), 4)
+    seen = asyncio.Event()
+
+    async def receive() -> Message:
+        await seen.wait()
+        return {"type": "http.disconnect"}
+
+    async def send(message: Message) -> None:
+        if while_sending and leaves_on(message):
+            seen.set()
+        await handed(message)
+        if leaves_on(message):
+            seen.set()
+
+    async def run() -> None:
+        with contextlib.suppress(ClientDisconnect, ConnectionResetError, OSError):
+            await response(stream_scope("/x", {}, "2.3"), receive, send)
+
+    asyncio.run(run())
+    return chunks, calls
+
+
+async def at_once(_: Message) -> None:
+    await asyncio.sleep(0)
+
+
+def closing_message(message: Message) -> bool:
+    """Tell the message that closes a body: the empty one, ``more_body`` false."""
+    return message["type"] == "http.response.body" and not message.get("more_body", False)
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_a_client_that_leaves_at_the_last_byte_has_had_its_download_delivered() -> None:
+    # #4985: the relay of the front closes as soon as it has the last byte of data, while the
+    # stream still awaits its end in a thread, before the closing message goes out.
+    chunks, calls = run_download(at_once, leaves_on=lambda m: m.get("body") == b"cd")
+    assert chunks.closed >= 1
+    assert calls == [1]
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_a_client_that_leaves_before_the_last_piece_leaves_the_download_undelivered() -> None:
+    # The server drops what is sent to a client that left (uvicorn): the pieces after it are lost.
+    chunks, calls = run_download(at_once, leaves_on=lambda m: m.get("body") == b"ab")
+    assert chunks.closed >= 1
+    assert calls == []
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_a_last_send_cancelled_by_the_disconnect_leaves_the_download_undelivered() -> None:
+    # Below ASGI 2.4 the disconnect cancels the stream; a send still waiting (the ``drain`` of
+    # uvicorn) has written nothing.
+    async def waiting(message: Message) -> None:
+        if closing_message(message):
+            await asyncio.Event().wait()
+
+    chunks, calls = run_download(waiting, leaves_on=closing_message, while_sending=True)
+    assert chunks.closed >= 1
+    assert calls == []
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_a_last_send_that_fails_leaves_the_download_undelivered() -> None:
+    async def failing(message: Message) -> None:
+        if closing_message(message):
+            raise ConnectionResetError
+
+    chunks, calls = run_download(failing, leaves_on=lambda _: False)
+    assert chunks.closed >= 1
+    assert calls == []
 
 
 @pytest.mark.requirement("WF-DAT-0120-A")

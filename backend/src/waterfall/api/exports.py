@@ -8,16 +8,26 @@
 ``requestExport`` deposits the task of an export (202) under the command ``export_*`` of the
 revision it names. The file the worker wrote is read by the account that asked for it alone, through
 the task: streamed as an attachment and, once its last byte is sent, deleted from the storage with
-the result marked consumed; a download that stops before leaves both (WF-DAT-0120).
+the result marked consumed; a download that stops before leaves both (WF-DAT-0120). "Its last
+byte" is the end of the answer, accepted by the server, not the last piece of the file: a
+connection that breaks while the answer closes leaves the file to be downloaded again (#3977).
+
+What the API guarantees is the answer it gives, closed to its end towards its own peer. When the
+front relays the download (``frontend/src/api/relay.ts``), that peer is the relay: the API does not
+see whether the relay then hands the file to the browser, and a break between the two is not
+covered (#3977, the question is put to the author).
 """
 
 import unicodedata
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from typing import Any
 from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
+from starlette.concurrency import run_in_threadpool
+from starlette.types import Message, Receive, Scope, Send
 
 from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.models import BackgroundTaskRef, ExportRequest
@@ -31,12 +41,82 @@ from waterfall.core.exchanges.interface import (
 )
 from waterfall.core.projects.interface import Viewer
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
-from waterfall.platform.storage import MissingObjectError
+from waterfall.platform.storage import MissingObjectError, ObjectStream
 from waterfall.platform.tasks import BackgroundTask
 
 # Each route its tag, as the contract has them: ``exchanges`` for ``requestExport``, ``tasks`` for
 # ``getBackgroundTaskResult``.
 router = APIRouter()
+
+
+class DeliveredResponse(StreamingResponse):
+    """A streamed answer that runs ``delivered`` only once its body was handed over whole (#3977).
+
+    Starlette runs the background task of a response after the stream whatever became of the
+    connection: with the ASGI ``spec_version`` below 2.4, a ``http.disconnect`` cancels the stream
+    and the task still runs. So the end is watched here, whatever the version: every byte of the
+    body was handed to the server without a send failing or being cancelled, and no
+    ``http.disconnect`` came before the last of them. The client of a relay leaves as soon as it has
+    the last byte, before the closing message goes out (#4985): a disconnect read after the last
+    piece was sent changes nothing. The body is whole when the stream came to its end or, with the
+    ``length`` known, when that many bytes were sent: the end of the stream is awaited in a thread,
+    and a disconnect can cancel that wait before the thread ran. The ``chunks`` are closed on every
+    path: whole, cut, or failed.
+    """
+
+    def __init__(
+        self,
+        chunks: ObjectStream,
+        delivered: Callable[[], None],
+        length: int | None = None,
+        **options: Any,
+    ) -> None:
+        self.exhausted = False
+        self.length = length
+        super().__init__(self.watched(chunks), **options)
+        self.chunks = chunks
+        self.delivered = delivered
+
+    def watched(self, chunks: ObjectStream) -> Iterator[bytes]:
+        """Pass the pieces on, and note that the stream came to its end (it runs in a thread)."""
+        yield from chunks
+        self.exhausted = True
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Stream the answer; run ``delivered`` if its body went whole to the server, only then."""
+        sent = 0  # the pieces of the body handed to the server
+        size = 0  # their bytes
+        left_after: int | None = None  # the pieces sent when the client left, if it did
+        broken = False  # a send failed or was cancelled: the bytes did not leave
+
+        async def watched_receive() -> Message:
+            nonlocal left_after
+            message = await receive()
+            if message["type"] == "http.disconnect" and left_after is None:
+                left_after = sent
+            return message
+
+        async def watched_send(message: Message) -> None:
+            nonlocal sent, size, broken
+            try:
+                await send(message)
+            except BaseException:
+                broken = True
+                raise
+            if message["type"] == "http.response.body" and message.get("more_body", False):
+                sent += 1
+                size += len(message.get("body", b""))
+
+        try:
+            await super().__call__(scope, watched_receive, watched_send)
+        finally:
+            self.chunks.close()
+        # A client gone before the last piece was sent got no whole file, though the server may take
+        # the pieces still (uvicorn drops them): only a disconnect after all of them is harmless.
+        whole = self.exhausted or (self.length is not None and size >= self.length)
+        if whole and not broken and (left_after is None or left_after >= sent):
+            await run_in_threadpool(self.delivered)
+
 
 # What a quoted file name may not carry (RFC 6266): the quote and the backslash.
 UNQUOTED = {ord('"'): "'", ord("\\"): "_"}
@@ -110,8 +190,11 @@ def get_background_task_result(
     """Stream the file an export produced, to the account that asked for it (WF-DAT-0120).
 
     The task is read in a transaction of its own, closed before the file streams: no connection is
-    held while the storage is read. The file is deleted, and the result marked consumed, when the
-    last byte has been handed over; a stream that stops before leaves both, and is resumed.
+    held while the storage is read. The file is deleted, and the result marked consumed, once the
+    answer has been sent to its end, the closing of the stream included: it runs after the response,
+    which the server never reaches when the connection breaks before. A stream that stops before,
+    or while it closes, leaves both, and is resumed (WF-DAT-0120, #3977). The API sees its own
+    peer only: behind the relay of the front, the hand-over to the browser is not observed by it.
     """
     with services.database.transaction() as session:
         found = result_of(session, task_id, account.user_id)
@@ -124,8 +207,7 @@ def get_background_task_result(
             consumed(session, task_id)
         raise NotFoundError(NOT_FOUND) from None
 
-    def delivered() -> Iterator[bytes]:
-        yield from chunks
+    def delivered() -> None:
         services.backups.remove(found.object_key)
         with services.database.transaction() as session:
             consumed(session, task_id)
@@ -133,4 +215,6 @@ def get_background_task_result(
     headers = {"Content-Disposition": disposition(found.filename)}
     if length is not None:
         headers["Content-Length"] = str(length)
-    return StreamingResponse(delivered(), media_type=found.media_type, headers=headers)
+    return DeliveredResponse(
+        chunks, delivered, length, media_type=found.media_type, headers=headers
+    )

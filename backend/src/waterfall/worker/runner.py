@@ -9,8 +9,9 @@ runs the task again from the start; while the task runs, the entry is left (WF-A
 whose attempts are spent fails without running. A task of a kind no handler runs is left too,
 unacknowledged and without an attempt counted, so that a newer worker, which knows the kind, claims
 it during a rolling update (WF-EXP-0030); it fails only once it has waited ``unknown_kind_wait``
-since it was submitted (#809). A handler that fails is
-undone; one whose failure leaves a trace on its own rows — an import passed ``failed`` or
+since it was submitted (#809). A handler that stalls on a failure that may pass (``RetriedError``)
+is undone and left pending, to run again, until its last attempt, which fails it. A handler that
+fails is undone; one whose failure leaves a trace on its own rows — an import passed ``failed`` or
 ``refused`` (EP-06) — raises ``UndoneError``, and the trace is written with the end of the task.
 
 While a restoration holds the platform in maintenance — read in the database, not in Redis
@@ -49,6 +50,7 @@ from waterfall.platform.tasks import (
     PENDING,
     PROJECT,
     BackgroundTask,
+    RetriedError,
     Task,
     TaskHandler,
     UndoneError,
@@ -70,6 +72,8 @@ MAX_ATTEMPTS = 3
 RUN_LOCK = 3_700_090
 # What ``Worker.start`` gives for a task that waits for a worker that knows its kind.
 WAITS: Literal["waits"] = "waits"
+# What ``Worker.execute`` gives for a task left to run again, its failure one that may pass.
+RETRIED: Literal["retried"] = "retried"
 
 logger = get_logger(__name__)
 
@@ -99,6 +103,11 @@ def field_problem(field: FieldError) -> dict[str, Any]:
     if field.params:
         described["params"] = to_jsonable_python(field.params)
     return described
+
+
+def _code_of(error: Exception) -> str | None:
+    """Give the code of a refusal, ``None`` for any other error."""
+    return error.code if isinstance(error, ServiceError) else None
 
 
 def _run_key(task_id: UUID) -> tuple[ColumnElement[int], ColumnElement[int]]:
@@ -258,7 +267,7 @@ class Worker:
         self.queue.acknowledge(entry.entry_id)
 
     def run_task(self, task_id: UUID) -> bool:
-        """Run a task, under its lock; ``False`` if another worker holds the lock.
+        """Run a task, under its lock; ``False`` if another worker holds the lock or it runs again.
 
         Or if the kind of the task has no handler here, and may still wait for a worker that has.
 
@@ -282,9 +291,11 @@ class Worker:
             started = time.perf_counter()
             with logging_context(**context_of(task)):
                 logger.info("task.started", attempt=task.attempt)
-                succeeded = self.execute(session, task)
+                outcome = self.execute(session, task)
+                if outcome == RETRIED:
+                    return False
         # Counted once its end is committed: a task whose end is lost runs again (WF-OBS-0010).
-        self.ended(task.kind, succeeded=succeeded, seconds=time.perf_counter() - started)
+        self.ended(task.kind, succeeded=outcome, seconds=time.perf_counter() - started)
         return True
 
     def ended(self, kind: str, *, succeeded: bool, seconds: float | None) -> None:
@@ -327,8 +338,11 @@ class Worker:
         """Tell whether a task submitted at that moment is still within the wait of its kind."""
         return utc_now() - submitted_at < timedelta(seconds=self.timing.unknown_kind_wait)
 
-    def execute(self, session: Session, task: Task) -> bool:
+    def execute(self, session: Session, task: Task) -> bool | Literal["retried"]:
         """Run the handler of a task and end the task; tell whether it succeeded.
+
+        ``RETRIED`` if the task stalled on a failure that may pass, and is left to run again: its
+        entry stays pending, as after a worker stopped; on its last attempt, it fails.
 
         A failed handler's work is undone. A refusal ends the task with its code, anything else
         with an ``INTERNAL_ERROR``. A handler that leaves a trace of its failure (``UndoneError``)
@@ -337,6 +351,19 @@ class Worker:
         try:
             with session.begin_nested():
                 result = self.handlers[task.kind](session, task)
+        except RetriedError as stalled:
+            if task.attempt < MAX_ATTEMPTS:
+                # The trace is the stall's, chained to the failure it came from: a defect of the
+                # reading is not left without one.
+                logger.warning(
+                    "task.retried",
+                    attempt=task.attempt,
+                    code=_code_of(stalled.cause),
+                    exc_info=stalled,
+                )
+                return RETRIED
+            stalled.trace(session)
+            self.fail(session, task, stalled.cause)
         except UndoneError as undone:
             undone.trace(session)
             self.fail(session, task, undone.cause)

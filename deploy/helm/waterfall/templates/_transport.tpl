@@ -40,9 +40,9 @@ user it runs as, the key readable by it alone: (list $) for a client alone, or
   image: {{ include "waterfall.image" (list $ "waterfall") }}
   imagePullPolicy: {{ $.Values.images.pullPolicy }}
   {{- if $served }}
-  securityContext:
-    runAsUser: {{ index . 2 }}
-    runAsGroup: {{ index . 3 }}
+  {{- include "waterfall.containerSecurity" (dict "runAsUser" (index . 2) "runAsGroup" (index . 3)) | nindent 2 }}
+  {{- else }}
+  {{- include "waterfall.containerSecurity" (dict) | nindent 2 }}
   {{- end }}
   command:
     - sh

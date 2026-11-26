@@ -23,11 +23,18 @@ import { redirect } from "next/navigation";
 
 import { ContextBanner } from "@/components/context/context-banner";
 import { readRevision } from "@/components/context/reading";
+import { PurgedImport } from "@/components/exchanges/import-list";
 import { ImportPart } from "@/components/exchanges/import-part";
 import { readMappingGap } from "@/components/exchanges/mapping-gap";
 import { ImportReport } from "@/components/exchanges/import-report";
 import { IMPORT_PARAMETER, importOffers } from "@/components/exchanges/offers";
-import { readShownImport } from "@/components/exchanges/shown-import";
+import {
+  endedImport,
+  namedImport,
+  readEntry,
+  readShownImport,
+  type ShownImport,
+} from "@/components/exchanges/shown-import";
 import { createsFirstRevision, openedRevision } from "@/components/projects/opened-revision";
 import { ProjectFacts } from "@/components/projects/project-facts";
 import { ProjectStart } from "@/components/projects/project-start";
@@ -70,7 +77,7 @@ export async function generateMetadata({
 async function leadTo(
   revisionId: string,
   context: ProjectContext,
-  shown: Awaited<ReturnType<typeof readShownImport>>,
+  shown: ShownImport,
 ): Promise<void> {
   const projectPath = `/projects/${context.projectId}`;
   const answer = await readRevision(context.projectId, revisionId);
@@ -79,10 +86,12 @@ async function leadTo(
     redirect(withImport(`${projectPath}/revisions${contextQuery(context, false)}`, shown));
   }
   const inRevision = { ...context, revisionId, revisionInPath: true };
-  if (shown === undefined) {
+  const entry = readEntry(shown);
+  if (shown.kind === "none") {
     redirect(contextAddress(`${projectPath}/revisions/${revisionId}`, inRevision));
   }
-  if (!createsFirstRevision(shown)) {
+  // An import gone is told by the list of the imports, which the exchanges of the revision hold.
+  if (entry === undefined || !createsFirstRevision(entry)) {
     const exchanges = contextAddress(
       `${projectPath}/revisions/${revisionId}/exchanges`,
       inRevision,
@@ -92,12 +101,13 @@ async function leadTo(
 }
 
 /** The address, the report of the import the address names carried on, if it names one. */
-function withImport(address: string, shown: Awaited<ReturnType<typeof readShownImport>>): string {
-  if (shown === undefined) {
+function withImport(address: string, shown: ShownImport): string {
+  const named = namedImport(shown);
+  if (named === undefined) {
     return address;
   }
   const separator = address.includes("?") ? "&" : "?";
-  return `${address}${separator}${IMPORT_PARAMETER}=${encodeURIComponent(shown.import_id)}`;
+  return `${address}${separator}${IMPORT_PARAMETER}=${encodeURIComponent(named)}`;
 }
 
 /** Render a project without a revision, what it is and what starts it; lead to a revision else. */
@@ -119,6 +129,7 @@ export default async function ProjectPage(props: ProjectPageProps) {
       withImport(contextAddress(`/projects/${address.projectId}/revisions`, read.context), shown),
     );
   }
+  const entry = readEntry(shown);
   const offers = importOffers(read.project);
   // Only a project without a revision shows its imports here.
   const gap =
@@ -153,17 +164,19 @@ export default async function ProjectPage(props: ProjectPageProps) {
             offers={startable}
             breakdownHref={`${breakdown}${breakdown.includes("?") ? "&" : "?"}start=skeleton`}
             start={start}
+            ended={endedImport(shown)}
           />
         )}
-        {shown === undefined ? null : (
+        {entry === undefined ? null : (
           <ImportReport
-            key={shown.import_id}
+            key={entry.import_id}
             projectId={address.projectId}
-            entry={shown}
+            entry={entry}
             start={start}
-            then={shown.kind === "ms_project_schedule" ? planning : undefined}
+            then={entry.kind === "ms_project_schedule" ? planning : undefined}
           />
         )}
+        {shown.kind === "purged" ? <PurgedImport /> : null}
         {revisions.length === 0 ? (
           <ImportPart projectId={address.projectId} offers={offers} start={start} gap={gap} />
         ) : null}

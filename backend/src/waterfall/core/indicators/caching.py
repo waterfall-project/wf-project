@@ -120,9 +120,10 @@ def day_key(
     # under its lock (``structure_rescheduled``), whatever the structure — the main one, a
     # differential, the own estimate of a risk —, every one of which the key reads;
     # an import adds its entry; a change of state, a marking, an abandonment, a designation
-    # advance the counter of the project; an exclusion, a reinstatement or an imputation advances
-    # the counter of the lines of cost, whose sum the key reads (``costs_stamp``); a line an import
-    # finds unchanged leaves its counter, and the number of the imports moves the key.
+    # advance the counter of the project; an exclusion or a reinstatement advances the counter of
+    # the lines of cost, whose sum the key reads (``costs_stamp``); a line an import finds
+    # unchanged leaves its counter, and the number of the imports moves the key; the lines the
+    # migration of the codes deletes lower the number of the lines below any it had (#3966).
     parts: list[tuple[str, tuple[object, ...]]] = [
         ("form", (FORM,)),
         ("project", (facts.state, facts.current_revision_id, facts.reference_revision_id)),

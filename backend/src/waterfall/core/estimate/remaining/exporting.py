@@ -6,8 +6,9 @@ What the exporter ``remaining`` writes (EP-09, "Le format Excel du reste à enga
 writer of ``excel/`` turns into the workbook, built from the services as the transaction of the task
 sees it, writing nothing.
 
-- **The tabs.** One per subproject, by its code, and « Hors sous-projet »; the names are the
-  layout's (``tab_names``), the rule the import reads them by. A tab holds the lines of its
+- **The tabs.** One per subproject, and « Hors sous-projet »; the name of a tab is drawn from the
+  code of its subproject (``tab_names``) and the code is at its head, which the import designates
+  the subproject by, never the name (US-3270). A tab holds the lines of its
   subproject, tasks not completed of a main structure only, a provision never (EP-08's), under the
   tasks that bear them in the order of the plan; a task is listed in each tab it bears a line in,
   one that bears none in « Hors sous-projet ». The choice of the « Tâche » column, in every tab, is

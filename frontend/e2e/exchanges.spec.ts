@@ -725,7 +725,7 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
   // reading it.
   const analysed = await request.get(address, { headers: seeded.headers });
   expect(analysed.status(), "GET import").toBe(200);
-  const analysis = ((await analysed.json()) as Schemas["ImportDetail"]).task.task_id;
+  const analysis = ((await analysed.json()) as Schemas["ImportDetail"]).task?.task_id;
 
   // Confirmed, the application is a task; the user leaves the screen of the exchanges at once. The
   // read of the application's task by the shell (a server action carrying the sole identifier of

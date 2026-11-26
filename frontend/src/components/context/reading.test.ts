@@ -113,7 +113,7 @@ describe("what a screen of a project reads in", () => {
     const reading = await read(`${LIFECYCLE}?as_of=2026-05-31&subproject_id=${SUBPROJECT}`);
     expect(reading).toMatchObject({
       filters: [
-        { name: "subproject_id", value: SUBPROJECT, subproject: { code: "SP-CMD" } },
+        { name: "subproject_id", value: SUBPROJECT, subproject: { code: "PRJ-001/SP-CMD" } },
         { name: "as_of", value: "2026-05-31" },
       ],
     });
@@ -132,7 +132,9 @@ describe("what a screen of a project reads in", () => {
       false,
     );
     expect(await read(address, ["subproject_id"])).toMatchObject({
-      filters: [{ name: "subproject_id", value: SUBPROJECT, subproject: { code: "SP-CMD" } }],
+      filters: [
+        { name: "subproject_id", value: SUBPROJECT, subproject: { code: "PRJ-001/SP-CMD" } },
+      ],
     });
   });
 

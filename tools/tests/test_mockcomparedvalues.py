@@ -102,6 +102,28 @@ def test_a_task_renamed_alone_is_modified_by_another_value_its_label_in_the_base
     assert node["deltas"] == {}
 
 
+def test_a_task_whose_float_and_criticality_alone_change_is_unchanged() -> None:
+    # « pour une tâche, ses dates, sa durée, son état et son parent » : the total float and the
+    # membership of the critical path, which the planning engine computes, modify no task, nor
+    # the summary above it (#4312).
+    rows = mockhistory.reference_rows()
+    critical = [
+        _with_task(row, total_float={"value": "-3", "unit": "d"}, is_critical=True)
+        if row.number == N.DESIGN_FILE
+        else row
+        for row in rows
+    ]
+    nodes = _compared(critical)
+    node = _node(nodes, N.DESIGN_FILE)
+    assert (node["difference"], node["changes"], node["base"], node["deltas"]) == (
+        "unchanged",
+        [],
+        None,
+        None,
+    )
+    assert _node(nodes, N.STUDIES)["difference"] == "unchanged"
+
+
 def test_a_duration_and_an_amount_bear_their_signed_deltas() -> None:
     # A duration in the unit of the duration read, an amount to the cent, the read less the base.
     rows = mockhistory.reference_rows()

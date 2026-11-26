@@ -245,7 +245,9 @@ describe("the screen of the actual costs", () => {
   it("offers the sub-projects of the project to filter on, the one the address names chosen", async () => {
     const page = await costsAt({ subproject_id: COMMAND });
     expect(page).toMatch(
-      new RegExp(`<option value="${COMMAND}" selected="">SP-CMD — Poste de commande</option>`),
+      new RegExp(
+        `<option value="${COMMAND}" selected="">PRJ-001/SP-CMD — Poste de commande</option>`,
+      ),
     );
     expect(page).toContain('<option value="unassigned">No subproject</option>');
   });

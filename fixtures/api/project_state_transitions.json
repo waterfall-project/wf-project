@@ -25,7 +25,7 @@
       {"sequence":20,"occurred_at":"2026-05-06T14:00:00Z","what":"Import de coûts réels","writes":[{"kind":"cost_import_applied","project":"PRJ-001","cost_import_id":"01926f3a-7c00-7000-8000-000000000c13"}]},
       {"sequence":21,"occurred_at":"2026-05-11T09:00:00Z","what":"Import de coûts réels","writes":[{"kind":"cost_import_applied","project":"PRJ-001","cost_import_id":"01926f3a-7c00-7000-8000-000000000c14"}]},
       {"sequence":22,"occurred_at":"2026-05-20T00:00:00Z","what":"Import de planning, abandonné","writes":[]},
-      {"sequence":23,"occurred_at":"2026-06-02T09:01:00Z","what":"Extraction d'avril rejouée et analysée ; expirée le lendemain","writes":[{"kind":"import_expired","project":"PRJ-001","import_id":"01926f3a-7c00-7000-8000-000000000a12"}]},
+      {"sequence":23,"occurred_at":"2026-06-02T09:01:00Z","what":"Extraction d'avril rejouée et analysée ; expirée le lendemain","writes":[]},
       {"sequence":24,"occurred_at":"2026-06-03T08:30:00Z","what":"Import de coûts réels","writes":[{"kind":"cost_import_applied","project":"PRJ-001","cost_import_id":"01926f3a-7c00-7000-8000-000000000c15"}]},
       {"sequence":25,"occurred_at":"2026-06-03T08:41:00Z","what":"Import du devis analysé, applicable jusqu'au lendemain","writes":[]},
       {"sequence":26,"occurred_at":"2026-06-03T09:00:00Z","what":"Avenant 2 mis à jour depuis la structure principale, puis saisi dans la révision 102","writes":[{"kind":"amendment_rebased","project":"PRJ-001","revision":102,"structure_id":"01926f3a-7c00-7000-8000-000000000213"}]}

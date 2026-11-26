@@ -141,13 +141,21 @@ def load(session: Session, witness: Witness) -> bool:
     imposed = {project.project_id for project in described}
     if is_loaded(imposed, projects_present(session, imposed)):
         return False
-    manager, week = _manager(witness), _week(witness)
+    manager, week = _manager(witness), default_week(witness)
     for project in described:
-        _Writing(session, witness.act, project, (manager, week)).run()
+        write_project(session, witness.act, project, (manager, week))
     return True
 
 
-def _week(witness: Witness) -> Week:
+def write_project(session: Session, act: Act, project: Project, who: tuple[Viewer, Week]) -> None:
+    """Write a project described as those of the slice, its manager and the hours of its week given.
+
+    The projects the reference set draws are written so too (US-2950).
+    """
+    _Writing(session, act, project, who).run()
+
+
+def default_week(witness: Witness) -> Week:
     """Give the hours of work of each day of the week on the default calendar of the witness."""
     for each in witness.read(calendars.FILE, calendars.Calendars).items:
         if each.is_default:
@@ -445,7 +453,6 @@ class _Writing:
                 project_id=project_id,
                 kind=ACTUAL_COSTS,
                 filename=f"{lines[0].document_number}.xlsx",
-                status="applied",
                 period_from=first,
                 period_to=last,
                 report=_report(imported),
@@ -517,6 +524,7 @@ def _report(imported: Import) -> dict[str, object]:
         "date_mismatches": [],
         "signals": [],
         "requires_confirmation_reasons": [],
+        "unknown_wbs_elements": [],
         "unit_constants": None,
         "calendar_gap": None,
     }

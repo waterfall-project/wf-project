@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from openpyxl import Workbook, load_workbook
 
+from waterfall.core.estimate.remaining.excel.figures import EMPTY, TOTALS
+from waterfall.core.estimate.remaining.excel.layout import TOTALS as LAYOUT_TOTALS
 from waterfall.core.estimate.remaining.excel.layout import line_formulas
 from waterfall.core.estimate.remaining.excel.model import (
     Category,
@@ -245,8 +247,8 @@ def test_the_summary_breaks_down_each_subproject_and_the_project_by_formulas(
         "Reste — Main-d’œuvre",
         "Reste — Fournitures",
         "Reste — Provisions pour risques",
-        "Jours I810",
         "Jours I329",
+        "Jours I810",
     ]
     assert [sheet.cell(16 + i, 1).value for i in range(4)] == [
         "SP-PRE Prestations",
@@ -261,7 +263,7 @@ def test_the_summary_breaks_down_each_subproject_and_the_project_by_formulas(
     assert sheet["H16"].value == (
         '=SUMIFS(RAE_SP_PRE[[Reste à engager]],RAE_SP_PRE[[Nature]],"Main-d’œuvre")'
     )
-    assert sheet["K16"].value == (
+    assert sheet["L16"].value == (
         '=SUMIFS(RAE_SP_PRE[[Jours restants]],RAE_SP_PRE[[Code comptable]],"I810")'
     )
     assert sheet["B19"].value == "=SUM(B16:B18)"
@@ -563,3 +565,150 @@ def test_the_bands_are_merged_across_their_columns(content: bytes) -> None:
     book = _open(content)
     assert {str(r) for r in book["SP-PRE"].merged_cells.ranges} == {"H14:I14"}
     assert {str(r) for r in book["Synthèse"].merged_cells.ranges} == {"H14:L14"}
+
+
+def _cached(content: bytes, name: str) -> Worksheet:
+    """Open a tab as a viewer that does not recalculate shows it: the value each formula caches."""
+    return load_workbook(BytesIO(content), data_only=True)[name]
+
+
+@pytest.mark.story("US-3640")
+def test_each_calculated_cell_of_a_line_carries_its_value_without_a_recalculation(
+    content: bytes,
+) -> None:
+    sheet = _cached(content, "SP-PRE")
+    labour, second, purchase = (_row(sheet, row) for row in (16, 17, 18))
+    assert [labour[header] for header in ("Nature", "Code comptable", "Service", "Type")] == [
+        "Main-d’œuvre",
+        "I329",
+        "Ingénierie > Logiciel",
+        "Main-d’œuvre",
+    ]
+    assert labour["Description de la tâche"] == "Description de Développement du logiciel"
+    assert (labour["État"], labour["Taux horaire"], labour["Coefficient"]) == ("démarrée", 80, 1)
+    # 3 days of 8 hours at 80, then the same for the second line of the task.
+    assert [labour[header] for header in ("Main-d’œuvre", "Débours", "Reste à engager")] == [
+        pytest.approx(1920),
+        0,
+        pytest.approx(1920),
+    ]
+    assert second["Reste à engager"] == pytest.approx(1920)
+    # A disbursement is an amount: the coefficient of its task (1,02) does not apply to it.
+    assert (purchase["Nature"], purchase["Type"], purchase["Service"]) == (
+        "Fournitures",
+        "Hors main-d’œuvre",
+        None,
+    )
+    assert [purchase[header] for header in ("Taux horaire", "Main-d’œuvre", "Débours")] == [
+        0,
+        0,
+        1200,
+    ]
+    assert (purchase["État"], purchase["Coefficient"]) == ("non démarrée", pytest.approx(1.02))
+    assert purchase["Reste à engager"] == pytest.approx(1200)
+
+
+@pytest.mark.story("US-3640")
+def test_a_prepared_row_caches_the_empty_text_and_not_zero(content: bytes) -> None:
+    prepared = _row(_cached(content, "SP-PRE"), 19)
+    formulas = line_formulas("T")
+    assert [prepared[header] for header in formulas if header != "Coefficient"] == [None] * (
+        len(formulas) - 1
+    )
+    # The coefficient reads the task of the row, and gives 1 when it finds none.
+    assert prepared["Coefficient"] == 1
+
+
+@pytest.mark.story("US-3640")
+def test_the_totals_the_header_and_the_summary_carry_their_values_without_a_recalculation(
+    content: bytes,
+) -> None:
+    sheet = _cached(content, "SP-PRE")
+    totals = _row(sheet, 29)
+    assert [totals[header] for header in ("Budget", "Reste précédent", "Jours restants")] == [
+        5672,
+        7600,
+        6,
+    ]
+    assert [totals[header] for header in ("Débours restant", "Main-d’œuvre", "Débours")] == [
+        1200,
+        pytest.approx(3840),
+        1200,
+    ]
+    assert totals["Reste à engager"] == pytest.approx(5040)
+    assert [sheet.cell(row, 2).value for row in range(4, 8)] == [
+        pytest.approx(68567.6),
+        21500,
+        pytest.approx(5040),
+        0,
+    ]
+    assert [sheet.cell(row, 2).value for row in range(9, 13)] == [
+        pytest.approx(5040),
+        pytest.approx(26540),
+        pytest.approx(26540 - 68567.6),
+        pytest.approx(21500 / 26540),
+    ]
+    summary = _cached(content, "Synthèse")
+    # The row of the project, after the two subprojects and the lines outside any.
+    assert [summary.cell(19, column).value for column in range(2, 8)] == [
+        pytest.approx(92735.6),
+        pytest.approx(29500),
+        pytest.approx(17340),
+        pytest.approx(46840),
+        pytest.approx(46840 - 92735.6),
+        pytest.approx(29500 / 46840),
+    ]
+    assert [summary.cell(19, column).value for column in range(8, 13)] == [
+        pytest.approx(13440),
+        pytest.approx(2400),
+        pytest.approx(1500),  # the provisions of the risks, from the header of the tab
+        pytest.approx(6),
+        pytest.approx(12),
+    ]
+    assert summary["G18"].value == pytest.approx(4200 / 15300)
+
+
+@pytest.mark.story("US-3640")
+def test_the_formulas_stay_beside_the_values_they_cache(content: bytes) -> None:
+    sheet = _open(content)["SP-PRE"]
+    assert str(_row(sheet, 16)["Main-d’œuvre"]).startswith("=IF(")
+    assert str(_row(sheet, 29)["Reste à engager"]).startswith("=SUBTOTAL(109,")
+    assert sheet["B6"].value == "=SUBTOTAL(109,RAE_SP_PRE[[Reste à engager]])"
+    assert str(sheet["B12"].value).startswith("=IF(")
+
+
+@pytest.mark.story("US-3640")
+def test_the_summary_breaks_the_days_down_by_the_codes_of_the_roles_only() -> None:
+    labour = [
+        Category(f"641{number:03d}", f"Catégorie {number}", "Main-d’œuvre", D(50))
+        for number in range(1, 151)
+    ]
+    others = [
+        Category("fo-APPA", "Appareillage", "Fournitures"),
+        Category("PRV", "Provision pour risques", "Provisions pour risques"),
+    ]
+    roles = tuple(
+        Role(code, f"Rôle {code}", "Service", accounting)
+        for code, accounting in (
+            ("RA-A1", "641002"),
+            ("ARCH-LOG", "641001"),
+            ("DEV", "641001"),
+            ("TEST", "641002"),
+            ("DOC", "641001"),
+        )
+    )
+    content = write_workbook(_book(categories=(*labour, *others), roles=roles))
+    sheet = _open(content)["Synthèse"]
+    headers = [str(cell.value) for cell in sheet[15] if cell.value is not None]
+    assert [header for header in headers if header.startswith("Jours")] == [
+        "Jours 641001",
+        "Jours 641002",
+    ]
+    assert len(headers) == 7 + 3 + 2
+    assert _cached(content, "Synthèse")["K19"].value == pytest.approx(6)
+
+
+@pytest.mark.story("US-3640")
+def test_a_prepared_row_holds_a_value_for_each_formula_and_the_totals_are_the_layouts() -> None:
+    assert set(EMPTY) >= set(line_formulas("T"))
+    assert TOTALS is LAYOUT_TOTALS

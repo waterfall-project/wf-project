@@ -65,6 +65,58 @@ describe("the report of an import, what the file dates otherwise", () => {
   });
 });
 
+describe("the report of an import, the WBS elements unknown to the project", () => {
+  it("names each element the file carries and the number of its lines, the empty one too, and no longer asks a confirmation for an unknown subproject [WF-CRE-0020-A] [US-3270]", () => {
+    // Une ligne d'élément A.ABC.26001/10002, une ligne d'élément 10001, une ligne d'élément
+    // A.ABC.26002 et une ligne d'élément vide sont rejetées, et le compte rendu nomme chacun de ces
+    // éléments et le nombre de ses lignes.
+    const entry = example("import_actual_costs_unknown_elements") as Import;
+    expect(entry.report?.unknown_wbs_elements).toHaveLength(4);
+    open(entry);
+    const table = screen.getByRole("table", { name: "Éléments d’OTP inconnus du projet" });
+    const rows = within(table).getAllByRole("row");
+    expect(rows.map((row) => Array.from(row.children, (cell) => cell.textContent))).toEqual([
+      ["Élément d’OTP", "Lignes"],
+      ["A.ABC.26001/10002", "2"],
+      ["10001", "1"],
+      ["A.ABC.26002", "1"],
+      ["Sans élément d’OTP", "1"],
+    ]);
+    expect(screen.getByText(/^4 éléments d’OTP ne sont ni le code du projet/)).toBeVisible();
+    expect(screen.getByText("Lignes hors du projet")).toBeVisible();
+    expect(screen.queryByText(/sous-projet inconnu/i)).toBeNull();
+  });
+
+  it("names them in English [WF-CRE-0020-A] [US-3270]", () => {
+    open(example("import_actual_costs_unknown_elements") as Import, "en");
+    const table = screen.getByRole("table", { name: "WBS elements unknown to the project" });
+    expect(within(table).getByText("No WBS element")).toBeVisible();
+    expect(screen.getByText(/^4 WBS elements are neither the code of the project/)).toBeVisible();
+  });
+
+  it("names none for an extraction whose elements are all known [US-3270]", () => {
+    open(example("import_actual_costs_analysed") as Import);
+    expect(screen.queryByRole("table", { name: "Éléments d’OTP inconnus du projet" })).toBeNull();
+  });
+});
+
+describe("the report of an import without a task", () => {
+  it("reads an import whose task was deleted, and follows none [US-3250]", () => {
+    const purged = example("import_actual_costs_task_purged") as Import;
+    expect(purged.task).toBeNull();
+    open(purged);
+    expect(screen.getByText(/4 lignes lues/)).toBeVisible();
+  });
+
+  it("signals a rounded amount of a remaining to commit, the line and both amounts: 1 234,56 typed on a quantity of 1 000 write 1 230,00 [US-3230] [WF-INTF-0120-A]", () => {
+    open(example("import_remaining_amount_rounded") as Import);
+    expect(screen.getByText("Montant arrondi")).toBeVisible();
+    const row = screen.getByRole("row", { name: /Borniers.*Montant arrondi/ });
+    expect(row).toHaveTextContent(/Montant du fichier\s: 1\s234,56/);
+    expect(row).toHaveTextContent(/montant écrit\s: 1\s230,00/);
+  });
+});
+
 // The head of the sentence, read from the catalogue: a wording that changes moves it along, so that
 // the absence asserted below cannot pass for want of a phrase to find.
 const FILE_CONSTANTS = CATALOGUES.fr.exchanges.report.unitConstants.split("{", 1).join("").trim();
@@ -244,5 +296,72 @@ describe("the report of an import, its commands and its refusal", () => {
     openList([refused], "en");
     expect(screen.getByText("Refused")).toBeVisible();
     expect(screen.getByText(/^Refused at the application, the file is deleted/)).toBeVisible();
+  });
+});
+
+/** The first of the items, which the test knows to be there. */
+function first<T>(items: readonly T[]): T {
+  const [item] = items;
+  if (item === undefined) {
+    throw new Error("no item to repeat");
+  }
+  return item;
+}
+
+describe("the tables of a long report [US-3280]", () => {
+  /** The report of the contract, with as many lines rejected and differences as asked. */
+  function long(count: number): Import {
+    const entry = example("import_analysed") as Import;
+    const report = entry.report;
+    if (report == null) {
+      throw new Error("the example of the import analysed has no report");
+    }
+    const rejected = Array.from({ length: count }, (_, index) => ({
+      ...first(report.rejected),
+      row: index + 1,
+    }));
+    const differences = Array.from({ length: count }, (_, index) => ({
+      ...first(report.differences),
+      label: `Ligne ${String(index + 1)}`,
+    }));
+    return { ...entry, report: { ...report, rejected, differences } };
+  }
+
+  it("draws the first 200 rows of each table, says how many are left, and draws them all on demand [WF-INTF-0080-A]", async () => {
+    open(long(250));
+    const rejected = screen.getByRole("table", { name: "Lignes rejetées" });
+    const differences = screen.getByRole("table", { name: "Écarts avec les données existantes" });
+    // A header row, and 200 rows of each.
+    expect(within(rejected).getAllByRole("row")).toHaveLength(201);
+    expect(within(differences).getAllByRole("row")).toHaveLength(201);
+    expect(screen.getAllByText("50 rangées de plus ne sont pas affichées.")).toHaveLength(2);
+    expect(within(differences).queryByText("Ligne 201")).toBeNull();
+    // The heading counts the report received, not the rows drawn.
+    expect(screen.getByText("250 lignes rejetées")).toBeVisible();
+    const buttons = screen.getAllByRole("button", { name: "Tout afficher" });
+    // The two buttons bear one name: each is told apart by the title of its table.
+    expect(buttons.map((button) => button.getAttribute("aria-describedby"))).toEqual([
+      screen.getByText("250 lignes rejetées").id,
+      screen.getByText("250 écarts avec les données existantes").id,
+    ]);
+    const all = first(buttons);
+    await userEvent.click(all);
+    expect(within(rejected).getAllByRole("row")).toHaveLength(251);
+    expect(within(differences).getAllByRole("row")).toHaveLength(201);
+    expect(screen.getByText("Les 250 rangées sont affichées.")).toHaveFocus();
+    expect(screen.getAllByText("50 rangées de plus ne sont pas affichées.")).toHaveLength(1);
+  });
+
+  it("says nothing of rows left, and offers nothing, for a table within its window", () => {
+    open(long(200), "en");
+    expect(screen.queryByRole("button", { name: "Show all" })).toBeNull();
+    expect(screen.queryByText(/more rows? (is|are) not shown/)).toBeNull();
+    const rejected = screen.getByRole("table", { name: "Rejected lines" });
+    expect(within(rejected).getAllByRole("row")).toHaveLength(201);
+  });
+
+  it("says one row left in the singular, in English", () => {
+    open(long(201), "en");
+    expect(screen.getAllByText("1 more row is not shown.")).toHaveLength(2);
   });
 });

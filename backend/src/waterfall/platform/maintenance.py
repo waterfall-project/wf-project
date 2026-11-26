@@ -74,7 +74,7 @@ if TYPE_CHECKING:
     from waterfall.platform.database import Database
     from waterfall.platform.queue import TaskQueue
 
-# The schema of what a restoration leaves in place (migration 0044).
+# The schema of what a restoration leaves in place (migration 0048).
 SCHEMA = "platform"
 # The key of the one row of each table.
 THE_ROW = 1

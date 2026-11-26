@@ -81,19 +81,15 @@ spec:
       annotations:
         checksum/configuration: {{ printf "%s%s%s" $source $providers $dashboard | sha256sum }}
     spec:
-      {{- include "waterfall.podDefaults" . | nindent 6 }}
       # The user grafana of the image.
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 472
-        runAsGroup: 472
-        fsGroup: 472
+      {{- include "waterfall.podDefaults" (list . (dict "runAsUser" 472 "runAsGroup" 472 "fsGroup" 472)) | nindent 6 }}
       initContainers:
         {{- include "waterfall.transportInit" (list . "grafana" 472 472) | nindent 8 }}
       containers:
         - name: grafana
           image: {{ include "waterfall.thirdParty" (list . .Values.grafana.image) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           env:
             - name: GF_SECURITY_ADMIN_USER
               value: {{ required "grafana.adminUser: the account of the dashboard" .Values.grafana.adminUser | quote }}

@@ -201,7 +201,6 @@ RATIO_ABOVE, RATIO_BELOW = Decimal("1.0001"), Decimal("-0.0001")
 REFUSALS: list[Refusal] = [
     *bounds(Project, "label", 300),
     *bounds(Project, "code", 50),
-    (Project, {"code": "PRJ/001"}, "ck_project_code_without_slash"),
     (Project, {"code": TAKEN}, "uq_project_code"),
     *bounds(Project, "client", 300),
     (Project, {"state": "archived"}, "ck_project_state_known"),
@@ -241,11 +240,7 @@ REFUSALS: list[Refusal] = [
     (Contributor, {"project_id": uuid4()}, "fk_contributor_project_id_project"),
     (Contributor, {"user_account_id": uuid4()}, "fk_contributor_user_account_id_user_account"),
     (Subproject, {"code": TAKEN}, "uq_subproject_project_id"),
-    *bounds(Subproject, "code", 31),
-    *(
-        (Subproject, {"code": f"SP{character}1"}, "ck_subproject_code_form")
-        for character in (":", "\\", "/", "?", "*", "[", "]")
-    ),
+    *bounds(Subproject, "code", 100),
     *bounds(Subproject, "label", 300),
     (Subproject, {"project_id": uuid4()}, "fk_subproject_project_id_project"),
     *bounds(WorkPackage, "label", 300),

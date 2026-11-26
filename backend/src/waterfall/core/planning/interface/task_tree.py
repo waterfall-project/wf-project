@@ -27,7 +27,7 @@ from waterfall.core.planning.task_tree_image import (
     revision_label,
 )
 from waterfall.core.planning.tree import read_tree
-from waterfall.core.projects.interface import Viewer, project_code, project_label
+from waterfall.core.projects.interface import Viewer, current_day, project_code, project_label
 from waterfall.core.revisions.interface import read_revision, structure_facts
 from waterfall.core.users.interface import read_account
 from waterfall.platform.errors import UnprocessableError
@@ -92,7 +92,7 @@ class TaskTreeExporter:
             depth=depth,
             language=language,
             revision=one_line(revision_label(language, revision.version_name)),
-            computed_on=facts.scheduled_at.date(),
+            computed_on=current_day(facts.scheduled_at),
         )
         if layout.width * layout.height > task_tree_image.MAX_PIXELS:
             raise UnprocessableError(TOO_LARGE)

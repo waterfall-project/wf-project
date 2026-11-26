@@ -14,8 +14,10 @@ Declared by US-1380/L1; the exporter is filled by US-1430/L4: it reads the struc
 
 The format is filled by US-1430/L3. The head of a file is recognised by its root, a ``Project`` of
 the namespace of MS Project, after the declaration, the comments and the instructions; anything
-else is refused (422 ``FILE_FORMAT_UNREADABLE``, ``expected_format``: MSPDI has no version). The
-whole file is read by the reader at the analysis, which fails the import on a file it cannot read.
+else is refused (422 ``FILE_FORMAT_UNREADABLE``, ``expected_format``: MSPDI has no version), the
+refusal kept by the parse of the head and raised by its judgment, under the lock of the project
+(US-3190/L2). The whole file is read by the reader at the analysis, which fails the import on a
+file it cannot read.
 The analysis and the application build the same plan (``importing``), the application under the
 lock of the structure, which the task of the exchanges takes after the revision and the project:
 the file is read before, by the preparation, holding no lock (#2582). Both build it under the rule
@@ -78,11 +80,15 @@ class MsProjectFormat:
     reading = "planning.read"
     permission = PLANNING_WRITE
 
-    def read_header(self, session: Session, head: bytes) -> None:
-        """Refuse the head of a file that is not a planning of MS Project."""
+    def parse_header(self, head: bytes) -> UnprocessableError | None:
+        """Keep the refusal of a head that is not a planning of MS Project; ``None`` for one."""
+        return None if recognised(head) else _unreadable()
+
+    def judge_header(self, session: Session, parsed: UnprocessableError | None) -> None:
+        """Refuse the head of a file that is not a planning of MS Project, as it was parsed."""
         del session
-        if not recognised(head):
-            raise _unreadable()
+        if parsed is not None:
+            raise parsed
 
     def judge(self, session: Session, target: ImportTarget) -> None:
         """Refuse an import of a planning on the state of its structure: none."""

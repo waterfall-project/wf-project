@@ -35,10 +35,10 @@ VERIFIED = f"?sslmode=verify-full&sslrootcert={ROOTS}"
 SERVERS = {
     "postgres": ("StatefulSet", "postgres", "999:999"),
     "redis": ("Deployment", "redis", "999:1000"),
-    "storage": ("StatefulSet", "storage-proxy", "0:0"),
+    "storage": ("StatefulSet", "storage-proxy", "1000:1000"),
     "api": ("Deployment", "api", "1000:1000"),
     "keycloak": ("Deployment", "keycloak", "1000:0"),
-    "front": ("Deployment", "front-proxy", "0:0"),
+    "front": ("Deployment", "front-proxy", "1000:1000"),
     "prometheus": ("StatefulSet", "prometheus", "65534:65534"),
     "alertmanager": ("Deployment", "alertmanager", "65534:65534"),
     "grafana": ("Deployment", "grafana", "472:472"),
@@ -89,7 +89,8 @@ def test_each_server_serves_with_the_certificate_its_pod_issues_for_the_name_of_
         assert "waterfall-authority --provided=/authority " in script, component
         assert script.rstrip().endswith(f"waterfall-{component}:{user}"), component
         uid, gid = (int(part) for part in user.split(":"))
-        assert init["securityContext"] == {"runAsUser": uid, "runAsGroup": gid}, component
+        security = init["securityContext"]
+        assert (security["runAsUser"], security["runAsGroup"]) == (uid, gid), component
         tls = mounts(named(item, server))["/tls"]
         assert (tls["name"], tls["subPath"], tls["readOnly"]) == (
             "certificates",

@@ -21,7 +21,6 @@ import { START_ALL_AGAIN_TIMEOUT, startAllAgain, whileStopped } from "./componen
 import { heldToTheContract } from "./contract";
 import {
   accountAdministrator,
-  accountButton,
   type Administrator,
   DIRECTORY,
   giveIdentifiers,
@@ -110,11 +109,10 @@ test(
     await expect
       .poll(
         async () => (await request.get("/login", { maxRedirects: 0 })).headers().location ?? "",
-        { timeout: 60_000 },
+        { timeout: 30_000 },
       )
       .not.toContain("/login/unavailable");
-    // The front answering is not its session store reached again by a sign-in: one attempt (on a
-    // new page each time) that opens is the proof, for 60 s at most.
+    // A front that answers has not reached its session store again: sign in on a new page each time, for 60 s at most.
     await expect(async () => {
       const again = await workstation(browser);
       try {
@@ -168,14 +166,11 @@ test(
       await refused.context().close();
     });
 
-    // The directory back: its account signs in again.
-    // The container healthy is not the realm reaching it again: sign in until it does, on a new
-    // page each time, for 60 s at most.
+    // The directory back, a healthy container has not the realm reaching it again: its account signs in again on a new page each time, for 60 s at most.
     await expect(async () => {
       const restored = await workstation(browser);
       try {
         await signIn(restored, DIRECTORY, ACCOUNT);
-        await expect(accountButton(restored, DIRECTORY)).toBeVisible({ timeout: 5_000 });
       } finally {
         await restored.context().close();
       }

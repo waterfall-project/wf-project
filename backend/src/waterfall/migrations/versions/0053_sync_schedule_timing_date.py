@@ -5,9 +5,9 @@
 ``updated_at`` is that of every writing of the schedule (WF-DAT-0070); what the platform owes of a
 reading of the accounts (WF-ADM-0070) is read from the date its timing — enabled, frequency, time,
 weekday — last changed, which a writing that changes none of them does not move, as for the
-backups (0048). The column takes, for the row there, the date of its last writing, which is what
-the timing was dated by until then. In one step, as 0048 and for its reason: the schedule of the
-readings (0046, 0047) is in no release yet (#4375).
+backups (0052). The column takes, for the row there, the date of its last writing, which is what
+the timing was dated by until then. In one step, as 0052 and for its reason: the schedule of the
+readings (0050, 0051) is in no release yet (#4375).
 """
 
 from typing import TYPE_CHECKING
@@ -18,8 +18,8 @@ from alembic import op
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-revision: str = "0049"
-down_revision: str | None = "0048"
+revision: str = "0053"
+down_revision: str | None = "0052"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

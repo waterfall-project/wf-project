@@ -66,8 +66,10 @@ its code refused and its readings by the quality of its reader, by ``wftools.moc
 refusals the contract declared without a code, a condition nor an example, by
 ``wftools.mockdeclared`` (US-0702/L2); and the examples of the majors of the review of the
 2026-10-31, by ``wftools.mockreview`` (US-0704), with the Kanban of the summary that awaits its own
-lines (US-1240); and the chronology, the tasks, the lines and the costs of the witness, by
-``wftools.mockchronology`` and ``mockwitness*``.
+lines (US-1240); and the examples of the contract of the exchanges that EP-33 changes, by
+``wftools.mockimportfindings`` (US-3250/L1), and those of the WBS element compared whole and of the
+free subproject code, by ``wftools.mockfreecodes`` (US-3270/L1); and the chronology, the tasks, the
+lines and the costs of the witness, by ``wftools.mockchronology`` and ``mockwitness*``.
 
 They live in the universe of the other examples: identifiers are kept, and what the witness project,
 the offer and the labels of the universe say is read from their fixtures, never copied here. Nothing
@@ -102,8 +104,10 @@ from wftools import (
     mockdeclared,
     mockdifferentials,
     mockexchanges,
+    mockfreecodes,
     mockgestures,
     mockhistory,
+    mockimportfindings,
     mockkanban,
     mocklists,
     mocknonworking,
@@ -194,9 +198,10 @@ def named() -> dict[str, JsonObject]:
     anonymised (``mockanonymized``); the exit of the witness (``mockproject``); the refusals of one
     form each (``mockrefusals``), those the contract declared without a code, a condition nor an
     example (``mockdeclared``), of the administration (``mockadminrefusals``), served undeclared
-    (``mockservedrefusals``), of the differentials (``mockdifferentials``); the update of the
-    amendment 2 (``mockrebase``); the majors of the
-    review (``mockreview``); the loaders' (``mockwitness*``, ``mockchronology``).
+    (``mockservedrefusals``), of the differentials (``mockdifferentials``); the contract of the
+    exchanges of EP-33 (``mockimportfindings``) and of the free codes (``mockfreecodes``); the
+    update of the amendment 2 (``mockrebase``); the majors of the review (``mockreview``); the
+    loaders' (``mockwitness*``, ``mockchronology``).
     """
     marked = mocksnapshot.revisions(mockrates.categories())
     return {
@@ -231,6 +236,8 @@ def named() -> dict[str, JsonObject]:
         **mockdifferentials.examples(),
         **mockrebase.examples(),
         **mockservedrefusals.examples(),
+        **mockimportfindings.examples(),
+        **mockfreecodes.examples(),
         **mockspendingrefusals.examples(),
         **mockchronology.examples(),
         **mockwitnesstasks.examples(),

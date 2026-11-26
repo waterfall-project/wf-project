@@ -1,0 +1,22 @@
+{
+  "summary": "Une variante du reste à engager importé aujourd'hui : l'onglet « PRJ-001_SP-ESS », renommé « Essais sur site » dans le tableur, porte en tête le code « PRJ-001/SP-MES », qu'aucun sous-projet du projet ne porte : ses lignes 3 et 4 sont rejetées, chacune nommant l'onglet, où l'utilisateur la retrouve, et le code lu en tête, qu'il déclare ; aucune ligne ne change de sous-projet (WF-INTF-0120, WF-INTF-0080, #4898).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a33",
+    "kind": "remaining",
+    "filename": "reste-a-engager-essais.xlsx",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000201",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
+    "status": "analysed",
+    "created_at": "2026-06-03T10:47:05Z",
+    "expires_at": "2026-06-04T10:48:00Z",
+    "report": {"format_version":"1","read_count":2,"unchanged_count":0,"rejected":[{"sheet":"Essais sur site","row":3,"code":"UNKNOWN_SUBPROJECT","params":{"value":"Essais sur site","subproject_code":"PRJ-001/SP-MES"}},{"sheet":"Essais sur site","row":4,"code":"UNKNOWN_SUBPROJECT","params":{"value":"Essais sur site","subproject_code":"PRJ-001/SP-MES"}}],"refusals":[],"differences":[],"ignored":[],"completed_tasks":[],"date_mismatches":[],"signals":[],"requires_confirmation_reasons":[],"unknown_wbs_elements":[],"unit_constants":null,"calendar_gap":null},
+    "task": {"task_id":"01926f3a-7c00-7000-8000-000000000956","kind":"import_analysis","status":"succeeded","progress":100,"submitted_at":"2026-06-03T10:47:05Z","finished_at":"2026-06-03T10:48:00Z","problem":null,"result_url":null},
+    "available_commands": [
+      {"command":"apply","is_available":true,"missing_conditions":[]},
+      {"command":"abandon","is_available":true,"missing_conditions":[]}
+    ]
+  }
+}

@@ -7,8 +7,9 @@
 of MS Project in calendar gap, which analyses the import again (US-2000/L2). A file is deposited
 whole, written to the storage under ``uploads/<upload_id>`` before its row; an import opens on it,
 is analysed by the worker, then applied or abandoned. The storage is asked out of any transaction:
-the head of a file is read before the opening is judged, and a file is deleted once the transaction
-that ends its import is committed (WF-DAT-0120).
+the head of a file is read, and parsed by its format, before the opening is judged — a workbook read
+holds neither the lock of the project nor a connection (US-3190/L2, #4419) —, and a file is deleted
+once the transaction that ends its import is committed (WF-DAT-0120).
 
 Each operation of a project is guarded by ``RequiresProject`` on the visibility of the project
 alone: the project exists only for who may consult it (404). The kind of an import is judged by
@@ -46,7 +47,7 @@ from waterfall.api.contract.models import (
     ImportRequest,
     PaginationMeta,
 )
-from waterfall.api.evaluation import Acting, RequiresProject
+from waterfall.api.evaluation import Acting, Requires, RequiresProject
 from waterfall.api.queries import Offset
 from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import Actor, require_project
@@ -66,8 +67,10 @@ from waterfall.core.exchanges.interface import (
     deposit,
     head_to_read,
     judge_deposit,
+    judge_room,
     list_imports,
     open_import,
+    parse_head,
     read_import,
     set_duration_rule,
 )
@@ -99,6 +102,10 @@ IMPORT_PATH = f"{IMPORTS}/{{import_id}}"
 # The project the path names, visible to the caller; the kind of its imports is judged by the
 # exchanges.
 VISIBLE = [Depends(RequiresProject())]
+# The permissions of the four kinds of an import, any of which opens the deposit of a file: a
+# deposit writes to the storage, which keeps the backups too, and an account that may import nothing
+# has nothing to deposit (WF-ADM-0020; #4423). The refusal names the first.
+DEPOSITORS = ("planning.write", "estimate.write", "remaining.write", "actual_costs.write")
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,17 +159,28 @@ async def sent_file(request: Request) -> Sent:
         raise BadRequestError(MALFORMED_REQUEST) from None
 
 
-@router.post("/file-uploads", operation_id="uploadFile", status_code=201)
+@router.post(
+    "/file-uploads",
+    operation_id="uploadFile",
+    status_code=201,
+    dependencies=[Depends(Requires(one_of=DEPOSITORS))],
+)
 def post_file_upload(
     account: Caller, sent: Annotated[Sent, Depends(sent_file)], services: ServicesOf
 ) -> FileUpload:
     """Deposit a file for an import, in one piece, for twenty-four hours (WF-DAT-0120).
 
-    Refused before anything is written: a backup, deposited by parts (422 ``/purpose``), a file
-    beyond 10 MiB (413), an empty one or one without a name (422 ``/file``). The file is written to
-    the storage, then its deposit recorded: a deposit is recorded once its file is there.
+    Asked by an account that holds one of the permissions of an import at least (403 otherwise,
+    the first named). Refused before anything is written, in this order: a backup, deposited by
+    parts (422 ``/purpose``), a file beyond 10 MiB (413), an empty one, one without a name, with a
+    name too long or holding the NUL character (422 ``/file``); then, the request valid, a deposit
+    beyond the twenty an account keeps pending (409 ``pending_uploads_below_limit``), counted in a
+    transaction of its own, without a lock (US-3240). The file is written to the storage, then its
+    deposit recorded: a deposit is recorded once its file is there.
     """
     judge_deposit(sent.purpose, sent.filename, len(sent.content))
+    with services.database.transaction() as session:
+        judge_room(session, Act(account.user_id, utc_now()))
     filename = sent.filename or ""
     upload_id = new_id()
     key = object_key_of(upload_id)
@@ -232,26 +250,38 @@ def _listed(view: ImportView) -> dict[str, Any]:
 
 
 def _report(view: ImportView) -> dict[str, Any] | None:
-    """Give the report of an import, its unit constants and its calendar gap nil without them.
+    """Give the report of an import, the keys an analysis may not have written nil or empty.
 
-    The analysis of a planning of MS Project writes both (US-2000/L2). A report analysed before
-    ``unit_constants`` (#2580) or ``calendar_gap`` (#2977), or by the code that precedes them during
-    an update (WF-DAT-0140), lacks a key the contract requires, as the reports of the other kinds
-    do: it is read as the constants and the calendars of the file not differing.
+    The analysis of a planning of MS Project writes its unit constants and its calendar gap
+    (US-2000/L2). A report analysed before ``unit_constants`` (#2580) or ``calendar_gap`` (#2977),
+    or by the code that precedes them during an update (WF-DAT-0140), lacks a key the contract
+    requires, as the reports of the other kinds do: it is read as the constants and the calendars
+    of the file not differing. The analysis of an extraction writes ``unknown_wbs_elements``
+    (#3966); a report of another kind, or analysed before it, is read without an unknown element.
     """
     if view.report is None:
         return None
-    return {"unit_constants": None, "calendar_gap": None, **view.report}
+    return {
+        "unit_constants": None,
+        "calendar_gap": None,
+        "unknown_wbs_elements": [],
+        **view.report,
+    }
 
 
 def detailed(session: Session, view: ImportView) -> ImportDetail:
-    """Describe an import as reading it does: with its report, its last task and its commands."""
-    task = session.get_one(BackgroundTask, view.task_id)
+    """Describe an import as reading it does: with its report, its last task and its commands.
+
+    The task is read, not required: the purge of the background tasks deletes one at the end of the
+    retention of its result, and an import of the witness never had one, so ``task`` is null for
+    either (WF-DAT-0080-A, US-3250).
+    """
+    task = None if view.task_id is None else session.get(BackgroundTask, view.task_id)
     return ImportDetail.model_validate(
         {
             **_listed(view),
             "report": _report(view),
-            "task": task_ref(task),
+            "task": None if task is None else task_ref(task),
             "available_commands": _commands(view),
         }
     )
@@ -294,8 +324,9 @@ def post_import(
 ) -> ImportDetail:
     """Open an import of a deposited file, and deposit its analysis for the worker (202).
 
-    The head of the file is read from the storage before the transaction that judges the opening
-    under the lock of the project, which does not wait for the storage; it judges the deposit again.
+    The head of the file is read from the storage and parsed by its format before the transaction
+    that judges the opening under the lock of the project, which waits neither for the storage nor
+    for a workbook opened; it judges the deposit again, and the head as its format parsed it.
     """
     confirmer = confirmer_of(actor)
     opening = ImportOpening(
@@ -310,10 +341,8 @@ def post_import(
         where = head_to_read(session, opening.upload_id, opening.kind, confirmer.act)
     head = None
     if where is not None:
-        try:
-            head = services.backups.head(where.object_key, where.length)
-        except MissingObjectError:
-            head = None
+        with suppress(MissingObjectError):
+            head = parse_head(opening.kind, services.backups.head(where.object_key, where.length))
     with services.database.transaction() as session:
         view = open_import(session, services.queue, opening, head, confirmer)
         opened = detailed(session, view)
