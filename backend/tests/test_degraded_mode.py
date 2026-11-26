@@ -39,12 +39,15 @@ from metrics_reading import samples, value
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from prometheus_support import TestPrometheus
+from psycopg.errors import ConnectionFailure, TooManyConnections
 from redis.exceptions import RedisError
 from sqlalchemy import event, select
+from sqlalchemy.exc import OperationalError
 from support import ContractClient, Logs
 
 from waterfall.api.app import create_app
 from waterfall.api.contract.models import PlatformComponent
+from waterfall.api.maintenance import in_maintenance
 from waterfall.api.status import StatusSources
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
@@ -472,7 +475,7 @@ def test_a_request_met_by_a_postgresql_that_stopped_logs_the_cause_in_a_line(
     assert "\n" not in written["reason"]
 
 
-@pytest.mark.requirement("WF-EXP-0040-A")
+@pytest.mark.story("US-2860")
 def test_a_request_met_by_a_database_that_takes_the_connection_and_never_answers_waits_once(
     platform: Degradable, stage: Scene
 ) -> None:
@@ -496,7 +499,37 @@ def test_a_request_met_by_a_database_that_takes_the_connection_and_never_answers
             unreached.dispose()
         elapsed = time.monotonic() - began
     refused_naming(answer, "database")
-    assert CONNECT_TIMEOUT <= elapsed < CONNECT_TIMEOUT + 1
+    # Once the wait, not twice: the bound sits between one and two waits, with room for a loaded
+    # machine.
+    assert CONNECT_TIMEOUT <= elapsed < 2 * CONNECT_TIMEOUT - 0.5
+
+
+class Unreadable(Maintenance):
+    """A maintenance whose read fails with the driver error of a given SQLSTATE."""
+
+    def __init__(self, failure: Exception) -> None:
+        self.failure = failure
+
+    def current(self) -> None:
+        raise self.failure
+
+
+@pytest.mark.story("US-2860")
+@pytest.mark.parametrize(
+    ("driver", "unreachable"),
+    [(ConnectionFailure("lost"), True), (TooManyConnections("full"), False)],
+    ids=["08006-raised", "53300-read-as-none"],
+)
+def test_the_read_of_the_maintenance_raises_a_database_out_of_reach_and_not_a_statement_refused(
+    driver: Exception, unreachable: bool
+) -> None:
+    # #4710: only what ``is_unreachable`` holds for the database out of reach is raised.
+    failing = Unreadable(OperationalError("SELECT 1", {}, driver))
+    if unreachable:
+        with pytest.raises(OperationalError):
+            in_maintenance(failing)
+    else:
+        assert in_maintenance(failing) is False
 
 
 @pytest.mark.story("US-2860")
