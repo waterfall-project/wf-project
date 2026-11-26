@@ -541,7 +541,9 @@ images: ## Build the images front, waterfall and keycloak, tagged by commit, by 
 	@$(WFTOOLS).images $(if $(filter yes,$(PUSH)),--push)
 
 # The production platform (compose.prod.yaml, US-0430) on the images tagged WATERFALL_IMAGE_TAG — the
-# commit of the checkout by default —, built here or published, under a local name
+# commit of the checkout by default —, built here, pushed to a registry that lives for the run and
+# run by the digests its pushes say (wftools.trialregistry, #3726), or published and run by the
+# WATERFALL_DIGEST_* the environment gives, under a local name
 # (WATERFALL_DOMAIN, waterfall.localhost by default) on ports 80 and 443 (WATERFALL_HTTP_PORT,
 # WATERFALL_HTTPS_PORT): started, bootstrapped, its API's liveness and the sign-in of its first
 # administrator held, then removed with its volumes (wftools.production). Its secrets come from the

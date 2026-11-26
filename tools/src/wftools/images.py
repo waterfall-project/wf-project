@@ -27,10 +27,10 @@ request; from a checkout that is the commit named and is clean in the contexts o
 three images are built first, then searched for the known values of the development, and pushed
 only if all three were built and none holds one: every tag of the commit first, then the tags that
 move, so that a tag of a branch or of a version never names images of two commits. The publication
-then reads from the registry the digest of each image it pushed, and writes them in ``DIGESTS``:
-``digests.values.yaml``, the values of the chart, and ``digests.env``, the lines of the ``.env`` of
-the Compose of production, which designate each image by its digest, never by a tag, which a writer
-of the registry may move (#3726); the chain keeps them as an artifact of its run.
+then writes, in ``DIGESTS``, the digest each push said of its image: ``digests.values.yaml``, the
+values of the chart, and ``digests.env``, the lines of the ``.env`` of the Compose of production,
+which designate each image by its digest, never by a tag, which a writer of the registry may move
+(#3726); the chain keeps them as an artifact of its run.
 """
 
 import argparse
@@ -41,13 +41,13 @@ import subprocess
 import sys
 import tomllib
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from wftools import REPOSITORY
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+    from pathlib import Path
 
 REGISTRY = "ghcr.io/waterfall-project"
 """Where the images are published: the packages of the organisation on GitHub."""
@@ -81,8 +81,8 @@ CHUNK = 1 << 20
 DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 DIGESTS = REPOSITORY / ".waterfall" / "digests"
 """Where a publication writes the digests of the images it pushed (``images.yml`` keeps them)."""
-MANIFEST_DIGEST = ["--format", "{{.Manifest.Digest}}"]
-"""What makes the registry say the digest of the image under a tag, alone."""
+PUSHED = re.compile(r"\bdigest: (?P<digest>sha256:[0-9a-f]{64})\b")
+"""What ``docker push`` says of the manifest it wrote: ``<tag>: digest: sha256:… size: …``."""
 VALUES = "digests.values.yaml"
 ENVIRONMENT = "digests.env"
 
@@ -302,18 +302,29 @@ def digest_variable(image: Image) -> str:
     return f"WATERFALL_DIGEST_{image.name.upper()}"
 
 
-def published_digests(commit: str, read: Callable[[list[str]], tuple[int, str]]) -> dict[str, str]:
-    """Return, by image, the digest the registry holds under the tag of the commit just pushed."""
+def push(
+    commands: list[list[str]], commit: str, read: Callable[[list[str]], tuple[int, str]]
+) -> tuple[int, dict[str, str]]:
+    """Run the pushes, each shown first, and say what each said; stop at the first that fails.
+
+    Return the exit code, and the digest of each image, as the push of its tag of the commit said it
+    — the registry's own word on what it was given, not a read of a tag, which a writer may move
+    (#3726).
+    """
     found: dict[str, str] = {}
-    for image in IMAGES:
-        tagged = reference(image, commit)
-        code, answer = read(["docker", "buildx", "imagetools", "inspect", *MANIFEST_DIGEST, tagged])
-        if code != 0 or not DIGEST.fullmatch(answer.strip()):
-            said = (answer.strip().splitlines() or ["nothing"])[-1]
-            message = f"the registry gave no digest of {tagged} ({said})"
-            raise ImageError(message)
-        found[image.name] = answer.strip()
-    return found
+    for command in commands:
+        print(f"  {' '.join(command)}", flush=True)
+        code, said = read(command)
+        print(said, end="" if said.endswith("\n") else "\n", flush=True)
+        if code != 0:
+            return code, found
+        for image in IMAGES:
+            if command[-1] == reference(image, commit):
+                if not (digest := PUSHED.search(said)):
+                    message = f"the push of {command[-1]} said no digest"
+                    raise ImageError(message)
+                found[image.name] = digest["digest"]
+    return 0, found
 
 
 def write_digests(commit: str, digests: Mapping[str, str], folder: Path) -> None:
@@ -410,8 +421,8 @@ def main(
 ) -> int:
     """Build the images, and push them with ``--push``; stop at the first command that fails.
 
-    Once pushed, the digests of the images are written in ``DIGESTS``, or the folder
-    ``IMAGE_DIGESTS`` names, a version left unposed or not.
+    Once pushed, the digests of the images, as the pushes said them, are written in ``DIGESTS``, a
+    version left unposed or not.
     """
     parser = argparse.ArgumentParser(prog="wftools.images", description="Build the images.")
     parser.add_argument("--push", action="store_true", help="publish every tag of each image")
@@ -431,11 +442,11 @@ def main(
         if not options.push:
             return 0
         check_contents(commit, contents)
-        if code := _execute(pushes(branch, commit, release, posed=posed), run):
+        code, digests = push(pushes(branch, commit, release, posed=posed), commit, read)
+        if code:
             return code
-        folder = Path(environment.get("IMAGE_DIGESTS") or DIGESTS)
-        write_digests(commit, published_digests(commit, read), folder)
-        print(f"wftools.images: the digests of the images are in {folder}", flush=True)
+        write_digests(commit, digests, DIGESTS)
+        print(f"wftools.images: the digests of the images are in {DIGESTS}", flush=True)
         if not failed:
             return 0
         print(f"wftools.images: {failed}", file=sys.stderr)

@@ -61,8 +61,10 @@ spec:
         checksum/configuration: {{ printf "%s%s" $garage $proxy | sha256sum }}
     spec:
       # Garage and its proxy run as a user of no name, 1000, not as root (#4664): the volume is
-      # given its group, which a volume of a release made before writes too.
-      {{- include "waterfall.podDefaults" (list . (dict "fsGroup" 1000)) | nindent 6 }}
+      # given its group, which a volume of a release made before writes too — once, while its root
+      # is not the group's, not at each start. Not every kind of volume takes a group (hostPath,
+      # local, some NFS do not): docs/exploitation/postgresql-fourni.md says what then.
+      {{- include "waterfall.podDefaults" (list . (dict "fsGroup" 1000 "fsGroupChangePolicy" "OnRootMismatch")) | nindent 6 }}
       initContainers:
         {{- include "waterfall.transportInit" (list . "storage" 1000 1000) | nindent 8 }}
       containers:

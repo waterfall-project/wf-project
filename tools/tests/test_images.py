@@ -368,12 +368,17 @@ def test_each_image_is_labelled_by_its_own_name_its_source_its_commit_and_its_ve
         }
 
 
+def says(digest: str) -> str:
+    """Return the end of a ``docker push``: the line that names the digest of the manifest."""
+    return f"digest: {digest} size: 856"
+
+
 class Docker:
     """A Docker that records what it is asked, and answers as a test tells it.
 
-    A build fails if its context is the one named; the registry answers image by image as told
-    for the tag of a version, that it lacks for an image not named, and gives the digest of each
-    image under the tag of the commit, or what it is told for it; the image of Keycloak holds the
+    A build fails if its context is the one named, a push if its tag is the one named; a push says
+    the digest of its image, or what it is told for it; the registry answers image by image as told
+    for the tag of a version, that it lacks for an image not named; the image of Keycloak holds the
     bytes given. The digests are written in the folder of the test (``digests``).
     """
 
@@ -383,31 +388,31 @@ class Docker:
         failing: str = "",
         registry: Mapping[str, tuple[int, str]] | None = None,
         holding: bytes = b"",
-        digests: Mapping[str, tuple[int, str]] | None = None,
+        said: Mapping[str, str] | None = None,
     ) -> None:
         self.ran: list[list[str]] = []
         self.read_: list[list[str]] = []
         self.failing = failing
         self.registry = dict(registry or {})
         self.holding = holding
-        self.digests = {name: (0, f"{DIGESTS[name]}\n") for name in NAMES} | dict(digests or {})
+        self.said = {name: says(DIGESTS[name]) for name in NAMES} | dict(said or {})
 
     def run(self, command: list[str]) -> int:
         self.ran.append(command)
         return 1 if self.failing and command[-1] == self.failing else 0
 
     def read(self, command: list[str]) -> tuple[int, str]:
-        self.read_.append(command)
         name = command[-1].rsplit("/", 1)[1].split(":", 1)[0]
-        if images.MANIFEST_DIGEST[-1] in command:
-            return self.digests[name]
+        if command[:2] == ["docker", "push"]:
+            self.ran.append(command)
+            if self.failing and command[-1] == self.failing:
+                return 1, "denied: requested access to the resource is denied\n"
+            return 0, f"The push refers to repository\n{command[-1]}: {self.said[name]}\n"
+        self.read_.append(command)
         return self.registry.get(name, NOT_FOUND)
 
-    def digest_reads(self) -> list[str]:
-        return [command[-1] for command in self.read_ if images.MANIFEST_DIGEST[-1] in command]
-
     def version_reads(self) -> list[str]:
-        return [command[-1] for command in self.read_ if images.MANIFEST_DIGEST[-1] not in command]
+        return [command[-1] for command in self.read_]
 
     def contents(self, image: str) -> Iterable[bytes]:
         yield b"usr/bin/" + (self.holding if "/keycloak:" in image else b"")
@@ -534,16 +539,14 @@ def test_a_push_that_fails_is_said_before_the_version_left_unposed() -> None:
 @pytest.mark.story("US-2800")
 @pytest.mark.usefixtures("checkout")
 @pytest.mark.parametrize("branch", ["main", "epic/EP-03"])
-def test_the_publication_writes_the_digest_of_each_image_for_the_chart_and_the_compose(
+def test_the_publication_writes_the_digest_each_push_said_for_the_chart_and_the_compose(
     branch: str,
 ) -> None:
     # propre à l'US : « le chart et le Compose de production désignent chaque image par son
-    # empreinte » : the digest the registry holds under the tag of the commit, once every tag is
-    # pushed, in the values of the chart and in the lines of the .env of the Compose.
+    # empreinte » : the digest the push of the tag of the commit said, not a read of a tag the
+    # registry may have moved since, in the values of the chart and in the lines of the .env.
     docker = Docker()
     assert docker.main(branch, "--push") == 0
-    assert docker.digest_reads() == [f"ghcr.io/waterfall-project/{name}:{COMMIT}" for name in NAMES]
-    assert docker.ran[-1][:2] == ["docker", "push"]
     values = yaml.safe_load(docker.written(images.VALUES))
     assert values == {"images": {"digests": DIGESTS}}
     lines = [line for line in docker.written(images.ENVIRONMENT).splitlines() if "=" in line]
@@ -556,18 +559,25 @@ def test_the_publication_writes_the_digest_of_each_image_for_the_chart_and_the_c
 
 @pytest.mark.story("US-2800")
 @pytest.mark.usefixtures("checkout")
-@pytest.mark.parametrize(
-    "answer",
-    [(0, "latest\n"), (0, "sha256:abc\n"), (1, "ERROR: unexpected status: 403 Forbidden")],
-    ids=["a tag", "a digest cut short", "a refusal"],
-)
-def test_a_digest_the_registry_does_not_give_fails_the_publication_and_writes_nothing(
-    answer: tuple[int, str], capsys: pytest.CaptureFixture[str]
+def test_the_registry_is_not_read_for_a_digest_once_the_images_are_pushed() -> None:
+    # A tag may be moved (#3726): the digest is the one the push said, and no command asks the
+    # registry for one by a tag, which the version of main alone is read by, before the push.
+    docker = Docker()
+    assert docker.main("epic/EP-03", "--push") == 0
+    assert docker.read_ == []
+    assert all(command[:3] != ["docker", "buildx", "imagetools"] for command in docker.ran)
+
+
+@pytest.mark.story("US-2800")
+@pytest.mark.usefixtures("checkout")
+@pytest.mark.parametrize("said", ["latest: pushed", "digest: sha256:abc size: 856", ""])
+def test_a_push_that_says_no_digest_fails_the_publication_and_writes_nothing(
+    said: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    docker = Docker(digests={"waterfall": answer})
+    docker = Docker(said={"waterfall": said})
     assert docker.main("epic/EP-03", "--push") == 2
     tagged = f"ghcr.io/waterfall-project/waterfall:{COMMIT}"
-    assert f"wftools.images: the registry gave no digest of {tagged}" in capsys.readouterr().err
+    assert f"wftools.images: the push of {tagged} said no digest" in capsys.readouterr().err
     assert not images.DIGESTS.exists()
 
 

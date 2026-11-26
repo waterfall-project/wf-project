@@ -95,6 +95,16 @@ def test_every_container_gains_no_privilege_holds_no_capability_and_runs_as_a_nu
             assert user > 0, where
 
 
+def test_the_volume_of_garage_is_given_its_group_once_not_at_each_start(
+    pods: dict[str, dict[str, Any]],
+) -> None:
+    # #4664: Garage no longer runs as root, and the volume of an installation made before it was
+    # written by root: the group of the pod gives it, while its root is not the group's.
+    security = pods["waterfall-storage"]["securityContext"]
+    assert security["fsGroup"] == 1000
+    assert security["fsGroupChangePolicy"] == "OnRootMismatch"
+
+
 def test_the_servers_of_the_test_of_a_restoration_own_their_keys_without_root(
     pods: dict[str, dict[str, Any]],
 ) -> None:

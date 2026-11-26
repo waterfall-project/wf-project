@@ -28,7 +28,10 @@ COMPOSE = REPOSITORY / "deploy" / "compose"
 PRODUCTION = COMPOSE / "compose.prod.yaml"
 MIRRORED = re.compile(r"^\$\{WATERFALL_MIRROR:-\}")
 # An image the chain publishes, in the Compose: by the digest .env gives it (#3726).
-PUBLISHED = re.compile(r"^ghcr\.io/waterfall-project/(\w+)@\$\{WATERFALL_DIGEST_(\w+):\?[^}]*\}$")
+PUBLISHED = re.compile(
+    r"^\$\{WATERFALL_REGISTRY:-ghcr\.io/waterfall-project\}/"
+    r"(\w+)@\$\{WATERFALL_DIGEST_(\w+):\?[^}]*\}$"
+)
 
 Objects = list[dict[str, Any]]
 

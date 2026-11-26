@@ -451,20 +451,24 @@ class Trial:
         }
 
     def digest(self, node: str, reference: str) -> str:
-        """Return the digest the runtime of the node holds an image under, by its tag."""
-        found = json.loads(
-            _output(
-                self.read,
-                ["docker", "exec", node, "crictl", "inspecti", "--output", "json", reference],
-                f"read the digest of {reference} in the cluster",
-            )
-        )
-        repository = reference.rsplit(":", 1)[0]
-        for named in found.get("status", {}).get("repoDigests", []):
-            if named.startswith(f"{repository}@") and DIGEST.fullmatch(named.split("@", 1)[1]):
-                return named.split("@", 1)[1]
-        message = f"the cluster holds {reference} by no digest"
-        raise TrialError(message)
+        """Make the node hold an image by its digest too, and return it.
+
+        ``kind load`` leaves an image under its tag, and ``crictl`` names no digest of it but the
+        import's: the kubelet would not find ``name@sha256:…``. ``ctr`` lists the digest of the
+        image under the tag, the node is told to name it so, and the runtime to find it.
+        """
+        containerd = ["docker", "exec", node, "ctr", "--namespace=k8s.io", "images"]
+        listing = [*containerd, "ls", f"name=={reference}"]
+        listed = _output(self.read, listing, f"read the digest of {reference}")
+        if not (found := DIGEST.search(listed)):
+            message = f"the cluster holds {reference} by no digest"
+            raise TrialError(message)
+        named = f"{reference.rsplit(':', 1)[0]}@{found.group(0)}"
+        tag = [*containerd, "tag", "--force", reference, named]
+        _must(self.run, tag, f"name {named} by its digest")
+        find = ["docker", "exec", node, "crictl", "inspecti", named]
+        _output(self.read, find, f"find {named} in the cluster")
+        return found.group(0)
 
     def ingress(self) -> str:
         """Install Traefik, serving HTTPS on the port of the node; return its address inside.
