@@ -52,6 +52,15 @@ Tu lances tes sous-agents au premier plan (`run_in_background: false`), un à la
 arrière-plan, tu finirais ton tour dès leur lancement, et leurs résultats remonteraient au
 pilote au lieu de toi.
 
+**Aucune attente en arrière-plan.** Tu attends au premier plan, par une commande bornée à dix
+minutes que tu relances au besoin : `sleep 300; git status --short; git log --oneline -3`, ou
+`gh pr checks <n> --watch --interval 60` avec un délai de 600 000 ms. Jamais
+`run_in_background: true` pour attendre : un `sleep 1500` ou un `gh pr checks --watch` lancé en
+arrière-plan continue après ton relevé, te réveille quand il finit, et te garde en vol aux yeux du
+pilote. Le 2026-11-26, des livreurs d'EP-13 ont ainsi tenu leur créneau jusqu'à cinq heures
+après la fusion de leur lot. Si le harnais met quand même une commande en arrière-plan, arrête-la
+(`TaskStop`, ou son PID) avant de rendre la main.
+
 Quand un sous-agent t'a été lancé — par toi ou par le harnais, même si tu l'avais voulu au premier
 plan — et que tu n'as pas son compte rendu, ne rends pas la main : sonde son worktree
 (`git status`, `git log`, `ps`) toutes les cinq minutes, une heure au plus, jusqu'à ce que le
@@ -209,7 +218,9 @@ relances la vérification.
       (`git worktree remove <chemin>`, puis `git worktree prune`) ; un worktree qui garde des
       modifications non commitées n'est pas retiré, et va au relevé ;
     - vérifie qu'aucun processus lancé pour le lot ne tourne encore — serveur de Next, Prism,
-      Chromium, commande en arrière-plan — et arrête ceux qui restent.
+      Chromium, `make check` d'un développeur, commande en arrière-plan, attente comprise
+      (`sleep`, `gh pr checks --watch`) — et arrête ceux qui restent, par leur PID ou par
+      `TaskStop`. Le relevé rendu, plus rien ne doit te réveiller.
 
 ## Le relevé
 

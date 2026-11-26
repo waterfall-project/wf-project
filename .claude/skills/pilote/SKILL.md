@@ -75,7 +75,17 @@ d'autre : il lit lui-même ses règles et le lot, et prend son créneau avant to
 
 ## Un relevé
 
-- **Lot fusionné** : rien à faire, le tableau est tenu par le livreur (`make tracking`).
+- **Lot fusionné** : rien à faire, le tableau est tenu par le livreur (`make tracking`). Son
+  relevé final rendu, le livreur a fini, même si le harnais le montre encore en vol parce
+  qu'une commande qu'il a lancée en arrière-plan tourne encore : arrête-le (`TaskStop`), et
+  compte son créneau comme libre si `make slots` le dit rendu.
+- **Des `make check` orphelins** : à chaque réveil, cherche les `make check` dont le
+  répertoire (`/proc/<pid>/cwd`) est le worktree d'un lot déjà fusionné, ou un worktree
+  retiré. Arrête-les par leur PID, écrit en chiffres, jamais par motif : personne ne lira plus
+  leur résultat, et ils ralentissent les paliers de tous (soixante-dix à la fois le
+  2026-11-26). C'est la seule exception à « Un agent n'arrête que ce qu'il a lancé »
+  (`docs/dev/agents.md`). Ne touche pas à ceux d'un worktree encore actif, de quelque pilote
+  qu'il soit.
 - **Lot `question`** : préviens l'utilisateur (« Prévenir »), et passe à un autre lot.
 - **Lot bloqué** : passe à un autre lot ; le blocage figure au relevé final.
 - **« Instabilité vue deux fois : #n »** (`docs/dev/agents.md`, « Une instabilité de la

@@ -215,7 +215,8 @@ un même test. Une instabilité ne se rejoue donc pas en silence.
   quinze worktrees de lots fusionnés brouillaient `git branch` et `git worktree list`. Le nettoyage
   d'un dépôt déjà encombré se fait à la main, une fois.
 - **Un agent n'arrête que ce qu'il a lancé** (US-1080), par son PID ou par un nom propre à son lot ;
-  jamais par motif. Ni `pkill`, ni `killall`, ni un `kill` dont une cible n'est pas un PID écrit en
+  jamais par motif. Seule exception, le pilote arrête, par leur PID, les `make check` restés dans le
+  worktree d'un lot déjà fusionné ou d'un worktree retiré (skill `pilote`, « Un relevé »). Ni `pkill`, ni `killall`, ni un `kill` dont une cible n'est pas un PID écrit en
   chiffres — `kill $(pgrep make)`, `kill $pid`, un nom —, lancé par `xargs`, ou qui vise `-1` ou
   `0`, ni `kill-port` ; ni `docker rm`, `docker stop`, `docker kill`, `docker rmi` ou `docker volume
   rm` d'une cible calculée — substitution, variable, joker —, d'un tube ou d'un filtre, quand une
