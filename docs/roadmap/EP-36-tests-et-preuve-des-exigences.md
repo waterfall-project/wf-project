@@ -274,6 +274,16 @@ Reportés par EP-13 le 2026-11-22 (décision de l'auteur), rattachés à #4596, 
   → proposé : US-3420 ;
 - #4638 — outil : l'essai réel de Grafana importe un autre module de test → proposé : US-3460.
 
+Reportés par EP-13 le 2026-11-26 (décision de l'auteur), rattachés à #4596, à placer — plus aucun
+lot d'EP-13 ne touche ces fichiers :
+
+- #5011 — front : le commentaire du filtre « Nature » de `reference-manager.spec.ts:203` dit
+  « délai d'une action » pour `WORKING`, le délai d'une lecture d'écran ;
+- #5015 — front : le parcours d'inactivité de `sign-in.spec.ts` ferme ses contextes hors d'un
+  `finally` (le défaut de #3133), avec #5019 ;
+- #5019 — front : le premier parcours de `sign-in.spec.ts` asserte avant le `try` qui retire la
+  personne du fournisseur.
+
 ## Conception
 
 Écrite le 2026-11-21, après la validation des US par l'auteur le même jour, contre `main`
