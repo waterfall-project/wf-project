@@ -10,7 +10,8 @@ import pytest
 
 from wftools import chartload
 from wftools.chartload import Tally
-from wftools.charttrial import Tools, Trial, TrialError
+from wftools.chartrun import TrialError
+from wftools.charttrial import Tools, Trial
 from wftools.production import Answer, Browser, Platform, ProductionError, Send
 
 if TYPE_CHECKING:

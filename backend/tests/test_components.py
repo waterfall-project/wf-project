@@ -228,6 +228,7 @@ class Keycloak(BaseHTTPRequestHandler):
 
     version: str | None = "26.4.2"
     document: Any = None
+    token: Any = None
     phrase = "service-phrase"
     asked: ClassVar[list[str]] = []
 
@@ -235,7 +236,7 @@ class Keycloak(BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers["Content-Length"])).decode()
         self.asked.append(f"POST {self.path} {body}")
         granted = f"client_secret={self.phrase}" in body
-        token = {"access_token": "token", "expires_in": 300}
+        token = {"access_token": "token", "expires_in": 300} if self.token is None else self.token
         self._answer(200 if granted else 401, token if granted else {})
 
     def do_GET(self) -> None:
@@ -264,7 +265,7 @@ class Keycloak(BaseHTTPRequestHandler):
 @pytest.fixture
 def keycloak() -> Iterator[str]:
     """Serve the Keycloak above on a loopback port; give its address."""
-    Keycloak.version, Keycloak.asked, Keycloak.document = "26.4.2", [], None
+    Keycloak.version, Keycloak.asked, Keycloak.document, Keycloak.token = "26.4.2", [], None, None
     server = HTTPServer(("127.0.0.1", 0), Keycloak)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -293,9 +294,38 @@ def test_the_command_states_its_version_without_checking_anything(
     assert capsys.readouterr().out == f"{NAME} {waterfall.__version__}\n"
 
 
-def test_any_argument_but_the_version_is_refused(capsys: pytest.CaptureFixture[str]) -> None:
-    assert components_check.main(["--now"]) == 2
-    assert capsys.readouterr().err.startswith(f"usage: {NAME} [--version]\n")
+@pytest.mark.parametrize(
+    "arguments",
+    [["--now"], ["--component"], ["--component", "storage"], ["redis"], ["--component=redis"]],
+)
+def test_any_argument_but_the_version_and_the_components_is_refused(
+    capsys: pytest.CaptureFixture[str], arguments: list[str]
+) -> None:
+    assert components_check.main(arguments) == 2
+    assert capsys.readouterr().err.startswith(f"usage: {NAME} [--version | [--component ")
+
+
+@pytest.mark.requirement("WF-CMP-0020-A")
+def test_the_components_named_are_the_only_ones_checked_and_none_named_checks_every_one(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], process_database_url: str
+) -> None:
+    # At an installation the chart reaches PostgreSQL alone: its Redis and its Keycloak are not
+    # there yet, and a check that went to them would fail an installation that is sound.
+    monkeypatch.setenv("WATERFALL_DATABASE_URL", process_database_url)
+    monkeypatch.setenv("WATERFALL_REDIS_URL", "redis://:secret-redis@127.0.0.1:9/0")
+    monkeypatch.setenv("WATERFALL_KEYCLOAK_ADDRESS", "http://127.0.0.1:9/auth")
+    monkeypatch.setenv("WATERFALL_SERVICE_CLIENT_SECRET", Keycloak.phrase)
+    assert components_check.main(["--component", "postgresql"]) == 0
+    said = capsys.readouterr()
+    assert said.out.startswith(f"{NAME}: PostgreSQL 18 ")
+    assert "Redis" not in said.out + said.err
+    assert components_check.main(["--component", "redis", "--component", "keycloak"]) == 1
+    error = capsys.readouterr().err
+    assert "Redis does not answer" in error
+    assert "Keycloak does not answer" in error
+    assert "PostgreSQL" not in error
+    assert components_check.main([]) == 1
+    assert "PostgreSQL" not in capsys.readouterr().err
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")
@@ -383,6 +413,36 @@ def test_a_keycloak_whose_server_version_is_not_a_version_fails_saying_it_did_no
     Keycloak.document = document
     assert components_check.main([]) == 1
     assert "Keycloak does not answer as expected" in capsys.readouterr().err
+
+
+@pytest.mark.requirement("WF-CMP-0020-A")
+@pytest.mark.usefixtures("check_settings")
+@pytest.mark.parametrize(
+    "token",
+    [
+        ["not", "a", "token"],
+        {},
+        {"expires_in": 300},
+        {"access_token": "token"},
+        {"access_token": "token", "expires_in": None},
+        {"access_token": "token", "expires_in": "soon"},
+        {"access_token": "token", "expires_in": True},
+        {"access_token": "token", "expires_in": float("nan")},
+        {"access_token": None, "expires_in": 300},
+        {"access_token": "", "expires_in": 300},
+        {"access_token": 7, "expires_in": 300},
+    ],
+)
+def test_a_keycloak_whose_token_is_not_a_token_fails_saying_it_did_not_answer(
+    capsys: pytest.CaptureFixture[str], token: object
+) -> None:
+    # A token that is no object, or lacks its text or its lifetime, is a Keycloak that did not
+    # answer as expected, not a traceback (#5007).
+    Keycloak.token = token
+    assert components_check.main([]) == 1
+    error = capsys.readouterr().err
+    assert "Keycloak does not answer as expected: IdentityProviderError" in error
+    assert "Traceback" not in error
 
 
 @pytest.mark.requirement("WF-CMP-0020-A")

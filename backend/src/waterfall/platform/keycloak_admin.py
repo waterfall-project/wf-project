@@ -22,6 +22,7 @@ platform, whose tests measure it (``make test-keycloak``); the measure of the ba
 Keycloak, leaves this module out by its path.
 """
 
+import math
 import threading
 import time
 from collections.abc import Callable, Mapping
@@ -556,10 +557,18 @@ class KeycloakAdmin:
                     "client_secret": self._secret.get_secret_value(),
                 },
             )
-            granted = cast("Mapping[str, Any]", expect(response, HTTPStatus.OK).json())
-            token = cast("str", granted["access_token"])
-            lifetime = float(granted["expires_in"])
-            self._token = (token, asked_at + lifetime - TOKEN_MARGIN_SECONDS)
+            granted = _document(expect(response, HTTPStatus.OK))
+            token, lifetime = granted.get("access_token"), granted.get("expires_in")
+            if (
+                not isinstance(token, str)
+                or not token
+                or isinstance(lifetime, bool)
+                or not isinstance(lifetime, int | float)
+                or not math.isfinite(lifetime)
+            ):
+                message = f"POST {response.request.url.path} answered no usable token"
+                raise IdentityProviderError(message)
+            self._token = (token, asked_at + float(lifetime) - TOKEN_MARGIN_SECONDS)
             return token
 
     def _as_service(self, method: str, path: str, **options: Any) -> httpx2.Response:
