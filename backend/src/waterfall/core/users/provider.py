@@ -148,11 +148,11 @@ def admit_all(session: Session, people: Sequence[ProviderAccount], at: datetime)
     found, a person refused or whose address is held — are left to ``follow``, which finds the
     account again, attaches it or refuses it.
     """
-    admissible = {
-        person.subject: person
-        for person in people
-        if origin_of(person) is not None and _refusal(person) is None
-    }
+    admissible: dict[str, ProviderAccount] = {}
+    for person in people:
+        if origin_of(person) is not None and _refusal(person) is None:
+            # A subject twice: the first is created, as one by one, and ``follow`` updates it.
+            admissible.setdefault(person.subject, person)
     if not admissible:
         return set()
     known = session.scalars(

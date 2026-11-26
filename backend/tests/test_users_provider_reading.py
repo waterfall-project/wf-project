@@ -13,6 +13,7 @@ administrator the reading renames (#2227).
 
 import threading
 import time
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -21,7 +22,7 @@ import pytest
 from access_rows import ADMINISTRATION, role
 from fastapi.testclient import TestClient
 from realm import KEY, TestRealm
-from sqlalchemy import insert, select, text
+from sqlalchemy import event, insert, select, text
 from sqlalchemy.exc import DBAPIError
 from support import ContractClient, Logs, Watching, bearer, nowhere, raw_account, wait_for_a_lock
 
@@ -275,13 +276,14 @@ def test_the_persons_unknown_to_waterfall_are_created_all_at_once_as_one_by_one(
     twice = of_provider(raw_account(email="twice@example.org", idp_subject="kc-twice"))
     taken = of_provider(raw_account(email="OWNER@example.org", idp_subject="kc-taken"))
     nameless = of_provider(raw_account(email="nameless@example.org"), first_name="")
-    people = [*persons, of_provider(found), relayed, twice, twice, taken, nameless]
+    twice_again = replace(twice, first_name="Autre")
+    people = [*persons, of_provider(found), relayed, twice, twice_again, taken, nameless]
     with database.transaction() as session:
         written = write_accounts(session, people, [], NOON)
         assert written.counts == {
             "created": 5,
-            "updated": 1,
-            "unchanged": 2,
+            "updated": 2,
+            "unchanged": 1,
             "restored": 0,
             "deactivated": 0,
         }
@@ -310,6 +312,9 @@ def test_the_persons_unknown_to_waterfall_are_created_all_at_once_as_one_by_one(
                     NOON,
                     NOON,
                 )
+        # The first of the subject twice is the one created, the second then updates it.
+        assert created["kc-twice"].first_name == "Autre"
+        assert [entry[0] for entry in journal(session)].count("user_update") == 2
         origins = {entry[2]: entry[3] for entry in journal(session) if entry[0] == "user_create"}
         assert origins == {
             created[subject].id: {"origin": origin}
@@ -324,6 +329,31 @@ def test_the_persons_unknown_to_waterfall_are_created_all_at_once_as_one_by_one(
     with database.transaction() as session:
         assert admit_all(session, [], NOON) == set()
         assert admit_all(session, [*persons, nameless], NOON) == set()
+
+
+@pytest.mark.requirement("WF-ADM-0070-A")
+def test_the_creations_of_a_reading_are_one_insertion_and_one_inscription(
+    database: Database,
+) -> None:
+    # What the lot of #4975 is for: however many persons are created, the lock of the rule is held
+    # for one insertion of accounts and one of inscriptions, not for a round trip each.
+    people = [
+        of_provider(raw_account(email=f"bulk{rank}@example.org", idp_subject=f"kc-bulk-{rank}"))
+        for rank in range(5)
+    ]
+    inserts: list[str] = []
+
+    def heard(_connection: Any, _cursor: Any, statement: str, *_rest: Any) -> None:
+        if statement.lstrip().upper().startswith("INSERT"):
+            inserts.append(statement.split("(", maxsplit=1)[0].split()[2].strip('"'))
+
+    event.listen(database.engine, "before_cursor_execute", heard)
+    try:
+        with database.transaction() as session:
+            assert admit_all(session, people, NOON) == {each.subject for each in people}
+    finally:
+        event.remove(database.engine, "before_cursor_execute", heard)
+    assert sorted(inserts) == ["audit_entry", "user_account"]
 
 
 def test_what_the_reading_leaves_is_reported_an_account_by_its_identifier_alone(
