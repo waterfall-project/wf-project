@@ -345,6 +345,16 @@ cause = "hypothèse : le test n'attend ni son `rerender` ni son `act` ; US-1920/
 
 [[known]]
 class = "known flakiness"
+family = "la base fermée pendant la vie de l'API, quand db ne se résout pas"
+issue = "#4981"
+job = "^back / tests"
+test = 'test_each_process_closes_the_services_it_opened_when_it_stops'
+message = "failed to resolve host 'db'|assert \\['database'"
+frequency = "2 passages : 45005289964 (2026-11-22, pr-4711) et 45722567147 (2026-11-25, pr-4979), tous deux d'`epic/EP-13`"
+cause = "hypothèse : la lecture de la maintenance ne joint pas `db`, que le morceau du back ne résout pas toujours, et la connexion fermée est comptée comme un arrêt"
+
+[[known]]
+class = "known flakiness"
 family = "gardes sans couverture"
 issue = "#904"
 job = '^front / tests \(lint\)$'
@@ -448,8 +458,8 @@ family = "Maven Central, greffons de build-keycloak"
 issue = "#4790"
 job = '^service / paths(?: \(\d+/\d+\))?$'
 step = 'build-keycloak'
-message = "mvn --batch-mode --quiet dependency:go-offline|No plugin found for prefix 'dependency'"
-frequency = "4 passages du 2026-11-19 au 2026-11-23 : `make build-keycloak` de `service / paths` (45111181156, 44990506194, 44965076909, 44955878820)"
+message = "mvn --batch-mode --quiet dependency:go-offline|No plugin found for prefix 'dependency'|repo\\.maven\\.apache\\.org/maven2\\): HTTP Status: 429"
+frequency = "5 passages du 2026-11-19 au 2026-11-25 : `make build-keycloak` de `service / paths` (45111181156, 44990506194, 44965076909, 44955878820) ; le 2026-11-25 (45722567147), à `mvn package`, Maven Central répondant 429"
 cause = "hypothèse : Maven Central ne répond pas, ou trop lentement, pendant la résolution du greffon `dependency` (≈ 300 s avant l'échec) ; le dépôt local de Maven n'est pas gardé en cache dans la chaîne"
 
 # Le délai d'un job, dépassé : la chaîne trop longue, que US-1910 raccourcit.
