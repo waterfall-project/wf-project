@@ -743,18 +743,26 @@ def test_after_a_rescue_the_journal_presents_the_project_manager_it_inscribed(
 
 
 @pytest.mark.requirement("WF-PRJ-0060-A")
-@pytest.mark.parametrize("beyond", ["participant_removed", "manager_demoted", "participant_added"])
+@pytest.mark.parametrize(
+    "beyond", ["participant_removed", "manager_demoted", "participant_added", "stale_counter"]
+)
 def test_the_rescuer_neither_removes_a_participant_nor_changes_another_line(
     api: ContractClient, database: Database, realm: TestRealm, stage: Scene, beyond: str
 ) -> None:
     # « Un non-contributeur qui inscrit un chef de projet sur un projet dont le dernier est
     # désactivé ne peut retirer aucun participant », nor change or add any other line than a
-    # project manager (#3988): 403, nothing written, nothing inscribed.
+    # project manager (#3988): 403, nothing written, nothing inscribed. The list it judges is the
+    # one at the counter sent: a counter gone stale is refused first, 412 (DECISIONS.md).
     rescuer = person(database, realm, *RESCUE, name="Dominique")
-    deactivate(stage.owner, stage.manager.user_id)
     newcomer = account(database, "Nora", "Blanc")
     other = account(database, "Sacha", "Lefèvre")
     manager, participant = stage.manager.user_id, stage.participant.user_id
+    counter = 0
+    if beyond == "stale_counter":
+        changed = [(manager, MANAGER), (participant, CONTRIBUTOR), (other, CONTRIBUTOR)]
+        assert write(api, stage, stage.manager, changed, 0).status_code == 200
+        counter = 1
+    deactivate(stage.owner, manager)
     lines = {
         "participant_removed": [(manager, MANAGER), (newcomer, MANAGER)],
         "manager_demoted": [
@@ -768,15 +776,16 @@ def test_the_rescuer_neither_removes_a_participant_nor_changes_another_line(
             (newcomer, MANAGER),
             (other, CONTRIBUTOR),
         ],
+        "stale_counter": [(manager, MANAGER), (newcomer, MANAGER)],
     }[beyond]
     before = kinds_of(stage)
     assert refusal(write(api, stage, rescuer, lines, 0)) == (
-        403,
-        "NOT_CONTRIBUTOR",
-        {"missing_condition": "is_contributor"},
+        (412, "STALE_LOCK_VERSION", {"expected_lock_version": 1})
+        if beyond == "stale_counter"
+        else (403, "NOT_CONTRIBUTOR", {"missing_condition": "is_contributor"})
     )
     assert kinds_of(stage) == before
-    assert read(api, stage, rescuer)["lock_version"] == 0
+    assert read(api, stage, rescuer)["lock_version"] == counter
     assert managers_inscribed(api, database, realm, stage) == []
 
 
