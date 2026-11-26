@@ -19,14 +19,18 @@ own as before.
 partitioned by the identifier of a project: the one criterion of the taking, of the filling and of
 the count that schedules it.
 
-``reserve_project_partitions(project, size)`` first detaches and drops the partitions of the sets
-that are not whole (a table a later migration partitioned, whose partition the sets lack), and
-deletes them from the reserve; it makes then the set of ``project`` and inscribes it while the
-reserve holds fewer than ``size`` whole sets, and says whether it did. It takes first the advisory
-lock of the partitions (``4100010``, ``PARTITIONS_LOCK`` of ``core/revisions/interface/
-revisions.py``; a migration does not import the application, a test compares the two), which
-``create_project_partitions`` takes too, so that two fillings count one after the other, and gives
-up after ten seconds of locks held (``lock_not_available``). ``take_project_partitions()`` gives
+``reserve_project_partitions(project, size)`` first makes whole the sets that are not (a table a
+later migration partitioned, whose partition the sets lack): it makes the partitions they lack as
+``create_project_partitions`` makes them, under its very locks, all taken at once without waiting,
+again and again for ten seconds (``lock_not_available`` past them). It never detaches nor drops a
+partition, which would ask ``ACCESS EXCLUSIVE`` of a parent: queued behind a marking, that demand
+would hold every reading of the table, and a writer that locks the tables in another order would
+deadlock with it. It makes then the set of ``project`` and inscribes it while the reserve holds
+fewer than ``size`` sets, and says whether it did. It takes first the advisory lock of the
+partitions (``4100010``, ``PARTITIONS_LOCK`` of ``core/revisions/interface/revisions.py``; a
+migration does not import the application, a test compares the two), which
+``create_project_partitions`` takes too, so that two fillings count one after the other; its
+holder gives up after its own ten seconds. ``take_project_partitions()`` gives
 the identifier of a set taken, or null when none is free. These two run as the owner of the tables
 (``SECURITY DEFINER``), their search path their own; the role of the service may execute them and
 read the reserve, nothing more.
@@ -102,40 +106,101 @@ REVOKE ALL ON FUNCTION project_partition_set_whole(uuid) FROM PUBLIC;
 CREATE FUNCTION reserve_project_partitions(project uuid, size integer) RETURNS boolean
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 DECLARE
+    deadline timestamptz;
+    parents oid[];
+    related oid[];
+    bound text;
+    updated text;
     incomplete uuid;
-    parent_name text;
-    partition_name text;
+    suffix text;
+    revised text;
 BEGIN
     IF size IS NULL OR size < 0 THEN
         RAISE EXCEPTION 'the size of the reserve is a number of sets, at least nought'
             USING ERRCODE = 'invalid_parameter_value';
     END IF;
     -- PARTITIONS_LOCK (core/revisions/interface/revisions.py): the migration does not import the
-    -- application, a test compares the two.
+    -- application, a test compares the two. Its holder is a creation or a filling, which gives up
+    -- after its ten seconds of locks held: the wait is bounded by theirs.
     PERFORM pg_advisory_xact_lock(4100010);
-    PERFORM set_config('lock_timeout', '10s', true);
-    -- A set that is not whole is never taken: it is dropped, and made again whole.
-    FOR incomplete IN
-        SELECT id FROM public.project_partition_reserve
-        WHERE NOT public.project_partition_set_whole(id) ORDER BY id
-    LOOP
-        FOR parent_name, partition_name IN
-            SELECT parent.relname, partition.relname
-            FROM pg_inherits
-            JOIN pg_class AS parent ON parent.oid = inhparent
-            JOIN pg_class AS partition ON partition.oid = inhrelid
-            WHERE parent.relnamespace = 'public'::regnamespace AND NOT parent.relispartition
-                AND partition.relname
-                    = parent.relname || '_p_' || replace(incomplete::text, '-', '')
-            ORDER BY partition.relname
+    -- A set that is not whole is never taken: the partitions it lacks are made, as
+    -- create_project_partitions makes them (0026) — the same locks, all taken at once without
+    -- waiting, again and again for ten seconds, then alone and attached. No partition is detached
+    -- nor dropped: no lock ACCESS EXCLUSIVE is asked of a table a request reads or writes.
+    IF EXISTS (
+        SELECT FROM public.project_partition_reserve
+        WHERE NOT public.project_partition_set_whole(id)
+    ) THEN
+        deadline := clock_timestamp() + interval '10 seconds';
+        SELECT array_agg(listed.partrelid) INTO parents FROM (<parents>) AS listed (partrelid);
+        SELECT array_agg(other) INTO related
+        FROM (
+            SELECT confrelid FROM pg_constraint
+            WHERE contype = 'f' AND conparentid = 0 AND conrelid = ANY (parents)
+            UNION
+            SELECT conrelid FROM pg_constraint
+            WHERE contype = 'f' AND conparentid = 0 AND confrelid = ANY (parents)
+        ) AS keyed (other);
+        SELECT string_agg('ONLY ' || other::regclass::text, ', ' ORDER BY other) INTO bound
+        FROM unnest(related) AS other;
+        SELECT string_agg('ONLY ' || parent::regclass::text, ', ' ORDER BY parent) INTO updated
+        FROM unnest(parents) AS parent
+        WHERE parent <> ALL (coalesce(related, '{}'));
         LOOP
-            EXECUTE format(
-                'ALTER TABLE public.%I DETACH PARTITION public.%I', parent_name, partition_name
-            );
-            EXECUTE format('DROP TABLE public.%I', partition_name);
+            BEGIN
+                IF bound IS NOT NULL THEN
+                    EXECUTE 'LOCK TABLE ' || bound || ' IN SHARE ROW EXCLUSIVE MODE NOWAIT';
+                END IF;
+                IF updated IS NOT NULL THEN
+                    EXECUTE 'LOCK TABLE ' || updated || ' IN SHARE UPDATE EXCLUSIVE MODE NOWAIT';
+                END IF;
+                EXIT;
+            EXCEPTION WHEN lock_not_available THEN
+                IF clock_timestamp() >= deadline THEN
+                    RAISE;
+                END IF;
+            END;
+            PERFORM pg_sleep(0.01 + random() * 0.04);
         END LOOP;
-        DELETE FROM public.project_partition_reserve WHERE id = incomplete;
-    END LOOP;
+        FOR incomplete IN
+            SELECT id FROM public.project_partition_reserve
+            WHERE NOT public.project_partition_set_whole(id) ORDER BY id
+        LOOP
+            suffix := '_p_' || replace(incomplete::text, '-', '');
+            FOR revised IN
+                SELECT named.relname FROM pg_class AS named
+                WHERE named.oid = ANY (parents)
+                    AND NOT EXISTS (
+                        SELECT FROM pg_inherits
+                        JOIN pg_class AS partition ON partition.oid = inhrelid
+                        WHERE inhparent = named.oid
+                            AND partition.relname = named.relname || suffix
+                    )
+                ORDER BY named.relname
+            LOOP
+                EXECUTE format(
+                    'CREATE TABLE public.%I (LIKE public.%I INCLUDING DEFAULTS '
+                    'INCLUDING CONSTRAINTS INCLUDING STORAGE INCLUDING COMPRESSION)',
+                    revised || suffix,
+                    revised
+                );
+                EXECUTE format(
+                    'ALTER TABLE public.%I ATTACH PARTITION public.%I FOR VALUES IN (%L)',
+                    revised,
+                    revised || suffix,
+                    incomplete
+                );
+                EXECUTE format(
+                    'CREATE TRIGGER %I BEFORE TRUNCATE ON public.%I '
+                    'FOR EACH STATEMENT EXECUTE FUNCTION public.%I()',
+                    revised || '_refuse_truncate',
+                    revised || suffix,
+                    revised || '_refuse_truncate'
+                );
+            END LOOP;
+        END LOOP;
+    END IF;
+    -- Every set of the reserve is now whole.
     IF (SELECT count(*) FROM public.project_partition_reserve) >= size THEN
         RETURN false;
     END IF;

@@ -345,27 +345,58 @@ def test_a_set_that_lacks_a_partition_is_never_taken(database: Database, owner: 
 
 
 @pytest.mark.story("US-2830")
-def test_the_filling_makes_again_the_sets_that_lack_a_partition(
+def test_the_filling_makes_whole_again_the_sets_that_lack_a_partition(
     database: Database, owner: Engine
 ) -> None:
     # Propre à l'US : a set that lacks a partition does not count as a set of the reserve — the
-    # reserve is short, the filling drops the partitions it kept and makes it again whole — and the
+    # reserve is short, the filling makes the partition it lacks, and it is whole again — and the
     # creation takes a whole set, never falls back for lack of one.
-    lacking = filled(database)[0]
+    sets = filled(database)
+    lacking = sets[0]
     with owner.begin() as connection:
         connection.execute(text(f'DROP TABLE "revision_rate_p_{lacking.hex}"'))
     with database.transaction() as session:
         assert partition_reserve_short(session, SIZE)
-    after = filled(database)
-    assert lacking not in after
-    assert len(after) == SIZE
-    assert all(whole(owner, each) for each in after)
-    with owner.connect() as connection:
-        assert connection.scalar(PARTITIONS, {"suffix": lacking.hex}) == 0
+    assert filled(database) == sets
+    assert all(whole(owner, each) for each in sets)
     with database.transaction() as session:
         assert not partition_reserve_short(session, SIZE)
         taken = take_partitions(session)
-    assert taken in after
+    assert taken == lacking
+
+
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_making_a_set_whole_holds_no_reading_and_no_writer_while_a_writer_holds_a_parent(
+    database: Database, owner: Engine
+) -> None:
+    # « Le marquage d'une révision de dix mille objets n'immobilise aucune requête au-delà de la
+    # création de la tâche » : a writer holds ``node`` (a marking, an import), and a set lacks a
+    # partition. The filling asks no lock it would wait for: a reading of ``node`` passes at once,
+    # the writer locks another parent without waiting nor being the victim of a deadlock, and the
+    # filling makes the set whole once the writer has committed.
+    sets = filled(database)
+    lacking = sets[0]
+    with owner.begin() as connection:
+        connection.execute(text(f'DROP TABLE "revision_rate_p_{lacking.hex}"'))
+
+    def filling() -> Mapping[str, Any]:
+        with database.transaction() as session:
+            return ReserveTask(SIZE)(session, a_task())
+
+    with ThreadPoolExecutor(1) as others, owner.connect() as writer:
+        with writer.begin():
+            writer.execute(text("SET LOCAL lock_timeout = '2s'"))
+            writer.execute(text("LOCK TABLE node IN ROW EXCLUSIVE MODE"))
+            made = others.submit(filling)
+            time.sleep(0.5)
+            with owner.begin() as reader:
+                reader.execute(text("SET LOCAL lock_timeout = '1s'"))
+                assert reader.scalar(text("SELECT count(*) FROM node")) is not None
+            writer.execute(text("LOCK TABLE cost_structure IN ROW EXCLUSIVE MODE"))
+            assert not made.done()
+        assert made.result(timeout=30) == {"made": 0}
+    assert reserved(database) == sets
+    assert whole(owner, lacking)
 
 
 @pytest.mark.story("US-2830")
