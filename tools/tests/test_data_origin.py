@@ -30,6 +30,17 @@ RESERVED = "waterfall.test"
 # (witness/projects.py).
 CONTRACT_EXAMPLES = FIXTURES / "api"
 EXAMPLES = "example.com"
+# The realms of the development platform, and the directory it reads: their persons bear the
+# domain of the tests — the one of the realm that plays the external provider, ``external.test``,
+# which RFC 6761 reserves too (external.yaml).
+REALMS = REPOSITORY / "deploy" / "keycloak" / "development"
+EXTERNAL = "external.test"
+# The sources of the sets the repository engenders beside the fixtures: the loader of the witness
+# and of the reference set, which writes them on the platforms, and the generators of the fake
+# back, which write the fixtures.
+WITNESS = REPOSITORY / "backend" / "src" / "waterfall" / "witness"
+GENERATORS = REPOSITORY / "tools" / "src" / "wftools"
+SOURCES = (FIXTURES, REALMS, WITNESS)
 ADDRESS = re.compile(r"[A-Za-z0-9._%+-]+@((?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,})")
 # The platforms of development and of integration: the fake back of the screens, the service
 # platform the parcours and the tests of Keycloak run on, the services of the tests of the back.
@@ -53,15 +64,22 @@ def foreign_addresses(text: str, allowed: tuple[str, ...]) -> list[str]:
 def _allowed(path: Path) -> tuple[str, ...]:
     if path.is_relative_to(CONTRACT_EXAMPLES):
         return (RESERVED, EXAMPLES)
+    if path.is_relative_to(REALMS):
+        return (RESERVED, EXTERNAL)
     return (RESERVED,)
 
 
+def _engendering() -> list[Path]:
+    """Give every file of the engendered sets and of their sources: a cache of Python apart."""
+    paths = [path for source in SOURCES for path in source.rglob("*")]
+    paths += GENERATORS.glob("mock*.py")
+    return sorted(path for path in paths if path.is_file() and "__pycache__" not in path.parts)
+
+
 def _texts() -> list[tuple[Path, str]]:
-    """Give every file of the fixtures that reads as text, with its text; a binary passed over."""
+    """Give every file of the engendered sets that reads as text, with its text; a binary passed."""
     texts: list[tuple[Path, str]] = []
-    for path in sorted(FIXTURES.rglob("*")):
-        if not path.is_file():
-            continue
+    for path in _engendering():
         try:
             texts.append((path, path.read_text(encoding="utf-8")))
         except UnicodeDecodeError:
@@ -73,10 +91,14 @@ def _texts() -> list[tuple[Path, str]]:
 def test_the_engendered_sets_bear_no_address_but_in_the_reserved_domain() -> None:
     # « Aucun environnement hors production ne contient une adresse électronique réelle, hors
     # l'environnement isolé du test de restauration. » : the fixtures, the witness and its volumes
-    # included, name no address but in waterfall.test — the examples of the contract in
-    # example.com, which the loader of the witness gives waterfall.test.
+    # included, the realms of the development platform and its directory, the loader of the
+    # witness and the generators of the fake back name no address but in waterfall.test — the
+    # examples of the contract in example.com, which the loader of the witness gives
+    # waterfall.test, the person of the external provider in external.test.
     texts = _texts()
     assert len(texts) > 100
+    for source in (*SOURCES, GENERATORS):
+        assert any(path.is_relative_to(source) for path, _ in texts), source
     assert sum(len(ADDRESS.findall(text)) for _, text in texts) > 0
     foreign = {
         str(path.relative_to(REPOSITORY)): found
