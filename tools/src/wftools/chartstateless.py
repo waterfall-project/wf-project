@@ -75,12 +75,15 @@ SNAPSHOT = (
     "'SELECT coalesce(md5(string_agg(t::text, '','' ORDER BY t::text)), '''') AS h FROM %I t', "
     "c.relname), false, true, '')))[1]::text "
     "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
-    "WHERE n.nspname = 'public' AND c.relkind = 'r' AND (c.relname IN ('revision', 'project', "
+    "WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND NOT c.relispartition "
+    "AND (c.relname IN ('revision', 'project', "
     "'audit_entry') OR EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.oid "
     "AND a.attname = 'revision_id' AND NOT a.attisdropped)) ORDER BY c.relname"
 )
 """One line a table, ``name|digest of its rows``: the revisions, the projects (their counter), the
-journal, and every table that keeps rows of a revision, the indicators among them. The task is left
+journal, and every table that keeps rows of a revision, the indicators among them — a partitioned
+one read whole through its parent, so that a set of partitions the worker makes meanwhile for the
+projects to come, empty, changes nothing (US-2830/L4). The task is left
 out: its attempt is committed apart, before the marking. The revision of the trial is new and
 empty: the tables by ``revision_id`` hold no row of it, before as after, so that the snapshot has
 its real strength on ``revision``, ``project`` and ``audit_entry`` alone; the others are held in

@@ -93,6 +93,14 @@ from waterfall.core.projects.interface.lifecycle import (
     stored_lock_version,
 )
 
+# ``partition_reserve`` (US-2830/L4, #4801): the sets of partitions the worker makes in advance,
+# which a creation takes.
+from waterfall.core.projects.interface.partition_reserve import (
+    fill_partition_reserve,
+    partition_reserve_short,
+    take_partitions,
+)
+
 # ``portfolio`` (US-2670/L1; US-2670/L3): what the portfolio reads of several projects at once.
 from waterfall.core.projects.interface.portfolio import (
     ClosedOffer,
@@ -285,6 +293,7 @@ __all__ = [
     "delete_subproject",
     "detach_item",
     "exit_project",
+    "fill_partition_reserve",
     "first_project",
     "hold_items",
     "item_cited",
@@ -306,6 +315,7 @@ __all__ = [
     "offers_closed_between",
     "openable",
     "opening_main_with_tasks",
+    "partition_reserve_short",
     "project_code",
     "project_commands",
     "project_exists",
@@ -338,6 +348,7 @@ __all__ = [
     "subprojects_named",
     "subprojects_present",
     "subprojects_with_actual_costs",
+    "take_partitions",
     "update_project",
     "update_subproject",
     "work_breakdown_items",

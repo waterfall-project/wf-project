@@ -122,6 +122,7 @@ def test_with_its_secrets_the_worker_runs_the_kinds_it_has_a_handler_for(
         "import_apply",
         "export",
         "purge",
+        "partition_reserve",
     }
     assert worker.consumer
     # A read as long as the socket's wait would end in a timeout, and stop the worker.
@@ -299,13 +300,18 @@ def test_the_schedule_deposits_the_reading_of_the_accounts_and_the_purge_for_the
     # correlation of the command's own, and put in the queue; none is run.
     assert worker_main.main(SCHEDULE) == 0
     deposited = tasks_of(database)
-    assert sorted(deposited) == ["identity_sync", "purge"]
+    assert sorted(deposited) == ["identity_sync", "partition_reserve", "purge"]
     assert sorted(platform_queue.waiting()) == sorted(row.id for row in deposited.values())
     for row in deposited.values():
         assert (row.status, row.requested_by, row.attempts) == ("queued", None, 0)
         assert FORM.fullmatch(row.correlation_id)
     said = [(each["event"], each["kind"]) for each in records(capsys.readouterr().err)]
-    assert said == [("task.enqueued", "identity_sync"), ("task.enqueued", "purge")]
+    # And the filling of the reserve of partitions, empty (US-2830/L4).
+    assert said == [
+        ("task.enqueued", "identity_sync"),
+        ("task.enqueued", "purge"),
+        ("task.enqueued", "partition_reserve"),
+    ]
 
 
 @pytest.mark.story("US-2830")
@@ -326,13 +332,25 @@ def test_the_schedule_deposits_nothing_of_a_kind_that_is_pending_nor_before_its_
     with database.transaction() as session:
         session.execute(update(BackgroundTask).values(ended))
     assert worker_main.main(SCHEDULE) == 0
-    assert {kind: row.id for kind, row in tasks_of(database).items()} == {
-        kind: row.id for kind, row in first.items()
-    }
-    assert len(platform_queue.waiting()) == 2
+    kept = ("identity_sync", "purge")
+    after = tasks_of(database)
+    assert {kind: after[kind].id for kind in kept} == {kind: first[kind].id for kind in kept}
+    # The filling of the reserve of partitions is due while the reserve is short, not at an
+    # interval: ended, it is deposited again, the reserve still empty (US-2830/L4).
+    with database.transaction() as session:
+        fillings = session.scalars(
+            select(BackgroundTask.id).where(BackgroundTask.kind == "partition_reserve")
+        ).all()
+    assert len(fillings) == 2
+    assert first["partition_reserve"].id in fillings
+    assert len(platform_queue.waiting()) == 4
     said = [(each["event"], each.get("kind")) for each in records(capsys.readouterr().err)]
-    pending = [("task.already_pending", "identity_sync"), ("task.already_pending", "purge")]
-    assert said == [*pending, *pending]
+    pending = [
+        ("task.already_pending", "identity_sync"),
+        ("task.already_pending", "purge"),
+        ("task.already_pending", "partition_reserve"),
+    ]
+    assert said == [*pending, *pending, ("task.enqueued", "partition_reserve")]
 
 
 @pytest.mark.story("US-2830")
@@ -356,13 +374,14 @@ def test_the_schedule_deposits_the_purge_again_once_its_interval_has_passed_sinc
     assert worker_main.main(SCHEDULE) == 0
     with database.transaction() as session:
         counts = Counter(session.scalars(select(BackgroundTask.kind)))
-    assert counts == {"purge": 1}
+    # The filling of the reserve, queued since the first, is not deposited again (US-2830/L4).
+    assert counts == {"purge": 1, "partition_reserve": 1}
     monkeypatch.setenv("WATERFALL_PURGE_INTERVAL", "3500")
     assert worker_main.main(SCHEDULE) == 0
     with database.transaction() as session:
         counts = Counter(session.scalars(select(BackgroundTask.kind)))
-    assert counts == {"purge": 2}
-    assert len(platform_queue.waiting()) == 2
+    assert counts == {"purge": 2, "partition_reserve": 1}
+    assert len(platform_queue.waiting()) == 3
 
 
 @pytest.mark.story("US-2830")
