@@ -14,7 +14,8 @@ accounts (US-3040) are due when their schedules, which an administrator sets, sa
 the module that holds its planning; the test of a restoration (US-2930), under Kubernetes alone, at
 an interval of the installation, once a scheduled backup is there to test. That one the schedule
 starts itself rather than queue: it makes the Job of the test (``waterfall.worker.restore_test``),
-and writes its task, ended.
+and writes its task, ended. The filling of the reserve of partitions is due while the reserve holds
+fewer sets than its size (US-2830/L4): a creation that takes one deposits it too.
 A task of a kind is never deposited while one of that kind is queued or running, and two
 schedules, run together, deposit it once: they wait on one advisory lock. A backup is deposited
 as ``startBackup`` does, by the same function that takes the same locks in the same order and
@@ -30,6 +31,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func, select
 
 from waterfall.core.backups import interface as backups_interface
+from waterfall.core.projects import interface as projects_interface
 from waterfall.core.users import interface as users_interface
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.locks import SCHEDULE_LOCK
@@ -84,8 +86,18 @@ def planned(settings: ScheduleSettings) -> tuple[Planned, ...]:
             backups_interface.backup_is_due,
             held=backups_interface.lock_backup_deposit,
         ),
+        Planned("partition_reserve", reserve_short(settings.partition_reserve_size)),
         *restore_test_planned(settings),
     )
+
+
+def reserve_short(size: int) -> Callable[[Session, datetime], bool]:
+    """Say the filling of the reserve of partitions due while it holds fewer sets than ``size``."""
+
+    def due(session: Session, _now: datetime) -> bool:
+        return projects_interface.partition_reserve_short(session, size)
+
+    return due
 
 
 def restore_test_planned(settings: ScheduleSettings) -> tuple[Planned, ...]:

@@ -5052,14 +5052,17 @@ she creates and takes In progress, she declares a risk, prices its own estimate 
 reviews it, declares it occurred — the task of the worker followed to its success —, prepares an
 amendment and contractualises it, the merge making its revision the reference. The gestures of the
 amendment (`prepare`, `contractualise`) are those of `amendment-flow.ts`, which
-`amendment-service.spec.ts` plays too. The paths of FBS-4.1 to 4.9 and of FLX-01 to FLX-06 all play against the service, in the same run
+`amendment-service.spec.ts` plays too. The paths of FBS-4.1 to 4.9 and of FLX-01 to FLX-07 all play against the service, in the same run
 (`make e2e-service`), each in its file: FBS-4.1 `revision-cycle.spec.ts` and `pricing.spec.ts`; 4.2
 `projects.spec.ts`; 4.3, FLX-01 and FLX-02 `planning-service.spec.ts` and `exchanges.spec.ts`; 4.4
 `pricing.spec.ts`; 4.5 `remaining.spec.ts`; 4.6 `service/project-manager-risks.spec.ts`; 4.7
 `actual-costs.spec.ts`; 4.8 `service/project-manager-indicators.spec.ts`; 4.9 `revision-cycle.spec.ts`
-and `projects.spec.ts`; FLX-03 to FLX-06 `exchanges.spec.ts`. FLX-07 has no screen played: the
-extraction of the actual costs is imported through the API (`importActualCosts`, `in-progress.ts`), the
-screen being the object of issue #4699. EP-08 left no `inService` guard to lift in these lists: those
+and `projects.spec.ts`; FLX-03 to FLX-06 `exchanges.spec.ts`; FLX-07 `service/actual-costs-import.spec.ts` (the extraction of the
+actual costs deposited by the screen of the exchanges, in two steps, `analyseActualCosts` and `applyReport`
+of `in-progress.ts`, which the screen plays; the paths that write them without making them their object
+import them through the API, `importActualCosts`). Each cites its flow, and each of the three paths of
+WF-QUA-0050-A (project manager, manager, administrator) its own, in the title of the test.
+EP-08 left no `inService` guard to lift in these lists: those
 that remain, and the EPICs that lift them, are those of the list below.
 
 The two readers of a project (`service/project-readers.spec.ts`, WF-ADM-0040-A) play against the
@@ -5652,7 +5655,9 @@ its parameters, never a sentence.
   or stripped of all its roles once the write is committed, `createPasswordSetupLink`, which has the
   link made by the extension and records it in the log, without its token, only once done,
   `updateMyPreferences`, which gives the chosen language to the account at Keycloak before writing
-  it and writes nothing as long as it does not answer — does not take `Transaction`, but opens its
+  it and writes nothing as long as it does not answer, `updateUser`, which carries the identity of a
+  local account to Keycloak between two short transactions (check, `carry_identity`, write) and
+  undoes it (`restore_identity`) if the write is refused — does not take `Transaction`, but opens its
   own before and after the call. An absent or invalid token is a 401 `SESSION_REQUIRED`, an expired
   token a 401 `SESSION_EXPIRED`, a token whose login (`auth_time`, failing that `iat`) precedes the
   last closing of the sessions of the account, or falls within its second, a 401 `SESSION_REVOKED` —
@@ -5972,6 +5977,13 @@ advisory lock queues them. The command stops, with the name of the variable, if
 **A single head.** Two migrations that start from the same parent form two heads: the second to
 be merged is rebased on the first and takes the next number. The test of the chain fails
 on two heads.
+
+**A table partitioned by project.** A migration that partitions a new table by the identifier
+of a project creates the partition of the projects that exist, as `0031`, `0035` and `0044` do,
+and that of the sets of the reserve too (`project_partition_reserve`, migration `0055`,
+US-2830/L4): a set that lacks a partition is never taken, and the creation of a project then falls
+back on the synchronous creation of its partitions, which waits for a marking under way.
+`tests/test_migration_partition_reserve.py` checks it: a set made at `0055` is whole at the head.
 
 **The rows the migration writes.** The catalogue of permissions, for instance, is a
 data migration, separate from that of the schema. The rows of the installation, for their part, are

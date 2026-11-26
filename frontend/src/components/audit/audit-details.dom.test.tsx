@@ -94,7 +94,7 @@ describe("what an action did, under the action, in the language of its reader", 
   it("names the fields of the identity a modification changed, never their values, and its attachment to the directory", () => {
     const renamed = inscription("user_update", "Lucas Petit-Laurent");
     expect(read(renamed, "fr")).toEqual(["Modification d’un compte", "Champ modifié : Nom"]);
-    const attached = inscription("user_update", "Noé Vidal-Roux");
+    const attached = inscription("user_update", "Noé Vidal-Marchand");
     expect(read(attached, "fr")[1]).toBe(
       "Champ modifié : Nom ; Origine désormais : Importé de l’annuaire",
     );
