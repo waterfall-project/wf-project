@@ -811,8 +811,9 @@ check-service: $(call full-only,e2e-service) ## The paths against the real servi
 check-production: $(call full-only,images production-trial) ## The production platform starts on the images built here, bootstraps and lets its first administrator in, in the full tier only (US-0430)
 
 # The chart linted and rendered in every tier; installed on a cluster of kind from the three images
-# built here, in the full tier only, as check-production starts the Compose (US-2800).
-check-chart: lint-chart test-chart $(call full-only,images chart-trial) ## The chart lints and says what it must; in the full tier, it installs on a throwaway cluster, bootstraps and lets its first administrator in (US-2800)
+# built here, in the full tier only, as check-production starts the Compose (US-2800); then, on a
+# cluster of its own, the version N upgraded to them under load, from BASE (US-2850).
+check-chart: lint-chart test-chart $(call full-only,images chart-trial chart-upgrade) ## The chart lints and says what it must; in the full tier, it installs on a throwaway cluster, bootstraps and lets its first administrator in (US-2800), then upgrades from the version N under load, rolls back and upgrades again (US-2850)
 
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap
