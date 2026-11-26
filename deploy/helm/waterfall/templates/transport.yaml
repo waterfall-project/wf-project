@@ -5,8 +5,9 @@
 # (transport.authority): made at the installation, before any other object — a hook pre-install,
 # the first of all —, and never written again: an upgrade runs no hook pre-install, so the root every
 # client trusts stays the same from one release to the next. A new installation makes a new one. The
-# root is valid ten years, the certificates of the services are issued again at each start of their
-# pods. A data component the operator provides without the roots of its certificate
+# root is valid ten years. The certificates of the API, Keycloak and the front are issued again at
+# each start of their pods; those of the data components and of the supervision, by the hook of
+# certificates.yaml, when missing or close to their end (US-2850). A data component the operator provides without the roots of its certificate
 # (transport.providedAuthority) stops the rendering here, naming the value.
 {{- $provided := include "waterfall.provided" . }}
 {{- if not .Values.transport.authority }}

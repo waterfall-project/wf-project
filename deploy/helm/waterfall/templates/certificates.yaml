@@ -1,0 +1,126 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The certificates of the data components and of the supervision — PostgreSQL, Redis, the storage,
+# Prometheus, Alertmanager and Grafana, those the chart deploys —, issued by the authority of the
+# platform into the Secrets their pods mount, <name>-tls (US-2850, #4089, option C; _transport.tpl).
+# A hook, before the installation — after the authority, before the migrations — and before each
+# upgrade: `waterfall-authority secrets` writes a Secret only when it is missing, cannot be read, was
+# issued by another authority, or expires within six months (waterfall.platform.authority_secrets).
+# An ordinary upgrade thus writes nothing, and the pods of those components, whose template names no
+# image of Waterfall, are not restarted: the sessions Redis holds stay (WF-EXP-0030-A). A certificate
+# renewed restarts the pods of its workload, once, as `kubectl rollout restart` does; any upgrade in
+# the last six months of its two years renews it. The Secrets are not objects of the release: they
+# stay at an uninstallation, as the authority does, and a new installation, under a new authority,
+# issues them again.
+#
+# Its service account may create a Secret — Kubernetes cannot bound a creation to a name —, read and
+# write those of the certificates alone, and restart their workloads alone; it holds the key of the
+# authority, which its pod mounts. It is removed once the hooks have succeeded.
+{{- $name := include "waterfall.name" (list . "certificates") }}
+{{- $certified := include "waterfall.certified" . | fromJsonArray }}
+{{- $secrets := list }}
+{{- $workloads := dict "statefulsets" list "deployments" list }}
+{{- range $certified }}
+{{- $resource := splitList "/" . | first }}
+{{- $workload := splitList "/" . | last }}
+{{- $secrets = append $secrets (printf "%s-tls" $workload) }}
+{{- $_ := set $workloads $resource (append (get $workloads $resource) $workload) }}
+{{- end }}
+{{- $access := dict "helm.sh/hook" "pre-install,pre-upgrade" "helm.sh/hook-weight" "-28" "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "certificates") | nindent 4 }}
+  annotations:
+    {{- toYaml $access | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "certificates") | nindent 4 }}
+  annotations:
+    {{- toYaml $access | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames:
+      {{- toYaml $secrets | nindent 6 }}
+    verbs: [get, update]
+  {{- range $resource, $names := $workloads }}
+  {{- if $names }}
+  - apiGroups: [apps]
+    resources: [{{ $resource }}]
+    resourceNames:
+      {{- toYaml $names | nindent 6 }}
+    verbs: [patch]
+  {{- end }}
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "certificates") | nindent 4 }}
+  annotations:
+    {{- toYaml $access | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "certificates") | nindent 4 }}
+  annotations:
+    {{- include "waterfall.hook" (list "pre-install,pre-upgrade" -26) | nindent 4 }}
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "certificates") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      serviceAccountName: {{ $name }}
+      restartPolicy: OnFailure
+      containers:
+        - name: certificates
+          image: {{ include "waterfall.image" (list . "waterfall") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
+          command:
+            - waterfall-authority
+            - secrets
+            - --provided=/authority
+            {{- range $certified }}
+            - {{ . }}
+            {{- end }}
+          volumeMounts:
+            - name: authority
+              mountPath: /authority
+              readOnly: true
+      volumes:
+        - name: authority
+          secret:
+            secretName: {{ include "waterfall.authority" . }}
+            items:
+              - key: ca.crt
+                path: ca.crt
+              - key: ca.key
+                path: ca.key
