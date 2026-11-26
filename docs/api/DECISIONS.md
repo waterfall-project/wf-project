@@ -13054,10 +13054,10 @@ un écran que le service sert depuis EP-03.
 
 ### Les chefs de projet au journal d'audit, le contributeur pour objet (US-2980/L1, #4127, #3988)
 
-Décision de l'auteur au cadrage d'EP-13 (2026-11-18, conception d'EP-13, « Modifications du
-contrat »), les noms proposés retenus : la spécification 1.0.7 ajoute à WF-SEC-0030
-« l'inscription, le retrait et le changement de qualité d'un chef de projet (WF-PRJ-0060) », que le
-contrat figé ne savait pas dire (« La règle d'après le gel »). `info.version` reste `1.0.0` : quatre
+Les noms sont ceux de la conception d'EP-13 (« Modifications du contrat »), validée par l'auteur
+avec le plan de lots le 2026-11-19, qui rattache #4127 à ce lot (#4127, commentaire 7200145334) :
+la spécification 1.0.7 ajoute à WF-SEC-0030 « l'inscription, le retrait et le changement de
+qualité d'un chef de projet (WF-PRJ-0060) », que le contrat figé ne savait pas dire (« La règle d'après le gel »). `info.version` reste `1.0.0` : quatre
 valeurs d'énumération et trois exemples de plus ; aucune propriété ne change, aucune n'est exigée
 de plus.
 
@@ -13076,7 +13076,7 @@ de plus.
   d'un contributeur peut être nul, et la base admet de le rendre nul pour un compte anonymisé
   (migration `0055`).
 - **Les trois exemples** de `listAuditEvents`, engendrés par `wftools.mockauditmanagers` et tenus
-  par `tools/tests/test_mockaudit.py`, lisent le journal du projet témoin, numérotés à part :
+  par `tools/tests/test_mockauditmanagers.py`, lisent le journal du projet témoin, numérotés à part :
   `manager_changed`, la suite de `contributors_set` — Inès Roux passée cheffe de projet par Camille
   Martin, Sacha Lefèvre inscrit participant sans inscription — ; `manager_added`, variante
   contrefactuelle du sauvetage de `contributors_without_active_manager`, où Dominique Bernard
