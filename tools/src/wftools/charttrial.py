@@ -75,7 +75,7 @@ from wftools import (
     chartstateless,
     kubetools,
 )
-from wftools.images import REGISTRY
+from wftools.images import DIGEST, REGISTRY
 from wftools.production import (
     HIDDEN,
     LIVENESS,
@@ -211,7 +211,7 @@ def cluster_configuration(port: int, docker_config: Path | None) -> dict[str, An
 
 
 def chart_values(
-    tag: str,
+    digests: Mapping[str, str],
     platform: Platform,
     ingress_address: str,
     given: Mapping[str, str],
@@ -220,7 +220,7 @@ def chart_values(
     """Return the values the chart is installed with on the cluster of the trial, its own data."""
     return {
         "platform": {"domain": platform.domain, "httpsPort": str(platform.https_port)},
-        "images": {"tag": tag, "mirror": given.get("WATERFALL_MIRROR", "")},
+        "images": {"digests": dict(digests), "mirror": given.get("WATERFALL_MIRROR", "")},
         "secrets": {"values": dict(drawn)},
         "bootstrap": {"adminEmail": ADMIN, "currency": "EUR", "companyName": "Delmas Automatismes"},
         "ingress": {"className": "traefik", "tlsSecret": CERTIFICATE},
@@ -429,18 +429,42 @@ class Trial:
             "create the cluster",
         )
 
-    def load(self, name: str, tag: str) -> None:
-        """Load the images of the tag, built on the workstation, into the cluster."""
-        references = [f"{REGISTRY}/{image}:{tag}" for image in IMAGES]
-        for reference in references:
+    def load(self, name: str, tag: str) -> dict[str, str]:
+        """Load the images of the tag, built on the workstation, into the cluster.
+
+        Return the digest of each, as the runtime of the node holds it: the chart designates them
+        so (#3726), and the kubelet finds them by it.
+        """
+        references = {image: f"{REGISTRY}/{image}:{tag}" for image in IMAGES}
+        for reference in references.values():
             if self.run(["docker", "image", "inspect", "--format", "{{.Id}}", reference]):
                 message = f"{reference} is not built here: make images first"
                 raise TrialError(message)
         _must(
             self.run,
-            [*self.tools.kind, "load", "docker-image", "--name", name, *references],
+            [*self.tools.kind, "load", "docker-image", "--name", name, *references.values()],
             "load the images into the cluster",
         )
+        return {
+            image: self.digest(f"{name}-control-plane", reference)
+            for image, reference in references.items()
+        }
+
+    def digest(self, node: str, reference: str) -> str:
+        """Return the digest the runtime of the node holds an image under, by its tag."""
+        found = json.loads(
+            _output(
+                self.read,
+                ["docker", "exec", node, "crictl", "inspecti", "--output", "json", reference],
+                f"read the digest of {reference} in the cluster",
+            )
+        )
+        repository = reference.rsplit(":", 1)[0]
+        for named in found.get("status", {}).get("repoDigests", []):
+            if named.startswith(f"{repository}@") and DIGEST.fullmatch(named.split("@", 1)[1]):
+                return named.split("@", 1)[1]
+        message = f"the cluster holds {reference} by no digest"
+        raise TrialError(message)
 
     def ingress(self) -> str:
         """Install Traefik, serving HTTPS on the port of the node; return its address inside.
@@ -912,10 +936,10 @@ def main(environment: Mapping[str, str] | None = None) -> int:
         try:
             make_authority(_read, Path(folder), DOMAIN)
             trial.create(name, docker_config_of(given))
-            trial.load(name, tag)
+            digests = trial.load(name, tag)
             address = trial.ingress()
             drawn = drawn_secrets()
-            values = chart_values(tag, platform, address, given, drawn)
+            values = chart_values(digests, platform, address, given, drawn)
             print("the chart, on the data components it makes:", flush=True)
             trial.prepare()
             trial.install(values)

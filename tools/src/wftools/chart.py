@@ -10,6 +10,7 @@ such. The tests of the chart (``make test-chart``) render it by :func:`render` a
 objects say; ``wftools.charttrial`` installs it on a cluster of its own.
 """
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -21,6 +22,7 @@ from typing import Any, cast
 import yaml
 
 from wftools import REPOSITORY, kubetools
+from wftools.images import IMAGES
 
 TOOL = "wftools.chart"
 CHART = REPOSITORY / "deploy" / "helm" / "waterfall"
@@ -42,6 +44,10 @@ SECRET_KEYS = (
     "WATERFALL_GRAFANA_ADMIN_PASSWORD",
 )
 """The keys of the Secret of the platform: the names of production.env.example."""
+CHAIN_DIGESTS = {
+    image.name: f"sha256:{hashlib.sha256(image.name.encode()).hexdigest()}" for image in IMAGES
+}
+"""The digests the chain renders the images of the chart with: of no image, visibly of the name."""
 # Helm says, on its standard error, that it follows each link of files/ to deploy/compose.
 _LINK_NOTICE = "found symbolic link in path"
 
@@ -54,7 +60,7 @@ def chain_values() -> dict[str, Any]:
     """Return the values the chain renders the chart with: every one it cannot do without."""
     return {
         "platform": {"domain": "waterfall.localhost"},
-        "images": {"tag": "chain"},
+        "images": {"digests": dict(CHAIN_DIGESTS)},
         "bootstrap": {
             "adminEmail": "administrateur@waterfall.test",
             "currency": "EUR",

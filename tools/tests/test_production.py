@@ -20,6 +20,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 import yaml
+from test_supervision import GIVEN_DIGESTS, TAG
 
 from wftools import REPOSITORY, images, paths, production, restoration_trial, transport
 from wftools.production import Answer, Browser, Platform, ProductionError
@@ -31,7 +32,7 @@ SERVICE = COMPOSE / "compose.service.yaml"
 TEMPLATE = COMPOSE / "production.env.example"
 CADDYFILE = COMPOSE / "Caddyfile.prod"
 WORKFLOWS = REPOSITORY / ".github" / "workflows"
-PUBLISHED = re.compile(r"ghcr\.io/waterfall-project/(\w+):\$\{WATERFALL_IMAGE_TAG:\?[^}]*\}")
+PUBLISHED = re.compile(r"ghcr\.io/waterfall-project/(\w+)@\$\{WATERFALL_DIGEST_\w+:\?[^}]*\}")
 PINNED = re.compile(r"(?:\$\{WATERFALL_MIRROR:-\})?[\w./-]+:[\w.-]+@sha256:[0-9a-f]{64}")
 VARIABLE = re.compile(r"\$\{(WATERFALL_[A-Z0-9_]+)")
 DEFAULTED = re.compile(r"\$\{(WATERFALL_[A-Z0-9_]+)(:?-)")
@@ -72,8 +73,8 @@ def environment(service: str) -> dict[str, str]:
 @pytest.mark.requirement("WF-ARC-0050-A")
 def test_the_platform_runs_the_three_images_the_chain_publishes_and_builds_nothing() -> None:
     # « Le fichier Compose démarre une plateforme complète sur une machine seule, à partir des
-    # mêmes images que le chart » : those of ghcr.io/waterfall-project, under the tag the operator
-    # names, every other image pinned by its digest.
+    # mêmes images que le chart » : those of ghcr.io/waterfall-project, under the digests the
+    # operator gives (#3726), every other image pinned by its digest.
     text = PRODUCTION.read_text(encoding="utf-8")
     assert set(PUBLISHED.findall(text)) == {image.name for image in images.IMAGES}
     for name, service in services().items():
@@ -863,8 +864,7 @@ def platform_sender(fake: FakePlatform) -> Callable[[Platform], Callable[[Path],
     return make
 
 
-TAG = "0123456789abcdef0123456789abcdef01234567"
-GIVEN = {"WATERFALL_IMAGE_TAG": TAG, "WATERFALL_PRODUCTION_PROJECT": "trial-a3"}
+GIVEN = {"WATERFALL_IMAGE_TAG": TAG, "WATERFALL_PRODUCTION_PROJECT": "trial-a3", **GIVEN_DIGESTS}
 
 
 @pytest.mark.requirement("WF-ARC-0050-A")

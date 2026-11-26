@@ -11,6 +11,7 @@ import ast
 import base64
 import hashlib
 import io
+import json
 import re
 import tarfile
 from pathlib import Path
@@ -108,12 +109,13 @@ def test_the_node_pulls_with_the_credentials_of_docker_only_from_the_mirror(tmp_
 
 def test_the_front_reaches_the_published_name_at_the_ingress_inside_the_cluster() -> None:
     drawn = charttrial.drawn_secrets()
+    digests = {"front": "sha256:" + "1" * 64}
     values = charttrial.chart_values(
-        "abc", PLATFORM, "10.96.0.7", {"WATERFALL_MIRROR": "m/"}, drawn
+        digests, PLATFORM, "10.96.0.7", {"WATERFALL_MIRROR": "m/"}, drawn
     )
     assert values["secrets"] == {"values": drawn}
     assert values["platform"] == {"domain": "waterfall.localhost", "httpsPort": "41443"}
-    assert values["images"] == {"tag": "abc", "mirror": "m/"}
+    assert values["images"] == {"digests": digests, "mirror": "m/"}
     assert values["front"]["hostAliases"] == [
         {"ip": "10.96.0.7", "hostnames": ["waterfall.localhost"]}
     ]
@@ -136,6 +138,37 @@ def test_an_image_not_built_here_stops_the_trial_before_the_cluster_loads_any(
     with pytest.raises(TrialError, match="keycloak:abc is not built here"):
         trial.load("cluster", "abc")
     assert not any(command[0] == "kind" for command in ran)
+
+
+@pytest.mark.story("US-2800")
+def test_the_chart_designates_the_images_by_the_digests_the_cluster_holds_them_by(
+    tmp_path: Path,
+) -> None:
+    asked: list[list[str]] = []
+
+    def read(command: list[str]) -> tuple[int, str]:
+        asked.append(command)
+        repository = command[-1].rsplit(":", 1)[0]
+        digests = [f"other/image@sha256:{'0' * 64}", f"{repository}@sha256:{'a' * 64}"]
+        return 0, json.dumps({"status": {"repoDigests": digests}})
+
+    trial = Trial(Tools(["kind"], ["kubectl"], ["helm"]), lambda _: 0, read, tmp_path, PLATFORM)
+    assert trial.load("cluster", "abc") == dict.fromkeys(charttrial.IMAGES, f"sha256:{'a' * 64}")
+    assert [command[:6] for command in asked] == [
+        ["docker", "exec", "cluster-control-plane", "crictl", "inspecti", "--output"]
+    ] * 3
+    assert [command[-1] for command in asked] == [
+        f"ghcr.io/waterfall-project/{name}:abc" for name in charttrial.IMAGES
+    ]
+
+
+def test_an_image_the_cluster_holds_by_no_digest_stops_the_trial(tmp_path: Path) -> None:
+    def read(_: list[str]) -> tuple[int, str]:
+        return 0, json.dumps({"status": {"repoDigests": []}})
+
+    trial = Trial(Tools(["kind"], ["kubectl"], ["helm"]), lambda _: 0, read, tmp_path, PLATFORM)
+    with pytest.raises(TrialError, match=r"front:abc by no digest"):
+        trial.load("cluster", "abc")
 
 
 @pytest.mark.parametrize(

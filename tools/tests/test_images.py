@@ -39,6 +39,10 @@ NAMES = ("front", "waterfall", "keycloak")
 NOT_FOUND = (1, "ERROR: ghcr.io/waterfall-project/front:0.1.0: not found")
 FOUND = (0, "Name: ghcr.io/waterfall-project/front:0.1.0")
 FORBIDDEN = (1, "ERROR: unexpected status: 403 Forbidden")
+DIGESTS = {name: f"sha256:{index:064x}" for index, name in enumerate(NAMES, start=1)}
+PRODUCTION = REPOSITORY / "deploy" / "compose" / "compose.prod.yaml"
+# Where a publication writes its digests, which the chain keeps.
+KEPT = f"{images.DIGESTS.relative_to(REPOSITORY)}/"
 
 
 def workflow() -> dict[Any, Any]:
@@ -93,12 +97,29 @@ def test_the_job_that_publishes_alone_writes_packages_and_runs_the_makefile() ->
     assert jobs["trial"]["permissions"] == {"contents": "read", "packages": "read"}
     job = jobs["publish"]
     assert job["permissions"] == {"contents": "read", "packages": "write"}
-    publish = job["steps"][-1]
+    publish = job["steps"][-2]
     assert publish["run"] == "make images PUSH=yes"
     assert publish["env"] == {
         "IMAGE_BRANCH": "${{ github.ref_name }}",
         "IMAGE_COMMIT": "${{ github.sha }}",
     }
+
+
+@pytest.mark.story("US-2800")
+def test_the_digests_published_are_kept_and_the_trial_runs_the_images_by_them() -> None:
+    jobs = workflow()["jobs"]
+    kept = jobs["publish"]["steps"][-1]
+    assert kept["uses"].startswith("actions/upload-artifact@")
+    folder = KEPT
+    assert kept["with"] == {"name": "digests", "path": folder, "if-no-files-found": "error"}
+    steps = jobs["trial"]["steps"]
+    given, exported, trial = steps[-3:]
+    assert given["uses"].startswith("actions/download-artifact@")
+    assert given["with"] == {"name": "digests", "path": folder}
+    assert exported["run"] == (
+        f"grep '^WATERFALL_DIGEST_' {folder}{images.ENVIRONMENT} >> \"$GITHUB_ENV\""
+    )
+    assert trial["run"] == "make production-trial"
 
 
 def test_every_action_of_the_workflow_is_pinned_by_the_digest_of_its_commit() -> None:
@@ -351,8 +372,9 @@ class Docker:
     """A Docker that records what it is asked, and answers as a test tells it.
 
     A build fails if its context is the one named; the registry answers image by image as told
-    for the tag of a version, that it lacks for an image not named; the image of Keycloak holds the
-    bytes given.
+    for the tag of a version, that it lacks for an image not named, and gives the digest of each
+    image under the tag of the commit, or what it is told for it; the image of Keycloak holds the
+    bytes given. The digests are written in the folder of the test (``digests``).
     """
 
     def __init__(
@@ -361,12 +383,14 @@ class Docker:
         failing: str = "",
         registry: Mapping[str, tuple[int, str]] | None = None,
         holding: bytes = b"",
+        digests: Mapping[str, tuple[int, str]] | None = None,
     ) -> None:
         self.ran: list[list[str]] = []
         self.read_: list[list[str]] = []
         self.failing = failing
         self.registry = dict(registry or {})
         self.holding = holding
+        self.digests = {name: (0, f"{DIGESTS[name]}\n") for name in NAMES} | dict(digests or {})
 
     def run(self, command: list[str]) -> int:
         self.ran.append(command)
@@ -375,7 +399,15 @@ class Docker:
     def read(self, command: list[str]) -> tuple[int, str]:
         self.read_.append(command)
         name = command[-1].rsplit("/", 1)[1].split(":", 1)[0]
+        if images.MANIFEST_DIGEST[-1] in command:
+            return self.digests[name]
         return self.registry.get(name, NOT_FOUND)
+
+    def digest_reads(self) -> list[str]:
+        return [command[-1] for command in self.read_ if images.MANIFEST_DIGEST[-1] in command]
+
+    def version_reads(self) -> list[str]:
+        return [command[-1] for command in self.read_ if images.MANIFEST_DIGEST[-1] not in command]
 
     def contents(self, image: str) -> Iterable[bytes]:
         yield b"usr/bin/" + (self.holding if "/keycloak:" in image else b"")
@@ -386,6 +418,15 @@ class Docker:
     def main(self, branch: str = "epic/EP-03", *arguments: str) -> int:
         environment = {"IMAGE_BRANCH": branch, "IMAGE_COMMIT": COMMIT}
         return images.main(arguments, environment, self.run, self.read, self.contents)
+
+    def written(self, name: str) -> str:
+        return (images.DIGESTS / name).read_text(encoding="utf-8")
+
+
+@pytest.fixture(autouse=True)
+def digests(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Write the digests of a publication in the folder of the test, never in the repository."""
+    monkeypatch.setattr(images, "DIGESTS", tmp_path / "digests")
 
 
 @pytest.fixture
@@ -407,7 +448,7 @@ def test_the_images_are_built_from_the_branch_and_the_commit_the_chain_names(
     docker = Docker()
     assert docker.main("epic/EP-03", "--push") == 0
     assert docker.ran == images.commands("epic/EP-03", COMMIT, VERSION, push=True)
-    assert docker.read_ == []
+    assert docker.version_reads() == []
     assert f"--tag ghcr.io/waterfall-project/front:{COMMIT}" in capsys.readouterr().out
 
 
@@ -423,7 +464,7 @@ def test_an_image_that_fails_to_build_stops_everything_before_any_push() -> None
 def test_a_new_version_is_posed_on_main() -> None:
     docker = Docker()
     assert docker.main("main", "--push") == 0
-    assert [command[-1] for command in docker.read_] == [
+    assert docker.version_reads() == [
         f"ghcr.io/waterfall-project/{name}:{VERSION}" for name in NAMES
     ]
     assert [f"ghcr.io/waterfall-project/{name}:{VERSION}" for name in NAMES] == docker.pushed()[-3:]
@@ -475,7 +516,7 @@ def test_a_version_the_registry_holds_for_some_images_alone_is_posed_on_none_and
 ) -> None:
     docker = Docker(registry=registry)
     assert docker.main("main", "--push") == 2
-    assert [command[-1] for command in docker.read_] == [
+    assert docker.version_reads() == [
         f"ghcr.io/waterfall-project/{name}:{VERSION}" for name in NAMES
     ]
     assert_no_version_and_the_tags_of_the_commit_and_the_branch_pushed(docker)
@@ -488,6 +529,54 @@ def test_a_push_that_fails_is_said_before_the_version_left_unposed() -> None:
     docker = Docker(registry={"front": FOUND}, failing=f"ghcr.io/waterfall-project/front:{COMMIT}")
     assert docker.main("main", "--push") == 1
     assert docker.pushed() == [f"ghcr.io/waterfall-project/front:{COMMIT}"]
+
+
+@pytest.mark.story("US-2800")
+@pytest.mark.usefixtures("checkout")
+@pytest.mark.parametrize("branch", ["main", "epic/EP-03"])
+def test_the_publication_writes_the_digest_of_each_image_for_the_chart_and_the_compose(
+    branch: str,
+) -> None:
+    # propre à l'US : « le chart et le Compose de production désignent chaque image par son
+    # empreinte » : the digest the registry holds under the tag of the commit, once every tag is
+    # pushed, in the values of the chart and in the lines of the .env of the Compose.
+    docker = Docker()
+    assert docker.main(branch, "--push") == 0
+    assert docker.digest_reads() == [f"ghcr.io/waterfall-project/{name}:{COMMIT}" for name in NAMES]
+    assert docker.ran[-1][:2] == ["docker", "push"]
+    values = yaml.safe_load(docker.written(images.VALUES))
+    assert values == {"images": {"digests": DIGESTS}}
+    lines = [line for line in docker.written(images.ENVIRONMENT).splitlines() if "=" in line]
+    given = dict(line.split("=", 1) for line in lines)
+    # The very variables compose.prod.yaml designates the images of the chain by.
+    compose = PRODUCTION.read_text(encoding="utf-8")
+    assert given.keys() == set(re.findall(r"@\$\{(WATERFALL_DIGEST_\w+):\?", compose))
+    assert given == {f"WATERFALL_DIGEST_{name.upper()}": DIGESTS[name] for name in NAMES}
+
+
+@pytest.mark.story("US-2800")
+@pytest.mark.usefixtures("checkout")
+@pytest.mark.parametrize(
+    "answer",
+    [(0, "latest\n"), (0, "sha256:abc\n"), (1, "ERROR: unexpected status: 403 Forbidden")],
+    ids=["a tag", "a digest cut short", "a refusal"],
+)
+def test_a_digest_the_registry_does_not_give_fails_the_publication_and_writes_nothing(
+    answer: tuple[int, str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    docker = Docker(digests={"waterfall": answer})
+    assert docker.main("epic/EP-03", "--push") == 2
+    tagged = f"ghcr.io/waterfall-project/waterfall:{COMMIT}"
+    assert f"wftools.images: the registry gave no digest of {tagged}" in capsys.readouterr().err
+    assert not images.DIGESTS.exists()
+
+
+@pytest.mark.usefixtures("checkout")
+def test_a_build_without_push_reads_no_digest() -> None:
+    docker = Docker()
+    assert docker.main("epic/EP-03") == 0
+    assert docker.read_ == []
+    assert not images.DIGESTS.exists()
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")

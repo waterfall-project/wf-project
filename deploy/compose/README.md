@@ -57,7 +57,9 @@ Puis :
    ```
 
 3. Remplir `.env` : le nom de la machine (`WATERFALL_DOMAIN`), l'adresse que Let's Encrypt
-   prévient (`WATERFALL_ACME_EMAIL`), l'étiquette (`WATERFALL_IMAGE_TAG`), l'adresse du premier
+   prévient (`WATERFALL_ACME_EMAIL`), les empreintes des images (`WATERFALL_DIGEST_FRONT`,
+   `WATERFALL_DIGEST_WATERFALL`, `WATERFALL_DIGEST_KEYCLOAK`, les trois lignes de `digests.env`,
+   l'artefact du passage de `images.yml` qui a publié la version), l'adresse du premier
    administrateur (`WATERFALL_ADMIN_EMAIL`), la langue de l'installation, sa devise
    (`WATERFALL_CURRENCY`, trois lettres majuscules, qui ne change plus ensuite) et le nom de
    l'entreprise (`WATERFALL_COMPANY_NAME`, que portent les fichiers exportés), son fuseau horaire
@@ -197,7 +199,10 @@ docker compose -f compose.prod.yaml up --detach --wait keycloak
 ## Mettre à jour
 
 1. Prendre une sauvegarde (ci-dessous).
-2. Changer `WATERFALL_IMAGE_TAG` dans `.env`.
+2. Remplacer dans `.env` les trois empreintes `WATERFALL_DIGEST_…` par celles de `digests.env`,
+   l'artefact du passage de `images.yml` qui a publié la nouvelle version. La plateforme ne
+   désigne ses images que par leur empreinte, jamais par une étiquette, qu'un travail qui peut
+   écrire les paquets du registre pourrait déplacer (#3726).
 3. Tirer les images et relancer :
 
    ```sh
@@ -470,7 +475,9 @@ Le navigateur, lui, avertit sur ce certificat. `WATERFALL_HTTPS_PORT` et `WATERF
 déplacent les ports publiés ; un port HTTPS autre que 443 entre dans l'adresse de la plateforme.
 
 `make production-trial` fait ainsi l'essai de la chaîne (`wftools.production`) : sur les images de
-`WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut, que `make images` construit —, sous le nom
+`WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut, que `make images` construit —, désignées par
+leur empreinte, celle que donnent les `WATERFALL_DIGEST_…` de l'environnement ou, à défaut, celle de
+l'image de l'étiquette, construite ici ou publiée, sous le nom
 `waterfall.localhost`, il démarre la plateforme, l'amorce, vérifie la sonde de vie de l'API, que
 HTTP renvoie à la même page sur l'adresse publiée, port compris, que HTTPS répond avec HSTS et les
 autres en-têtes de Caddy, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se

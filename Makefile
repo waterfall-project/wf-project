@@ -480,6 +480,10 @@ migrate: ## Apply the migrations to the database WATERFALL_DATABASE_URL designat
 	@cd $(BACK) && uv run --frozen waterfall-migrate
 
 # The Compose files refuse to start without their secrets: validated with stand-ins that never run.
+# The images of production by their digests (#3726): stand-ins of no image.
+STAND_IN_DIGESTS := WATERFALL_DIGEST_FRONT=sha256:0000000000000000000000000000000000000000000000000000000000000000 \
+	WATERFALL_DIGEST_WATERFALL=sha256:0000000000000000000000000000000000000000000000000000000000000000 \
+	WATERFALL_DIGEST_KEYCLOAK=sha256:0000000000000000000000000000000000000000000000000000000000000000
 lint-compose: ## Validate the Compose files
 	@PRISM_VERSION=$(PRISM_VERSION) $(COMPOSE_DEV) config --quiet
 	@WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
@@ -489,7 +493,7 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_INSTALLATION_CLIENT_SECRET=stand-in \
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
 		$(COMPOSE_SERVICE_FILE) --profile e2e --profile install --profile witness config --quiet
-	@WATERFALL_DOMAIN=waterfall.localhost WATERFALL_ACME_EMAIL=stand-in WATERFALL_IMAGE_TAG=stand-in \
+	@WATERFALL_DOMAIN=waterfall.localhost WATERFALL_ACME_EMAIL=stand-in $(STAND_IN_DIGESTS) \
 		WATERFALL_ADMIN_EMAIL=stand-in WATERFALL_SERVER_ACTIONS_KEY=stand-in \
 		WATERFALL_CURRENCY=EUR WATERFALL_COMPANY_NAME=stand-in \
 		WATERFALL_DATABASE_CAPACITY_BYTES=1 WATERFALL_STORAGE_CAPACITY_BYTES=1 \
@@ -501,7 +505,7 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
 		WATERFALL_GRAFANA_ADMIN_PASSWORD=stand-in \
 		$(COMPOSE_PRODUCTION) --profile install config --quiet
-	@WATERFALL_DOMAIN=waterfall.localhost WATERFALL_IMAGE_TAG=stand-in WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
+	@WATERFALL_DOMAIN=waterfall.localhost $(STAND_IN_DIGESTS) WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_RESTORE_TEST_PASSWORD=stand-in \
 		docker compose -f deploy/compose/compose.restore-test.yaml --profile restore-test config --quiet
 	@WATERFALL_DOMAIN=demo.localhost WATERFALL_ACME_EMAIL=stand-in WATERFALL_IMAGE_TAG=stand-in \

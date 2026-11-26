@@ -41,15 +41,26 @@ app.kubernetes.io/managed-by: {{ (index . 0).Release.Service }}
 helm.sh/chart: {{ printf "%s-%s" (index . 0).Chart.Name (index . 0).Chart.Version }}
 {{- end -}}
 
-{{/* An image the chain publishes, by its name: (list $ "waterfall"). */}}
+{{/* An image the chain publishes, by its name, designated by its digest, which the publication wrote
+— never by a tag, which a writer of the registry may move (#3726): (list $ "waterfall"). */}}
 {{- define "waterfall.image" -}}
 {{- $images := (index . 0).Values.images -}}
-{{- printf "%s/%s:%s" $images.registry (index . 1) (required "images.tag: the tag of the images the chain published" $images.tag) -}}
+{{- $name := index . 1 -}}
+{{- $digest := index ($images.digests | default dict) $name | default "" -}}
+{{- if not (regexMatch "^sha256:[0-9a-f]{64}$" $digest) -}}
+{{- fail (printf "images.digests.%s: the digest of the image %s the chain published (sha256:…, digests.values.yaml of its publication), not %q" $name $name $digest) -}}
+{{- end -}}
+{{- printf "%s/%s@%s" $images.registry $name $digest -}}
 {{- end -}}
 
-{{/* An image of a third party, read from the mirror when one is given: (list $ "postgres:…"). */}}
+{{/* An image of a third party, read from the mirror when one is given, pinned by its digest:
+(list $ "postgres:…@sha256:…"). */}}
 {{- define "waterfall.thirdParty" -}}
-{{- printf "%s%s" (index . 0).Values.images.mirror (index . 1) -}}
+{{- $image := index . 1 -}}
+{{- if not (regexMatch "@sha256:[0-9a-f]{64}$" $image) -}}
+{{- fail (printf "%s: an image is designated by its digest (…@sha256:…), never by a tag alone" $image) -}}
+{{- end -}}
+{{- printf "%s%s" (index . 0).Values.images.mirror $image -}}
 {{- end -}}
 
 {{/* What every pod shares: no variable of the services of the namespace — a service named

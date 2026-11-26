@@ -6,10 +6,11 @@ The author's decision of 2026-11-22 on #4664: ``podDefaults`` gives each pod ``r
 the profile seccomp of the runtime, ``containerSecurity`` gives each container no privilege gained
 and no capability, the Job of the test of a restoration included, which the schedule makes from the
 manifest the chart renders into its ConfigMap. A process the kubelet cannot hold against
-``runAsNonRoot`` — an image that runs as root, or as a user it names by a name — does not start: each
-container runs as a number it is given, or is an image of the chain, whose Dockerfile names a number.
-No image of the chart needs an exception: the data components run as the user of their image —
-PostgreSQL as postgres, from the start —, Garage and Caddy as a user of no name. Selected by the marker ``chart`` (``make test-chart``).
+``runAsNonRoot`` — an image that runs as root, or as a user it names by a name — does not start:
+each container runs as a number it is given, or is an image of the chain, whose Dockerfile names a
+number. No image of the chart needs an exception: the data components run as the user of their
+image — PostgreSQL as postgres, from the start —, Garage and Caddy as a user of no name. Selected by
+the marker ``chart`` (``make test-chart``).
 """
 
 import json
@@ -50,7 +51,7 @@ def pods() -> dict[str, dict[str, Any]]:
 
 
 def published_users() -> dict[str, int]:
-    """Return the user each image of the chain runs as: the last USER of its Dockerfile, a number."""
+    """Return the user each image of the chain runs as: the last USER of its Dockerfile."""
     users: dict[str, int] = {}
     for image in IMAGES:
         dockerfile = (REPOSITORY / image.context / "Dockerfile").read_text(encoding="utf-8")
@@ -88,8 +89,8 @@ def test_every_container_gains_no_privilege_holds_no_capability_and_runs_as_a_nu
             assert security.get("runAsNonRoot") is not False, where
             user = security.get("runAsUser", spec["securityContext"].get("runAsUser"))
             if user is None:
-                image = container["image"].rsplit(":", 1)[0]
-                assert image in users, f"{where}: {container['image']} runs as no number it is given"
+                image = container["image"].split("@", 1)[0]
+                assert image in users, f"{where}: {container['image']} runs as no number given"
                 user = users[image]
             assert user > 0, where
 

@@ -6,7 +6,9 @@ Usage: ``python -m wftools.production``.
 
 The platform of ``deploy/compose/compose.prod.yaml`` is started on the images tagged
 ``WATERFALL_IMAGE_TAG`` — the commit of the checkout unless it names another —, which the chain
-either just built (``make check-production``) or just published (``images.yml``), under a local
+either just built (``make check-production``) or just published (``images.yml``), each designated by
+its digest, as the Compose designates them (#3726): the one ``WATERFALL_DIGEST_<NAME>`` gives — the
+publication's —, or else that of the image of the tag, built here or published, under a local
 name, ``WATERFALL_DOMAIN`` (``waterfall.localhost`` by default), with ``compose.prod.local.yaml``:
 Caddy makes its certificate from its own authority, whose root this tool alone trusts. Its secrets
 come from the environment, as the chain gives them; no file holds them. Then it holds that:
@@ -56,6 +58,7 @@ from typing import cast
 from urllib.parse import urlencode, urljoin, urlsplit
 
 from wftools import REPOSITORY, transport
+from wftools.images import DIGEST, IMAGES, MANIFEST_DIGEST, digest_variable, reference
 from wftools.restoration_trial import (
     API_REACHED,
     Administrator,
@@ -512,12 +515,61 @@ def platform_of(environment: Mapping[str, str]) -> Platform:
     return Platform(domain, https_port, http_port)
 
 
-def environment_of(environment: Mapping[str, str], tag: str, platform: Platform) -> dict[str, str]:
-    """Return the environment Compose starts the platform with: what is given, and the defaults."""
+def digests_of(
+    environment: Mapping[str, str], tag: str, digest: Callable[[str], str]
+) -> dict[str, str]:
+    """Return the variable that designates each image by its digest: as given, or of the tag."""
+    found = {
+        digest_variable(image): environment.get(digest_variable(image))
+        or digest(reference(image, tag))
+        for image in IMAGES
+    }
+    for variable, value in found.items():
+        if not DIGEST.fullmatch(value):
+            message = f"{variable} is not the digest of an image (sha256:…): {value!r}"
+            raise ProductionError(message)
+    return found
+
+
+def image_digest(tagged: str) -> str:
+    """Return the digest of an image under a tag: that of the image here, or of the registry's."""
+    here = subprocess.run(
+        ["docker", "image", "inspect", "--format", "{{json .RepoDigests}}", tagged],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    repository = tagged.rsplit(":", 1)[0]
+    if here.returncode == 0:
+        for named in cast("list[str]", json.loads(here.stdout or "[]") or []):
+            if named.startswith(f"{repository}@"):
+                return named.split("@", 1)[1]
+    there = subprocess.run(
+        ["docker", "buildx", "imagetools", "inspect", *MANIFEST_DIGEST, tagged],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if there.returncode != 0:
+        message = f"{tagged} has no digest, here nor in the registry: {there.stderr.strip()}"
+        raise ProductionError(message)
+    return there.stdout.strip()
+
+
+def environment_of(
+    environment: Mapping[str, str],
+    tag: str,
+    platform: Platform,
+    digest: Callable[[str], str] = image_digest,
+) -> dict[str, str]:
+    """Return the environment Compose starts the platform with: what is given, and the defaults.
+
+    Each image by its digest, as given or of the tag (``digests_of``).
+    """
     email = environment.get("WATERFALL_ADMIN_EMAIL") or ADMIN
     return {
         **environment,
-        "WATERFALL_IMAGE_TAG": tag,
+        **digests_of(environment, tag, digest),
         "WATERFALL_DOMAIN": platform.domain,
         "WATERFALL_ADMIN_EMAIL": email,
         "WATERFALL_ACME_EMAIL": environment.get("WATERFALL_ACME_EMAIL") or email,
