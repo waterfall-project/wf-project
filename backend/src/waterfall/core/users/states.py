@@ -164,7 +164,7 @@ def anonymize_every_account(session: Session, at: datetime) -> int:
     first, in the order of their identifiers, then the lock of the forgetting taken, as one
     anonymisation takes them.
     """
-    held = session.scalars(select(UserAccount.id).order_by(UserAccount.id).with_for_update()).all()
+    session.execute(select(UserAccount.id).order_by(UserAccount.id).with_for_update()).all()
     # GREATEST passes over a null: an account never signed out is closed as of ``at``.
     moment = literal(at, UserAccount.sessions_closed_at.type)
     named = session.scalars(
@@ -182,6 +182,6 @@ def anonymize_every_account(session: Session, at: datetime) -> int:
         .returning(UserAccount.id)
         .execution_options(synchronize_session=False)
     ).all()
-    forget_accounts(session, held)
+    forget_accounts(session, select(UserAccount.id))
     forget_reported_persons(session)
     return len(named)
