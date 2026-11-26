@@ -20,6 +20,7 @@ covered (#3977, the question is put to the author).
 
 import unicodedata
 from collections.abc import Callable, Iterator, Mapping
+from itertools import chain
 from urllib.parse import quote
 from uuid import UUID
 
@@ -81,7 +82,9 @@ class DeliveredResponse(ObjectResponse):
 
     def watched(self, chunks: ObjectStream) -> Iterator[bytes]:
         """Pass the pieces on, and note that the stream came to its end (it runs in a thread)."""
-        yield from chunks
+        # Through a ``chain``: ``yield from chunks`` would close them with this generator, and the
+        # response closes it once, on every path.
+        yield from chain(chunks)
         self.exhausted = True
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:

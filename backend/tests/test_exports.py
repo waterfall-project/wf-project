@@ -37,7 +37,7 @@ from waterfall.platform.database import utc_now
 from waterfall.platform.errors import NotFoundError
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
-from waterfall.platform.storage import Bucket
+from waterfall.platform.storage import Bucket, ObjectStream
 from waterfall.platform.tasks import BackgroundTask, project_task_pending
 from waterfall.worker.exchanges import ExportTask
 from waterfall.worker.runner import Timing, Worker
@@ -54,7 +54,6 @@ if TYPE_CHECKING:
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.settings import ServiceSettings
-    from waterfall.platform.storage import ObjectStream
 
 TASKS = "/api/v1/tasks"
 AT_ONCE = Timing(claim_after=0, block=0.01, redeposit_every=0)
@@ -318,6 +317,38 @@ def test_a_download_cut_after_its_last_piece_leaves_the_export_available_to_be_d
     again = result(api, stage, task_id)
     assert (again.status_code, again.content) == (200, CONTENT)
     assert stored(backups_bucket, key) is None
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+@pytest.mark.usefixtures("trial")
+def test_a_client_that_leaves_after_the_first_piece_closes_the_stream_once_and_keeps_the_task_row(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    backups_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # #4680: through the route, a disconnection after the first piece closes the body read from
+    # the storage once, not left open and not closed twice, and the result is not consumed: the
+    # file is still there to be downloaded.
+    monkeypatch.setattr("waterfall.platform.storage.CHUNK", 16)
+    task_id, _ = exported(api, stage, worker)
+    # Counted from the download alone: the worker that made the file read it as a stream too.
+    closed: list[int] = []
+    close = ObjectStream.close
+
+    def counting(self: ObjectStream) -> None:
+        closed.append(1)
+        close(self)
+
+    monkeypatch.setattr(ObjectStream, "close", counting)
+    path = f"{TASKS}/{task_id}/result"
+    cut = ("2.3", "disconnect")
+    pieces = asyncio.run(pulled_then_dropped(api.client.app, path, stage.manager.headers, cut))
+    assert pieces == 1
+    assert len(closed) == 1
+    assert stored(backups_bucket, f"exports/{task_id}.png") == len(CONTENT)
+    assert task_of(api, stage, task_id)["result_url"] == path
 
 
 class Chunks:

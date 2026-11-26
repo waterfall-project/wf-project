@@ -401,10 +401,10 @@ docker compose -f compose.prod.yaml exec postgres psql -U postgres -d waterfall 
 Le service `restore` la redépose dans la minute. Une maintenance posée sans l'état de sa
 restauration ne se relance pas ainsi : rien ne dit quelle sauvegarde elle restaurait (sa ligne de
 `platform.restoration` a un `payload` vide). Un `UPDATE` qui la remet en marche la retrouve
-abandonnée aussitôt, le journal disant `no_payload` : elle ne se lève que par ce qui suit. Sinon, après avoir vérifié que les deux bases sont
-utilisables — remplacées entières, ou jamais touchées —, l'exploitant **lève la maintenance** ; ce
-que la restauration avait gardé reste, qu'une restauration demandée ensuite à l'écran des
-sauvegardes reprend :
+abandonnée aussitôt, le journal disant `no_payload` : elle ne se lève que par ce qui suit. Sinon,
+après avoir vérifié que les deux bases sont utilisables — remplacées entières, ou jamais
+touchées —, l'exploitant **lève la maintenance** ; ce que la restauration avait gardé reste,
+qu'une restauration demandée ensuite à l'écran des sauvegardes reprend :
 
 ```sh
 docker compose -f compose.prod.yaml exec postgres psql -U postgres -d waterfall \
