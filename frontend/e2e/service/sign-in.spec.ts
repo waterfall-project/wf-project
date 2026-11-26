@@ -9,6 +9,8 @@
  * provider, shared by the runs on a platform kept, are given theirs in the database of the
  * platform, once Waterfall has admitted them (`grantRole`). A session left idle beyond the life of
  * its refresh token leads back to the sign-in page, then to the screen aimed at, its address whole.
+ * The file also holds the guard of the administrator of the paths, which gives no account both
+ * permissions of the administration, the role already held included.
  */
 import { type APIRequestContext, type Browser, expect, type Page, test } from "@playwright/test";
 
@@ -61,7 +63,7 @@ test.afterAll(async () => {
 });
 
 test.beforeEach(async ({ request }) => {
-  await compileAnswered(request, "/auth/callback", "/auth/sign-out", ACCOUNT, USERS);
+  await compileAnswered(request, "/", "/auth/callback", "/auth/sign-out", ACCOUNT, USERS);
 });
 
 /** A page of a workstation of its own, in French, which trusts the front end of Keycloak. */
@@ -96,18 +98,21 @@ test("a local account, an account of the directory and one of the external provi
   try {
     for (const [person, origin] of origins) {
       const page = await workstation(browser);
-      await signIn(page, person, ACCOUNT);
-      await expect(page.getByRole("main")).toContainText(origin);
-      expect(waterfallAccount(person.email)?.roles).toBe(0);
-      expect(await readsTheAccounts(page)).toBe(false);
-      // Admitted, her screen of the account read (`GET /me`): Waterfall holds her account.
-      if (person === local) {
-        await administrator.give(local.id, READING, ["users.read"]);
-      } else {
-        grantRole(person.email, READING, ["users.read"]);
+      try {
+        await signIn(page, person, ACCOUNT);
+        await expect(page.getByRole("main")).toContainText(origin);
+        expect(waterfallAccount(person.email)?.roles).toBe(0);
+        expect(await readsTheAccounts(page)).toBe(false);
+        // Admitted, her screen of the account read (`GET /me`): Waterfall holds her account.
+        if (person === local) {
+          await administrator.give(local.id, READING, ["users.read"]);
+        } else {
+          grantRole(person.email, READING, ["users.read"]);
+        }
+        expect(await readsTheAccounts(page)).toBe(true);
+      } finally {
+        await page.context().close();
       }
-      expect(await readsTheAccounts(page)).toBe(true);
-      await page.context().close();
     }
     expect(waterfallAccount(external.email)?.origin).toBe("identity_provider");
   } finally {
@@ -123,8 +128,8 @@ test("a person new to an external provider, who holds no role, signs in to the h
   request,
 }) => {
   const external = await newToTheProvider(request);
+  const page = await workstation(browser);
   try {
-    const page = await workstation(browser);
     await signIn(page, external, "/");
     expect(waterfallAccount(external.email)?.roles).toBe(0);
     await expect(
@@ -136,8 +141,8 @@ test("a person new to an external provider, who holds no role, signs in to the h
     );
     await expect(page.getByRole("main").getByRole("link")).toHaveCount(0);
     await expect(page).toHaveURL("/");
-    await page.context().close();
   } finally {
+    await page.context().close();
     await removeFromTheProvider(request, external);
   }
 });
