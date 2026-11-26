@@ -461,7 +461,7 @@ issue = "#4790"
 job = '^(?:keycloak-image|service / paths(?: \(\d+/\d+\))?)$'
 step = 'build-keycloak'
 message = "mvn --batch-mode --quiet dependency:go-offline|No plugin found for prefix 'dependency'|repo\\.maven\\.apache\\.org/maven2\\): HTTP Status: 429"
-frequency = "5 passages du 2026-11-19 au 2026-11-25 : `make build-keycloak` de `service / paths` (45111181156, 44990506194, 44965076909, 44955878820) ; le 2026-11-25 (45722567147), à `mvn package`, Maven Central répondant 429"
+frequency = "6 passages du 2026-11-19 au 2026-11-26 : `make build-keycloak` de `service / paths` (45111181156, 44990506194, 44965076909, 44955878820) ; le 2026-11-25 (45722567147), à `mvn package`, Maven Central répondant 429 ; le 2026-11-26 (45876627630, job `keycloak-image`, pr-5064), de même, après la construction unique"
 cause = "hypothèse : Maven Central ne répond pas, ou trop lentement, pendant la résolution du greffon `dependency` (≈ 300 s avant l'échec), ou limite le débit (429) pendant celle des greffons de `mvn package` ; le dépôt local de Maven n'est pas gardé en cache dans la chaîne. Depuis le 2026-11-26, l'image est construite une fois par passage (job `keycloak-image`, quatre séries de téléchargements en moins) et chargée par les quatre parts"
 
 # ghcr.io, au pull du miroir (`ghcr.io/waterfall-project/mirror/…`) comme au push des images du
