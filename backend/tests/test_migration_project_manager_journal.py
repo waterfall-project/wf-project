@@ -4,7 +4,8 @@
 
 The migration stamps the contributors already there, admits the three actions and the contributor
 as an object, and lets the label of a contributor be forgotten with its account; its descent
-refuses them again, and fails while the journal holds one.
+refuses them again, and fails while the journal holds one. Its upgrade leaves its indexes valid and
+its checks validated, and runs again over an index a stopped run left invalid.
 """
 
 from datetime import UTC, datetime
@@ -174,3 +175,87 @@ def test_after_the_descent_the_triggers_refuse_again_to_forget_the_label_of_a_co
     with pytest.raises(DBAPIError, match="refused"), empty_engine.begin() as connection:
         forget(connection, contributor)
     assert labels(empty_engine) == {"user": None, "contributor": "Inès Roux"}
+
+
+INDEXES = (
+    "ix_audit_entry_action_rank",
+    "ix_audit_entry_actor_latest",
+    "ix_audit_entry_object_kind_rank",
+    "ix_audit_entry_project_latest",
+)
+CHECKS = ("action_known", "object_kind_known", "object_labeled")
+# The indexes of the journal, valid or not, and their definition.
+JOURNAL_INDEXES = text(
+    "SELECT c.relname, i.indisvalid, pg_get_indexdef(i.indexrelid) FROM pg_index AS i "
+    "JOIN pg_class AS c ON c.oid = i.indexrelid WHERE i.indrelid = 'audit_entry'::regclass"
+)
+# The checks of the journal, validated or not.
+JOURNAL_CHECKS = text(
+    "SELECT conname, convalidated FROM pg_constraint "
+    "WHERE conrelid = 'audit_entry'::regclass AND contype = 'c'"
+)
+
+
+def indexes(engine: Engine) -> dict[str, tuple[bool, str]]:
+    """Read each index of the journal: valid or not, and its definition."""
+    with engine.connect() as connection:
+        rows = connection.execute(JOURNAL_INDEXES).all()
+    return {row[0]: (row[1], row[2]) for row in rows}
+
+
+def assert_upgraded_whole(engine: Engine) -> None:
+    """Check the four indexes of 0056 valid, none left under the name of a step, the checks held."""
+    found = indexes(engine)
+    assert {name: found[name][0] for name in INDEXES} == dict.fromkeys(INDEXES, True)
+    assert [name for name in found if name.endswith("_next")] == []
+    assert "project_manager_add" in found["ix_audit_entry_action_rank"][1]
+    assert "contributor" in found["ix_audit_entry_object_kind_rank"][1]
+    with engine.connect() as connection:
+        checks = {row[0]: row[1] for row in connection.execute(JOURNAL_CHECKS)}
+        assert connection.scalar(VERSION) == "0056"
+    assert {f"ck_audit_entry_{name}": checks[f"ck_audit_entry_{name}"] for name in CHECKS} == {
+        f"ck_audit_entry_{name}": True for name in CHECKS
+    }
+
+
+@pytest.mark.requirement("WF-DAT-0140-A")
+def test_on_a_journal_written_the_upgrade_leaves_its_indexes_valid_and_its_checks_validated(
+    empty_engine: Engine,
+) -> None:
+    # The indexes are created ``CONCURRENTLY`` and the checks posed ``NOT VALID``, then validated
+    # apart: on a journal that holds lines, each ends valid, the ranks under their own name.
+    upgrade(empty_engine, "0055")
+    with empty_engine.begin() as connection:
+        account = an_account(connection)
+        an_entry(connection, "user_create", "user", account)
+        an_entry(connection, "user_update", "user", account)
+        an_entry(connection, "project_create", "project", uuid4())
+    upgrade(empty_engine, "0056")
+    assert_upgraded_whole(empty_engine)
+    with empty_engine.connect() as connection:
+        assert connection.scalar(select(func.count()).select_from(AuditEntry)) == 3
+
+
+@pytest.mark.requirement("WF-DAT-0140-A")
+def test_over_a_rank_a_stopped_run_left_invalid_the_upgrade_runs_again_whole(
+    empty_engine: Engine,
+) -> None:
+    # A creation ``CONCURRENTLY`` that fails leaves its index invalid (``indisvalid`` false), under
+    # the name the upgrade creates the rank in its new order: a unique index of two lines of the
+    # same action fails so. The upgrade run again drops it first, and ends as a first one does.
+    upgrade(empty_engine, "0055")
+    with empty_engine.begin() as connection:
+        account = an_account(connection)
+        an_entry(connection, "user_update", "user", account)
+        an_entry(connection, "user_update", "user", account)
+    stopped = text(
+        "CREATE UNIQUE INDEX CONCURRENTLY ix_audit_entry_action_rank_next ON audit_entry (action)"
+    )
+    with (
+        pytest.raises(DBAPIError, match="unique"),
+        empty_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection,
+    ):
+        connection.execute(stopped)
+    assert indexes(empty_engine)["ix_audit_entry_action_rank_next"][0] is False
+    upgrade(empty_engine, "0056")
+    assert_upgraded_whole(empty_engine)
