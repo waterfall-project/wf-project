@@ -48,14 +48,19 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-from collections.abc import Callable, Mapping
+import threading
+from collections.abc import Callable, Generator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from wftools import REPOSITORY, chart, chartload, charttrial, kubetools
 from wftools.images import IMAGES, REGISTRY, Holding, reference, registry_answers
 from wftools.production import Browser, Platform, ProductionError
+
+if TYPE_CHECKING:
+    from wftools.chartload import Tally
 
 TOOL = "wftools.chartupgrade"
 REQUIREMENTS = ("WF-EXP-0030-A", "WF-DAT-0140-A")
@@ -76,6 +81,13 @@ INSTALLED = 1
 DATA = ("postgres", "redis", "storage")
 """The data components of the chart, which no passage may replace or restart."""
 DATA_PODS = f"{charttrial.INSTANCE},app.kubernetes.io/component in ({','.join(DATA)})"
+SERVING = ("front", "api", "keycloak")
+"""The components that serve the requests of a user, whose logs say why one failed."""
+SERVING_PODS = f"{charttrial.INSTANCE},app.kubernetes.io/component in ({','.join(SERVING)})"
+WITNESSED = "2m"
+"""How far back the logs of the serving pods are read at the first failure of a passage."""
+WATCHED = 0.2
+"""The seconds between two looks for a failed request, during a passage."""
 
 RECORD = (
     "CREATE SCHEMA IF NOT EXISTS upgrade_trial; "
@@ -412,11 +424,73 @@ class Upgrade:
         self.sql(CLEAR, "clear the writes to the stamp of the migrations")
         return writes
 
+    def witness(self) -> str:
+        """Return what the serving pods are and said lately, pods being stopped included."""
+        _, pods = self.trial.read([*self.trial.kubectl, "get", "pods", "--output", "wide"])
+        _, logs = self.trial.read(
+            [
+                *self.trial.kubectl,
+                "logs",
+                "--all-containers",
+                "--prefix",
+                "--timestamps",
+                "--ignore-errors",
+                # Every line of the window: with a selector, kubectl gives ten a pod otherwise.
+                "--tail",
+                "-1",
+                "--max-log-requests",
+                "20",
+                "--since",
+                WITNESSED,
+                "--selector",
+                SERVING_PODS,
+            ]
+        )
+        return f"{pods}\n{logs}"
+
+    @contextmanager
+    def witnessed(self, held: Tally) -> Generator[list[str]]:
+        """Read what the serving pods said as soon as a request held fails, while the block runs.
+
+        Looked for every ``WATCHED`` seconds, and once more at the end: the pod that answered may
+        be gone by the end of the passage, and its log with it. What was read is in the list.
+        """
+        said: list[str] = []
+        done = threading.Event()
+
+        def watch() -> None:
+            while not done.wait(WATCHED):
+                if held.failed:
+                    said.append(self.witness())
+                    return
+
+        watcher = threading.Thread(target=watch, daemon=True)
+        watcher.start()
+        try:
+            yield said
+        finally:
+            done.set()
+            watcher.join()
+            if held.failed and not said:
+                said.append(self.witness())
+
     def under_load(self, browser: Browser, passage: Callable[[], None], what: str) -> None:
-        """Run a passage under requests of the signed-in administrator, none of which may fail."""
+        """Run a passage under requests of the signed-in administrator, none of which may fail.
+
+        What the serving pods said at the first failure is printed when the passage fails.
+        """
         trial = self.trial
-        with chartload.requests_held(trial.sender(), browser, trial.platform, ADMIN) as held:
+        with (
+            chartload.requests_held(trial.sender(), browser, trial.platform, ADMIN) as held,
+            self.witnessed(held) as said,
+        ):
             passage()
+        for witness in said:
+            print(
+                f"  what the serving pods said at the first failure of {what}:\n{witness}",
+                file=sys.stderr,
+                flush=True,
+            )
         chartload.check_uninterrupted(held)
         print(f"  {held.sent} requests were held through {what}, none failed", flush=True)
 

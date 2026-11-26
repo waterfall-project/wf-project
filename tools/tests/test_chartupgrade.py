@@ -14,6 +14,7 @@ those criteria: the real trial, wired into the full tier by US-2850/L4 (#5029), 
 import io
 import json
 import tarfile
+import threading
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -406,6 +407,10 @@ class Cluster:
                 restarts=self.restarted,
             )
             return 0, json.dumps({"items": [postgres]})
+        if chartupgrade.SERVING_PODS in command:
+            return 0, "front-1 the API dropped the connection"
+        if "wide" in command:
+            return 0, "api-1 Terminating"
         if "pods" in command:
             made = f"2026-11-25T10:{self.jobs:02d}:30Z"
             return 0, json.dumps({"items": [a_pod("api-1", self.digests, made)]})
@@ -524,3 +529,43 @@ def test_a_request_that_fails_during_a_passage_fails_the_trial(
     browser = Browser(unsent)
     with pytest.raises(ProductionError, match="1 of 50 requests failed"):
         upgrade.under_load(browser, lambda: None, "the upgrade")
+
+
+def test_what_the_serving_pods_said_at_the_first_failure_is_printed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    @contextmanager
+    def requests_held(*_: object) -> Generator[Tally]:
+        yield Tally(sent=chartload.LEAST, failed=["digest WATERFALL_API_UNREACHABLE"])
+
+    monkeypatch.setattr(chartload, "requests_held", requests_held)
+    monkeypatch.setattr(Trial, "sender", no_sender)
+    upgrade = upgrade_on(Cluster(), tmp_path)
+    with pytest.raises(ProductionError, match="WATERFALL_API_UNREACHABLE"):
+        upgrade.under_load(Browser(unsent), lambda: None, "the upgrade")
+    said = capsys.readouterr().err
+    assert said.count("at the first failure of the upgrade:") == 1
+    assert "front-1 the API dropped the connection" in said
+
+
+def test_a_failure_is_witnessed_while_the_passage_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    held = Tally(sent=chartload.LEAST)
+    asked: list[int] = []
+    monkeypatch.setattr(chartupgrade, "WATCHED", 0.001)
+    monkeypatch.setattr(Upgrade, "witness", lambda _: str(asked.append(1)))
+    upgrade = upgrade_on(Cluster(), tmp_path)
+    with upgrade.witnessed(held) as said:
+        held.record("the account answered 502")
+        while not said:
+            threading.Event().wait(0.001)
+        assert asked == [1]
+    assert asked == [1]
+
+
+def test_a_passage_without_failure_reads_no_log(tmp_path: Path) -> None:
+    upgrade = upgrade_on(Cluster(), tmp_path)
+    with upgrade.witnessed(Tally(sent=chartload.LEAST)) as said:
+        pass
+    assert said == []
