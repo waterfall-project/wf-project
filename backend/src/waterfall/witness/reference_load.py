@@ -59,6 +59,7 @@ from waterfall.witness import (
     portfolio_slice,
     projects,
     resource_roles,
+    timeline,
 )
 from waterfall.witness.description import Witness, is_loaded
 from waterfall.witness.portfolio import default_week, write_project
@@ -80,7 +81,7 @@ if TYPE_CHECKING:
 
 COMMAND = "load-reference"
 # The states of a project in the portfolio: in pricing, or in progress.
-PORTFOLIO = frozenset({ProjectState.pricing, ProjectState.in_progress})
+PORTFOLIO = frozenset({ProjectState.pricing.value, ProjectState.in_progress.value})
 # The key of the advisory lock each transaction of the reference set holds.
 REFERENCE_SET_LOCK = 4_202_950
 # The instant the identifiers the set draws bear, a millisecond more for each transaction: the
@@ -152,7 +153,15 @@ def read_base(witness: Witness) -> Base:
     held = witness.read(calendars.FILE, calendars.Calendars).items
     listed = witness.read(projects.PROJECTS_FILE, projects.Projects).items
     sliced = portfolio_slice.read(witness)
-    states = [each.state for each in listed] + [each.transitions[-1].to_state for each in sliced]
+    # The chronology moves PRJ-001 alone: PRJ-002 is held in ``created``, whatever its file says.
+    moved = {
+        write.project: write.to_state
+        for _, write in timeline.read(witness).writes()
+        if isinstance(write, timeline.StateTransition)
+    }
+    states = [
+        str(moved.get(each.code.root if each.code else "", ProjectState.created)) for each in listed
+    ] + [str(each.transitions[-1].to_state.value) for each in sliced]
     return Base(
         rated=tuple(
             row.cost_category_id.root

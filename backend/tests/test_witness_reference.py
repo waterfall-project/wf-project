@@ -80,10 +80,10 @@ if TYPE_CHECKING:
 REQUIREMENT = "WF-QUA-0040-A"
 STORY = "US-2950"
 DOMAIN = "@waterfall.test"
-# The projects of the portfolio the command is tried with: the witness's nine and three drawn,
-# with the closed ones drawn between them.
+# The projects of the portfolio the command is tried with: the witness's eight (PRJ-002, held in
+# ``created``, is not of them) and four drawn, the closed ones drawn between them in addition.
 TRIED = 12
-WITNESS_PORTFOLIO = 9
+WITNESS_PORTFOLIO = 8
 TRIED_NUMBERS = numbers_of(TRIED - WITNESS_PORTFOLIO)
 
 
@@ -123,7 +123,7 @@ def test_the_reference_drawn_and_the_witness_hold_the_volumes_of_table_13() -> N
         reference_load.cost_categories.FILE, reference_load.cost_categories.CostCategories
     )
     counted = (held.nodes, held.roles, held.accounts, held.projects, held.portfolio)
-    assert counted == (6, 5, 5, 12, 9)
+    assert counted == (6, 5, 5, 12, 8)
     assert len(reference.nodes) + held.nodes == NODES == 40
     assert len(reference.roles) + held.roles == ROLES == 150
     assert len(reference.accounts) + held.accounts == ACCOUNTS == 500
@@ -322,6 +322,11 @@ def test_the_set_starts_from_the_witness_and_reaches_the_volumes_of_its_referenc
     assert count(witness, UserAccount) == ACCOUNTS
     assert count(witness, Project) == 12 + len(TRIED_NUMBERS)
     with witness.transaction() as session:
+        held_in_portfolio = session.scalar(
+            select(func.count()).where(Project.state.in_(("pricing", "in_progress")))
+        )
+    assert held_in_portfolio == TRIED
+    with witness.transaction() as session:
         years = set(session.scalars(select(HourlyRate.year).distinct()))
         categories = session.scalar(select(func.count()).select_from(CostCategory))
         emails = list(session.scalars(select(UserAccount.email)))
@@ -461,8 +466,8 @@ def test_the_command_loads_the_witness_then_refuses_fewer_projects_than_it_holds
 ) -> None:
     monkeypatch.setenv("WATERFALL_DATABASE_URL", service_database_url)
     monkeypatch.setenv("WATERFALL_WITNESS_PATH", str(WITNESS))
-    assert main(["load-reference", "--projects", "8"]) == 2
-    assert "--projects: 8 is fewer than the 9 projects of the witness in the portfolio" in (
+    assert main(["load-reference", "--projects", "7"]) == 2
+    assert "--projects: 7 is fewer than the 8 projects of the witness in the portfolio" in (
         capsys.readouterr().err
     )
     assert count(witness, OrgNode) == 6
