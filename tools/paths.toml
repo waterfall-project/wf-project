@@ -384,6 +384,7 @@ paths = [
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
     "tools/src/wftools/heavyturns.py",
+    "tools/src/wftools/bounded.py",
     "tools/src/wftools/kubetools.py",
     "tools/src/wftools/chart.py",
     "tools/src/wftools/chartauthority.py",
