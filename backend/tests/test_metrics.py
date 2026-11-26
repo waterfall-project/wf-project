@@ -509,6 +509,32 @@ def test_a_version_of_keycloak_not_given_leaves_it_available_without_a_version(
     assert "identity_provider" not in versions_in(read)
 
 
+@pytest.mark.story("US-2890")
+@pytest.mark.parametrize("body", [b'{"version": ""}', b'{"version": 26}', b'["26.8.2"]', b""])
+def test_a_version_of_keycloak_invalid_leaves_it_available_without_a_version(
+    platform: MakePlatform, realm: TestRealm, body: bytes
+) -> None:
+    # Proper to US-2890: an extension that answers no version — empty, not text, not an object, no
+    # body — leaves Keycloak available, its version not said.
+    realm.version_body = body
+    read = platform().collect()
+    assert value(read, COMPONENT_UP, component="identity_provider") == 1
+    assert "identity_provider" not in versions_in(read)
+
+
+@pytest.mark.story("US-2890")
+def test_a_version_of_keycloak_slower_than_its_budget_leaves_it_available(
+    platform: MakePlatform, realm: TestRealm
+) -> None:
+    # Proper to US-2890: the version has a budget of its own, within that of the probe: one that
+    # outlasts it is not said, and Keycloak, whose keys were served, is available.
+    realm.version = "26.8.2"
+    realm.version_delay = PROBE_SECONDS * 2
+    read = platform().collect()
+    assert value(read, COMPONENT_UP, component="identity_provider") == 1
+    assert "identity_provider" not in versions_in(read)
+
+
 def versions_in(read: Samples) -> dict[str, str]:
     """Give the version each component announces in the metrics read, by component."""
     return {

@@ -66,6 +66,9 @@ class TestRealm:
         # The version the extension gives the service account: until a test sets it, the realm
         # answers neither it nor the token of the service account, as one without the extension.
         self.version: str | None = None
+        # What the extension answers instead, as the body of the response, and how long it takes.
+        self.version_body: bytes | None = None
+        self.version_delay = 0.0
         self._stopping = threading.Event()
         self._encryption = new_key()
         realm = self
@@ -91,7 +94,7 @@ class TestRealm:
 
             def do_POST(self) -> None:
                 self.rfile.read(int(self.headers.get("Content-Length", 0)))
-                answers = (realm.synchronization, realm.accounts, realm.version)
+                answers = (realm.synchronization, realm.accounts, realm.version, realm.version_body)
                 if all(answer is None for answer in answers):
                     self.send_error(501)
                 elif self.path == TOKEN_PATH:
@@ -118,8 +121,13 @@ class TestRealm:
                     }
                     self._answer(json.dumps([directory]).encode())
                     return
-                if realm.version is not None and self.path == VERSION_PATH:
-                    self._answer(json.dumps({"version": realm.version}).encode())
+                if self.path == VERSION_PATH and (realm.version or realm.version_body) is not None:
+                    realm._stopping.wait(realm.version_delay)
+                    self._answer(
+                        realm.version_body
+                        if realm.version_body is not None
+                        else json.dumps({"version": realm.version}).encode()
+                    )
                     return
                 if self.path != KEYS_PATH:
                     self.send_error(404)
