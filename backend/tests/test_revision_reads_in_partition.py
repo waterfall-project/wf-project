@@ -1,38 +1,65 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""A revision is read in the partition of its project, on the schema.
+"""A revision is read in the partition of its project, on the schema and on the real readings.
 
 ``test_partitions`` holds it for ``cost_structure`` (EP-04, US-0910); here it is held for every
 table the catalog says is revised, those the EPICs created since included, found in the catalog
 rather than in a list: a revised table added later without its partition, or partitioned on
 another key, fails the first two tests, naming it. The second explains, for each, the shape of a
 reading of a revision (its project, and its revision when the table names one): it holds the schema
-and that shape, not the statements of the code (issue #5076).
+and that shape.
 
-The duration of a reading at six hundred projects is not held here: it is measured on the set of
-US-2950 (US-2970/L2).
+The third holds the statements of the code (issue #5076): the functions of the core that serve the
+operations that read a revision are played on a platform of three projects, each with its data, and
+the statements they send to a table of a revision are explained, with their parameters; a plan that
+reads more than one partition of a table — a reading that filters on the revision without its
+project, say — fails and names the statement and the partitions.
 """
 
 import re
+from contextlib import contextmanager
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+from nodes_support import Tree, mark, opened
 from project_rows import insert_revision, projects_with_partitions
+from projects_support import MANAGING, Scene, create
+from projects_support import scene as make_scene
 from sqlalchemy import (
     ARRAY,
     String,
     bindparam,
     column,
+    event,
     literal_column,
     select,
     table,
     text,
 )
+from test_comparison import follow
+
+from waterfall.api.nodes import node_body
+from waterfall.core.estimate.interface import (
+    ComparisonAsked,
+    compare_revisions,
+    kept_reference,
+    rate_update_proposal,
+)
+from waterfall.core.planning.interface import NodeFilters, Place
+from waterfall.core.planning.reading import list_records, read_structure
+from waterfall.core.projects.interface import Viewer
+from waterfall.core.revisions.interface import list_cost_structures, read_revision
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
+    from realm import TestRealm
     from sqlalchemy import Engine
     from sqlalchemy.engine import Connection
+    from sqlalchemy.orm import Session
+    from support import ContractClient
 
     from waterfall.platform.database import Database
 
@@ -149,7 +176,7 @@ def test_every_table_a_revision_names_is_partitioned_by_project_or_is_the_revisi
     assert not NOT_PARTITIONED & partitioned, (
         f"drop the exemptions of the partitioned {sorted(NOT_PARTITIONED & partitioned)}"
     )
-    assert PARTITIONED_REVISED <= revised, (
+    assert revised >= PARTITIONED_REVISED, (
         f"the tables named here that the catalog no longer finds revised "
         f"{sorted(PARTITIONED_REVISED - revised)}"
     )
@@ -185,3 +212,104 @@ def test_the_plan_of_a_reading_of_a_revised_table_reads_the_partition_of_its_pro
                 values["revision"] = revision
             plan = plan_tree(connection, str(reading), **values)
             assert relations(plan) == {f"{name}_p_{first.hex}"}, name
+
+
+def days(count: str) -> dict[str, Any]:
+    """Give the facet of a task of so many days."""
+    return {"duration": {"value": count, "unit": "d"}}
+
+
+def with_data(api: ContractClient, stage: Scene) -> tuple[UUID, UUID, UUID]:
+    """Give a project data in each table a reading of its revisions reads, and two revisions.
+
+    An offer of tasks, one following another, marked: it keeps the images and the rates of the
+    reference; then an amendment, the current revision, which a comparison reads against it.
+    Give the offer, the amendment and the main structure of the offer.
+    """
+    offer = opened(api, stage)
+    tree = Tree(api, stage, offer)
+    studies = tree.made("Études")
+    design = tree.made("Conception", parent_id=studies["node_id"], task=days("2"))
+    follow(tree, tree.made("Plans", parent_id=studies["node_id"], task=days("1")), design)
+    tree.made("Recette", task=days("1"))
+    mark(stage, offer, "v1.0")
+    amendment = opened(api, stage)
+    return UUID(offer["revision_id"]), UUID(amendment["revision_id"]), UUID(tree.structure_id)
+
+
+@contextmanager
+def statements_of(engine: Engine) -> Generator[list[tuple[str, Any]]]:
+    """Collect the statements an engine sends, with their parameters, as the driver takes them."""
+    sent: list[tuple[str, Any]] = []
+
+    def collect(*heard: Any) -> None:
+        # The event gives the connection, the cursor, the statement, its parameters, and two more.
+        sent.append((heard[2], heard[3]))
+
+    event.listen(engine, "before_cursor_execute", collect)
+    try:
+        yield sent
+    finally:
+        event.remove(engine, "before_cursor_execute", collect)
+
+
+def partitions_read(connection: Connection, statement: str, parameters: Any) -> dict[str, set[str]]:
+    """Give the partitions a statement's plan reads, by revised table, with its parameters."""
+    explained = connection.exec_driver_sql(f"EXPLAIN (FORMAT JSON) {statement}", parameters)
+    read: dict[str, set[str]] = {}
+    for name in relations(explained.scalar_one()[0]["Plan"]):
+        found = PARTITION_NAME.fullmatch(name)
+        if found:
+            read.setdefault(found["parent"], set()).add(name)
+    return read
+
+
+def test_the_plans_of_the_real_readings_of_a_revision_read_one_partition_of_each_table(
+    api: ContractClient, owner: Engine, database: Database, realm: TestRealm
+) -> None:
+    # « Le plan d'exécution d'une lecture de révision ne parcourt que la partition du projet. »
+    # The functions of the core the operations that read a revision serve — getRevision,
+    # listCostStructures, listNodes, a structure read, compareRevisions, getRateUpdateProposal —
+    # are played on a platform of three projects, each with its data: a plan that read the
+    # partitions of the other two would show. The statements they send to a revised table are
+    # explained, with their parameters; each reads at most one partition of each table.
+    stage = make_scene(api, owner, database, realm)
+    projects = [stage]
+    projects += [replace(stage, project=create(api, stage.manager, label=n)) for n in ("B", "C")]
+    revisions = [with_data(api, each) for each in projects]
+    project_id = UUID(stage.project["project_id"])
+    offer, amendment, structure_id = revisions[0]
+    viewer = Viewer(stage.manager.user_id, MANAGING)
+    place = Place(project_id, offer, structure_id)
+    asked = ComparisonAsked(offer, amendment, NodeFilters())
+    readings: dict[str, Callable[[Session], object]] = {
+        "getRevision": lambda each: read_revision(each, project_id, offer, viewer),
+        "getRevision (what it keeps)": lambda each: kept_reference(each, project_id, offer),
+        "listCostStructures": lambda each: list_cost_structures(each, project_id, offer, viewer),
+        "listNodes": lambda each: list_records(each, place, NodeFilters()),
+        "listNodes (tasks)": lambda each: list_records(each, place, NodeFilters(kinds=("task",))),
+        "readStructure": lambda each: read_structure(each, place, NodeFilters()),
+        "compareRevisions": lambda each: compare_revisions(each, project_id, asked, node_body),
+        "getRateUpdateProposal": lambda each: rate_update_proposal(each, project_id, amendment),
+    }
+    explained: dict[str, list[tuple[str, dict[str, set[str]]]]] = {}
+    for name, read in readings.items():
+        with statements_of(database.engine) as sent, database.transaction() as session:
+            read(session)
+        with owner.connect() as connection:
+            parents = partitioned_by_project(connection)
+            explained[name] = [
+                (statement, partitions_read(connection, statement, parameters))
+                for statement, parameters in sent
+                if re.match(r"\s*(SELECT|WITH)", statement)
+                and re.search(rf"\b(?:FROM|JOIN)\s+(?:{'|'.join(parents)})\b", statement)
+            ]
+    assert all(explained.values()), [name for name, found in explained.items() if not found]
+    wide = [
+        f"{name}: { ({parent: sorted(each) for parent, each in found.items() if len(each) > 1}) }"
+        f"\n{statement}"
+        for name, statements in explained.items()
+        for statement, found in statements
+        if any(len(each) > 1 for each in found.values())
+    ]
+    assert not wide, "\n\n".join(wide)
