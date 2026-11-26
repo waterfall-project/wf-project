@@ -5774,7 +5774,9 @@ ses paramètres, jamais une phrase.
   privé de tous ses rôles une fois l'écriture validée, `createPasswordSetupLink`, qui fait faire le
   lien par l'extension et ne l'inscrit au journal, sans son jeton, qu'une fois fait,
   `updateMyPreferences`, qui donne la langue choisie au compte chez Keycloak avant de l'écrire et
-  n'écrit rien tant qu'il ne répond pas — ne prend pas `Transaction`, mais ouvre les siennes avant
+  n'écrit rien tant qu'il ne répond pas, `updateUser`, qui reporte chez Keycloak l'identité d'un
+  compte local entre deux transactions courtes (vérifier, `carry_identity`, écrire) et la défait
+  (`restore_identity`) si l'écriture est refusée — ne prend pas `Transaction`, mais ouvre les siennes avant
   et après l'appel. Un jeton absent ou invalide est
   un 401 `SESSION_REQUIRED`, un jeton expiré un 401 `SESSION_EXPIRED`, un jeton dont la
   connexion (`auth_time`, à défaut `iat`) précède la dernière fermeture des sessions du compte, ou
