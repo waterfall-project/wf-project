@@ -312,10 +312,10 @@ def test_the_set_starts_from_the_witness_and_reaches_the_volumes_of_its_referenc
     # Nothing the platform holds beside the witness's is outside the lists the draw closes.
     new = {name: set(after[name]) - set(before[name]) for name in after}
     _assert_names_of_the_closed_lists(
-        [row[2] for row in new["org_node"]],
-        [row[2] for row in new["resource_role"]],
-        [(row[1], row[2]) for row in new["user_account"]],
-        [None if row[3] == "None" else row[3] for row in new["project"]],
+        [str(row[2]) for row in new["org_node"]],
+        [str(row[2]) for row in new["resource_role"]],
+        [(str(row[1]), str(row[2])) for row in new["user_account"]],
+        [None if row[3] == "None" else str(row[3]) for row in new["project"]],
     )
     assert count(witness, OrgNode) == NODES
     assert count(witness, ResourceRole) == ROLES
