@@ -6,6 +6,9 @@ The cluster is made, N installed, upgraded, rolled back and upgraded again by ``
 chart-upgrade``, run by hand, not yet in the chain (#5020); these tests hold what the trial decides
 by itself — which version is N, what it is not executed for, what each passage must leave — on a
 cluster played by a fake.
+
+The tests citing WF-EXP-0030-A or WF-DAT-0140-A exercise the parts of the trial without closing
+those criteria: the real trial, wired into the full tier by US-2850/L4 (#5029), will close them.
 """
 
 import io

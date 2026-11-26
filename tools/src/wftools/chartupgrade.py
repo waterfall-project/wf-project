@@ -62,6 +62,7 @@ REQUIREMENTS = ("WF-EXP-0030-A", "WF-DAT-0140-A")
 """What the trial holds, and what it holds nothing of when it is not executed."""
 CLUSTER = "waterfall-upgrade"
 CHART_FILE = "deploy/helm/waterfall/Chart.yaml"
+ADMIN = charttrial.ADMIN
 EXTRACTED = ("deploy/helm", "deploy/compose")
 """What the chart of a commit is read from: its folder, and the files of the Compose it links to."""
 VERSION_TAG = re.compile(r"v(\d+)\.(\d+)\.(\d+)")
@@ -473,9 +474,6 @@ class Upgrade:
             "  the second upgrade ran its migrations anew, and none already applied ran again",
             flush=True,
         )
-
-
-ADMIN = charttrial.ADMIN
 
 
 def values_of(values: Mapping[str, Any], digests: Mapping[str, str]) -> dict[str, Any]:
