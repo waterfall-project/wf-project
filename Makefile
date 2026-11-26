@@ -800,13 +800,15 @@ check-service: $(call full-only,e2e-service) ## The paths against the real servi
 check-production: $(call full-only,images production-trial) ## The production platform starts on the images built here, bootstraps and lets its first administrator in, in the full tier only (US-0430)
 
 # The chart linted and rendered in every tier; installed on a cluster of kind, then of k3s, from the
-# three images built here, in the full tier only, as check-production starts the Compose (US-2800).
-# CHART_TRIALS names the clusters it is installed on, both by default: the chain gives each its job.
+# three images built here, in the full tier only, as check-production starts the Compose (US-2800);
+# then, on a cluster of its own, the version N upgraded to them under load, from BASE (US-2850).
+# CHART_TRIALS names the clusters it is installed on and the upgrade, all by default: the chain gives
+# each its job, the upgrade to the one of kind.
 # CHART_CHECKS names the lint and the tests of the rendering: the job of the second cluster leaves
 # them to the first, which has run them (chart.yml).
-CHART_TRIALS ?= chart-trial chart-trial-k3s
+CHART_TRIALS ?= chart-trial chart-trial-k3s chart-upgrade
 CHART_CHECKS ?= lint-chart test-chart
-check-chart: $(CHART_CHECKS) $(call full-only,images $(CHART_TRIALS)) ## The chart lints and says what it must; in the full tier, it installs on throwaway clusters of kind and of k3s, bootstraps and lets its first administrator in (US-2800, US-2810)
+check-chart: $(CHART_CHECKS) $(call full-only,images $(CHART_TRIALS)) ## The chart lints and says what it must; in the full tier, it installs on throwaway clusters of kind and of k3s, bootstraps and lets its first administrator in (US-2800, US-2810), then upgrades from the version N under load, rolls back and upgrades again (US-2850)
 
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap
