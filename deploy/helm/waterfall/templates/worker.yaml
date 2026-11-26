@@ -29,6 +29,7 @@ spec:
         - name: worker
           image: {{ include "waterfall.image" (list . "waterfall") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command: [waterfall-worker]
           env:
             {{- include "waterfall.backEnvironment" (list . "service") | nindent 12 }}

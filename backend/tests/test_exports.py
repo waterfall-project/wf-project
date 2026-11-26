@@ -42,6 +42,8 @@ from waterfall.worker.exchanges import ExportTask
 from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
@@ -370,6 +372,92 @@ def test_the_stream_of_a_download_is_closed_on_every_path_and_delivered_only_who
     asyncio.run(run())
     assert chunks.closed >= 1
     assert len(calls) == delivered_calls
+
+
+def run_download(
+    handed: Callable[[Message], Awaitable[None]],
+    *,
+    leaves_on: Callable[[Message], bool],
+    while_sending: bool = False,
+) -> tuple[Chunks, list[int]]:
+    """Run a download whose client leaves as soon as the message ``leaves_on`` is sent to it.
+
+    The ``receive`` gives ``http.disconnect`` once that message was handed to ``send`` (with
+    ``while_sending``, as it is handed: the send is then still pending). ``send`` does what
+    ``handed`` does (``at_once``: uvicorn does not wait on a client that has its bytes).
+    """
+    chunks = Chunks()
+    calls: list[int] = []
+    response = DeliveredResponse(cast("ObjectStream", chunks), lambda: calls.append(1), 4)
+    seen = asyncio.Event()
+
+    async def receive() -> Message:
+        await seen.wait()
+        return {"type": "http.disconnect"}
+
+    async def send(message: Message) -> None:
+        if while_sending and leaves_on(message):
+            seen.set()
+        await handed(message)
+        if leaves_on(message):
+            seen.set()
+
+    async def run() -> None:
+        with contextlib.suppress(ClientDisconnect, ConnectionResetError, OSError):
+            await response(stream_scope("/x", {}, "2.3"), receive, send)
+
+    asyncio.run(run())
+    return chunks, calls
+
+
+async def at_once(_: Message) -> None:
+    await asyncio.sleep(0)
+
+
+def closing_message(message: Message) -> bool:
+    """Tell the message that closes a body: the empty one, ``more_body`` false."""
+    return message["type"] == "http.response.body" and not message.get("more_body", False)
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_a_client_that_leaves_at_the_last_byte_has_had_its_download_delivered() -> None:
+    # #4985: the relay of the front closes as soon as it has the last byte of data, while the
+    # stream still awaits its end in a thread, before the closing message goes out.
+    chunks, calls = run_download(at_once, leaves_on=lambda m: m.get("body") == b"cd")
+    assert chunks.closed >= 1
+    assert calls == [1]
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_a_client_that_leaves_before_the_last_piece_leaves_the_download_undelivered() -> None:
+    # The server drops what is sent to a client that left (uvicorn): the pieces after it are lost.
+    chunks, calls = run_download(at_once, leaves_on=lambda m: m.get("body") == b"ab")
+    assert chunks.closed >= 1
+    assert calls == []
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_a_last_send_cancelled_by_the_disconnect_leaves_the_download_undelivered() -> None:
+    # Below ASGI 2.4 the disconnect cancels the stream; a send still waiting (the ``drain`` of
+    # uvicorn) has written nothing.
+    async def waiting(message: Message) -> None:
+        if closing_message(message):
+            await asyncio.Event().wait()
+
+    chunks, calls = run_download(waiting, leaves_on=closing_message, while_sending=True)
+    assert chunks.closed >= 1
+    assert calls == []
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_a_last_send_that_fails_leaves_the_download_undelivered() -> None:
+    async def failing(message: Message) -> None:
+        if closing_message(message):
+            raise ConnectionResetError
+
+    chunks, calls = run_download(failing, leaves_on=lambda _: False)
+    assert chunks.closed >= 1
+    assert calls == []
 
 
 @pytest.mark.requirement("WF-DAT-0120-A")

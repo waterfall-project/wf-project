@@ -5,7 +5,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as login } from "@/app/login/route";
 import { createIdentityProvider, type IdentityProvider } from "@/session/provider";
 import { armSignOut, openSession, readSession } from "@/session/store";
-import { requestBearer, SESSION_COOKIE, SIGN_IN_REFUSED_COOKIE } from "@/session/tokens";
+import {
+  requestBearer,
+  SESSION_COOKIE,
+  SessionLost,
+  SIGN_IN_REFUSED_COOKIE,
+} from "@/session/tokens";
 import {
   example,
   type FakeAnswers,
@@ -83,6 +88,21 @@ async function signIn(next: string, subject = "camille") {
   return { started, returned, query, cookie };
 }
 
+/** The return of an error, the state of the request in the address of the realm. */
+function erring(error: string, description?: string) {
+  return (address: string): string => {
+    const state = new URL(address).searchParams.get("state") ?? "";
+    const query = new URLSearchParams({ error, state });
+    if (description !== undefined) {
+      query.set("error_description", description);
+    }
+    return `?${query.toString()}`;
+  };
+}
+
+/** The return of a page of the realm left open while the sign-in ended in another tab (#3070). */
+const outdated = erring("temporarily_unavailable", "authentication_expired");
+
 /** The cookie of the session a response gives, if it gives one. */
 function sessionCookieOf(response: Response): string | undefined {
   return response.headers
@@ -146,13 +166,14 @@ describe("the return of the sign-in", () => {
   });
 
   const refused: [string, (address: string, query: string) => string][] = [
+    ["an error in the return", erring("access_denied")],
+    // Near the return of a page left open in another tab (#3070), and refusals all the same.
+    ["the realm unavailable, without a description", erring("temporarily_unavailable")],
     [
-      "an error in the return",
-      (address) => {
-        const state = new URL(address).searchParams.get("state") ?? "";
-        return `?${new URLSearchParams({ error: "access_denied", state }).toString()}`;
-      },
+      "the realm unavailable for another reason",
+      erring("temporarily_unavailable", "authentication_expired_soon"),
     ],
+    ["another error said outdated", erring("access_denied", "authentication_expired")],
     ["a code the realm refuses", (_, query) => query.replace(/code=[^&]+/, "code=unknown")],
     [
       "an ID token without the nonce of the request",
@@ -196,6 +217,52 @@ describe("the return of the sign-in", () => {
     expect(returned.headers.getSetCookie()).toContainEqual(
       expect.stringMatching(new RegExp(`^${SIGN_IN_REFUSED_COOKIE}=;.*Max-Age=0`)),
     );
+  });
+
+  it("keeps the session opened in another tab when the page of the realm left open comes back outdated, leaves no cookie of a refusal, and leads to the screen aimed at, where that session serves [WF-SEC-0020-A] (#3070)", async () => {
+    const left = await start("/admin/access-roles");
+    const { returned, cookie } = await signIn("/");
+    const id = sessionIdOf(returned);
+    const held = { ...left.cookie, ...cookie, [SESSION_COOKIE]: id };
+    const response = await back(outdated(left.address), held);
+    expect(response.status).toBe(303);
+    expect(response.headers.get("Location")).toBe("/admin/access-roles");
+    const [name = ""] = Object.keys(left.cookie);
+    expect(response.headers.getSetCookie()).toEqual([
+      expect.stringMatching(new RegExp(`^${name}=;.*Max-Age=0`)),
+    ]);
+    expect(realm.codes).toHaveLength(1);
+    const session = await readSession(id);
+    expect(session).toMatchObject({ subject: "camille" });
+    // Followed, the screen aimed at reads the API with that session.
+    state.jar = cookieJar({ [SESSION_COOKIE]: id });
+    await expect(requestBearer()).resolves.toBe(session?.accessToken);
+  });
+
+  it("leads to the screen aimed at when no session was opened elsewhere, which leads to the sign-in by itself, once: the request made anew opens the session [WF-SEC-0020-A] (#3070)", async () => {
+    const left = await start("/projects");
+    const response = await back(outdated(left.address), left.cookie);
+    expect(response.headers.get("Location")).toBe("/projects");
+    expect(response.headers.getSetCookie()).not.toContainEqual(
+      expect.stringMatching(new RegExp(`^(${SESSION_COOKIE}|${SIGN_IN_REFUSED_COOKIE})=`)),
+    );
+    expect(realm.codes).toEqual([]);
+    // Followed without a session nor a refusal, the screen leads to the sign-in, not home.
+    state.jar = cookieJar({});
+    await expect(requestBearer()).rejects.toBeInstanceOf(SessionLost);
+    const { returned } = await signIn("/projects");
+    expect(returned.headers.get("Location")).toBe("/projects");
+    expect(sessionCookieOf(returned)).toBeDefined();
+  });
+
+  it("checks the return before it filters the outdated one: a return said outdated with a wrong issuer is refused, not led to the screen aimed at [WF-SEC-0020-A] (#3070)", async () => {
+    const { address, cookie } = await start("/projects");
+    const returning = new URL(outdated(address), "http://front:3000");
+    returning.searchParams.set("iss", "https://intruder.test/realms/waterfall");
+    // The wrong issuer is refused by the exchange, which throws: no redirect, the screen aimed at
+    // is not led to.
+    await expect(back(returning.search, cookie)).rejects.toThrow("invalid response encountered");
+    expect(realm.codes).toEqual([]);
   });
 
   it("asks nothing of the realm for an error in the return", async () => {
@@ -290,6 +357,14 @@ describe("the return of the sign-out of a session the front lost (#689)", () => 
     expect(calls.map((call) => call.route)).toEqual(["DELETE /me/sessions"]);
     expect(realm.issued).toContain(calls[0]?.authorization?.replace("Bearer ", ""));
     expect(await readSession(other)).toBeUndefined();
+  });
+
+  it("leads to the sign-in as for any other error when its silent sign-in comes back outdated: it closes nothing, and opens nothing (#3070)", async () => {
+    const { address, cookie } = await lostSignOut();
+    const response = await back(outdated(address), cookie);
+    expect(response.headers.get("Location")).toBe("/login");
+    expect(sessionCookieOf(response)).toBeUndefined();
+    expect(state.clients).toEqual([]);
   });
 
   it("leads to the sign-in when the realm holds no session for the browser: no workstation left to close", async () => {

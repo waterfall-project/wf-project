@@ -29,7 +29,7 @@ import { type ReactElement, type Ref, useId, useState } from "react";
 import type { Outcome } from "@/api/problem";
 import type { PrincipalVariant } from "@/components/shell/section-card";
 import { Button } from "@/components/ui/button";
-import { formatLocale } from "@/i18n/format";
+import { formatConjunction } from "@/i18n/format";
 
 import { CommandTooltip } from "./command-tooltip";
 import { useHeldCommand } from "./held";
@@ -206,9 +206,7 @@ export function useUnmet(): (offer: CommandOffer) => string {
     const missing = offer.missing_conditions.map((condition) => conditionLabel(condition));
     return t("unmet", {
       count: missing.length,
-      conditions: new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(
-        missing,
-      ),
+      conditions: formatConjunction(missing, locale),
     });
   };
 }

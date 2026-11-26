@@ -10,5 +10,7 @@ at the instant of the loading. It sits above every layer, as the bootstrap, and 
 it; the production platform does not offer it: a real installation holds no witness.
 
 ``main`` runs the command; ``loader`` orders the slices, one per object, each in a file of its
-own that the story of the object fills; ``description`` reads the witness.
+own that the story of the object fills; ``description`` reads the witness. ``reference_load`` runs
+``load-reference``, the reference set of WF-QUA-0040 (US-2950): the witness, then the reference and
+the projects a seed draws beside it (``reference_draw``, ``reference_projects``).
 """

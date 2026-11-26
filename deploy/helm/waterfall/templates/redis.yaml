@@ -37,17 +37,15 @@ spec:
       labels:
         {{- include "waterfall.selector" (list . "redis") | nindent 8 }}
     spec:
-      {{- include "waterfall.podDefaults" . | nindent 6 }}
       # The user redis of the image.
-      securityContext:
-        runAsUser: 999
-        runAsNonRoot: true
+      {{- include "waterfall.podDefaults" (list . (dict "runAsUser" 999)) | nindent 6 }}
       initContainers:
         {{- include "waterfall.transportInit" (list . "redis" 999 1000) | nindent 8 }}
       containers:
         - name: redis
           image: {{ include "waterfall.thirdParty" (list . .Values.redis.image) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command:
             - sh
             - -c

@@ -6,7 +6,8 @@ The tokens it signs go through the validation of the service as they are, agains
 over HTTP: what is tried is the code that validates, not a stand-in of it. What depends on
 Keycloak itself — its administration API, its sessions — is tried against the platform
 (``test_keycloak_*.py``); the realm of test answers only the few calls of the administration API
-by which a test says what the realm answers (``synchronization``).
+by which a test says what the realm answers (``synchronization``), and the version of Keycloak the
+extension gives (``version``).
 """
 
 import json
@@ -27,6 +28,8 @@ REALM = "waterfall"
 KEYS_PATH = f"/auth/realms/{REALM}/protocol/openid-connect/certs"
 TOKEN_PATH = f"/auth/realms/{REALM}/protocol/openid-connect/token"
 ADMIN_PATH = f"/auth/admin/realms/{REALM}"
+# Where the extension of Waterfall gives the version of Keycloak to the service account (#4641).
+VERSION_PATH = f"/auth/realms/{REALM}/server-version"
 DIRECTORY_ID = "directory-1"
 AUDIENCE = "waterfall-api"
 # The key the realm of test signs its tokens with, unless a test asks for another.
@@ -60,6 +63,12 @@ class TestRealm:
         # The accounts of the realm, by subject, which the realm lends and takes back as the
         # administration API does (the language of an account): until a test gives them, none.
         self.accounts: dict[str, dict[str, Any]] | None = None
+        # The version the extension gives the service account: until a test sets it, the realm
+        # answers neither it nor the token of the service account, as one without the extension.
+        self.version: str | None = None
+        # What the extension answers instead, as the body of the response, and how long it takes.
+        self.version_body: bytes | None = None
+        self.version_delay = 0.0
         self._stopping = threading.Event()
         self._encryption = new_key()
         realm = self
@@ -85,7 +94,8 @@ class TestRealm:
 
             def do_POST(self) -> None:
                 self.rfile.read(int(self.headers.get("Content-Length", 0)))
-                if realm.synchronization is None and realm.accounts is None:
+                answers = (realm.synchronization, realm.accounts, realm.version, realm.version_body)
+                if all(answer is None for answer in answers):
                     self.send_error(501)
                 elif self.path == TOKEN_PATH:
                     self._answer(b'{"access_token": "service", "expires_in": 300}')
@@ -110,6 +120,14 @@ class TestRealm:
                         "config": {},
                     }
                     self._answer(json.dumps([directory]).encode())
+                    return
+                if self.path == VERSION_PATH and (realm.version or realm.version_body) is not None:
+                    realm._stopping.wait(realm.version_delay)
+                    self._answer(
+                        realm.version_body
+                        if realm.version_body is not None
+                        else json.dumps({"version": realm.version}).encode()
+                    )
                     return
                 if self.path != KEYS_PATH:
                     self.send_error(404)

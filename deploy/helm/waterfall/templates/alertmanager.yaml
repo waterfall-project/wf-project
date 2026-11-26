@@ -56,19 +56,15 @@ spec:
       annotations:
         checksum/script: {{ printf "%s%s" $script $web | sha256sum }}
     spec:
-      {{- include "waterfall.podDefaults" . | nindent 6 }}
       # The user of the image, nobody, who writes its configuration and its silences in /alertmanager.
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65534
-        runAsGroup: 65534
-        fsGroup: 65534
+      {{- include "waterfall.podDefaults" (list . (dict "runAsUser" 65534 "runAsGroup" 65534 "fsGroup" 65534)) | nindent 6 }}
       initContainers:
         {{- include "waterfall.transportInit" (list . "alertmanager" 65534 65534) | nindent 8 }}
       containers:
         - name: alertmanager
           image: {{ include "waterfall.thirdParty" (list . .Values.alertmanager.image) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command: [/bin/sh, /etc/waterfall/alertmanager.sh]
           # Alone: no cluster of replicas to join.
           args:

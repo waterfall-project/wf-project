@@ -11,8 +11,9 @@ that strays from the contract, an identifier already held — writes nothing and
 the structured logs. Run again on a platform that holds the witness, it writes nothing and succeeds,
 saying so.
 
-The command ``waterfall-api`` starts here: ``load-witness`` loads, anything else is the
-bootstrap's, which passes on to the API what is not its own.
+The command ``waterfall-api`` starts here: ``load-witness`` loads, ``load-reference`` loads the
+witness then the reference set (``reference_load``, US-2950), anything else is the bootstrap's,
+which passes on to the API what is not its own.
 """
 
 import sys
@@ -32,6 +33,7 @@ from waterfall.platform.identifiers import drawn_in_order
 from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
 from waterfall.platform.settings import SettingsError, WitnessSettings, load_witness_settings
+from waterfall.witness import reference_load
 from waterfall.witness.description import Witness
 from waterfall.witness.loader import load_slices
 
@@ -49,8 +51,10 @@ logger = get_logger(__name__)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Load the witness if asked to, ``load-witness``; else, run the bootstrap's command."""
+    """Load the witness, or the reference set, if asked to; else, run the bootstrap's command."""
     arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments[:1] == [reference_load.COMMAND]:
+        return reference_load.main(arguments[1:], lambda: main([COMMAND]))
     if arguments != [COMMAND]:
         return bootstrap.main(arguments)
     try:

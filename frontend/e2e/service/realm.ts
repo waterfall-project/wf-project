@@ -839,6 +839,39 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
       await giveRoles(id, roles);
     },
     /**
+     * Leave nothing of an account a path made at the screen: found by its address, deactivated
+     * (`setUserActivation`), then anonymised (`anonymizeUser`), as `accounts.spec.ts` does at the
+     * screen; none when the account is not found (the path failed before creating it).
+     */
+    retire: async (email: string): Promise<void> => {
+      const search = new URLSearchParams({ search: email, include_inactive: "true" }).toString();
+      const { items } = await read<{ items: Schemas["User"][] }>(
+        request,
+        await current(),
+        `/users?${search}`,
+      );
+      const found = items.find((one) => one.email === email);
+      if (found === undefined) {
+        return;
+      }
+      const url = `${API}/users/${found.user_id}`;
+      const off: Schemas["UserActivationWrite"] = {
+        is_active: false,
+        lock_version: found.lock_version,
+      };
+      const deactivated = await request.put(`${url}/activation`, {
+        headers: { Authorization: `Bearer ${await current()}` },
+        data: off,
+      });
+      expect(deactivated.status(), `PUT /users/${found.user_id}/activation`).toBe(200);
+      const { lock_version: version } = (await deactivated.json()) as Schemas["User"];
+      const anonymised = await request.post(`${url}/anonymization`, {
+        headers: { Authorization: `Bearer ${await current()}` },
+        data: { lock_version: version } satisfies Schemas["UserAnonymizationWrite"],
+      });
+      expect(anonymised.status(), `POST /users/${found.user_id}/anonymization`).toBe(200);
+    },
+    /**
      * Delete the role of a label once no account holds it (`deleteAccessRole`), so that a path that
      * made it leaves nothing; none when the installation holds none of that label.
      */
