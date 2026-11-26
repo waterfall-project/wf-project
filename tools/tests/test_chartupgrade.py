@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The upgrade of the chart under load, its rollback and the second upgrade (US-2850).
 
-The cluster is made, N installed, upgraded, rolled back and upgraded again by ``make chart-upgrade``
-in the full tier of the chain; these tests hold what the trial decides by itself — which version is
-N, what it is not executed for, what each passage must leave — on a cluster played by a fake.
+The cluster is made, N installed, upgraded, rolled back and upgraded again by ``make
+chart-upgrade``, run by hand, not yet in the chain (#5020); these tests hold what the trial decides
+by itself — which version is N, what it is not executed for, what each passage must leave — on a
+cluster played by a fake.
 """
 
 import io
