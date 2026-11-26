@@ -141,7 +141,7 @@ def add_accounts_if_absent(
         .returning(UserAccount.idp_subject, UserAccount.id),
         rows,
     )
-    return dict(inserted.tuples())
+    return dict(inserted.all())
 
 
 def address_holder(session: Session, email: str) -> UUID | None:
