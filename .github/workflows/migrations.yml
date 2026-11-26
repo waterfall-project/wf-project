@@ -1,0 +1,97 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The migrations of the branch against the last published version, without the chart (US-2850,
+# #4089), in the full tier only (make check-migrations): the tests of the back of that version,
+# extracted from its tag, on the schema the migrations of the branch make; then its production
+# platform, started from its published images, takes a backup of its witness, which the branch
+# restores and migrates, no row lost and the rows of its marked revisions unchanged (WF-DAT-0140).
+# The services are those of the tests of the back (back.yml); the images of the version are read
+# from the registry, where they may be private.
+name: migrations
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  trial:
+    runs-on: ubuntu-26.04
+    # The tests of the back of the version, on one runner, then its platform and its backup.
+    timeout-minutes: 45
+    services:
+      postgres:
+        # The version the platform targets, by its digest, as back.yml.
+        image: ghcr.io/waterfall-project/mirror/postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_INITDB_ARGS: "--set=max_locks_per_transaction=1024"
+        ports:
+          - 5432:5432
+        options: >-
+          --tmpfs /var/lib/postgresql
+          --health-cmd "pg_isready --host 127.0.0.1 --username postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+      redis:
+        image: ghcr.io/waterfall-project/mirror/redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    steps:
+      # Every tag: the last published version is read from them.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # The client of PostgreSQL 18, which restores the backup, as back.yml points it.
+      - run: |
+          for tool in pg_dump pg_restore psql; do
+            test -x "/usr/lib/postgresql/18/bin/$tool" || {
+              echo "::error::the runner image no longer carries /usr/lib/postgresql/18/bin/$tool (postgresql-client-18)"
+              exit 1
+            }
+            sudo ln --symbolic --force "/usr/lib/postgresql/18/bin/$tool" "/usr/bin/$tool"
+            "/usr/bin/$tool" --version | grep --fixed-strings "(PostgreSQL) 18."
+          done
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: >-
+          docker run --detach --name storage --publish 127.0.0.1:3900:3900
+          --volume "$PWD/deploy/compose/garage.toml:/etc/garage.toml:ro"
+          --env GARAGE_RPC_SECRET=c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff
+          --env GARAGE_DEFAULT_ACCESS_KEY=GK000000000000000000000001
+          --env GARAGE_DEFAULT_SECRET_KEY=chain-only-storage-secret
+          ghcr.io/waterfall-project/mirror/dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
+          /garage server --single-node --default-access-key
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
+          cache-dependency-glob: |
+            backend/uv.lock
+            tools/uv.lock
+      - run: make check-migrations
+        env:
+          TIER: full
+          WATERFALL_TEST_DATABASE_URL: postgresql://postgres@localhost:5432/postgres
+          WATERFALL_TEST_REDIS_URL: redis://127.0.0.1:6379/0
+          WATERFALL_TEST_STORAGE_URL: http://GK000000000000000000000001:chain-only-storage-secret@127.0.0.1:3900
