@@ -33,7 +33,8 @@ if TYPE_CHECKING:
 
 # The seed of the reference set: fixed, so that the set is always the same (WF-QUA-0040).
 SEED = 2950
-# The volumes of table 13 (§4.6.2) the reference set holds, the witness's objects counted.
+# The volumes of table 13 (§4.6.2) the reference set holds, the witness's objects counted; the
+# projects are those "in the portfolio", in progress and in pricing.
 NODES, ROLES, CATEGORIES, RATE_YEARS, ACCOUNTS, PROJECTS = 40, 150, 200, 15, 500, 300
 # The directions the drawn nodes are under, each a root of its own; the others are their services.
 DIRECTIONS = ("Nord", "Sud", "Est", "Ouest")
@@ -147,7 +148,8 @@ class Base:
 
     ``rated`` are the categories of labour the witness rates on each year of its grid: a role is
     attached to one of them, so that no line of a project lacks a rate. ``calendars``, its active
-    calendars; ``nodes``, ``roles``, ``accounts`` and ``projects``, how many it holds.
+    calendars; ``nodes``, ``roles``, ``accounts`` and ``projects``, how many it holds, and
+    ``portfolio``, how many of its projects are in the portfolio — in pricing or in progress.
     """
 
     rated: tuple[UUID, ...]
@@ -158,6 +160,7 @@ class Base:
     roles: int
     accounts: int
     projects: int
+    portfolio: int
 
 
 @dataclass(frozen=True, slots=True)

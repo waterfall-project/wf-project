@@ -3,8 +3,11 @@
 """The projects of the reference set (WF-QUA-0040; US-2950), drawn from the seed one by one.
 
 The witness holds twelve projects — PRJ-001, the project of a thousand tasks, PRJ-002 and the ten
-of the slice of the portfolio —; the set draws the others, up to the number asked (three hundred by
-default, six hundred for WF-DAT-0050). Each is described as a project of that slice
+of the slice of the portfolio —; the set draws the others, until the portfolio holds the number
+asked (three hundred by default, six hundred for WF-DAT-0050): table 13 counts the projects "in the
+portfolio", in progress and in pricing, the witness's among them (``numbers_of``). The projects
+that are closed — lost, abandoned, completed — are drawn along the same numbers, in addition to
+that count. Each is described as a project of that slice
 (``portfolio_slice.Project``, every write in the form of the contract that carries it), and is
 written as those are (``portfolio.write_project``): a project of the set is a project of the
 portfolio, of the same shapes, drawn rather than written by hand.
@@ -26,9 +29,15 @@ What a project holds is drawn from the seed, its number and nothing else (``Draw
   and a fictitious site, which designate no real project; a fictitious client, or none.
 
 Every instant falls between January 2024 and the end of October 2026, and every task in the years
-the grid rates (2024 to 2026): no line lacks a rate. Of the volumes of table 13 per project, the
-thousand tasks are PRJ-001's, which the witness carries; the drawn projects are the breadth of the
-portfolio, not its depth — neither fifty contributors nor ten subprojects each.
+the grid rates (2024 to 2026): no line lacks a rate.
+
+Depth is not drawn (US-2950, L1). Table 13 gives, per project, up to a thousand tasks, fifty
+contributors and ten subprojects; a drawn project holds three to eight tasks, a manager as its only
+contributor, and no subproject. The thousand tasks are PRJ-001's alone, which the witness carries,
+and L2 of the story gives it its thousand — as the criterion of the story says: the others are the
+breadth of the portfolio, not its depth. What it implies for the measurements (US-2970): they see
+three hundred projects of a dozen nodes at most, and one project of a thousand tasks; the cost of a
+calculation on a project with fifty contributors or ten subprojects is not measured by this set.
 """
 
 from dataclasses import dataclass
@@ -58,6 +67,7 @@ PRICING, OFFERED, LOST, ABANDONED, IN_PROGRESS, COMPLETED = (
 )
 LIVES = ((PRICING, 20), (OFFERED, 10), (LOST, 5), (ABANDONED, 5), (IN_PROGRESS, 55), (COMPLETED, 5))
 RUN = frozenset({IN_PROGRESS, COMPLETED})
+CLOSED = frozenset({LOST, ABANDONED, COMPLETED})
 PHASES = (
     "Études",
     "Approvisionnement",
@@ -145,6 +155,30 @@ def manager_of(number: int, reference: Reference) -> UUID:
     return Draw("manager", number).choice(reference.accounts).user_id
 
 
+def life_of(number: int) -> str:
+    """Give the life of the ``number``-th project the set draws: its number and the seed alone."""
+    weight = Draw("project", number).below(100)
+    return next(life for life, bound in _bounds() if weight < bound)
+
+
+def numbers_of(portfolio: int) -> list[int]:
+    """Give the numbers of the projects the set draws for ``portfolio`` projects in the portfolio.
+
+    The portfolio holds the projects in pricing and in progress: the numbers run from one to the
+    ``portfolio``-th of them, the projects closed on the way — lost, abandoned, completed —
+    counted apart. The ``n``-th project is the same whatever ``portfolio``: a larger one prolongs
+    the numbers of a smaller.
+    """
+    found: list[int] = []
+    held = 0
+    for number in count(1):
+        if held >= portfolio:
+            break
+        found.append(number)
+        held += life_of(number) not in CLOSED
+    return found
+
+
 def draw_project(number: int, base: Base, reference: Reference) -> Project:
     """Draw the ``number``-th project of the set, from the seed and its number alone."""
     return _Drawing(number, base, reference).project()
@@ -172,8 +206,9 @@ class _Drawing:
     def __init__(self, number: int, base: Base, reference: Reference) -> None:
         self.number, self.base, self.reference = number, base, reference
         self.draw = Draw("project", number)
-        weight = self.draw.below(100)
-        self.life = next(life for life, bound in _bounds() if weight < bound)
+        # The first number of the draw is the life's: ``life_of`` draws it again.
+        self.draw.below(100)
+        self.life = life_of(number)
         self.created = _at(ORIGIN + WEEK * self.draw.between(0, CREATED_WITHIN))
         self.tasks = self._tasks()
         # The instant the reference is designated, for a project that runs, and its reviews after.
@@ -197,7 +232,9 @@ class _Drawing:
                 "reference_revision_id": str(self._revision_id(1)) if ran else None,
                 "transitions": self._transitions(),
                 "revisions": self._revisions(),
-                "tasks": [self._task(each, ran=ran) for each in self.tasks],
+                "tasks": [
+                    self._task(each, last=each is self.tasks[-1], ran=ran) for each in self.tasks
+                ],
                 "lines": self._lines(),
                 "risks": self._risks() if ran else [],
                 "imports": self._imports() if ran else [],
@@ -304,7 +341,16 @@ class _Drawing:
             found.append(moved(IN_PROGRESS, COMPLETED, closed))
         return found
 
-    def _task(self, task: _Task, *, ran: bool) -> dict[str, object]:
+    def _task(self, task: _Task, *, last: bool, ran: bool) -> dict[str, object]:
+        """Describe a task; a project that ran has begun those that start before its last review.
+
+        Finished, those that end before it, the last task of a project in progress excepted, which
+        stays open; a completed project has finished them all, its closing review after them.
+        """
+        reviewed = self.review(self.reviews).date() if ran else None
+        completed = self.life == COMPLETED
+        begun = ran and (completed or (reviewed is not None and task.start <= reviewed))
+        done = ran and (completed or (not last and reviewed is not None and task.finish < reviewed))
         return {
             "node_id": str(task.node_id),
             "node": {
@@ -317,8 +363,8 @@ class _Drawing:
                     "finish": {"date": task.finish.isoformat()},
                 },
             },
-            "started_on": task.start.isoformat() if ran else None,
-            "completed_on": task.finish.isoformat() if ran else None,
+            "started_on": task.start.isoformat() if begun else None,
+            "completed_on": task.finish.isoformat() if done else None,
         }
 
     def _lines(self) -> list[dict[str, object]]:

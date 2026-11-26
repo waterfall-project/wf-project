@@ -5,16 +5,19 @@
 ``load-reference [--projects N]``: the witness first, as ``load-witness`` loads it — or nothing,
 on a platform that holds it —, then what the seed draws beside it (``reference_draw``,
 ``reference_projects``): the nodes, the roles and the accounts the witness lacks of table 13, in
-one transaction, then the projects up to ``N`` in all — three hundred by default, the witness's
-twelve counted — each in a transaction of its own. Everything is written through the interfaces of
-the modules, as the witness is, never by an ``INSERT``, as the platform, under the identifiers the
-seed derives; those a module draws are drawn in order (``drawn_in_order``), under an instant of each
-transaction's own, so that two engenderings give the same ones whatever the run they are made in.
+one transaction, then the projects until the portfolio holds ``N`` — in pricing and in progress,
+three hundred by default, the witness's counted, as table 13 counts them; the closed ones — lost,
+abandoned, completed — come in addition —, each in a transaction of its own. Everything is
+written through the interfaces of the modules, as the witness is, never by an ``INSERT``, as the
+platform, under the identifiers the seed derives; those a module draws are drawn in order
+(``drawn_in_order``), under an instant of each transaction's own, so that two engenderings give the
+same ones whatever the run they are made in.
 
 Stopped — a failure, a deadline, a machine down —, it is taken up where it stopped: a project the
 platform holds is passed over, a transaction never half written. ``N`` below the witness's projects
-stops it at start (2), after the witness; a rule of a module that refuses an object, or any failure,
-ends it (1), said in the structured logs, the transactions committed before kept.
+of the portfolio stops it at start (2), after the witness; a rule of a module that refuses an
+object, or any failure, ends it (1), said in the structured logs, the transactions committed
+before kept.
 """
 
 import argparse
@@ -27,7 +30,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func, select
 
 from waterfall import schema
-from waterfall.api.contract.models import CostTypeKind, HourlyRateGrid
+from waterfall.api.contract.models import CostTypeKind, HourlyRateGrid, ProjectState
 from waterfall.api.resource_role_admission import category_admission
 from waterfall.core.projects.interface import Viewer, projects_present
 from waterfall.core.resource_settings.interface import (
@@ -64,6 +67,7 @@ from waterfall.witness.reference_projects import (
     code_of,
     draw_project,
     manager_of,
+    numbers_of,
 )
 
 if TYPE_CHECKING:
@@ -75,6 +79,8 @@ if TYPE_CHECKING:
     from waterfall.witness.portfolio import Week
 
 COMMAND = "load-reference"
+# The states of a project in the portfolio: in pricing, or in progress.
+PORTFOLIO = frozenset({ProjectState.pricing, ProjectState.in_progress})
 # The key of the advisory lock each transaction of the reference set holds.
 REFERENCE_SET_LOCK = 4_202_950
 # The instant the identifiers the set draws bear, a millisecond more for each transaction: the
@@ -97,7 +103,7 @@ def main(arguments: Sequence[str], load_witness: Callable[[], int]) -> int:
         "--projects",
         type=int,
         default=PROJECTS,
-        help=f"the projects of the set, the witness's counted (default {PROJECTS})",
+        help=f"the projects of the set in the portfolio, the witness's too (default {PROJECTS})",
     )
     wanted: int = parser.parse_args(arguments).projects
     status = load_witness()
@@ -113,20 +119,25 @@ def load_reference(settings: WitnessSettings, wanted: int) -> int:
     """
     schema.declared()
     witness = Witness(Path(settings.witness_path), Act(None, utc_now()))
-    base = read_base(witness)
-    if wanted < base.projects:
-        sys.stderr.write(
-            f"waterfall-api {COMMAND}: --projects: {wanted} is fewer than the {base.projects} "
-            "projects of the witness\n"
-        )
-        return 2
-    database = Database(create_database_engine(settings.database_url.get_secret_value()))
-    TIME_ZONE.read_from(stored_in(database))
-    try:
-        with logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM):
+    with logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM):
+        try:
+            base = read_base(witness)
+        except Exception:
+            # A description the witness lacks or that strays: said in the logs, not a trace.
+            logger.exception("reference.failed", project=None)
+            return 1
+        if wanted < base.portfolio:
+            sys.stderr.write(
+                f"waterfall-api {COMMAND}: --projects: {wanted} is fewer than the "
+                f"{base.portfolio} projects of the witness in the portfolio\n"
+            )
+            return 2
+        database = Database(create_database_engine(settings.database_url.get_secret_value()))
+        try:
+            TIME_ZONE.read_from(stored_in(database))
             return _load(database, witness, base, wanted)
-    finally:
-        database.dispose()
+        finally:
+            database.dispose()
 
 
 def read_base(witness: Witness) -> Base:
@@ -139,6 +150,9 @@ def read_base(witness: Witness) -> Base:
         message = f"{cost_categories.FILE} names {len(provisions)} active provisions, not one"
         raise ValueError(message)
     held = witness.read(calendars.FILE, calendars.Calendars).items
+    listed = witness.read(projects.PROJECTS_FILE, projects.Projects).items
+    sliced = portfolio_slice.read(witness)
+    states = [each.state for each in listed] + [each.transitions[-1].to_state for each in sliced]
     return Base(
         rated=tuple(
             row.cost_category_id.root
@@ -155,8 +169,8 @@ def read_base(witness: Witness) -> Base:
         nodes=len(witness.read(org_nodes.FILE, org_nodes.OrgNodes).root),
         roles=len(witness.read(resource_roles.FILE, resource_roles.ResourceRoles).items),
         accounts=len(projects.described_accounts(witness)),
-        projects=len(witness.read(projects.PROJECTS_FILE, projects.Projects).items)
-        + len(portfolio_slice.read(witness)),
+        projects=len(listed) + len(sliced),
+        portfolio=sum(each in PORTFOLIO for each in states),
     )
 
 
@@ -169,7 +183,8 @@ def _load(database: Database, witness: Witness, base: Base, wanted: int) -> int:
         wrote = _in_transaction(
             database, 0, lambda session: write_reference(session, witness, reference)
         )
-        for number in range(1, wanted - base.projects + 1):
+        numbers = numbers_of(wanted - base.portfolio)
+        for number in numbers:
             code = code_of(number)
             project = draw_project(number, base, reference)
             who = (Viewer(manager_of(number, reference), ()), week)
@@ -185,7 +200,7 @@ def _load(database: Database, witness: Witness, base: Base, wanted: int) -> int:
         logger.exception("reference.failed", project=code)
         return 1
     else:
-        held = wanted - base.projects - len(written)
+        held = max(0, len(numbers) - len(written))
         logger.info("reference.loaded", reference=wrote, projects=len(written), held=held)
         return 0
     logger.error("reference.refused", project=code, code=refusal[0], params=refusal[1])
