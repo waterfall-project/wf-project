@@ -35,7 +35,9 @@ def take_partitions(session: Session) -> UUID | None:
 
 
 def fill_partition_reserve(session: Session, size: int) -> int:
-    """Make sets until the reserve holds ``size`` of them; give how many were made.
+    """Make sets until the reserve holds ``size`` whole ones; give how many were made.
+
+    The sets that lack a partition are dropped first, and made again whole.
 
     Each under the locks of the creation of partitions, which it takes without waiting while it
     holds one and gives up after ten seconds (``lock_not_available``): a marking that runs keeps the
@@ -48,6 +50,15 @@ def fill_partition_reserve(session: Session, size: int) -> int:
 
 
 def partition_reserve_short(session: Session, size: int) -> bool:
-    """Tell whether the reserve holds fewer sets than ``size``."""
-    held = session.scalar(select(func.count()).select_from(PartitionReserve)) or 0
+    """Tell whether the reserve holds fewer whole sets than ``size``.
+
+    A set counts as the taking counts it: whole, a partition in every table partitioned by the
+    identifier of a project. One that lacks a partition is made again by the filling.
+    """
+    counted = (
+        select(func.count())
+        .select_from(PartitionReserve)
+        .where(func.project_partition_set_whole(PartitionReserve.id))
+    )
+    held = session.scalar(counted) or 0
     return held < size

@@ -18,6 +18,7 @@ from sqlalchemy import func, insert, select, text
 from sqlalchemy.exc import DBAPIError
 from support import service_role
 
+from waterfall.core.revisions.interface.revisions import PARTITIONS_LOCK
 from waterfall.migrations.runner import downgrade, upgrade
 from waterfall.platform.database import utc_now
 from waterfall.platform.tasks import BackgroundTask
@@ -36,6 +37,7 @@ FUNCTION = text(
     "FROM pg_proc WHERE oid = to_regprocedure(:signature)"
 )
 SIGNATURES = ("reserve_project_partitions(uuid, integer)", "take_project_partitions()")
+WHOLE = "project_partition_set_whole(uuid)"
 # The partitions of a project, by the suffix of their names.
 PARTITIONS = text("SELECT count(*) FROM pg_class WHERE relname LIKE '%\\_p\\_' || :suffix")
 
@@ -82,7 +84,7 @@ def test_a_set_made_at_0055_is_whole_at_the_head_and_the_descent_drops_what_is_l
         assert connection.scalar(PARTITIONS, {"suffix": second.hex}) == 0
         assert connection.scalar(PARTITIONS, {"suffix": first.hex}) > 0
         assert connection.scalar(text("SELECT to_regclass('project_partition_reserve')")) is None
-        for signature in SIGNATURES:
+        for signature in (*SIGNATURES, WHOLE):
             found = connection.execute(FUNCTION, {"signature": signature}).first()
             assert found is None
         assert connection.scalar(select(func.count()).select_from(BackgroundTask)) == 0
@@ -110,3 +112,16 @@ def test_the_functions_of_the_reserve_are_the_owners_and_the_service_alone_execu
                 ["search_path=pg_catalog, pg_temp"],
             )
             assert sorted(grants) == sorted([f"{proowner}:EXECUTE", f"{service}:EXECUTE"])
+
+
+@pytest.mark.story("US-2830")
+def test_the_lock_of_the_function_is_the_lock_of_the_partitions(owner: Engine) -> None:
+    # The migration does not import the application: the literal of the function is the constant
+    # of the revisions, which ``create_project_partitions`` takes too.
+    with owner.connect() as connection:
+        for name in ("reserve_project_partitions", "create_project_partitions"):
+            definition = connection.scalar(
+                text("SELECT pg_get_functiondef(p.oid) FROM pg_proc AS p WHERE proname = :name"),
+                {"name": name},
+            )
+            assert f"pg_advisory_xact_lock({PARTITIONS_LOCK})" in definition, name

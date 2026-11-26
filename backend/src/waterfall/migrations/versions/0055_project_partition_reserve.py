@@ -15,19 +15,28 @@ reads them —: a table a later migration partitions, which would give its parti
 projects and forget the reserve, makes no project that lacks one, the creation then making its
 own as before.
 
-``reserve_project_partitions(project, size)`` makes the set of ``project`` and inscribes it while
-the reserve holds fewer than ``size`` sets, and says whether it did; it takes first the advisory
-lock of the partitions (``4100010``), which ``create_project_partitions`` takes too, so that two
-fillings count one after the other. ``take_project_partitions()`` gives the identifier of a set
-taken, or null when none is free. Both run as the owner of the tables (``SECURITY DEFINER``), their
-search path their own; the role of the service may execute them and read the reserve, nothing more.
+``project_partition_set_whole(set)`` says whether a set has its partition in every table
+partitioned by the identifier of a project: the one criterion of the taking, of the filling and of
+the count that schedules it.
+
+``reserve_project_partitions(project, size)`` first detaches and drops the partitions of the sets
+that are not whole (a table a later migration partitioned, whose partition the sets lack), and
+deletes them from the reserve; it makes then the set of ``project`` and inscribes it while the
+reserve holds fewer than ``size`` whole sets, and says whether it did. It takes first the advisory
+lock of the partitions (``4100010``, ``PARTITIONS_LOCK`` of ``core/revisions/interface/
+revisions.py``; a migration does not import the application, a test compares the two), which
+``create_project_partitions`` takes too, so that two fillings count one after the other, and gives
+up after ten seconds of locks held (``lock_not_available``). ``take_project_partitions()`` gives
+the identifier of a set taken, or null when none is free. These two run as the owner of the tables
+(``SECURITY DEFINER``), their search path their own; the role of the service may execute them and
+read the reserve, nothing more.
 
 ``background_task.kind`` admits ``partition_reserve``, the filling, after the kinds of the
 schedule. A set in reserve is no project: no row of ``project`` names it, and nothing that counts
 or lists the projects sees it. The reserve is in ``public``: a backup takes it with the partitions
 it names, and a restoration gives both back. The projects that exist are not touched.
 
-The descent drops the partitions of the sets left in reserve, the table, the two functions and the
+The descent drops the partitions of the sets left in reserve, the table, the three functions and the
 tasks of the filling, which the former constraint refuses.
 """
 
@@ -77,14 +86,56 @@ PARENTS = """
 """
 
 FUNCTIONS = """
+CREATE FUNCTION project_partition_set_whole(candidate uuid) RETURNS boolean
+LANGUAGE sql STABLE SET search_path = pg_catalog, pg_temp AS $$
+    SELECT NOT EXISTS (
+        SELECT FROM (<parents>) AS listed (partrelid)
+        JOIN pg_class AS named ON named.oid = listed.partrelid
+        WHERE NOT EXISTS (
+            SELECT FROM pg_inherits JOIN pg_class AS partition ON partition.oid = inhrelid
+            WHERE inhparent = listed.partrelid
+                AND partition.relname = named.relname || '_p_' || replace(candidate::text, '-', '')
+        )
+    )
+$$;
+REVOKE ALL ON FUNCTION project_partition_set_whole(uuid) FROM PUBLIC;
 CREATE FUNCTION reserve_project_partitions(project uuid, size integer) RETURNS boolean
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
+DECLARE
+    incomplete uuid;
+    parent_name text;
+    partition_name text;
 BEGIN
     IF size IS NULL OR size < 0 THEN
         RAISE EXCEPTION 'the size of the reserve is a number of sets, at least nought'
             USING ERRCODE = 'invalid_parameter_value';
     END IF;
+    -- PARTITIONS_LOCK (core/revisions/interface/revisions.py): the migration does not import the
+    -- application, a test compares the two.
     PERFORM pg_advisory_xact_lock(4100010);
+    PERFORM set_config('lock_timeout', '10s', true);
+    -- A set that is not whole is never taken: it is dropped, and made again whole.
+    FOR incomplete IN
+        SELECT id FROM public.project_partition_reserve
+        WHERE NOT public.project_partition_set_whole(id) ORDER BY id
+    LOOP
+        FOR parent_name, partition_name IN
+            SELECT parent.relname, partition.relname
+            FROM pg_inherits
+            JOIN pg_class AS parent ON parent.oid = inhparent
+            JOIN pg_class AS partition ON partition.oid = inhrelid
+            WHERE parent.relnamespace = 'public'::regnamespace AND NOT parent.relispartition
+                AND partition.relname
+                    = parent.relname || '_p_' || replace(incomplete::text, '-', '')
+            ORDER BY partition.relname
+        LOOP
+            EXECUTE format(
+                'ALTER TABLE public.%I DETACH PARTITION public.%I', parent_name, partition_name
+            );
+            EXECUTE format('DROP TABLE public.%I', partition_name);
+        END LOOP;
+        DELETE FROM public.project_partition_reserve WHERE id = incomplete;
+    END LOOP;
     IF (SELECT count(*) FROM public.project_partition_reserve) >= size THEN
         RETURN false;
     END IF;
@@ -97,23 +148,12 @@ REVOKE ALL ON FUNCTION reserve_project_partitions(uuid, integer) FROM PUBLIC;
 CREATE FUNCTION take_project_partitions() RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 DECLARE
-    parents oid[];
     candidate uuid;
 BEGIN
-    SELECT array_agg(partrelid) INTO parents FROM (<parents>) AS listed (partrelid);
     -- One row read and locked, the first whole and free: a loop over the reserve would lock every
     -- row it fetched ahead, and another creation would find none free.
     SELECT reserved.id INTO candidate FROM public.project_partition_reserve AS reserved
-    WHERE NOT EXISTS (
-        SELECT FROM unnest(parents) AS parent (oid)
-        JOIN pg_class AS named ON named.oid = parent.oid
-        WHERE NOT EXISTS (
-            SELECT FROM pg_inherits JOIN pg_class AS partition ON partition.oid = inhrelid
-            WHERE inhparent = parent.oid
-                AND partition.relname = named.relname || '_p_'
-                    || replace(reserved.id::text, '-', '')
-        )
-    )
+    WHERE public.project_partition_set_whole(reserved.id)
     ORDER BY reserved.reserved_at, reserved.id
     LIMIT 1
     FOR UPDATE OF reserved SKIP LOCKED;
@@ -136,6 +176,7 @@ BEGIN
         'GRANT EXECUTE ON FUNCTION reserve_project_partitions(uuid, integer) TO %I', service
     );
     EXECUTE format('GRANT EXECUTE ON FUNCTION take_project_partitions() TO %I', service);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION project_partition_set_whole(uuid) TO %I', service);
 END
 $$
 """
@@ -191,6 +232,7 @@ def downgrade() -> None:
     op.execute(RESERVED_PARTITIONS)
     op.execute("DROP FUNCTION take_project_partitions()")
     op.execute("DROP FUNCTION reserve_project_partitions(uuid, integer)")
+    op.execute("DROP FUNCTION project_partition_set_whole(uuid)")
     op.drop_table(TABLE)
 
 

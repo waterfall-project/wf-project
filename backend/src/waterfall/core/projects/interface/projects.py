@@ -560,7 +560,7 @@ def _create(
     session: Session,
     draft: ProjectDraft,
     act: Act,
-    partitioned: UUID | None,
+    partitioned_id: UUID | None,
     when_taken: Callable[[], None] | None = None,
 ) -> Project:
     """Create a project and what is born with it, once the minimal reference holds.
@@ -572,16 +572,22 @@ def _create(
     (#4801). With the reserve empty, the partitions are created right after, before any write of
     the transaction: their function waits for no lock while it holds one, and the transaction holds
     none yet that a writer or another creation waits for (#2603, #2667) — but it waits for a
-    marking that runs, or gives up. A project ``partitioned`` has the identifier given: the witness
-    has created its partitions at the start of its transaction, before its first write
+    marking that runs, or gives up. A project ``partitioned_id`` has the identifier given: the
+    witness has created its partitions at the start of its transaction, before its first write
     (``load_project``). That is a precondition of the caller, not checked here: without them the
     first insertion of the project fails on its partitioned tables, with no cause named.
     """
     share_reference(session)
-    taken = take_partitions(session) if partitioned is None else None
-    identifier = partitioned or taken or new_id()
-    if partitioned is None and taken is None:
-        session.execute(select(func.create_project_partitions(identifier)))
+    taken: UUID | None = None
+    if partitioned_id is not None:
+        identifier = partitioned_id
+    else:
+        taken = take_partitions(session)
+        if taken is not None:
+            identifier = taken
+        else:
+            identifier = new_id()
+            session.execute(select(func.create_project_partitions(identifier)))
     missing = missing_prerequisites(session)
     if missing:
         raise ConflictError(REFERENCE_INCOMPLETE, {"missing_prerequisites": list(missing)})

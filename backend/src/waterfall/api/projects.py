@@ -269,6 +269,12 @@ def post_project(
     act = Act(account.user_id, utc_now())
 
     def refill() -> None:
+        """Ask the worker for another set, unless a filling is already waiting.
+
+        The check and the deposit are not under a lock: two creations together may deposit two
+        fillings. That is harmless — the filling is idempotent, and its fillings run one after the
+        other under the advisory lock of the partitions: the second finds the reserve full.
+        """
         if pending_task(session, FILLING) is None:
             submit(session, services.queue, FILLING, None)
 

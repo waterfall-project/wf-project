@@ -27,6 +27,7 @@ from merges_support import AT_ONCE
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from psycopg.errors import LockNotAvailable
+from pydantic import SecretStr, ValidationError
 from sqlalchemy import select, text, update
 from sqlalchemy.exc import OperationalError
 from support import ContractClient
@@ -42,9 +43,11 @@ from waterfall.core.projects.interface import (
 from waterfall.core.projects.tables import PartitionReserve
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
+from waterfall.platform.settings import ReserveSettings
 from waterfall.platform.tasks import BackgroundTask, RetriedError, Task, TaskHandler
 from waterfall.worker import partition_reserve
 from waterfall.worker.exchanges import ImportTasks
+from waterfall.worker.inventory import counted
 from waterfall.worker.marking import mark
 from waterfall.worker.partition_reserve import ReserveTask
 from waterfall.worker.runner import Worker
@@ -339,6 +342,57 @@ def test_a_set_that_lacks_a_partition_is_never_taken(database: Database, owner: 
     with database.transaction() as session:
         assert take_partitions(session) is None
     assert reserved(database) == [lacking]
+
+
+@pytest.mark.story("US-2830")
+def test_the_filling_makes_again_the_sets_that_lack_a_partition(
+    database: Database, owner: Engine
+) -> None:
+    # Propre à l'US : a set that lacks a partition does not count as a set of the reserve — the
+    # reserve is short, the filling drops the partitions it kept and makes it again whole — and the
+    # creation takes a whole set, never falls back for lack of one.
+    lacking = filled(database)[0]
+    with owner.begin() as connection:
+        connection.execute(text(f'DROP TABLE "revision_rate_p_{lacking.hex}"'))
+    with database.transaction() as session:
+        assert partition_reserve_short(session, SIZE)
+    after = filled(database)
+    assert lacking not in after
+    assert len(after) == SIZE
+    assert all(whole(owner, each) for each in after)
+    with owner.connect() as connection:
+        assert connection.scalar(PARTITIONS, {"suffix": lacking.hex}) == 0
+    with database.transaction() as session:
+        assert not partition_reserve_short(session, SIZE)
+        taken = take_partitions(session)
+    assert taken in after
+
+
+@pytest.mark.story("US-2830")
+def test_a_reserve_of_size_nought_is_inhibited(database: Database) -> None:
+    # Propre à l'US : the operator may set the size to nought: the filling does nothing, the taking
+    # finds none, every creation makes its own partitions; a negative size is refused.
+    assert ReserveSettings(database_url=SecretStr("postgresql://x"), partition_reserve_size=0)
+    with pytest.raises(ValidationError):
+        ReserveSettings(database_url=SecretStr("postgresql://x"), partition_reserve_size=-1)
+    assert filled(database, 0) == []
+    with database.transaction() as session:
+        assert take_partitions(session) is None
+        assert not partition_reserve_short(session, 0)
+
+
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_set_in_reserve_is_counted_by_no_list_and_no_inventory(
+    api: ContractClient, stage: Scene, database: Database
+) -> None:
+    # « Un jeu en réserve n'est pas un projet » : neither the list of the projects nor the inventory
+    # a backup writes in its manifest, and its test counts again, sees the sets in reserve.
+    listed = api.get(PROJECTS, headers=stage.manager.headers)
+    assert listed.status_code == 200, listed.text
+    filled(database)
+    assert api.get(PROJECTS, headers=stage.manager.headers).json() == listed.json()
+    with database.transaction() as session:
+        assert counted(session, 0, []).projects == count_projects(session) == 1
 
 
 @pytest.mark.story("US-2830")
