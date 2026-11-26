@@ -6,6 +6,7 @@ It serves on the number of processes its setting says (US-2230), each building i
 the factory, which opens the services of the process and closes them when it stops.
 """
 
+import gc
 import json
 import os
 from pathlib import Path
@@ -18,6 +19,7 @@ from fastapi.testclient import TestClient
 import waterfall
 from waterfall import bootstrap
 from waterfall.api import main as api_main
+from waterfall.api.app import create_app
 from waterfall.platform.cache import PREFIX, IndicatorsCache
 from waterfall.platform.database import Database
 from waterfall.platform.keycloak import Keycloak
@@ -103,7 +105,14 @@ def test_a_number_of_processes_that_is_no_whole_number_above_zero_stops_the_serv
 
 
 def closings(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """Record the closing of each service a process opens, instead of closing it."""
+    """Record the closing of each service a process opens, instead of closing it.
+
+    An application served without its lifespan closes its observation when it is collected
+    (``create_app``), and the tests before this one leave such applications for the collector,
+    which would run during it, whenever its thresholds say: they are collected first, closing for
+    real, so that what is recorded is what this process closes (#4981).
+    """
+    gc.collect()
     closed: list[str] = []
 
     def closing(name: str) -> Callable[[object], None]:
@@ -141,6 +150,20 @@ def test_each_process_closes_the_services_it_opened_when_it_stops(
     assert closed == ["database", "cache", "storage", "redis", "keycloak", "database"]
     events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
     assert events[-1] == "service.stopped"
+
+
+@pytest.mark.usefixtures("platform_environment")
+def test_an_application_left_to_the_collector_by_an_earlier_test_is_not_counted_as_a_closing(
+    services: Services, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #4981: in the queue the collector ran during the test of the stop and closed, as it does for
+    # any application served without its lifespan, the observation of those of the tests before it.
+    left = create_app(services)
+    left.state.itself = left  # a cycle: only the collector frees it
+    del left
+    closed = closings(monkeypatch)
+    gc.collect()
+    assert closed == []
 
 
 @pytest.mark.usefixtures("platform_environment")
