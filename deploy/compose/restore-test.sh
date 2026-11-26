@@ -17,8 +17,16 @@ cd "$(dirname "$0")" || exit 1
 WATERFALL_RESTORE_TEST_PASSWORD=$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')
 export WATERFALL_RESTORE_TEST_PASSWORD
 
+#
+# WATERFALL_RESTORE_TEST_OVERRIDE names a file of Compose read after the first, when there is one:
+# the chain bounds the platform to four cores and eight gigabytes, this one included
+# (wftools.bounded, WF-CMP-0020-A).
 compose() {
-  docker compose --file compose.restore-test.yaml --profile restore-test "$@"
+  if [ -n "${WATERFALL_RESTORE_TEST_OVERRIDE:-}" ]; then
+    docker compose --file compose.restore-test.yaml --file "$WATERFALL_RESTORE_TEST_OVERRIDE" --profile restore-test "$@"
+  else
+    docker compose --file compose.restore-test.yaml --profile restore-test "$@"
+  fi
 }
 
 # Whatever happens — the test ends, fails, is interrupted (INT, TERM) — the ephemeral platform is

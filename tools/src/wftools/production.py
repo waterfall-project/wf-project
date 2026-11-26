@@ -35,6 +35,13 @@ come from the environment, as the chain gives them; no file holds them. Then it 
   (``deploy/compose/restore-test.sh``) on a backup the schedule took, which leaves nothing of its
   ephemeral platform behind (``wftools.restoretest_trial``, US-2930).
 
+Given ``WATERFALL_PRODUCTION_CGROUP_PARENT`` (a slice of the cgroups of the host, which the
+chain bounds to four cores and eight gigabytes before it starts the trial, ``production.yml``),
+every container of the platform, and of the ephemeral platform of the test of a restoration, runs
+under it, by the override ``wftools.bounded`` writes: the platform holds all of the above on a
+machine of those characteristics, data components and supervision included (WF-CMP-0020-A,
+US-2810).
+
 Every request reaches the platform at the loopback, under the name of the domain, which no resolver
 is asked for. The platform is removed at the end, its volumes with it, whatever the outcome; what
 its services said is printed first when it fails. The project of Compose is
@@ -59,7 +66,7 @@ from pathlib import Path
 from typing import cast
 from urllib.parse import urlencode, urljoin, urlsplit
 
-from wftools import REPOSITORY, transport, trialregistry
+from wftools import REPOSITORY, bounded, transport, trialregistry
 from wftools.images import DIGEST, IMAGES, digest_variable
 from wftools.restoration_trial import (
     API_REACHED,
@@ -100,6 +107,10 @@ OWNER_RIGHTS = (
 SESSION_COOKIE = "__Host-wf_session"
 HTTPS_PORT = 443
 HTTP_PORT = 80
+PARENT = "WATERFALL_PRODUCTION_CGROUP_PARENT"
+"""The slice of the cgroups the containers of the platform run under, when it is bounded."""
+OVERRIDE = "WATERFALL_PRODUCTION_OVERRIDE"
+"""The file of Compose that puts the production under that slice, which ``main`` writes."""
 REDIRECTIONS = frozenset({301, 302, 303, 307, 308})
 MOST_REDIRECTIONS = 20
 OK = 200
@@ -356,9 +367,16 @@ def check_signed_in(browser: Browser, platform: Platform, email: str) -> None:
         raise ProductionError(message)
 
 
-def compose_command(project: str) -> list[str]:
-    """Return the command of Compose on the production platform under a local name."""
-    files = [word for path in FILES for word in ("--file", str(path))]
+def compose_command(project: str, override: Path | None = None) -> list[str]:
+    """Return the command of Compose on the production platform under a local name.
+
+    ``override`` is a file added after the others: the bound of its resources.
+    """
+    files = [
+        word
+        for path in (*FILES, *([override] if override else []))
+        for word in ("--file", str(path))
+    ]
     return ["docker", "compose", "--project-name", project, *files]
 
 
@@ -598,8 +616,10 @@ def main(
         added, pushed = local_images(given, tag, run or runner(given), read or _reader(given))
         registry = list(added)
         started = environment_of({**given, **added}, platform, pushed)
-        commands = (run or runner(started), read or _reader(started))
-        return hold(started, tag, platform, commands, (send, ask))
+        with tempfile.TemporaryDirectory(prefix="waterfall-production-") as folder:
+            started = {**started, **bounded.environment(started.get(PARENT), Path(folder))}
+            commands = (run or runner(started), read or _reader(started))
+            return hold(started, tag, platform, commands, (send, ask))
     except (ProductionError, RegistryError, OSError, subprocess.CalledProcessError) as error:
         print(f"wftools.production: {error}", file=sys.stderr)
         return 1
@@ -623,7 +643,8 @@ def hold(
         secret = started.get("WATERFALL_FRONT_CLIENT_SECRET", "")
         restoration = Restoration(ask or _asker(started), secret)
     project = started.get("WATERFALL_PRODUCTION_PROJECT") or PROJECT
-    compose = compose_command(project)
+    given = started.get(OVERRIDE)
+    compose = compose_command(project, Path(given) if given else None)
     up = [*compose, "up", "--detach", "--wait", "--quiet-pull"]
     print(f"  the images {tag}, at {platform.address}", flush=True)
     failed = True

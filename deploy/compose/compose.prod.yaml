@@ -708,6 +708,22 @@ services:
       timeout: 3s
       retries: 120
 
+  # What the supervision weighs, measured before its settings were fixed (US-2810, WF-CMP-0020-A: four
+  # cores and eight gigabytes for the whole platform, data components and supervision included).
+  # Method: the production trial of the chain (wftools.production, with its backup, its restoration
+  # and the test of a restoration) started on the images of the commit, on a workstation of 32 cores
+  # and 122 GiB, and the memory of every container of its two projects read by `docker stats`
+  # (without the page cache) every three seconds — twenty readings. At rest, once started, and at the
+  # peak of the trial: Prometheus 33 and 35 MiB, Alertmanager 16 and 17 MiB, Grafana 180 and 180 MiB,
+  # 6 % of a core at most for each; the whole platform 2.4 GiB at rest and 4.9 GiB at the peak, which
+  # is the start, when Keycloak (2.9 GiB) and the application of its realm (1.7 GiB) are both on the
+  # JVM — which sizes its heap by a share of the memory of the machine, so that peak is the
+  # workstation's, not an eight-gigabyte machine's — and the supervision is 5 % of it. A Prometheus
+  # grows with its series, which a trial of a few minutes does not: the limits below keep about ten
+  # times what was read, and GOMEMLIMIT makes the Go runtime collect before the kernel kills. At
+  # their limits the three hold 1.1 GiB, 0.9 GiB more than they did: 5.8 GiB at the peak, under the
+  # eight of the machine. Not measured: the series of a platform that has run for fifteen days.
+  #
   # Prometheus (US-2880, WF-OBS-0010, WF-OBS-0030): it collects the front, the API and the worker,
   # inside the network of the platform, and evaluates the rules of the alerts, written at each start
   # with the thresholds of .env (prometheus.sh, prometheus-alerts.yml); its series in a volume. It
@@ -721,8 +737,10 @@ services:
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=15d
       - --web.config.file=/etc/waterfall/prometheus-web.yml
+    mem_limit: 512m
     environment:
       <<: *alert-thresholds
+      GOMEMLIMIT: 400MiB
       WATERFALL_METRICS_PORT: ${WATERFALL_METRICS_PORT:-9100}
     volumes:
       - ./prometheus.sh:/etc/waterfall/prometheus.sh:ro
@@ -754,7 +772,9 @@ services:
       - --storage.path=/alertmanager
       - --cluster.listen-address=
       - --web.config.file=/etc/waterfall/alertmanager-web.yml
+    mem_limit: 128m
     environment:
+      GOMEMLIMIT: 100MiB
       WATERFALL_ALERT_SMTP_HOST: ${WATERFALL_ALERT_SMTP_HOST:-}
       WATERFALL_ALERT_SMTP_FROM: ${WATERFALL_ALERT_SMTP_FROM:-}
       WATERFALL_ALERT_RECIPIENT: ${WATERFALL_ALERT_RECIPIENT:-}
@@ -785,7 +805,9 @@ services:
   # (grafana-datasource.yml).
   grafana:
     image: ${WATERFALL_MIRROR:-}grafana/grafana:13.1.0@sha256:121a7a9ece6dc10b969f1f96eed64b4f07dfac0d0b8abc070f7cb83bbde86f63
+    mem_limit: 512m
     environment:
+      GOMEMLIMIT: 400MiB
       GF_SECURITY_ADMIN_USER: ${WATERFALL_GRAFANA_ADMIN_USER:-operator}
       GF_SECURITY_ADMIN_PASSWORD: ${WATERFALL_GRAFANA_ADMIN_PASSWORD:?set WATERFALL_GRAFANA_ADMIN_PASSWORD in .env}
       GF_SERVER_ROOT_URL: https://${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}${WATERFALL_HTTPS_PORT:+:${WATERFALL_HTTPS_PORT}}/grafana/
