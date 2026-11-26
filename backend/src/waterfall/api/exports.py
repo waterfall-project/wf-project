@@ -19,8 +19,8 @@ covered (#3977, the question is put to the author).
 """
 
 import unicodedata
-from collections.abc import Callable, Iterator
-from typing import Any
+from collections.abc import Callable, Iterator, Mapping
+from itertools import chain
 from urllib.parse import quote
 from uuid import UUID
 
@@ -32,6 +32,7 @@ from starlette.types import Message, Receive, Scope, Send
 from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.models import BackgroundTaskRef, ExportRequest
 from waterfall.api.evaluation import Acting, RequiresProject
+from waterfall.api.streams import ObjectResponse
 from waterfall.api.tasks import task_ref
 from waterfall.core.exchanges.interface import (
     ExportAsked,
@@ -49,7 +50,7 @@ from waterfall.platform.tasks import BackgroundTask
 router = APIRouter()
 
 
-class DeliveredResponse(StreamingResponse):
+class DeliveredResponse(ObjectResponse):
     """A streamed answer that runs ``delivered`` only once its body was handed over whole (#3977).
 
     Starlette runs the background task of a response after the stream whatever became of the
@@ -60,8 +61,9 @@ class DeliveredResponse(StreamingResponse):
     the last byte, before the closing message goes out (#4985): a disconnect read after the last
     piece was sent changes nothing. The body is whole when the stream came to its end or, with the
     ``length`` known, when that many bytes were sent: the end of the stream is awaited in a thread,
-    and a disconnect can cancel that wait before the thread ran. The ``chunks`` are closed on every
-    path: whole, cut, or failed.
+    and a disconnect can cancel that wait before the thread ran. It is an ``ObjectResponse``: the
+    ``chunks`` are closed on every path — whole, cut, or failed — and a failure once the answer
+    began is journaled (#4680).
     """
 
     def __init__(
@@ -69,17 +71,20 @@ class DeliveredResponse(StreamingResponse):
         chunks: ObjectStream,
         delivered: Callable[[], None],
         length: int | None = None,
-        **options: Any,
+        *,
+        media_type: str | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> None:
         self.exhausted = False
         self.length = length
-        super().__init__(self.watched(chunks), **options)
-        self.chunks = chunks
+        super().__init__(chunks, media_type, headers, content=self.watched(chunks))
         self.delivered = delivered
 
     def watched(self, chunks: ObjectStream) -> Iterator[bytes]:
         """Pass the pieces on, and note that the stream came to its end (it runs in a thread)."""
-        yield from chunks
+        # Through a ``chain``: ``yield from chunks`` would close them with this generator, and the
+        # response closes it once, on every path.
+        yield from chain(chunks)
         self.exhausted = True
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -107,10 +112,7 @@ class DeliveredResponse(StreamingResponse):
                 sent += 1
                 size += len(message.get("body", b""))
 
-        try:
-            await super().__call__(scope, watched_receive, watched_send)
-        finally:
-            self.chunks.close()
+        await super().__call__(scope, watched_receive, watched_send)
         # A client gone before the last piece was sent got no whole file, though the server may take
         # the pieces still (uvicorn drops them): only a disconnect after all of them is harmless.
         whole = self.exhausted or (self.length is not None and size >= self.length)
@@ -186,7 +188,7 @@ def post_export(
 )
 def get_background_task_result(
     task_id: UUID, account: Caller, services: ServicesOf
-) -> StreamingResponse:
+) -> DeliveredResponse:
     """Stream the file an export produced, to the account that asked for it (WF-DAT-0120).
 
     The task is read in a transaction of its own, closed before the file streams: no connection is
@@ -198,10 +200,16 @@ def get_background_task_result(
     """
     with services.database.transaction() as session:
         found = result_of(session, task_id, account.user_id)
-    try:
-        chunks = services.backups.stream(found.object_key)
-        length = services.backups.size(found.object_key)
-    except MissingObjectError:
+    # The size is read before the stream is opened: a file that is gone opens nothing, and a body
+    # opened is never left behind by a failure that follows (#4680).
+    length = services.backups.size(found.object_key)
+    chunks: ObjectStream | None = None
+    if length is not None:
+        try:
+            chunks = services.backups.stream(found.object_key)
+        except MissingObjectError:
+            chunks = None
+    if chunks is None:
         # The file is gone: the result is no more, and the task no longer gives its link.
         with services.database.transaction() as session:
             consumed(session, task_id)
@@ -213,8 +221,7 @@ def get_background_task_result(
             consumed(session, task_id)
 
     headers = {"Content-Disposition": disposition(found.filename)}
-    if length is not None:
-        headers["Content-Length"] = str(length)
+    headers["Content-Length"] = str(length)
     return DeliveredResponse(
         chunks, delivered, length, media_type=found.media_type, headers=headers
     )

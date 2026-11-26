@@ -263,6 +263,20 @@ def test_a_restart_that_failed_is_sent_at_the_next_run_without_issuing_again(
     assert api.writes() == []
 
 
+def test_a_restart_owed_to_a_workload_not_there_yet_says_so_and_is_cleared(
+    authority: Authority,
+) -> None:
+    # A hook of pre-installation stopped between the renewal and its restart, and the next run
+    # finds no workload yet (#5010): nothing was restarted, and its pods will read the certificate.
+    api = Api(workloads=set())
+    held_by(api, authority, NOW)
+    api.secrets[POSTGRES.kept_in]["metadata"]["annotations"] = {OWED: NOW.isoformat()}
+    said = certify(api.cluster(), authority, POSTGRES, NOW + timedelta(minutes=1))
+    assert said == "restart owed, workload absent"
+    assert api.writes() == [("PATCH", POSTGRES_WORKLOAD), ("PUT", POSTGRES_SECRET)]
+    assert api.secrets[POSTGRES.kept_in]["metadata"]["annotations"] == {}
+
+
 @pytest.mark.parametrize("status", [403, 500])
 def test_a_refusal_of_the_api_stops_the_hook_saying_so(authority: Authority, status: int) -> None:
     api = Api()

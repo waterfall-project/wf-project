@@ -13,6 +13,7 @@ once, the first time it needs the current day, from the database its entry point
 (``TIME_ZONE``).
 """
 
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -122,18 +123,27 @@ def stored_in(database: Database) -> Callable[[], str]:
 
 
 class ProcessTimeZone:
-    """The time zone of the installation, as a process reads it: once, then kept (US-2200).
+    """The time zone of the installation, as a process reads it: kept, and read again (US-2200).
 
-    The bootstrap fixes it and nothing changes it afterwards, so a process does not read it again.
-    It reads it where its entry point says (``read_from``), the first time it is asked, and not
-    before: the API starts before an installation is bootstrapped. A reading refused is not kept,
-    and the next asks again. A process whose entry point names no source cannot tell the day.
+    The bootstrap fixes it, but a restoration replaces the database without restarting the API,
+    the worker or the witness: a backup of an installation in another time zone would leave them
+    with the zone they had read. So a process keeps the zone for ``KEPT`` seconds, then reads it
+    again (#4695): the restoration that gives another one is seen within that time, whichever
+    process saw it or not. It reads it where its entry point says (``read_from``), the first time
+    it is asked, and not before: the API starts before an installation is bootstrapped. A first
+    reading refused is not kept, and the next asks again; a later one that is refused leaves the
+    zone known, which is asked again the next time. A process whose entry point names no source
+    cannot tell the day.
     """
 
-    def __init__(self) -> None:
-        """Know no source yet."""
+    KEPT = 60.0
+
+    def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
+        """Know no source yet; ``clock`` gives the seconds the zone is kept by."""
+        self._clock = clock
         self._source: Callable[[], str] | None = None
         self._zone: ZoneInfo | None = None
+        self._read_at = 0.0
 
     def read_from(self, source: Callable[[], str]) -> None:
         """Read the time zone from ``source`` from now on, forgetting the one read before."""
@@ -148,28 +158,39 @@ class ProcessTimeZone:
         a source left bound to a database disposed would open, at the first reading after the
         command, a connection no one closes.
         """
-        before = self._source, self._zone
+        before = self._source, self._zone, self._read_at
         self.read_from(source)
         try:
             yield
         finally:
-            self._source, self._zone = before
+            self._source, self._zone, self._read_at = before
 
     def zone(self) -> ZoneInfo:
-        """Give the time zone of the installation, read the first time it is asked."""
-        if self._zone is None:
-            if self._source is None:
-                message = "the process names no source of the time zone of the installation"
-                raise RuntimeError(message)
-            name = self._source()
-            # A name unknown, or malformed — an absolute path, ``..`` —, which only a database
-            # changed by hand holds: the bootstrap refuses both (#3258).
-            try:
-                self._zone = ZoneInfo(name)
-            except ZoneInfoNotFoundError, ValueError:
-                logger.warning("installation.time_zone_unknown")
-                raise UnavailableError(COMPONENT_UNAVAILABLE, {"component": "database"}) from None
+        """Give the time zone of the installation, read the first time it is asked, then again."""
+        if self._zone is None or self._clock() - self._read_at >= self.KEPT:
+            self._zone = self._read()
+            self._read_at = self._clock()
         return self._zone
+
+    def _read(self) -> ZoneInfo:
+        if self._source is None:
+            message = "the process names no source of the time zone of the installation"
+            raise RuntimeError(message)
+        try:
+            name = self._source()
+        except UnavailableError:
+            if self._zone is None:
+                raise
+            # A zone already known stays while the database does not answer, for another term.
+            logger.warning("installation.time_zone_unread")
+            return self._zone
+        # A name unknown, or malformed — an absolute path, ``..`` —, which only a database
+        # changed by hand holds: the bootstrap refuses both (#3258).
+        try:
+            return ZoneInfo(name)
+        except ZoneInfoNotFoundError, ValueError:
+            logger.warning("installation.time_zone_unknown")
+            raise UnavailableError(COMPONENT_UNAVAILABLE, {"component": "database"}) from None
 
 
 # The time zone of the installation of this process, which ``current_day`` reads.

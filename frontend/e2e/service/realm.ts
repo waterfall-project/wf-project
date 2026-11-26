@@ -457,21 +457,23 @@ export function grantRole(email: string, label: string, permissions: readonly st
   where not exists (select 1 from access_role where label = :'label' and deleted_at is null);
 insert into access_role_permission (access_role_id, permission_id)
   select role.id, permission.id from access_role role, permission
-  where role.label = :'label' and permission.code = any(string_to_array(:'permissions', ','))
+  where role.label = :'label' and role.deleted_at is null and permission.code = any(string_to_array(:'permissions', ','))
   on conflict do nothing;
 insert into user_access_role (user_account_id, access_role_id)
   select account.id, role.id from user_account account, access_role role
-  where account.email = :'email' and role.label = :'label'
+  where account.email = :'email' and role.label = :'label' and role.deleted_at is null
   on conflict do nothing;
 select count(*) from user_access_role held
   join user_account account on account.id = held.user_account_id
   join access_role role on role.id = held.access_role_id
-  where account.email = :'email' and role.label = :'label';
+  where account.email = :'email' and role.label = :'label' and role.deleted_at is null;
 `,
     { label, email, permissions: permissions.join(",") },
   );
   if (held !== "1") {
-    throw new Error(`${email} holds no role ${label}: has Waterfall created its account?`);
+    throw new Error(
+      `${email} holds ${held} roles ${label}, not one: has Waterfall created its account?`,
+    );
   }
 }
 
@@ -609,7 +611,7 @@ async function read<T>(request: APIRequestContext, token: string, path: string):
   const answer = await request.get(`${API}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  expect(answer.status(), `GET ${path}`).toBe(200);
+  expect(answer.status(), `GET ${path}: ${await answer.text()}`).toBe(200);
   return (await answer.json()) as T;
 }
 

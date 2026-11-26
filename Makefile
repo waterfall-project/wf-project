@@ -78,7 +78,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
 	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-reference service-reference-check service-purge service-logs service-logs-search service-logs-fields service-down measure-core migrate \
 	build-keycloak save-keycloak load-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
-	production-trial check-production kube-tools lint-chart test-chart chart-trial check-chart \
+	production-trial check-production kube-tools lint-chart test-chart chart-trial chart-upgrade check-chart \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens implementations readmes reuse lint-workflows \
 	lint-shell check slot slot-release e2e-down slots test-services test-services-down \
@@ -348,6 +348,15 @@ lint-chart: kube-tools ## Lint the chart strictly, with the values of the chain 
 chart-trial: export WATERFALL_CHART_CLUSTER ?= waterfall-chart-s$(call slot-value,WATERFALL_SLOT)
 chart-trial: kube-tools ## Install the chart on a throwaway cluster of kind from the images of WATERFALL_IMAGE_TAG (the commit by default, make images first), bootstrap it, hold its liveness, the sign-in of its first administrator and its services without state (one token answered the same by each instance, a worker killed in a marking) and the test of a restoration the platform plans (closed while it runs, gone after), then delete the cluster
 	@$(heavy) $(WFTOOLS).charttrial
+
+# The upgrade of the chart under load (US-2850): the version N — the last published version that
+# carries the chart, or else the base, BASE, or its nearest first parent whose images are published —
+# installed on a cluster of kind of its own, upgraded to the images of WATERFALL_IMAGE_TAG (make images
+# first) and the chart of the branch, rolled back, upgraded again; not executed, and said so, when the
+# base carries no chart (wftools.chartupgrade). A heavy run, as chart-trial is.
+chart-upgrade: export WATERFALL_CHART_CLUSTER ?= waterfall-upgrade-s$(call slot-value,WATERFALL_SLOT)
+chart-upgrade: kube-tools ## Upgrade the chart from the version N (the last published with a chart, or BASE) to the branch under requests none of which may fail, roll back to N on the schema of N+1, upgrade again and see no migration run twice, on a throwaway cluster of kind
+	@$(heavy) $(WFTOOLS).chartupgrade "$(BASE)"
 
 # Keycloak answers before its realm is applied: the application starts once it does, anew at each
 # start, and stays, to apply it again after a restoration (#955). The root of the authority of its

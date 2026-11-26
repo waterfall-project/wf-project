@@ -3,10 +3,10 @@
 import { expect } from "@playwright/test";
 
 import { columnsOf } from "../columns";
-import { idle, PHASE, seedEstimate } from "../estimate-seed";
-import { WORKING } from "../bounds";
+import { idle, PHASE, seedEstimate, TASK } from "../estimate-seed";
+import { PROJECT_MANAGER_PATH, WORKING } from "../bounds";
 import { openHydrated } from "../hydration";
-import { mark } from "../in-progress";
+import { analyseActualCosts, applyReport, mark } from "../in-progress";
 import { inService, test } from "../mode";
 import { openRevision } from "../own-project";
 import { rowAt } from "../scroll";
@@ -15,20 +15,23 @@ import { rowAt } from "../scroll";
 // it creates (WF-INTF-0010-A): priced in the grid of the estimate, its revision marked by the worker
 // and designated as the reference, the code entered to take it In progress — the course of
 // `pricing.spec.ts` — then the screen of the indicators of the revision, which reads the indicators
-// the service serves for this project, not those of the witness. The fake back keeps nothing of the
-// project it is asked to create (`context.spec.ts`), so the path plays against the service alone.
+// the service serves for this project, not those of the witness. Before the marking, the duration of
+// the task is entered in the planning and read again once the screen is opened anew; after the
+// passage In progress, the extraction of the actual costs is imported in two steps from the screen of
+// the exchanges and read on the screen of the actual costs (FLX-07). The fake back keeps nothing of
+// the project it is asked to create (`context.spec.ts`), so the path plays against the service alone.
 
-test("the project manager of the run reads the indicators of a project she creates, prices and takes In progress, its revision marked: the reference budget is the amount priced, the context the revision marked, nothing refused (FBS-4.8) [WF-INTF-0010-A]", async ({
+test("the project manager of the run reads the indicators of a project she creates, plans, prices, takes In progress and imports the actual costs of, its revision marked: the reference budget is the amount priced, nothing refused (FBS-4.8, FLX-07) [WF-INTF-0010-A] [WF-INTF-0140-A] [WF-QUA-0050-A] (path of the project manager)", async ({
   page,
   browser,
   request,
   manager,
 }) => {
   test.skip(!inService, "the fake back keeps nothing of the project it is asked to create");
-  test.slow();
+  test.setTimeout(PROJECT_MANAGER_PATH);
   const main = page.getByRole("main");
 
-  // Priced: a quantity of 4 on the line at 1 000,00, the amount computed by the service.
+  // The project made and its nodes seeded, as a user starts one.
   const seeded = await seedEstimate(
     page,
     browser,
@@ -36,6 +39,26 @@ test("the project manager of the run reads the indicators of a project she creat
     manager,
     "Indicateurs du chef de projet",
   );
+  // Planned: the duration of the task entered in the grid of the planning, then read again once the
+  // planning is opened anew, which proves the service keeps it.
+  await openHydrated(page, seeded.planning);
+  const plan = page.getByRole("treegrid", { name: "Grille de planning" });
+  const during = await columnsOf(plan, { duration: "Durée" });
+  const task = plan.getByRole("row", { name: new RegExp(`^2 .*${TASK}`) });
+  await task.getByRole("gridcell").nth(during.duration).click();
+  await page.keyboard.press("F2");
+  await plan.getByRole("textbox", { name: "Durée" }).fill("8 j");
+  await page.keyboard.press("Enter");
+  await idle(plan);
+  await expect(task.getByRole("gridcell").nth(during.duration)).toContainText("8", {
+    timeout: WORKING,
+  });
+  await openHydrated(page, seeded.planning);
+  await expect(task.getByRole("gridcell").nth(during.duration)).toContainText("8", {
+    timeout: WORKING,
+  });
+
+  // Priced: a quantity of 4 on the line at 1 000,00, the amount computed by the service.
   await openHydrated(page, seeded.estimate);
   const grid = page.getByRole("treegrid", { name: "Grille de devis" });
   const at = await columnsOf(grid, { quantity: "Qté", reference: "Montant (année de réf.)" });
@@ -66,15 +89,29 @@ test("the project manager of the run reads the indicators of a project she creat
   await openHydrated(page, `${seeded.own.path}/settings`);
   await main.getByRole("button", { name: "Modifier le projet" }).click();
   const identity = page.getByRole("dialog", { name: /^Modifier/ });
-  await identity
-    .getByRole("textbox", { name: /^Code projet/ })
-    .fill(`IND-${seeded.own.label.slice(-8).toUpperCase()}`);
+  const code = `IND-${seeded.own.label.slice(-8).toUpperCase()}`;
+  await identity.getByRole("textbox", { name: /^Code projet/ }).fill(code);
   await identity.getByRole("button", { name: "Enregistrer" }).click();
   await expect(identity).toBeHidden({ timeout: WORKING });
   await openHydrated(page, `${seeded.own.path}/lifecycle`);
   await expect(
     main.getByRole("table", { name: "Historique des états" }).getByRole("row").last(),
   ).toContainText("En cours", { timeout: WORKING });
+
+  // The actual costs imported in two steps, the report read then the application confirmed, and
+  // read on the screen of the actual costs (FLX-07, WF-INTF-0140-A).
+  const extracted = "extraction-parcours.xlsx";
+  const report = await analyseActualCosts(page, seeded.revision, extracted, [
+    [code, "FA-0101", "2026-03-02", 1000],
+    [code, "FA-0102", "2026-03-09", 250.5],
+  ]);
+  await expect(report.getByText("2 lignes lues.")).toBeVisible();
+  await applyReport(page, report, extracted);
+  await openHydrated(page, `${seeded.revision}/actual-costs`);
+  await expect(page.getByRole("region", { name: "Totaux des lignes retenues" })).toContainText(
+    /Périmètre suivi\s*1\s250,50\s€/,
+    { timeout: WORKING },
+  );
 
   // A revision opened and marked now, the project In progress: the marking keeps its indicators
   // (the one marked before the passage kept none, which the service refuses with a 409).

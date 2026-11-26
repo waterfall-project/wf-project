@@ -215,6 +215,18 @@ async function listed(grid: Locator): Promise<string[]> {
   );
 }
 
+/**
+ * The backups a grid lists once it holds rows: a page opened on a sort shows its header before
+ * its rows, so a read taken on the header alone finds none (#5005). Read once, then compared to
+ * the order of the service by prefix.
+ */
+async function listedOnceFilled(grid: Locator): Promise<string[]> {
+  await expect(
+    grid.getByRole("link", { name: /^Télécharger la sauvegarde du / }).first(),
+  ).toBeVisible({ timeout: WORKING });
+  return listed(grid);
+}
+
 /** The row of a backup in the grid, known by its download. */
 function rowOf(page: Page, id: string): Locator {
   return page
@@ -332,8 +344,10 @@ test("a backup taken is listed, marked to keep and released, filtered and sorted
     const bySize = (await backups("?sort_by=size_bytes&sort_order=desc")).map(
       (one) => one.backup_id,
     );
-    expect(await listed(grid)).toEqual(bySize.slice(0, (await listed(grid)).length));
+    const bySizeShown = await listedOnceFilled(grid);
+    expect(bySizeShown).toEqual(bySize.slice(0, bySizeShown.length));
     await page.goto(`${BACKUPS}?sort_by=size_bytes&sort_order=asc`);
+    await untilHydrated(page);
     await expect(grid.getByRole("columnheader", { name: /^Taille/ })).toHaveAttribute(
       "aria-sort",
       "ascending",
@@ -341,7 +355,8 @@ test("a backup taken is listed, marked to keep and released, filtered and sorted
     const ascending = (await backups("?sort_by=size_bytes&sort_order=asc")).map(
       (one) => one.backup_id,
     );
-    expect(await listed(grid)).toEqual(ascending.slice(0, (await listed(grid)).length));
+    const ascendingShown = await listedOnceFilled(grid);
+    expect(ascendingShown).toEqual(ascending.slice(0, ascendingShown.length));
 
     // Released: « Ne plus conserver », kept by the service as well.
     await page.goto(BACKUPS);
