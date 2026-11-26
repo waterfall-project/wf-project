@@ -617,3 +617,15 @@ message = 'Exception ignored while finalizing socket <ssl\.SSLSocket'
 runs = [45100723995]
 frequency = "1 passage, le 2026-11-23 (45100723995, #4776)"
 cause = "hypothèse : une connexion TLS vers Keycloak laissée ouverte par un test précédent est finalisée pendant celui-ci"
+
+# L'export PNG de la matrice des risques, dont le téléchargement n'arrive pas dans la file (#5028).
+[[known]]
+class = "known flakiness"
+family = "export PNG de la matrice des risques"
+issue = "#5028"
+job = '^service / paths'
+test = 'e2e/risks\.spec\.ts:235\b'
+message = 'Timeout 1000ms exceeded while waiting for event "download"'
+runs = [45791694546]
+frequency = "1 passage, le 2026-11-26 (45791694546, file d'`epic/EP-13`, pr-5024)"
+cause = "hypothèse : le rendu PNG de la matrice dépasse la seconde que chaque essai du `toPass` donne au téléchargement, et chaque nouveau clic relance un export qui n'aboutit pas"
