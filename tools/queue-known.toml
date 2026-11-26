@@ -345,6 +345,16 @@ cause = "hypothèse : le test n'attend ni son `rerender` ni son `act` ; US-1920/
 
 [[known]]
 class = "known flakiness"
+family = "C. lecture lourde de PRJ-001"
+issue = "#5016"
+job = '^service / paths(?: \(\d+/\d+\))?$'
+test = 'e2e/revisions\.spec\.ts:204\b'
+message = "toHaveURL"
+frequency = "1 passage : 45765660534 (2026-11-26, pr-4994, file d'`epic/EP-13`)"
+cause = "hypothèse : l'adresse de « Comparer » sur le devis de PRJ-001 n'arrive pas dans le délai de `WORKING` sous la charge de la file, comme la lecture lourde de PRJ-001 (#2942) et les comparaisons d'EP-30 (#4911)"
+
+[[known]]
+class = "known flakiness"
 family = "la base fermée pendant la vie de l'API, quand db ne se résout pas"
 issue = "#4981"
 job = "^back / tests"
