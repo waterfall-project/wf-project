@@ -18,8 +18,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from wftools import chart, charttrial, kubetools
-from wftools.charttrial import Tools, Trial, TrialError
+from wftools import chart, chartauthority, chartk3s, charttrial, kubetools
+from wftools.chartrun import TrialError
+from wftools.charttrial import Tools, Trial
 from wftools.kubetools import Binary, ToolError
 from wftools.production import HIDDEN, Answer, Browser, Platform, ProductionError
 
@@ -421,20 +422,26 @@ LEAST_COMMANDS = 20
 LEAST_WORDS = 2
 
 
-def _labelled_calls() -> list[tuple[int, ast.expr | None]]:
-    """List every call of `_must` and `_output` of the module, with the label it passes."""
-    tree = ast.parse(Path(charttrial.__file__).read_text(encoding="utf-8"))
-    calls = [
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Name)
-        and node.func.id in {"_must", "_output"}
-    ]
-    return [
-        (call.lineno, call.args[LABEL_AT] if len(call.args) > LABEL_AT else None)
-        for call in sorted(calls, key=lambda each: each.lineno)
-    ]
+def _labelled_calls() -> list[tuple[str, ast.expr | None]]:
+    """List every call of `must` and `output` of the trial and its modules, with their label."""
+    found: list[tuple[str, ast.expr | None]] = []
+    for module in (charttrial, chartk3s, chartauthority):
+        tree = ast.parse(Path(module.__file__ or "").read_text(encoding="utf-8"))
+        calls = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in {"must", "output"}
+        ]
+        found += [
+            (
+                f"{module.__name__}:{call.lineno}",
+                call.args[LABEL_AT] if len(call.args) > LABEL_AT else None,
+            )
+            for call in sorted(calls, key=lambda each: each.lineno)
+        ]
+    return found
 
 
 def test_every_command_of_the_trial_is_named_by_what_it_is_for() -> None:
@@ -442,14 +449,14 @@ def test_every_command_of_the_trial_is_named_by_what_it_is_for() -> None:
     # A guard against the walk finding nothing: the module runs more than twenty such commands.
     assert len(calls) >= LEAST_COMMANDS
     for line, label in calls:
-        assert label is not None, f"line {line}: the command has no label"
+        assert label is not None, f"{line}: the command has no label"
         # A literal, or an f-string whose literal parts are the words of the label.
         if isinstance(label, ast.Constant):
             words = str(label.value).split()
         else:
-            assert isinstance(label, ast.JoinedStr), f"line {line}: the label is computed"
+            assert isinstance(label, ast.JoinedStr), f"{line}: the label is computed"
             words = " ".join(
                 str(part.value) for part in label.values if isinstance(part, ast.Constant)
             ).split()
-        assert len(words) >= LEAST_WORDS, f"line {line}: {words} does not say what it is for"
+        assert len(words) >= LEAST_WORDS, f"{line}: {words} does not say what it is for"
         assert words[0] not in {"kubectl", "helm", "kind", "openssl", "docker"}, f"line {line}"

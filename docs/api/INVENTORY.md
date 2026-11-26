@@ -147,7 +147,7 @@ Le contrat cite **195 des 224 exigences** de la spécification.
 | PATCH | `/projects/{project_id}/subprojects/{subproject_id}` | Edit a subproject | WF-CRE-0020, WF-DAT-0060, WF-INTF-0140, WF-PRJ-0050 |
 | DELETE | `/projects/{project_id}/subprojects/{subproject_id}` | Delete a subproject | WF-DAT-0070, WF-DAT-0080, WF-IHM-0090, WF-IHM-0110, WF-PRJ-0050, WF-PRJ-0060, WF-RIS-0010 |
 | GET | `/projects/{project_id}/contributors` | Contributors of the project | WF-ADM-0060, WF-IHM-0060, WF-IHM-0110, WF-IHM-0130, WF-PRJ-0060 |
-| PUT | `/projects/{project_id}/contributors` | Register or remove contributors | WF-ADM-0060, WF-ADM-0110, WF-IHM-0110, WF-PRJ-0060 |
+| PUT | `/projects/{project_id}/contributors` | Register or remove contributors | WF-ADM-0060, WF-ADM-0110, WF-IHM-0110, WF-PRJ-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/contributors/suggestions` | Suggested contributors | WF-ADM-0060, WF-PRJ-0070 |
 | GET | `/projects/{project_id}/timelines` | Timelines of the project | WF-PLA-0140 |
 | POST | `/projects/{project_id}/timelines` | Create a timeline | WF-CYC-0100, WF-PLA-0060, WF-PLA-0140 |

@@ -47,6 +47,7 @@ from waterfall.platform.audit import (
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -169,6 +170,25 @@ def inscribed_actor(session: Session, author: UUID | None) -> AuditActor | None:
         .with_for_update(read=True)
     ).one()
     return AuditActor(author, display_name(first_name, last_name))
+
+
+def inscribed_names(session: Session, user_ids: Collection[UUID]) -> dict[UUID, str | None]:
+    """Name accounts as the journal inscribes them as its objects, under a share lock on each.
+
+    The contributors of a project its project managers change (#3988): read as the author is
+    (``inscribed_actor``), in the transaction that inscribes them and after every other lock it
+    may wait for, the rows locked in the order of their identifiers. An anonymisation waits for
+    the inscription, then forgets the name in it, or is waited for, and the name read is null.
+    """
+    if not user_ids:
+        return {}
+    rows = session.execute(
+        select(UserAccount.id, UserAccount.first_name, UserAccount.last_name)
+        .where(UserAccount.id.in_(set(user_ids)))
+        .order_by(UserAccount.id)
+        .with_for_update(read=True)
+    )
+    return {user_id: display_name(first, last) for user_id, first, last in rows}
 
 
 def inscribe(

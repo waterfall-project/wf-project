@@ -5,6 +5,13 @@
 # publishes them, never pushed, then deploy/compose/compose.prod.yaml started on them under a local
 # name, bootstrapped, its API's liveness and the sign-in of its first administrator held
 # (make check-production). images.yml holds it again after each merge, on the images it published.
+#
+# The platform runs bounded to four cores and eight gigabytes of memory, its data components and its
+# supervision — Prometheus, Alertmanager, Grafana — included, as the specification names the machine
+# it deploys on (WF-CMP-0020-A, US-2810): every container, and those of the test of a restoration,
+# runs under a slice of systemd bounded so (wftools.bounded), and the trial that holds it up is the
+# proof that the Compose deploys on such a machine. The memory is swapless: a platform that wants more
+# is killed, the trial fails, and the log says which container.
 name: production
 
 on:
@@ -45,6 +52,8 @@ jobs:
       WATERFALL_GRAFANA_ADMIN_PASSWORD: chain-only-grafana-admin
       # The trial backs the platform up, then restores it, by its API (US-0440, #948).
       WATERFALL_TRIAL_RESTORATION: "1"
+      # The slice the containers of the platform run under, bounded by the step below.
+      WATERFALL_PRODUCTION_CGROUP_PARENT: waterfall-bounded.slice
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -62,6 +71,7 @@ jobs:
           save-cache: false
           cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
+      - uses: ./.github/actions/bound-platform
       - run: make check-production
         env:
           TIER: full

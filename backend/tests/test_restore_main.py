@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import waterfall
+from waterfall.platform.database import Database
 from waterfall.platform.queue import RESTORES, STREAM
 from waterfall.platform.settings import (
     KeycloakSettings,
@@ -27,7 +28,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
-    from waterfall.platform.database import Database
     from waterfall.restore.runner import Restorer
 
 
@@ -93,6 +93,37 @@ def test_with_its_secrets_the_service_runs_the_restorations_of_their_stream(
     assert isinstance(provider, Keycloak)
     assert provider.installation is not provider.service
     assert provider.realm.folder == tmp_path
+
+
+@pytest.mark.requirement("WF-CMP-0020-A")
+@pytest.mark.usefixtures("platform_environment", "logs")
+def test_a_check_of_the_database_that_fails_releases_it_and_the_error_comes_out(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # Not an unreachable server (judged by database_accepted itself) but a fault of the check: the
+    # service releases its connections before the exception leaves, as it does when it refuses.
+    monkeypatch.setenv("WATERFALL_INSTALLATION_CLIENT_SECRET", "installation-secret")
+    monkeypatch.setenv("WATERFALL_REALM_REQUESTS", str(tmp_path))
+    released: list[Database] = []
+
+    def broken(database: Database, name: str) -> bool:
+        del database, name
+        message = "the check broke"
+        raise RuntimeError(message)
+
+    def dispose(database: Database) -> None:
+        released.append(database)
+
+    def keep_logs(*arguments: object, **keywords: object) -> None:
+        del arguments, keywords
+
+    # The logs stay those of the fixture: main would point them at the error output of the test.
+    monkeypatch.setattr(restore_main, "configure_logging", keep_logs)
+    monkeypatch.setattr(restore_main, "database_accepted", broken)
+    monkeypatch.setattr(Database, "dispose", dispose)
+    with pytest.raises(RuntimeError, match="the check broke"):
+        restore_main.main([])
+    assert len(released) == 1
 
 
 # The ephemeral platform of a test of a restoration, its databases and its API, as Compose has them.
