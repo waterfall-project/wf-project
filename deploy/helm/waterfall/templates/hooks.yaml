@@ -113,6 +113,32 @@ spec:
             - name: files
               mountPath: /files
             {{- include "waterfall.trustMount" . | nindent 12 }}
+        # The components, before the migrations (WF-CMP-0020-A, US-2810): PostgreSQL, Redis and
+        # Keycloak are of the version Waterfall requires, or the Job fails and its log says which
+        # is not (service components of compose.prod.yaml). Before each upgrade, all three are
+        # there. At the installation the Redis and the Keycloak of the chart are not yet — Keycloak
+        # waits for its database, made above, then for its realm, applied after the migrations —
+        # and they are the images the chart pins: PostgreSQL is checked, and Redis when the
+        # operator provides it.
+        - name: components
+          image: {{ include "waterfall.image" (list . "waterfall") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
+          command:
+            - waterfall-check-components
+            {{- if .Release.IsInstall }}
+            - --component
+            - postgresql
+            {{- if not .Values.redis.enabled }}
+            - --component
+            - redis
+            {{- end }}
+            {{- end }}
+          env:
+            {{- include "waterfall.backEnvironment" (list . "owner") | nindent 12 }}
+            {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}
+          volumeMounts:
+            {{- include "waterfall.trustMount" . | nindent 12 }}
         # The migrations, as the owner of the tables (#701, WF-DAT-0140).
         - name: migrate
           image: {{ include "waterfall.image" (list . "waterfall") }}

@@ -276,6 +276,7 @@ def test_the_migrations_run_in_the_order_of_the_compose_as_the_roles_it_names(
         "waterfall-database",
         "keycloak-database",
         "backup-database-role",
+        "components",
         "migrate",
         "service-database-role",
     ]

@@ -49,7 +49,8 @@ def test_each_container_that_serves_waits_before_it_is_stopped(
         waiting = {
             container["name"]
             for container in spec["containers"]
-            if container.get("lifecycle") == {"preStop": {"sleep": {"seconds": DRAIN}}}
+            if container.get("lifecycle")
+            == {"preStop": {"exec": {"command": ["sleep", str(DRAIN)]}}}
         }
         assert waiting == serving, component
 

@@ -10,7 +10,7 @@ name: waterfall
 description: Waterfall, the management of projects by their estimate, on Kubernetes
 type: application
 version: 0.1.0
-# The drain of the pods that serve waits by a preStop of kind sleep (waterfall.drain), which
-# Kubernetes knows from 1.30.
-kubeVersion: ">=1.30.0-0"
+# The version of Kubernetes the chart requires (WF-CMP-0020-A, the specification: at least 1.27).
+# Helm refuses to install it on an older cluster, and says so.
+kubeVersion: ">=1.27.0-0"
 appVersion: "0.1.0"
