@@ -72,8 +72,54 @@ PROVIDER_TABLES = (
     "CREATE TABLE credential (id text PRIMARY KEY, user_id text, user_label text)",
     "CREATE TABLE event_entity (id text PRIMARY KEY, realm_id text, details_json text)",
     "CREATE TABLE admin_event_entity (id text PRIMARY KEY, realm_id text, representation text)",
+    (
+        "CREATE TABLE component (id text PRIMARY KEY, name text, parent_id text,"
+        " provider_id text, provider_type text, realm_id text)"
+    ),
+    (
+        "CREATE TABLE component_config (id text PRIMARY KEY,"
+        " component_id text NOT NULL REFERENCES component (id), name text, value text)"
+    ),
+    (
+        "CREATE TABLE identity_provider (internal_id text PRIMARY KEY, provider_alias text,"
+        " realm_id text)"
+    ),
+    (
+        "CREATE TABLE identity_provider_config (identity_provider_id text NOT NULL"
+        " REFERENCES identity_provider (internal_id), name text, value text)"
+    ),
+    ("CREATE TABLE identity_provider_mapper (id text PRIMARY KEY, idp_alias text, realm_id text)"),
+    (
+        "CREATE TABLE idp_mapper_config (idp_mapper_id text NOT NULL"
+        " REFERENCES identity_provider_mapper (id), name text, value text)"
+    ),
 )
 THE_REALM, OTHER_REALM = "r-1", "r-2"
+# A directory of the production, and the account a federation binds to it as.
+DIRECTORY = "ldaps://annuaire.entreprise.example"
+BINDING = "cn=lecteur,dc=entreprise,dc=example"
+# What ties a realm to the outside, and the components it holds besides: the provider of its keys.
+OUTSIDE = (
+    text(
+        "SELECT component.realm_id, component.name, component.provider_type, config.name,"
+        " config.value FROM component"
+        " LEFT JOIN component_config AS config ON config.component_id = component.id"
+        " WHERE component.realm_id = :realm ORDER BY 2, 4"
+    ),
+    text(
+        "SELECT provider.provider_alias, config.name, config.value FROM identity_provider"
+        " AS provider JOIN identity_provider_config AS config"
+        " ON config.identity_provider_id = provider.internal_id"
+        " WHERE provider.realm_id = :realm ORDER BY 1, 2"
+    ),
+    text(
+        "SELECT mapper.idp_alias, config.name, config.value FROM identity_provider_mapper"
+        " AS mapper JOIN idp_mapper_config AS config ON config.idp_mapper_id = mapper.id"
+        " WHERE mapper.realm_id = :realm ORDER BY 1, 2"
+    ),
+)
+FEDERATION = "org.keycloak.storage.UserStorageProvider"
+KEYS = "org.keycloak.keys.KeyProvider"
 PERSONS_OF_THE_REALM = text(
     "SELECT id, username, email, email_constraint, email_verified, first_name, last_name,"
     " enabled, federation_link FROM user_entity"
@@ -157,7 +203,56 @@ def copy(witness: Database, owner: Engine, provider: Engine) -> list[Person]:
             ),
             {"realm": THE_REALM},
         )
+        for realm in (THE_REALM, OTHER_REALM):
+            _outside(connection, realm)
     return copied
+
+
+def _outside(connection: Connection, realm: str) -> None:
+    """Tie a realm to a directory, by a federation and its mapper, and to an external provider.
+
+    Beside them, the provider of its keys, a component of its own.
+    """
+    federation, mapper, keys, provider, provider_mapper = (f"{realm}-{n}" for n in range(5))
+    components = (
+        (federation, "annuaire", realm, "ldap", FEDERATION),
+        (mapper, "email", federation, "user-attribute-ldap-mapper", f"{FEDERATION}.mapper"),
+        (keys, "rsa", realm, "rsa-generated", KEYS),
+    )
+    for values in components:
+        connection.execute(
+            text("INSERT INTO component VALUES (:id, :name, :parent, :provider, :kind, :realm)"),
+            dict(zip(("id", "name", "parent", "provider", "kind"), values, strict=True))
+            | {"realm": realm},
+        )
+    configs = (
+        (federation, "connectionUrl", DIRECTORY),
+        (federation, "bindDn", BINDING),
+        (federation, "bindCredential", "secret-de-liaison"),
+        (mapper, "ldap.attribute", "mail"),
+        (keys, "priority", "100"),
+    )
+    for component, name, value in configs:
+        connection.execute(
+            text("INSERT INTO component_config VALUES (:id, :component, :name, :value)"),
+            {"id": str(uuid4()), "component": component, "name": name, "value": value},
+        )
+    connection.execute(
+        text("INSERT INTO identity_provider VALUES (:id, 'entreprise', :realm)"),
+        {"id": provider, "realm": realm},
+    )
+    connection.execute(
+        text("INSERT INTO identity_provider_config VALUES (:id, 'clientSecret', 'secret-sso')"),
+        {"id": provider},
+    )
+    connection.execute(
+        text("INSERT INTO identity_provider_mapper VALUES (:id, 'entreprise', :realm)"),
+        {"id": provider_mapper, "realm": realm},
+    )
+    connection.execute(
+        text("INSERT INTO idp_mapper_config VALUES (:id, 'claim', 'email')"),
+        {"id": provider_mapper},
+    )
 
 
 def _persons(connection: Connection) -> list[UUID]:
@@ -255,14 +350,18 @@ def _provider_person(connection: Connection, realm: str, person: Person) -> None
 
 
 def _anonymize(
-    monkeypatch: pytest.MonkeyPatch, database_url: str, provider: Engine, realm: str = REALM
+    monkeypatch: pytest.MonkeyPatch,
+    database_url: str,
+    provider: Engine,
+    realm: str = REALM,
+    arguments: tuple[str, ...] = (anonymization.CONFIRMATION,),
 ) -> int:
-    """Run the command on the two databases, as the operator does."""
+    """Run the command on the two databases, as the operator does, told they are a copy's."""
     monkeypatch.setenv("WATERFALL_DATABASE_URL", database_url)
     url = provider.url.render_as_string(hide_password=False)
     monkeypatch.setenv("WATERFALL_KEYCLOAK_DATABASE_URL", url)
     monkeypatch.setenv("WATERFALL_KEYCLOAK_REALM", realm)
-    return restore_main.main([anonymization.COMMAND])
+    return restore_main.main([anonymization.COMMAND, *arguments])
 
 
 def _needles(copy: list[Person]) -> set[str]:
@@ -451,6 +550,87 @@ def test_a_realm_the_provider_does_not_hold_stops_it_before_anything_changes(
 
 
 @pytest.mark.story("US-2960")
+def test_the_realm_is_cut_off_from_its_directory_and_its_external_providers(
+    copy: list[Person],
+    database_url: str,
+    provider: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Proper to US-2960: opened, the copy would read the directory of the production again — its
+    # persons imported anew, by the account it binds as — or sign in through its provider. The
+    # federation of the realm goes, its mapper and its settings with it, and its external provider
+    # with its own; the provider of its keys stays, and another realm is left as it was.
+    assert copy
+    with provider.connect() as connection:
+        of_the_realm = [_rows_of(connection, query, THE_REALM) for query in OUTSIDE]
+        elsewhere = [_rows_of(connection, query, OTHER_REALM) for query in OUTSIDE]
+    assert {DIRECTORY, BINDING} <= {row[-1] for row in of_the_realm[0]}
+    assert all(of_the_realm[1:])
+    assert _anonymize(monkeypatch, database_url, provider) == 0
+    with provider.connect() as connection:
+        assert [_rows_of(connection, query, THE_REALM) for query in OUTSIDE] == [
+            [(THE_REALM, "rsa", KEYS, "priority", "100")],
+            [],
+            [],
+        ]
+        assert [_rows_of(connection, query, OTHER_REALM) for query in OUTSIDE] == elsewhere
+
+
+def _rows_of(connection: Connection, query: TextClause, realm: str) -> list[tuple[object, ...]]:
+    """Give the rows of a query of the stand-in about one realm, as tuples."""
+    return [tuple(row) for row in connection.execute(query, {"realm": realm})]
+
+
+@pytest.mark.story("US-2960")
+@pytest.mark.usefixtures("copy")
+@pytest.mark.parametrize("arguments", [(), ("--yes",), (anonymization.CONFIRMATION, "--again")])
+def test_unless_told_the_databases_are_a_copy_it_changes_nothing(
+    owner: Engine,
+    database_url: str,
+    provider: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    arguments: tuple[str, ...],
+) -> None:
+    # Proper to US-2960: the service of the restoration holds the databases of the production too;
+    # run there by mistake, the command would anonymise the production for good. It changes
+    # nothing unless told, in so many words, that they are a copy's (2).
+    before = (held_by_table(owner), held_by_table(provider))
+    assert _anonymize(monkeypatch, database_url, provider, arguments=arguments) == 2
+    assert (held_by_table(owner), held_by_table(provider)) == before
+
+
+@pytest.mark.story("US-2960")
+def test_unless_told_the_databases_are_a_copy_it_says_how_to_tell_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Proper to US-2960: refused, the command says the argument that tells it, before it reads
+    # any setting.
+    assert restore_main.main([anonymization.COMMAND]) == 2
+    assert anonymization.CONFIRMATION in capsys.readouterr().err
+
+
+@pytest.mark.story("US-2960")
+@pytest.mark.usefixtures("copy")
+def test_the_realm_of_the_administration_of_keycloak_is_refused(
+    owner: Engine,
+    database_url: str,
+    provider: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Proper to US-2960: ``master`` holds the administrators of Keycloak, no installation's
+    # persons; disabling them would leave Keycloak without a way to be administered. Named in the
+    # settings, it stops the command at start, nothing changed (2).
+    with provider.begin() as connection:
+        connection.execute(text("INSERT INTO realm VALUES ('r-master', 'master')"))
+        _provider_person(connection, "r-master", ("Admin", "Keycloak", "admin@waterfall.test"))
+    before = (held_by_table(owner), held_by_table(provider))
+    assert _anonymize(monkeypatch, database_url, provider, realm="master") == 2
+    assert "WATERFALL_KEYCLOAK_REALM: " in capsys.readouterr().err
+    assert (held_by_table(owner), held_by_table(provider)) == before
+
+
+@pytest.mark.story("US-2960")
 def test_without_its_databases_the_command_stops_naming_them(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -458,7 +638,7 @@ def test_without_its_databases_the_command_stops_naming_them(
     # base and not the other.
     monkeypatch.delenv("WATERFALL_DATABASE_URL", raising=False)
     monkeypatch.delenv("WATERFALL_KEYCLOAK_DATABASE_URL", raising=False)
-    assert restore_main.main([anonymization.COMMAND]) == 2
+    assert restore_main.main([anonymization.COMMAND, anonymization.CONFIRMATION]) == 2
     error = capsys.readouterr().err
     assert "WATERFALL_DATABASE_URL: is missing" in error
     assert "WATERFALL_KEYCLOAK_DATABASE_URL: is missing" in error

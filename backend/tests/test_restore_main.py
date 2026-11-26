@@ -35,7 +35,7 @@ def test_the_version_is_stated_without_starting_anything(
 def test_any_argument_but_the_version_is_refused(capsys: pytest.CaptureFixture[str]) -> None:
     assert restore_main.main(["restore"]) == 2
     assert capsys.readouterr().err.startswith(
-        "usage: waterfall-restore [--version | test | anonymize]\n"
+        "usage: waterfall-restore [--version | test | anonymize --yes-this-is-a-copy]\n"
     )
 
 

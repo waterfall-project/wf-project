@@ -7,7 +7,9 @@ preproduction — only once its accounts designate nobody: restored, anonymised,
 command runs between the restoration and the opening, the API, the worker and Keycloak stopped. It
 reads ``WATERFALL_DATABASE_URL`` and ``WATERFALL_KEYCLOAK_DATABASE_URL``, the owners of the two
 databases, and ``WATERFALL_KEYCLOAK_REALM``, the realm of the installation; a setting that lacks
-stops it at start, named (2).
+stops it at start, named (2), and so does ``master``, the realm of the administration of Keycloak.
+Its databases being those of the production too, it changes nothing unless told, by
+``--yes-this-is-a-copy``, that they are a copy's: without it, it stops at start (2).
 
 It anonymises each database in one transaction, the provider's first:
 
@@ -17,7 +19,11 @@ It anonymises each database in one transaction, the provider's first:
   name, which becomes that identifier, her names, her address, her attributes, her links to an
   external provider or to the directory, her credentials and her consents; she is disabled. The
   events of the realm, of sign-in and of administration, which copy names and addresses, and its
-  sessions, are deleted. A table that the version of Keycloak does not have is passed over;
+  sessions, are deleted. The realm is cut off from what is outside it: its federations of users —
+  a directory, with their mappers and their settings, the account they bind as among them — and
+  its external identity providers, with their mappers, are removed, lest the copy opened read the
+  directory of the production again, or sign in through its provider. A table that the version of
+  Keycloak does not have is passed over;
 - **Waterfall's**, the migrations applied first: every account anonymised at once, by the rules of
   the anonymisation of one account, and the journal of audit forgets their names
   (``anonymize_every_account``, WF-ADM-0060, WF-SEC-0030).
@@ -46,9 +52,13 @@ from waterfall.platform.settings import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from sqlalchemy import Connection
 
 COMMAND = "anonymize"
+# What tells the command that the databases it is given are those of a copy, not the production's.
+CONFIRMATION = "--yes-this-is-a-copy"
 
 logger = get_logger(__name__)
 
@@ -130,6 +140,68 @@ FORGOTTEN: tuple[tuple[str, str], ...] = (
     ("offline_user_session", "DELETE FROM offline_user_session WHERE realm_id = :realm"),
     ("login_failure", "DELETE FROM login_failure WHERE realm_id = :realm"),
 )
+# What ties the realm to the outside, removed: its federations of users, which would read the
+# directory of the production again and import its persons, with their settings — the address of
+# the directory and the account it binds as among them —, then its external identity providers,
+# with their mappers and their settings. A federation — a directory, or Kerberos — is a component
+# of the realm, under which its mappers lie, at any depth. Their former shape, kept by Keycloak
+# beside the components, goes too. Given as the persons' are.
+DETACHED: tuple[tuple[str, str], ...] = (
+    (
+        "component_config",
+        (
+            "WITH RECURSIVE federation(id) AS (SELECT id FROM component WHERE realm_id = :realm"
+            " AND provider_type = 'org.keycloak.storage.UserStorageProvider'"
+            " UNION SELECT component.id FROM component"
+            " JOIN federation ON component.parent_id = federation.id) "
+            "DELETE FROM component_config WHERE component_id IN (SELECT id FROM federation)"
+        ),
+    ),
+    (
+        "component",
+        (
+            "WITH RECURSIVE federation(id) AS (SELECT id FROM component WHERE realm_id = :realm"
+            " AND provider_type = 'org.keycloak.storage.UserStorageProvider'"
+            " UNION SELECT component.id FROM component"
+            " JOIN federation ON component.parent_id = federation.id) "
+            "DELETE FROM component WHERE id IN (SELECT id FROM federation)"
+        ),
+    ),
+    (
+        "user_federation_mapper_config",
+        (
+            "DELETE FROM user_federation_mapper_config WHERE user_federation_mapper_id IN "
+            "(SELECT id FROM user_federation_mapper WHERE realm_id = :realm)"
+        ),
+    ),
+    ("user_federation_mapper", "DELETE FROM user_federation_mapper WHERE realm_id = :realm"),
+    (
+        "user_federation_config",
+        (
+            "DELETE FROM user_federation_config WHERE user_federation_provider_id IN "
+            "(SELECT id FROM user_federation_provider WHERE realm_id = :realm)"
+        ),
+    ),
+    ("user_federation_provider", "DELETE FROM user_federation_provider WHERE realm_id = :realm"),
+    # The links of the persons of a directory the realm does not import, to an external provider.
+    ("broker_link", "DELETE FROM broker_link WHERE realm_id = :realm"),
+    (
+        "idp_mapper_config",
+        (
+            "DELETE FROM idp_mapper_config WHERE idp_mapper_id IN "
+            "(SELECT id FROM identity_provider_mapper WHERE realm_id = :realm)"
+        ),
+    ),
+    ("identity_provider_mapper", "DELETE FROM identity_provider_mapper WHERE realm_id = :realm"),
+    (
+        "identity_provider_config",
+        (
+            "DELETE FROM identity_provider_config WHERE identity_provider_id IN "
+            "(SELECT internal_id FROM identity_provider WHERE realm_id = :realm)"
+        ),
+    ),
+    ("identity_provider", "DELETE FROM identity_provider WHERE realm_id = :realm"),
+)
 # The account of a person: her identifier stays, and names her user name; nothing else names her.
 ANONYMIZED = text(
     "UPDATE user_entity SET username = id, email = NULL, email_constraint = id, "
@@ -140,8 +212,18 @@ ANONYMIZED = text(
 EXISTS = text("SELECT to_regclass(:table) IS NOT NULL")
 
 
-def main() -> int:
-    """Anonymise the copy the settings designate; say why not, a setting that lacks returning 2."""
+def main(arguments: Sequence[str] = ()) -> int:
+    """Anonymise the copy the settings designate; say why not, a setting that lacks returning 2.
+
+    ``arguments`` are those after the command: ``--yes-this-is-a-copy`` alone, without which it
+    changes nothing and returns 2.
+    """
+    if list(arguments) != [CONFIRMATION]:
+        sys.stderr.write(
+            f"waterfall-restore {COMMAND}: changes the databases it is given for good; "
+            f"run it on a copy restored alone, with {CONFIRMATION}\n"
+        )
+        return 2
     try:
         settings = load_anonymization_settings()
     except SettingsError as error:
@@ -186,12 +268,13 @@ def anonymize(settings: AnonymizationSettings) -> int:
 def anonymize_realm(connection: Connection, realm: str) -> int | None:
     """Anonymise every person of ``realm`` in the database of the provider; give how many.
 
-    ``None`` if the database holds no such realm, nothing changed.
+    The realm is cut off from its federations of users and its external providers. ``None`` if the
+    database holds no such realm, nothing changed.
     """
     realm_id = connection.execute(REALM, {"name": realm}).scalar()
     if realm_id is None:
         return None
-    for table, statement in FORGOTTEN:
+    for table, statement in (*FORGOTTEN, *DETACHED):
         if connection.execute(EXISTS, {"table": table}).scalar():
             connection.execute(text(statement), {"realm": realm_id})
     persons = connection.execute(COUNT, {"realm": realm_id}).scalar_one()

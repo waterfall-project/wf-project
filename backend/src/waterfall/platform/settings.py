@@ -49,6 +49,8 @@ class SettingsError(Exception):
 
 
 MIN_DECODED_LENGTH = 4
+# The realm of the administration of Keycloak, which no installation is (US-2960).
+ADMINISTRATION_REALM = "master"
 
 
 def _url_secrets(value: str) -> list[str]:
@@ -738,6 +740,14 @@ class RestoreTestSettings(StorageSettings):
         ]
 
 
+def _not_the_administration_realm(realm: str) -> str:
+    """Keep a realm of an installation; refuse ``master``, the administration's of Keycloak."""
+    if realm == ADMINISTRATION_REALM:
+        message = f"{realm} is the realm of the administration of Keycloak, not of an installation"
+        raise ValueError(message)
+    return realm
+
+
 class AnonymizationSettings(PlatformSettings):
     """What the anonymisation of a copy of the production reads, ``waterfall-restore anonymize``.
 
@@ -745,12 +755,15 @@ class AnonymizationSettings(PlatformSettings):
     applies the migrations and alone may delete the reports of the readings of the accounts;
     ``keycloak_database_url`` the owner of the database of the identity provider, whose tables it
     changes, Keycloak stopped; ``keycloak_realm`` the realm of the installation, whose accounts it
-    anonymises. The service of the restoration holds the three. It reaches neither Redis nor
+    anonymises — never ``master``, the realm of the administration of Keycloak, whose accounts
+    administer it. The service of the restoration holds the three. It reaches neither Redis nor
     Keycloak.
     """
 
     keycloak_database_url: SecretStr = Field(min_length=1)
-    keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
+    keycloak_realm: Annotated[
+        str, Field(pattern="^[A-Za-z0-9_-]+$"), AfterValidator(_not_the_administration_realm)
+    ] = "waterfall"
 
 
 class ComponentsSettings(Settings, KeycloakSettings):

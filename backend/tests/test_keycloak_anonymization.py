@@ -5,10 +5,12 @@
 A realm of its own is made on the Keycloak of the platform, which keeps the events of its sign-ins
 and of its administration, relays to an external provider and locks out on failures; its persons
 have a password labelled with their name, an attribute that names them, a link to the external
-provider, a session, and events that copy their names and their addresses. The command's
-anonymisation of the provider is then run on the database of Keycloak for that realm alone, and a
-search of every column of text or of JSON of every table finds none of their names nor of their
-addresses. The realm is removed after, whatever happens. Run by ``make test-keycloak``, with the
+provider, a session, and events that copy their names and their addresses. It reads a directory
+too, by a federation of users. The command's anonymisation of the provider is then run on the
+database of Keycloak for that realm alone: a search of every column of text or of JSON of every
+table finds none of their names nor of their addresses, each person is disabled and named by her
+identifier, and the realm holds neither its federation nor its external provider. The realm is
+removed after, whatever happens. Run by ``make test-keycloak``, with the
 variables of ``test_keycloak_platform.py``; the database of Keycloak is reached on the server of
 ``WATERFALL_TEST_DATABASE_URL``, as its superuser.
 """
@@ -36,12 +38,51 @@ pytestmark = pytest.mark.keycloak
 
 CLIENT = "anonymization-direct"
 PROVIDER = "elsewhere"
+FEDERATION = "org.keycloak.storage.UserStorageProvider"
+# The account a federation binds to the directory as.
+BINDING = "cn=lecteur,dc=entreprise,dc=example"
 # How long the realm may take to keep a session it opened, in seconds.
 PATIENCE = 10
 SESSIONS = text(
     "SELECT count(*) FROM offline_user_session"
     " JOIN realm ON realm.id = offline_user_session.realm_id WHERE realm.name = :realm"
 )
+PERSONS = text(
+    "SELECT user_entity.id, user_entity.username, user_entity.enabled FROM user_entity"
+    " JOIN realm ON realm.id = user_entity.realm_id"
+    " WHERE realm.name = :realm AND user_entity.service_account_client_link IS NULL"
+)
+# What ties the realm to the outside, counted: its federations of users and what lies under them,
+# with their settings, and its external providers and their mappers, with theirs.
+OUTSIDE = text(
+    "WITH RECURSIVE "
+    "the_realm AS (SELECT id FROM realm WHERE name = :realm), "
+    "federation(id) AS (SELECT id FROM component WHERE realm_id = (SELECT id FROM the_realm)"
+    " AND provider_type = :federation"
+    " UNION SELECT component.id FROM component"
+    " JOIN federation ON component.parent_id = federation.id), "
+    "provider AS (SELECT internal_id FROM identity_provider"
+    " WHERE realm_id = (SELECT id FROM the_realm)), "
+    "mapper AS (SELECT id FROM identity_provider_mapper"
+    " WHERE realm_id = (SELECT id FROM the_realm)) "
+    "SELECT (SELECT count(*) FROM federation),"
+    " (SELECT count(*) FROM component_config WHERE component_id IN (SELECT id FROM federation)),"
+    " (SELECT count(*) FROM provider),"
+    " (SELECT count(*) FROM identity_provider_config"
+    " WHERE identity_provider_id IN (SELECT internal_id FROM provider)),"
+    " (SELECT count(*) FROM mapper),"
+    " (SELECT count(*) FROM idp_mapper_config WHERE idp_mapper_id IN (SELECT id FROM mapper))"
+)
+
+
+def _provider_host(realm: str) -> str:
+    """Give the host of the external provider of a realm, its own."""
+    return f"{realm}.provider.waterfall.test"
+
+
+def _directory_host(realm: str) -> str:
+    """Give the host of the directory a realm reads, its own."""
+    return f"{realm}.annuaire.entreprise.example"
 
 
 def _realm_of(name: str) -> dict[str, Any]:
@@ -60,8 +101,8 @@ def _realm_of(name: str) -> dict[str, Any]:
                 "providerId": "oidc",
                 "enabled": True,
                 "config": {
-                    "authorizationUrl": "https://provider.waterfall.test/auth",
-                    "tokenUrl": "https://provider.waterfall.test/token",
+                    "authorizationUrl": f"https://{_provider_host(name)}/auth",
+                    "tokenUrl": f"https://{_provider_host(name)}/token",
                     "clientId": "waterfall",
                     "clientSecret": "not-a-secret",
                     "clientAuthMethod": "client_secret_post",
@@ -168,15 +209,18 @@ def _kept_sessions(provider: Engine, realm: str, count: int) -> None:
         time.sleep(0.2)
 
 
+@pytest.mark.requirement("WF-EXP-0010-A")
 @pytest.mark.story("US-2960")
 def test_no_name_and_no_address_of_a_person_of_the_realm_is_left_in_the_database_of_keycloak(
     realm: str, provider: Engine
 ) -> None:
-    # Proper to US-2960: « une commande anonymise une sauvegarde restaurée […] dans [la base] du
-    # fournisseur d'identité » ; « après l'anonymisation, une recherche des adresses et des noms de
-    # la source dans les deux bases ne trouve rien » — here, the base of Keycloak as Keycloak keeps
-    # it: its accounts, attributes, credentials, links, sessions, and events of sign-in and of
-    # administration.
+    # « Aucun environnement hors production ne contient une adresse électronique réelle, hors
+    # l'environnement isolé du test de restauration. » : for a copy of the production, by its
+    # anonymisation, on the base of Keycloak as Keycloak keeps it. Proper to US-2960: « une
+    # commande anonymise une sauvegarde restaurée […] dans [la base] du fournisseur d'identité » ;
+    # « après l'anonymisation, une recherche des adresses et des noms de la source dans les deux
+    # bases ne trouve rien » — its accounts, attributes, credentials, links, sessions, and events
+    # of sign-in and of administration; each person disabled, her user name her identifier.
     suffix = uuid4().hex[:8]
     named = [
         (f"Quillardet{suffix}", f"Zephyrine{suffix}"),
@@ -203,3 +247,74 @@ def test_no_name_and_no_address_of_a_person_of_the_realm_is_left_in_the_database
     with provider.begin() as connection:
         assert anonymize_realm(connection, realm) == len(named)
     assert found(provider, needles) == {}
+    with provider.connect() as connection:
+        persons = connection.execute(PERSONS, {"realm": realm}).all()
+    assert len(persons) == len(named)
+    assert all(username == subject and not enabled for subject, username, enabled in persons)
+
+
+def _outside(admin: httpx2.Client, realm: str) -> None:
+    """Tie ``realm`` to a directory, by a federation of users, and map a claim of its provider.
+
+    The federation is enabled and imports the persons it reads; Keycloak makes its mappers.
+    """
+    federation = {
+        "name": "annuaire",
+        "providerId": "ldap",
+        "providerType": FEDERATION,
+        "config": {
+            "enabled": ["true"],
+            "vendor": ["other"],
+            "editMode": ["READ_ONLY"],
+            "importEnabled": ["true"],
+            "connectionUrl": [f"ldap://{_directory_host(realm)}"],
+            "authType": ["simple"],
+            "bindDn": [BINDING],
+            "bindCredential": ["not-a-secret"],
+            "usersDn": ["ou=people,dc=entreprise,dc=example"],
+            "usernameLDAPAttribute": ["uid"],
+            "rdnLDAPAttribute": ["uid"],
+            "uuidLDAPAttribute": ["entryUUID"],
+            "userObjectClasses": ["inetOrgPerson"],
+        },
+    }
+    made = admin.post("/components", json=federation)
+    assert made.status_code == 201, made.text
+    mapper = {
+        "name": "courriel",
+        "identityProviderAlias": PROVIDER,
+        "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+        "config": {"claim": "email", "user.attribute": "email", "syncMode": "INHERIT"},
+    }
+    mapped = admin.post(f"/identity-provider/instances/{PROVIDER}/mappers", json=mapper)
+    assert mapped.status_code == 201, mapped.text
+
+
+@pytest.mark.story("US-2960")
+def test_the_realm_is_left_tied_to_neither_its_directory_nor_its_external_provider(
+    realm: str, provider: Engine
+) -> None:
+    # Proper to US-2960: opened, the copy would read the directory of the production again — its
+    # persons imported anew, names and addresses, by the account it binds as — or let them sign in
+    # through the provider of the production. The realm loses its federation of users, the mappers
+    # Keycloak made under it and their settings, and its external provider, its mapper and their
+    # settings: the address of the directory, the account it binds as and the address of the
+    # provider are found nowhere after.
+    with _administering(f"/{realm}") as admin:
+        _outside(admin, realm)
+    outside = {_directory_host(realm), BINDING, _provider_host(realm)}
+    counted = {"realm": realm, "federation": FEDERATION}
+    with provider.connect() as connection:
+        federations, settings, *providers = connection.execute(OUTSIDE, counted).one()
+    # The federation, and the mappers Keycloak made under it.
+    assert federations > 1
+    assert settings > 0
+    assert all(providers), providers
+    assert {"public.component_config.value", "public.identity_provider_config.value"} <= set(
+        found(provider, outside)
+    )
+    with provider.begin() as connection:
+        anonymize_realm(connection, realm)
+    with provider.connect() as connection:
+        assert tuple(connection.execute(OUTSIDE, counted).one()) == (0,) * 6
+    assert found(provider, outside) == {}
