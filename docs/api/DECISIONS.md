@@ -13054,12 +13054,13 @@ un écran que le service sert depuis EP-03.
 
 ### Les chefs de projet au journal d'audit, le contributeur pour objet (US-2980/L1, #4127, #3988)
 
-Les noms sont ceux de la conception d'EP-13 (« Modifications du contrat »), validée par l'auteur
-avec le plan de lots le 2026-11-19, qui rattache #4127 à ce lot (#4127, commentaire 7200145334) :
-la spécification 1.0.7 ajoute à WF-SEC-0030 « l'inscription, le retrait et le changement de
-qualité d'un chef de projet (WF-PRJ-0060) », que le contrat figé ne savait pas dire (« La règle d'après le gel »). `info.version` reste `1.0.0` : quatre
-valeurs d'énumération et trois exemples de plus ; aucune propriété ne change, aucune n'est exigée
-de plus.
+La spécification 1.0.7 ajoute à WF-SEC-0030 « l'inscription, le retrait et le changement de
+qualité d'un chef de projet (WF-PRJ-0060) », que le contrat figé ne savait pas dire (« La règle
+d'après le gel »). Les noms sont ceux que la conception d'EP-13 propose (« Modifications du
+contrat »), dans le plan de lots que l'auteur a validé le 2026-11-19 ; le lot les retient. L'auteur
+ne les a pas tranchés un à un : il est invité à objecter sur #4127 avant la fusion du lot.
+`info.version` reste `1.0.0` : quatre valeurs d'énumération et trois exemples de plus ; aucune
+propriété ne change, aucune n'est exigée de plus.
 
 - **`AuditAction`** reçoit `project_manager_add`, `project_manager_remove` et
   `project_manager_change`, rangées après `project_exit`, dans l'ordre où WF-SEC-0030 les nomme —
