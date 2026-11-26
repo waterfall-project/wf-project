@@ -622,17 +622,6 @@ cause = "hypothèse : une connexion TLS vers Keycloak laissée ouverte par un te
 
 [[known]]
 class = "known flakiness"
-family = "le retour au projet depuis les paramètres de coûts, au-delà des 30 s d'un test"
-issue = "#5021"
-job = "^service / paths"
-test = 'e2e/navigation\.spec\.ts:84\b'
-message = "Test timeout of 30000ms exceeded"
-runs = [45780553745]
-frequency = "1 passage : 45780553745 (2026-11-26, pr-5001), d'`epic/EP-13`"
-cause = "hypothèse : la somme des lectures de service du parcours (risques de PRJ-001, paramètres de coûts, deux fois chacun) frôle les 30 s d'un test sous la charge de la file, comme l'ancienne forme du parcours (#4714)"
-
-[[known]]
-class = "known flakiness"
 family = "la sonde de la base encore en échec après sa reprise"
 issue = "#5023"
 job = "^back / tests"
