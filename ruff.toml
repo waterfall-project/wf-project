@@ -76,6 +76,11 @@ convention = "pep257"
     "S603",    # tests run the repository's own commands
     "S607",
 ]
+# The backup runs pg_dump, its own command, and passes it one value: the snapshot PostgreSQL
+# exported for the state it counted (#4572). S603 refuses any argument that is not a literal.
+"backend/src/waterfall/worker/backup.py" = [
+    "S603", # it runs pg_dump, its own command; the one value it passes is the snapshot PostgreSQL exported
+]
 # FastAPI reads at run time the annotations of a route handler (the parameters, the body,
 # the response) and of a dependency (`authentication`, `evaluation`): their imports stay
 # real imports. Ruff cannot tell the handlers of a local `router = APIRouter()`, so each

@@ -93,6 +93,55 @@ def test_the_time_zone_is_read_from_the_row_of_the_installation_once_it_is_boots
     assert current_day(LATE) == FOURTEENTH
 
 
+@pytest.mark.story("US-2940")
+def test_the_time_zone_a_restoration_changes_is_read_again_within_the_term_it_is_kept() -> None:
+    # [US-2940] #4695: a restoration replaces the database without restarting the process; the
+    # zone of the backup restored is the one it reads once the term has passed, not before.
+    now = [0.0]
+    name = ["Europe/Paris"]
+    reading = ProcessTimeZone(lambda: now[0])
+    reading.read_from(lambda: name[0])
+    assert reading.zone().key == "Europe/Paris"
+    name[0] = "Asia/Tokyo"
+    now[0] = ProcessTimeZone.KEPT - 1
+    assert reading.zone().key == "Europe/Paris"
+    now[0] = ProcessTimeZone.KEPT
+    assert reading.zone().key == "Asia/Tokyo"
+
+
+@pytest.mark.story("US-2940")
+def test_a_zone_known_stays_while_the_database_does_not_answer_for_another_term() -> None:
+    # [US-2940] #4695: the reading again, refused while the database is replaced, keeps the zone
+    # known and asks again once a term more has passed; a zone never read is still refused.
+    now = [0.0]
+    asked: list[str] = []
+
+    def refused() -> str:
+        code = "COMPONENT_UNAVAILABLE"
+        raise UnavailableError(code, {"component": "database"})
+
+    def source() -> str:
+        asked.append("asked")
+        if len(asked) == 2:
+            return refused()
+        return "Europe/Paris"
+
+    reading = ProcessTimeZone(lambda: now[0])
+    reading.read_from(source)
+    assert reading.zone().key == "Europe/Paris"
+    now[0] = ProcessTimeZone.KEPT
+    assert reading.zone().key == "Europe/Paris"
+    assert reading.zone().key == "Europe/Paris"
+    assert len(asked) == 2
+    now[0] = ProcessTimeZone.KEPT * 2
+    assert reading.zone().key == "Europe/Paris"
+    assert len(asked) == 3
+    unknown = ProcessTimeZone()
+    unknown.read_from(refused)
+    with pytest.raises(UnavailableError):
+        unknown.zone()
+
+
 @pytest.mark.requirement("WF-EXP-0020-A")
 @pytest.mark.parametrize("name", ["Mars/X", "/etc/localtime", "../Europe/Paris", "Europe/../Paris"])
 def test_a_time_zone_the_row_names_wrongly_is_unavailable_not_a_server_error(name: str) -> None:

@@ -9,8 +9,10 @@ exchanges purge — the imports expired, the deposits, the exports of more than 
 purge") —, the history of the sessions over and the plans of a paste expired, then the tasks ended
 for more than the retention of their result, with the report of a reading of the accounts they
 carry (WF-DAT-0080, #921); the task of a backup still listed is spared, which the rotation alone
-deletes. The storage loses what the rows designated once the transaction is committed, never
-before: an object is not deleted for a row a failed task keeps.
+deletes. The archives of the backups sweep too: the object of the prefix ``backup-`` that no row
+names and that is older than a backup task can last, which a task left when its validation failed
+or its worker died after the upload (#4679). The storage loses what the rows designated once the
+transaction is committed, never before: an object is not deleted for a row a failed task keeps.
 """
 
 from dataclasses import dataclass
@@ -36,6 +38,11 @@ if TYPE_CHECKING:
     from waterfall.platform.tasks import Task
 
 logger = get_logger(__name__)
+# The prefix of the archives of the backups (``waterfall.worker.backup``), and how old one must be,
+# with no row to name it, to be swept: well beyond the four hours a task of backup is given.
+ARCHIVES_PREFIX = "backup-"
+ARCHIVE_DELAY = timedelta(days=1)
+ARCHIVES_LIMIT = 100
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,12 +66,19 @@ class PurgeTask:
         """Purge, and say how much went: the objects and deposits of the storage, the tasks."""
         now = utc_now()
         stored = self.listed(session, now)
+        strays = self.strays(session, now)
         purged = exchanges_interface.purge(session, now, stored)
         history_interface.purge(session, before=now - self.undo_retention, now=now)
         spared = backups_interface.backup_task_ids(session)
         tasks = purge_ended(session, now - self.task_retention, spared)
         after_commit(session, lambda: exchanges_interface.remove_purged(self.bucket, purged))
-        result = {"objects": len(purged.objects), "deposits": len(purged.deposits), "tasks": tasks}
+        after_commit(session, lambda: self.remove(strays))
+        result = {
+            "objects": len(purged.objects),
+            "deposits": len(purged.deposits),
+            "tasks": tasks,
+            "archives": len(strays),
+        }
         logger.info("purge.done", **result)
         return result
 
@@ -79,3 +93,27 @@ class PurgeTask:
         except UnavailableError:
             logger.warning("purge.storage_unlisted")
             return exchanges_interface.Stored()
+
+    def strays(self, session: Session, now: datetime) -> list[str]:
+        """List the archives of backups no row names, older than ``ARCHIVE_DELAY`` (#4679).
+
+        A storage out of reach lists none: the next pass sweeps them.
+        """
+        try:
+            return self.bucket.keys_before(
+                ARCHIVES_PREFIX,
+                now - ARCHIVE_DELAY,
+                ARCHIVES_LIMIT,
+                lambda keys: backups_interface.archives_named(session, keys),
+            )
+        except UnavailableError:
+            logger.warning("purge.archives_unlisted")
+            return []
+
+    def remove(self, keys: list[str]) -> None:
+        """Remove the archives swept; a removal that fails is logged, the next pass sweeps it."""
+        for key in keys:
+            try:
+                self.bucket.remove(key)
+            except UnavailableError:
+                logger.warning("purge.archive_not_removed", key=key)

@@ -210,3 +210,30 @@ def test_the_script_runs_as_the_administrator_of_a_postgresql_provided(
     assert dump("identity_provider", managed_stand.as_backup(), tmp_path).size_bytes > 0
     # At each start: a second time fails nothing either.
     managed_stand.run_script()
+
+
+def test_the_script_replayed_on_a_role_the_former_script_made_leaves_it_neither_super_nor_bypass(
+    stand: Stand,
+) -> None:
+    # [US-2940] #4685: the former script named both attributes in its ALTER; the new one does not,
+    # for an administrator who may not name them. A role the former one made stays without them
+    # when the new one is replayed on it: nothing gives them back.
+    server = create_database_engine(stand.server).execution_options(isolation_level="AUTOCOMMIT")
+    with server.connect() as connection:
+        connection.execute(text(f'CREATE ROLE "{stand.backup}" LOGIN NOSUPERUSER NOBYPASSRLS'))
+        connection.execute(
+            text(
+                f'ALTER ROLE "{stand.backup}" LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB '
+                f"NOCREATEROLE PASSWORD '{PASSWORD}'"
+            )
+        )
+        connection.execute(text(f'GRANT pg_read_all_data TO "{stand.backup}"'))
+    stand.run_script()
+    stand.run_script()
+    with server.connect() as connection:
+        attributes = connection.execute(
+            text("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = :name"),
+            {"name": stand.backup},
+        ).one()
+    server.dispose()
+    assert tuple(attributes) == (False, False)

@@ -150,12 +150,21 @@ def accounts_of(connection: Connection, realm: str) -> int:
     return connection.scalar(ACCOUNTS, {"realm": realm}) or 0
 
 
+@dataclass(frozen=True, slots=True)
+class Reading:
+    """A transaction that reads one state of a database, and the snapshot it exported of it."""
+
+    connection: Connection
+    snapshot: str
+
+
 @contextmanager
-def reading(address: str) -> Generator[Connection]:
+def reading(address: str) -> Generator[Reading]:
     """Open a transaction that reads one state of a database, alone (503 if it does not answer).
 
-    The backup counts in it just before ``pg_dump`` takes its own snapshot: what is written between
-    the two, a few milliseconds, is the one gap the manifest leaves with its dump (#4572).
+    It exports its snapshot (``pg_export_snapshot()``) and stays open while the caller needs it:
+    the backup counts in it, then ``pg_dump`` dumps the very same state by ``--snapshot``, so that
+    nothing written between the counts and the dump leaves the manifest at odds with it (#4572).
     """
     engine = create_database_engine(address)
     try:
@@ -163,7 +172,8 @@ def reading(address: str) -> Generator[Connection]:
             connection = opened.execution_options(isolation_level="REPEATABLE READ")
             with connection.begin():
                 connection.execute(text("SET TRANSACTION READ ONLY"))
-                yield connection
+                snapshot = str(connection.scalar(text("SELECT pg_export_snapshot()")))
+                yield Reading(connection, snapshot)
     except exc.OperationalError as error:
         raise UnavailableError(COMPONENT_UNAVAILABLE, {"component": "database"}) from error
     finally:
@@ -178,14 +188,29 @@ def read_or_none[Read](address: str, read: Callable[[Connection], Read]) -> Read
     refusal — a right the role lacks (42501) — fails the backup: it would hold a manifest without
     inventory for a fault no earlier revision explains.
     """
-    try:
-        with reading(address) as connection:
-            return read(connection)
-    except exc.ProgrammingError as error:
-        if not isinstance(error.orig, UndefinedTable | UndefinedColumn):
-            raise
-        logger.warning(UNCOUNTED, error=type(error.orig).__name__)
-        return None
+    return read_while(address, read, lambda _: None)[0]
+
+
+def read_while[Read, Done](
+    address: str, read: Callable[[Connection], Read], then: Callable[[str], Done]
+) -> tuple[Read | None, Done]:
+    """Read in one state of a database as ``read_or_none`` does, then run ``then`` in that state.
+
+    ``then`` is given the snapshot the transaction exported, which stays open until it returns:
+    the backup dumps the database in it. A reading that fails on a table or a column that is
+    missing is rolled back to its savepoint, so that the snapshot stays and ``then`` still runs.
+    """
+    with reading(address) as opened:
+        value: Read | None
+        try:
+            with opened.connection.begin_nested():
+                value = read(opened.connection)
+        except exc.ProgrammingError as error:
+            if not isinstance(error.orig, UndefinedTable | UndefinedColumn):
+                raise
+            logger.warning(UNCOUNTED, error=type(error.orig).__name__)
+            value = None
+        return value, then(opened.snapshot)
 
 
 def counted_in(connection: Connection, identity_accounts: int) -> Inventory:
