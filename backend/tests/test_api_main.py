@@ -9,6 +9,7 @@ the factory, which opens the services of the process and closes them when it sto
 import gc
 import json
 import os
+import weakref
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
@@ -156,13 +157,23 @@ def test_each_process_closes_the_services_it_opened_when_it_stops(
 def test_an_application_left_to_the_collector_by_an_earlier_test_is_not_counted_as_a_closing(
     services: Services, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # #4981: in the queue the collector ran during the test of the stop and closed, as it does for
-    # any application served without its lifespan, the observation of those of the tests before it.
-    left = create_app(services)
-    left.state.itself = left  # a cycle: only the collector frees it
-    del left
-    closed = closings(monkeypatch)
-    gc.collect()
+    # Proper to US-2870 (#4981): in the queue the collector ran during the test of the stop and
+    # closed, as it does for any application served without its lifespan, the observation of those
+    # of the tests before it. The collector is off from the abandon to the end of closings(), so
+    # that only its own collection can free the application.
+    enabled = gc.isenabled()
+    gc.disable()
+    try:
+        left = create_app(services)
+        left.state.itself = left  # a cycle: only the collector frees it
+        gone = weakref.ref(left)
+        del left
+        assert gone() is not None
+        closed = closings(monkeypatch)
+        assert gone() is None  # collected, so its finalizer ran
+    finally:
+        if enabled:
+            gc.enable()
     assert closed == []
 
 
