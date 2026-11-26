@@ -795,7 +795,10 @@ def stamps(database: Database) -> dict[UUID, Stamps]:
                 Contributor.updated_by,
             )
         )
-        return {user_id: (*stamped,) for user_id, *stamped in rows}
+        return {
+            user_id: (created_at, created_by, updated_at, updated_by)
+            for user_id, created_at, created_by, updated_at, updated_by in rows
+        }
 
 
 @pytest.mark.requirement("WF-DAT-0070-A")
