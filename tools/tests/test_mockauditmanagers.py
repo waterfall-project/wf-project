@@ -108,15 +108,17 @@ def test_the_rescue_inscribes_the_manager_a_non_contributor_registers(
 
 
 def test_the_removal_follows_the_change_that_made_the_manager(journal: dict[str, Node]) -> None:
-    # The list written after the one of today removes Inès Roux: its inscription heads the
-    # reading, after the very inscription of the change, which keeps its identifier and its
-    # correlation.
+    # The list written after the one of today, at its instant, removes Inès Roux: its inscription
+    # heads the reading, after the very inscription of the change, which keeps its identifier and
+    # its correlation.
     [removal, change], rest = _manager_head(journal, "audit_events_manager_removed", 2)
     [changed] = _events(journal["audit_events_manager_changed"])[:1]
     assert change == changed
     assert removal["action"] == "project_manager_remove"
     assert removal["object"] == changed["object"]
-    assert removal["occurred_at"] > changed["occurred_at"]
+    # Of one instant, inscribed after it: the journal reads it first, by its identifier.
+    assert removal["occurred_at"] == changed["occurred_at"]
+    assert removal["audit_event_id"] > changed["audit_event_id"]
     assert removal["correlation_id"] != changed["correlation_id"]
     assert rest == _events(journal["audit_events_project"])
 

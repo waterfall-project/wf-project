@@ -13081,8 +13081,8 @@ de plus.
   Martin, Sacha Lefèvre inscrit participant sans inscription — ; `manager_added`, variante
   contrefactuelle du sauvetage de `contributors_without_active_manager`, où Dominique Bernard
   inscrit Sacha Lefèvre chef de projet — une liberté, le sauvetage du contrat promouvant Inès
-  Roux — ; `manager_removed`, variante où Camille Martin retire Inès Roux un quart d'heure après
-  l'avoir faite cheffe de projet.
+  Roux — ; `manager_removed`, variante où Camille Martin retire Inès Roux par une seconde liste,
+  au même instant, après l'avoir faite cheffe de projet.
 - **Le sauvetage borné** (#3988) : la description de `setContributors` précise ce que « any other
   entry remains refused » refuse, 403 `NOT_CONTRIBUTOR` — une ligne retirée, un participant inscrit,
   un chef de projet passé participant —, jugé contre la liste au compteur envoyé, donc après le 412 ;

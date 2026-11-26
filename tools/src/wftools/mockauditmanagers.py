@@ -19,10 +19,9 @@ for them (``changes``). Numbered apart from the journal and from every other exa
 reads the clock.
 """
 
-from datetime import timedelta
 from typing import TYPE_CHECKING, cast
 
-from wftools import mocktext
+from wftools import mockproject, mocktext
 from wftools.mockaudit import Inscription, display_name, journal, numbered, page
 from wftools.mockwitness import TODAY, fixture
 
@@ -50,8 +49,8 @@ wiring (``contributor_suggestions``), and no contributor of the witness before."
 WITHDRAWN = "Inès Roux"
 """The project manager the variant removes, made one by the list written today."""
 
-REMOVED_AT = TODAY + timedelta(minutes=15)
-"""The instant of the removal, a quarter of an hour after the list written today."""
+REMOVED_AT = TODAY
+"""The instant of the removal: today, as the list it follows, inscribed after it."""
 
 
 def changes(before: list[JsonObject], after: list[JsonObject]) -> list[tuple[str, str]]:
@@ -79,10 +78,10 @@ def changes(before: list[JsonObject], after: list[JsonObject]) -> list[tuple[str
     return found
 
 
-def _actor(name: str) -> JsonObject:
-    """Return an account of the universe as an actor names it."""
-    [user] = [each for each in fixture("users")["items"] if display_name(each) == name]
-    return {"kind": "user", "user_id": user["user_id"], "display_name": name}
+def _rescuer() -> JsonObject:
+    """Return the rescuer of the witness as an actor names it (``mockproject.RESCUER``)."""
+    [user] = [each for each in fixture("users")["items"] if each["user_id"] == mockproject.RESCUER]
+    return {"kind": "user", "user_id": user["user_id"], "display_name": display_name(user)}
 
 
 def _inscribed(
@@ -94,6 +93,11 @@ def _inscribed(
     return Inscription(
         at, actor, action, "contributor", user, display_name(users[user]), on_witness=True
     )
+
+
+def _rescued_read() -> list[JsonObject]:
+    """Return the list the rescue reads, which the same command writes: read in memory."""
+    return cast("list[JsonObject]", mockproject.without_active_manager()["items"])
 
 
 def _items(name: str) -> list[JsonObject]:
@@ -115,7 +119,7 @@ def _rescue() -> list[JsonObject]:
         "kind": MANAGER,
         "is_active": True,
     }
-    return [*_items("contributors_without_active_manager"), line]
+    return [*_rescued_read(), line]
 
 
 def _removed() -> list[JsonObject]:
@@ -136,9 +140,9 @@ def examples() -> dict[str, JsonObject]:
         ADDED,
         ADDED,
         _inscribed(
-            _items("contributors_without_active_manager"),
+            _rescued_read(),
             _rescue(),
-            _actor("Dominique Bernard"),
+            _rescuer(),
             TODAY,
         ),
     )
@@ -171,8 +175,8 @@ def examples() -> dict[str, JsonObject]:
         "audit_events_manager_removed.json": mocktext.example(
             "Variante contrefactuelle : le journal d'audit du projet témoin (project_id) après "
             "deux listes des contributeurs enregistrées aujourd'hui par Camille Martin : celle "
-            "de 14 h 05, qui fait d'Inès Roux une cheffe de projet (contributors_set), puis "
-            f"celle de {REMOVED_AT:%H} h {REMOVED_AT:%M}, qui la retire de la liste. Le retrait "
+            "qui fait d'Inès Roux une cheffe de projet (contributors_set), puis celle qui la "
+            "retire de la liste, à 14 h 05 toutes deux. Le retrait "
             "de la cheffe de projet en tête, puis le changement de qualité qui l'a faite "
             "cheffe de projet, puis les inscriptions d'avant elles (WF-SEC-0030, WF-PRJ-0060).",
             _of_witness([removed, changed]),
