@@ -24,8 +24,9 @@ COPY extension/pom.xml ./
 # to the build cache of GitHub Actions (`mode=max` exports layers), so a fresh runner found it empty,
 # while this layer came back CACHED, and `mvn package` downloaded everything again, with no retry, and
 # took a 429 (#4790, runs 45722567147 and 45876627630). The layer is replayed only when pom.xml changes;
-# the first run after such a change, or after the cache of GitHub Actions evicted the layer, is the
-# one still exposed to Central.
+# the first run after such a change, after the merge of this change, or after the cache of GitHub
+# Actions evicted the layer, is the one still exposed to Central. The price: locally, the repository
+# is no longer kept from one pom.xml to the next, as the old cache mount kept it.
 # Resolver 2 settings (Maven 3.10, native HTTP transport): connection twenty seconds, request sixty;
 # a failed or refused (429, 502, 503, 504) request is retried six times, the pause growing from ten
 # seconds to two minutes. The loop below starts the whole resolution again, three times at most, thirty
@@ -33,12 +34,14 @@ COPY extension/pom.xml ./
 # (run 44885271614, 2026-11-21). A new attempt finds in the repository what the previous one downloaded.
 # `dependency:go-offline` resolves the dependencies and the plugins of the lifecycle; the provider of
 # surefire is only fetched when a test runs, hence the stub test, so that `package` below, offline,
-# finds all it needs: a missing artifact fails here, in the local build, not in the queue.
+# finds all it needs; the stub main class does the same for the compiler, which `src/main` empty would
+# not run ("No sources to compile"). A missing artifact fails here, in the local build, not in the queue.
 ENV MAVEN_OPTS="-Daether.transport.http.connectTimeout=20000 -Daether.transport.http.requestTimeout=60000 \
 -Daether.transport.http.retryHandler.count=6 -Daether.transport.http.retryHandler.interval=10000 \
 -Daether.transport.http.retryHandler.intervalMax=120000 \
 -Daether.transport.http.retryHandler.serviceUnavailable=429,502,503,504"
-RUN mkdir -p src/test/java && \
+RUN mkdir -p src/main/java src/test/java && \
+    printf 'class WarmUp { }\n' > src/main/java/WarmUp.java && \
     printf 'class WarmUpTest { @org.junit.jupiter.api.Test void warmUp() { } }\n' > src/test/java/WarmUpTest.java && \
     for attempt in 1 2 3; do \
       mvn --batch-mode --quiet dependency:go-offline package && rm -rf src target && exit 0; \
