@@ -4,9 +4,10 @@
 # The chart of Waterfall (US-2800): linted and rendered in both tiers, its tests holding it against
 # the Compose of production; in the full tier, the three images built as images.yml publishes them,
 # never pushed, then the chart installed on a cluster of kind made for the job, bootstrapped, its
-# API's liveness and the sign-in of its first administrator held (make check-chart). The upgrade
-# under load (US-2850, make chart-upgrade) is run by hand and is not part of this job yet (#5020).
-# Helm, kind and kubectl are downloaded at the versions and digests wftools.kubetools pins.
+# API's liveness and the sign-in of its first administrator held (make check-chart); then, on a
+# cluster of its own, the version N upgraded to them under load, rolled back, and upgraded again
+# (US-2850, make chart-upgrade). Helm, kind and kubectl are downloaded at the versions and digests
+# wftools.kubetools pins.
 name: chart
 
 on:
@@ -57,3 +58,7 @@ jobs:
       - run: make check-chart
         env:
           TIER: ${{ inputs.tier }}
+          # The commit the pull request targets, or the queue merges onto, which the upgrade starts
+          # from (make chart-upgrade); empty when run by hand, the upgrade then not executed, which
+          # a notice of the job's summary says.
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
