@@ -3078,7 +3078,8 @@ of what it describes, and two generations write the same bytes:
   readings and the other projects by simple formulas (`wftools.mockportfoliotime`); and the audit
   log of the installation, drawn from the chronology of the witness and from the examples that date
   its accounts, its roles and its backups (`wftools.mockaudit`, held by
-  `tools/tests/test_mockaudit.py`); and the readings of the lists written by hand — the projects of
+  `tools/tests/test_mockaudit.py`), with the project managers a list of contributors registers,
+  changes or removes (`wftools.mockauditmanagers`, US-2980); and the readings of the lists written by hand — the projects of
   the home page, the subprojects and the contributors of the witness, the accounts and the access
   roles, the backups — and of the work breakdown of the witness, sorted, searched and filtered as
   their screens ask for them, with the entry of the work breakdown, its response and its refusals

@@ -15,8 +15,13 @@ It is written under the lock of the project, which the quality of the writer is 
 the evaluation read it in a transaction of its own: a writer withdrawn from the list meanwhile is
 refused as the evaluation would have refused it (WF-ADM-0090). One caller who is no contributor
 may write: the rescue of a project whose project managers are all deactivated, to inscribe one
-(WF-PRJ-0060, ``manage_contributors``). Every other write reserved to the project managers judges
-its caller the same way, under the lock of the project (``require_project_manager``, #2207).
+(WF-PRJ-0060, ``manage_contributors``) — and nothing else: it neither removes nor changes any
+other line (#3988). Every other write reserved to the project managers judges its caller the same
+way, under the lock of the project (``require_project_manager``, #2207).
+
+A write inscribes in the journal of audit each project manager it registers, removes or changes in
+capacity, the contributor named by its account (WF-SEC-0030, #4127); a participant registered or
+removed is no inscription. Each line written bears its columns of audit (WF-DAT-0070).
 
 Declared by US-0910/L1, without effect: US-0910/L2 filled ``contributor_kind`` and
 ``project_exists``, US-0930 fills the rest; ``load_contributors`` writes those of the witness.
@@ -40,8 +45,11 @@ from waterfall.core.users.interface import (
     AccountLabel,
     active_accounts,
     active_accounts_in_nodes,
+    inscribed_actor,
+    inscribed_names,
     read_account_labels,
 )
+from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record_all
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
     NOT_FOUND,
@@ -63,6 +71,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.projects.interface.projects import Viewer
+    from waterfall.platform.audit import Act, AuditAction
 
 # The two kinds of contributor, as the contract says them (``ContributorKind``).
 type ContributorKind = Literal["project_manager", "contributor"]
@@ -386,8 +395,54 @@ def _faults(
     return faults
 
 
-def _replace(session: Session, project: Project, entries: Iterable[ContributorEntry]) -> None:
-    """Write the lines of the list: those withdrawn removed, those changed and those added."""
+def _beyond_rescue(
+    kinds: Mapping[UUID, ContributorKind], entries: Iterable[ContributorEntry]
+) -> bool:
+    """Tell whether a list written by the rescue does more than register project managers.
+
+    Every line read is kept, as it is or made project manager, and every line added is a project
+    manager (WF-PRJ-0060, #3988): a line removed, a project manager made participant or a
+    participant registered goes beyond.
+    """
+    wanted = {entry.user_id: entry.kind for entry in entries}
+    return any(user_id not in wanted for user_id in kinds) or any(
+        kind != MANAGER and kinds.get(user_id) != kind for user_id, kind in wanted.items()
+    )
+
+
+def changes(
+    kinds: Mapping[UUID, ContributorKind], entries: Iterable[ContributorEntry]
+) -> list[tuple[AuditAction, UUID]]:
+    """Give what a list written inscribes in the journal: an action and an account each.
+
+    In the order of the list written, then the lines it removes by their account: a line added as
+    project manager, ``project_manager_add``; a line kept whose kind changes,
+    ``project_manager_change``; a project manager removed, ``project_manager_remove``. A
+    participant added or removed is none (WF-SEC-0030).
+    """
+    wanted = {entry.user_id: entry.kind for entry in entries}
+    found: list[tuple[AuditAction, UUID]] = []
+    for user_id, kind in wanted.items():
+        held = kinds.get(user_id)
+        if held is None and kind == MANAGER:
+            found.append(("project_manager_add", user_id))
+        elif held is not None and held != kind:
+            found.append(("project_manager_change", user_id))
+    found.extend(
+        ("project_manager_remove", user_id)
+        for user_id in sorted(kinds)
+        if user_id not in wanted and kinds[user_id] == MANAGER
+    )
+    return found
+
+
+def _replace(
+    session: Session, project: Project, entries: Iterable[ContributorEntry], act: Act
+) -> None:
+    """Write the lines of the list: those withdrawn removed, those changed and those added.
+
+    A line added or changed bears the moment and the author of the write (WF-DAT-0070).
+    """
     wanted = {entry.user_id: entry.kind for entry in entries}
     held = {
         row.user_account_id: row
@@ -398,25 +453,64 @@ def _replace(session: Session, project: Project, entries: Iterable[ContributorEn
             session.delete(row)
         elif row.kind != wanted[user_id]:
             row.kind = wanted[user_id]
+            row.updated_at, row.updated_by = act.at, act.author
     session.add_all(
-        Contributor(project_id=project.id, user_account_id=user_id, kind=kind)
+        Contributor(
+            project_id=project.id,
+            user_account_id=user_id,
+            kind=kind,
+            created_at=act.at,
+            created_by=act.author,
+            updated_at=act.at,
+            updated_by=act.author,
+        )
         for user_id, kind in wanted.items()
         if user_id not in held
     )
     session.flush()
 
 
+def _inscribe(
+    session: Session, project: Project, found: list[tuple[AuditAction, UUID]], act: Act
+) -> None:
+    """Inscribe the project managers a write changed, each named by its account at that moment.
+
+    The names of the accounts and of the author are read last, under a share lock each, after
+    every other lock the write takes (``inscribed_names``, ``inscribed_actor``).
+    """
+    if not found:
+        return
+    names = inscribed_names(session, [user_id for _, user_id in found])
+    actor = inscribed_actor(session, act.author)
+    named = AuditProject(project.id, project.code, project.label)
+    record_all(
+        session,
+        [
+            Inscription(
+                action,
+                actor,
+                AuditObject("contributor", user_id, names.get(user_id)),
+                act.at,
+                named,
+            )
+            for action, user_id in found
+        ],
+    )
+
+
 def set_contributors(
-    session: Session, project_id: UUID, write: ContributorsToWrite, viewer: Viewer
+    session: Session, project_id: UUID, write: ContributorsToWrite, viewer: Viewer, act: Act
 ) -> ContributorsRead:
     """Write the whole list of the contributors at the counter read (``setContributors``).
 
     Under the lock of the project, the writer judged on the list as it stands (403, 404), then a
     terminal project refused (409, ``project_not_terminal``), a counter that is not the list's
-    (412), each line whose account is unknown, deactivated or written twice (422,
+    (412), a rescue that does more than register project managers (403 ``NOT_CONTRIBUTOR``,
+    #3988), each line whose account is unknown, deactivated or written twice (422,
     ``UNKNOWN_USER``, ``USER_INACTIVE``, ``VALIDATION_FAILED`` at the repeated line), and a list
     that keeps no project manager (409, ``LAST_PROJECT_MANAGER``) — an active one when the writer
-    rescues the project. Nothing is written then. The list is answered whole with its next
+    rescues the project. Nothing is written then. The project managers registered, removed or
+    changed are inscribed in the journal (``changes``). The list is answered whole with its next
     counter, built before the commit.
     """
     # The accounts of the lines, read in one request before the lock is taken. Reading them under
@@ -433,15 +527,18 @@ def set_contributors(
         raise PreconditionFailedError(
             STALE_LOCK_VERSION, {"expected_lock_version": project.contributors_lock_version}
         )
+    if rescuing and _beyond_rescue(kinds, write.entries):
+        raise refusal_to_non_manager(None, viewer)
     faults = _faults(accounts, write.entries, kinds)
     if faults:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
     managers = [entry.user_id for entry in write.entries if entry.kind == MANAGER]
     if not (active_accounts(session, managers) if rescuing else managers):
         raise ConflictError(LAST_PROJECT_MANAGER)
-    _replace(session, project, write.entries)
+    _replace(session, project, write.entries, act)
     project.contributors_lock_version += 1
     session.flush()
+    _inscribe(session, project, changes(kinds, write.entries), act)
     counter, written = _stored(session, project_id)
     items = _read(session, written, ContributorFilters(), ContributorSort())
     return ContributorsRead(items, counter)
@@ -497,11 +594,13 @@ def contributors_present(
     )
 
 
-def load_contributors(session: Session, load: ContributorsLoad) -> None:
+def load_contributors(session: Session, load: ContributorsLoad, act: Act) -> None:
     """Write the contributors of a project of the witness, as it imposes them, with its counter.
 
     By the rules of the list but those of a writer: the accounts are known and the list keeps a
-    project manager; the account deactivated since its inscription is listed all the same.
+    project manager; the account deactivated since its inscription is listed all the same. The
+    lines bear the act of the loading, by the platform; nothing is inscribed in the journal, whose
+    witness the chronology describes.
     """
     accounts = read_account_labels(session, [entry.user_id for entry in load.entries])
     project = _locked(session, load.project_id)
@@ -514,6 +613,6 @@ def load_contributors(session: Session, load: ContributorsLoad) -> None:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
     if not any(entry.kind == MANAGER for entry in load.entries):
         raise ConflictError(LAST_PROJECT_MANAGER)
-    _replace(session, project, load.entries)
+    _replace(session, project, load.entries, act)
     project.contributors_lock_version = load.lock_version
     session.flush()

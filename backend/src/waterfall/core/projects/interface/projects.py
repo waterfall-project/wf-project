@@ -620,7 +620,12 @@ def _create(
     )
     if act.author is not None:
         session.add(
-            Contributor(project_id=project.id, user_account_id=act.author, kind="project_manager")
+            Contributor(
+                project_id=project.id,
+                user_account_id=act.author,
+                kind="project_manager",
+                **stamp,
+            )
         )
     session.flush()
     session.add(

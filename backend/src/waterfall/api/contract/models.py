@@ -1652,6 +1652,9 @@ class AuditAction(StrEnum):
     structure_abandon = "structure_abandon"
     risk_occurrence = "risk_occurrence"
     project_exit = "project_exit"
+    project_manager_add = "project_manager_add"
+    project_manager_remove = "project_manager_remove"
+    project_manager_change = "project_manager_change"
     cost_line_exclude = "cost_line_exclude"
     cost_line_reinstate = "cost_line_reinstate"
     import_apply = "import_apply"
@@ -1674,6 +1677,7 @@ class AuditObjectKind(StrEnum):
     revision = "revision"
     cost_structure = "cost_structure"
     risk = "risk"
+    contributor = "contributor"
     cost_line = "cost_line"
     import_ = "import"
     user = "user"
@@ -1698,13 +1702,13 @@ class AuditObject(ContractModel):
     label: Annotated[
         str | None,
         Field(
-            description="The label of the object at the time of the action — the version name of a revision, the document number of a cost line, the file name of an import, the display name of an account, the file name of an upload —; null for a backup, which has none: for the action `backup`, its date is that of the entry; for `restore`, it is in `params.backup_taken_at`, the entry dating the end of the restore; null for an abandoned revision in progress, which does not yet have a version name (WF-REV-0010); null for an anonymised account, whose anonymisation erases its name from all the entries that designate it, the only modification an entry admits (WF-SEC-0030, WF-ADM-0060): the front presents it under the neutral label of its catalogue."
+            description="The label of the object at the time of the action — the version name of a revision, the document number of a cost line, the file name of an import, the display name of an account, that of the account of a contributor, the file name of an upload —; null for a backup, which has none: for the action `backup`, its date is that of the entry; for `restore`, it is in `params.backup_taken_at`, the entry dating the end of the restore; null for an abandoned revision in progress, which does not yet have a version name (WF-REV-0010); null for an anonymised account, whose anonymisation erases its name from all the entries that designate it, as an account or as a contributor, the only modification an entry admits (WF-SEC-0030, WF-ADM-0060): the front presents it under the neutral label of its catalogue."
         ),
     ]
     revision: Annotated[
         AuditRevision | None,
         Field(
-            description="The revision the object lives in, at the time of the action: the one whose register carries the risk (WF-RIS-0030) — for an occurrence, the revision in progress into which it merges its own estimate (WF-RIS-0060) —, that of the differential structure (`CostStructure.revision_id`, WF-REV-0050), the one to which the import of a planning, an estimate or a remaining to commit applies (WF-INTF-0090). Null for an object that does not live in a revision: the project, a revision itself, an actual cost line, charged to the project (WF-CRE-0010), and the import of actual costs, since only the imports of a planning, an estimate or a remaining to commit apply to a revision (WF-INTF-0090), an account, a role, a backup, an upload."
+            description="The revision the object lives in, at the time of the action: the one whose register carries the risk (WF-RIS-0030) — for an occurrence, the revision in progress into which it merges its own estimate (WF-RIS-0060) —, that of the differential structure (`CostStructure.revision_id`, WF-REV-0050), the one to which the import of a planning, an estimate or a remaining to commit applies (WF-INTF-0090). Null for an object that does not live in a revision: the project, a revision itself, a contributor, an actual cost line, charged to the project (WF-CRE-0010), and the import of actual costs, since only the imports of a planning, an estimate or a remaining to commit apply to a revision (WF-INTF-0090), an account, a role, a backup, an upload."
         ),
     ]
 

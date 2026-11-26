@@ -604,10 +604,16 @@ def test_the_rescue_inscribes_a_new_project_manager_absent_from_the_list(
     rescuer = person(database, realm, *RESCUE, name="Dominique")
     deactivate(owner, stage.manager.user_id)
     newcomer = account(database, "Nora", "Blanc")
-    lines = [(stage.manager.user_id, MANAGER), (newcomer, MANAGER)]
+    # The participant kept: the rescue removes none (#3988).
+    participant = stage.participant.user_id
+    lines = [(stage.manager.user_id, MANAGER), (participant, CONTRIBUTOR), (newcomer, MANAGER)]
     answer = write(api, stage, rescuer, lines, 0)
     assert answer.status_code == 200, answer.text
-    assert kinds_of(stage) == {stage.manager.user_id: MANAGER, newcomer: MANAGER}
+    assert kinds_of(stage) == {
+        stage.manager.user_id: MANAGER,
+        participant: CONTRIBUTOR,
+        newcomer: MANAGER,
+    }
     assert answer.json()["lock_version"] == 1
 
 
@@ -652,3 +658,162 @@ def test_the_witness_loads_the_contributors_of_its_project_under_the_counter_of_
     )
     assert other.status_code == 200
     assert other.json() == {"items": [], "lock_version": 0}
+
+
+EVENTS = "/api/v1/audit-events"
+type Inscribed = tuple[str, str, str, str | None]
+
+
+def managers_inscribed(
+    api: ContractClient, database: Database, realm: TestRealm, stage: Scene
+) -> list[Inscribed]:
+    """Read, as an auditor, the inscriptions of the project managers of the project, oldest first.
+
+    Each as its action, its author, the account of the contributor and its label.
+    """
+    auditor = person(database, realm, "audit_log.read", name="Alix")
+    actions = "project_manager_add,project_manager_remove,project_manager_change"
+    query = f"project_id={stage.project['project_id']}&actions={actions}&sort_order=asc"
+    answer = api.get(f"{EVENTS}?{query}", headers=auditor.headers)
+    assert answer.status_code == 200, answer.text
+    found: list[Inscribed] = []
+    for entry in answer.json()["items"]:
+        assert entry["object"]["kind"] == "contributor"
+        assert entry["object"]["revision"] is None
+        assert entry["project"]["project_id"] == stage.project["project_id"]
+        assert entry["params"] == {}
+        audited = entry["object"]
+        found.append(
+            (entry["action"], entry["actor"]["user_id"], audited["object_id"], audited["label"])
+        )
+    return found
+
+
+def shown(api: ContractClient, stage: Scene) -> dict[str, str | None]:
+    """Give the names the list shows, by account."""
+    items = read(api, stage, stage.manager)["items"]
+    return {item["user_id"]: item["display_name"] for item in items}
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+@pytest.mark.requirement("WF-PRJ-0060-A")
+def test_the_registration_the_change_and_the_removal_of_a_project_manager_are_inscribed(
+    api: ContractClient, database: Database, realm: TestRealm, stage: Scene
+) -> None:
+    # « L'inscription d'un chef de projet figure au journal d'audit » ; its removal and its change
+    # of capacity too (WF-SEC-0030), one inscription each, by its author. A participant
+    # registered or removed is none.
+    newcomer = account(database, "Nora", "Blanc")
+    helper = account(database, "Sacha", "Lefèvre")
+    manager, participant = stage.manager.user_id, stage.participant.user_id
+    first = [(manager, MANAGER), (participant, MANAGER), (newcomer, MANAGER)]
+    first.append((helper, CONTRIBUTOR))
+    assert write(api, stage, stage.manager, first, 0).status_code == 200
+    names = shown(api, stage)
+    second = [(manager, MANAGER), (participant, CONTRIBUTOR)]
+    assert write(api, stage, stage.manager, second, 1).status_code == 200
+    by = str(manager)
+    assert managers_inscribed(api, database, realm, stage) == [
+        ("project_manager_change", by, str(participant), names[str(participant)]),
+        ("project_manager_add", by, str(newcomer), "Nora Blanc"),
+        ("project_manager_change", by, str(participant), names[str(participant)]),
+        ("project_manager_remove", by, str(newcomer), "Nora Blanc"),
+    ]
+
+
+@pytest.mark.requirement("WF-PRJ-0060-A")
+def test_after_a_rescue_the_journal_presents_the_project_manager_it_inscribed(
+    api: ContractClient, owner: Engine, database: Database, realm: TestRealm, stage: Scene
+) -> None:
+    # The project manager a non-contributor inscribes, when the last one is deactivated, is
+    # inscribed in the journal by the rescuer, named by the account it registered.
+    rescuer = person(database, realm, *RESCUE, name="Dominique")
+    deactivate(owner, stage.manager.user_id)
+    newcomer = account(database, "Nora", "Blanc")
+    lines = [
+        (stage.manager.user_id, MANAGER),
+        (stage.participant.user_id, CONTRIBUTOR),
+        (newcomer, MANAGER),
+    ]
+    answer = write(api, stage, rescuer, lines, 0)
+    assert answer.status_code == 200, answer.text
+    assert managers_inscribed(api, database, realm, stage) == [
+        ("project_manager_add", str(rescuer.user_id), str(newcomer), "Nora Blanc")
+    ]
+
+
+@pytest.mark.requirement("WF-PRJ-0060-A")
+@pytest.mark.parametrize("beyond", ["participant_removed", "manager_demoted", "participant_added"])
+def test_the_rescuer_neither_removes_a_participant_nor_changes_another_line(
+    api: ContractClient, database: Database, realm: TestRealm, stage: Scene, beyond: str
+) -> None:
+    # « Un non-contributeur qui inscrit un chef de projet sur un projet dont le dernier est
+    # désactivé ne peut retirer aucun participant », nor change or add any other line than a
+    # project manager (#3988): 403, nothing written, nothing inscribed.
+    rescuer = person(database, realm, *RESCUE, name="Dominique")
+    deactivate(stage.owner, stage.manager.user_id)
+    newcomer = account(database, "Nora", "Blanc")
+    other = account(database, "Sacha", "Lefèvre")
+    manager, participant = stage.manager.user_id, stage.participant.user_id
+    lines = {
+        "participant_removed": [(manager, MANAGER), (newcomer, MANAGER)],
+        "manager_demoted": [
+            (manager, CONTRIBUTOR),
+            (participant, CONTRIBUTOR),
+            (newcomer, MANAGER),
+        ],
+        "participant_added": [
+            (manager, MANAGER),
+            (participant, CONTRIBUTOR),
+            (newcomer, MANAGER),
+            (other, CONTRIBUTOR),
+        ],
+    }[beyond]
+    before = kinds_of(stage)
+    assert refusal(write(api, stage, rescuer, lines, 0)) == (
+        403,
+        "NOT_CONTRIBUTOR",
+        {"missing_condition": "is_contributor"},
+    )
+    assert kinds_of(stage) == before
+    assert read(api, stage, rescuer)["lock_version"] == 0
+    assert managers_inscribed(api, database, realm, stage) == []
+
+
+type Stamps = tuple[datetime, UUID | None, datetime, UUID | None]
+
+
+def stamps(database: Database) -> dict[UUID, Stamps]:
+    """Read the columns of audit of each line of the list, by account."""
+    with database.transaction() as session:
+        rows = session.execute(
+            select(
+                Contributor.user_account_id,
+                Contributor.created_at,
+                Contributor.created_by,
+                Contributor.updated_at,
+                Contributor.updated_by,
+            )
+        )
+        return {user_id: (*stamped,) for user_id, *stamped in rows}
+
+
+@pytest.mark.requirement("WF-DAT-0070-A")
+def test_each_line_of_the_list_bears_the_moment_and_the_author_of_its_write(
+    api: ContractClient, database: Database, stage: Scene
+) -> None:
+    # The creator inscribed by the creation, a line added and a line changed: each its dates and
+    # its authors; a line unchanged keeps its own.
+    newcomer = account(database, "Nora", "Blanc")
+    manager, participant = stage.manager.user_id, stage.participant.user_id
+    before = stamps(database)
+    assert before[manager][1] == before[manager][3] == manager
+    lines = [(manager, MANAGER), (participant, MANAGER), (newcomer, CONTRIBUTOR)]
+    assert write(api, stage, stage.manager, lines, 0).status_code == 200
+    after = stamps(database)
+    assert after[manager] == before[manager]
+    created, created_by, updated, updated_by = after[newcomer]
+    assert (created_by, updated_by) == (manager, manager)
+    assert created == updated > before[manager][2]
+    assert after[participant][:2] == before[participant][:2]
+    assert after[participant][2:] == (updated, manager)

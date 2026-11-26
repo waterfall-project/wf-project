@@ -194,9 +194,17 @@ def demote_the_manager(stage: Scene, api: ContractClient, during: Send) -> Any:
         ),
         counter,
     )
-    with ThreadPoolExecutor(1) as other, stage.database.transaction() as listing:
+    with (
+        ThreadPoolExecutor(1) as other,
+        logging_context(correlation_id="listing"),
+        stage.database.transaction() as listing,
+    ):
         set_contributors(
-            listing, UUID(stage.project["project_id"]), write, Viewer(stage.manager.user_id, ())
+            listing,
+            UUID(stage.project["project_id"]),
+            write,
+            Viewer(stage.manager.user_id, ()),
+            Act(stage.manager.user_id, utc_now()),
         )
         sending = other.submit(during)
         wait_for_a_lock(stage.database)
@@ -247,9 +255,17 @@ def test_a_caller_withdrawn_from_the_project_meanwhile_is_refused_as_a_stranger_
     write = ContributorsToWrite(
         (ContributorEntry(stage.participant.user_id, "project_manager"),), counter
     )
-    with ThreadPoolExecutor(1) as other, stage.database.transaction() as listing:
+    with (
+        ThreadPoolExecutor(1) as other,
+        logging_context(correlation_id="listing"),
+        stage.database.transaction() as listing,
+    ):
         set_contributors(
-            listing, UUID(stage.project["project_id"]), write, Viewer(stage.manager.user_id, ())
+            listing,
+            UUID(stage.project["project_id"]),
+            write,
+            Viewer(stage.manager.user_id, ()),
+            Act(stage.manager.user_id, utc_now()),
         )
         sending = other.submit(send)
         wait_for_a_lock(stage.database)
