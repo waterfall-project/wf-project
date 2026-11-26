@@ -7,10 +7,10 @@
 # whose password is the key WATERFALL_GRAFANA_ADMIN_PASSWORD of the Secret of the platform. It reads
 # neither PostgreSQL nor Redis, and keeps nothing: its account is written at each start, so that the
 # password of the Secret is the one that opens it. The ingress serves it under /grafana, in HTTPS:
-# it serves in TLS alone, with the certificate its container of initialisation issues (US-2840,
-# #4508). It reads the Prometheus of the chart in HTTPS, its certificate checked against the roots of
-# the pod (TFX-14), as the Compose's source does (grafana-datasource.yml); another, as its address
-# says, against the usual roots.
+# it serves in TLS alone, with the certificate of its Secret, which the hook of certificates.yaml
+# writes (US-2840, #4508, US-2850). It reads the Prometheus of the chart in HTTPS, its certificate
+# checked against the root of the platform beside its own (TFX-14), as the Compose's source does
+# (grafana-datasource.yml); another, as its address says, against the usual roots.
 {{- $name := include "waterfall.name" (list . "grafana") }}
 {{- $source := .Values.grafana.prometheusUrl }}
 {{- $own := and .Values.prometheus.enabled (not $source) }}
@@ -42,7 +42,7 @@ data:
         jsonData:
           tlsAuthWithCACert: true
         secureJsonData:
-          tlsCACert: $__file{{ printf "{%s}" (include "waterfall.roots" .) }}
+          tlsCACert: $__file{/tls/ca.crt}
         {{- end }}
   dashboards.yml: |-
     {{- $providers | nindent 4 }}
@@ -83,8 +83,6 @@ spec:
     spec:
       # The user grafana of the image.
       {{- include "waterfall.podDefaults" (list . (dict "runAsUser" 472 "runAsGroup" 472 "fsGroup" 472)) | nindent 6 }}
-      initContainers:
-        {{- include "waterfall.transportInit" (list . "grafana" 472 472) | nindent 8 }}
       containers:
         - name: grafana
           image: {{ include "waterfall.thirdParty" (list . .Values.grafana.image) }}
@@ -159,8 +157,7 @@ spec:
               readOnly: true
             - name: data
               mountPath: /var/lib/grafana
-            {{- include "waterfall.trustMount" . | nindent 12 }}
-            {{- include "waterfall.tlsMount" (list . "grafana") | nindent 12 }}
+            {{- include "waterfall.certificateMount" . | nindent 12 }}
           resources:
             {{- toYaml .Values.grafana.resources | nindent 12 }}
       volumes:
@@ -169,4 +166,4 @@ spec:
             name: {{ $name }}
         - name: data
           emptyDir: {}
-        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}
+        {{- include "waterfall.certificateVolume" (list . "grafana") | nindent 8 }}
