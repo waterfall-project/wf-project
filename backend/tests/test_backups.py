@@ -23,7 +23,7 @@ from uuid import UUID, uuid4
 import anyio
 import pytest
 from access_rows import account, role
-from backup_support import Corrupting, Run, worker_of
+from backup_support import Corrupting, Run, add_accounts, worker_of
 from botocore.exceptions import ReadTimeoutError
 from fastapi.testclient import TestClient
 from realm import KEY, TestRealm
@@ -251,6 +251,66 @@ def test_a_backup_holds_both_databases_the_journal_included_in_the_bucket_of_the
     assert "TABLE DATA public audit_entry" in waterfall
     assert "TABLE DATA public user_account" in waterfall
     assert "TABLE DATA public realm" in listed_contents(dumps["identity_provider"], tmp_path)
+
+
+def rows_of_dump(dump: bytes, table: str, folder: Path) -> int:
+    """Count the rows a dump holds of a table, as pg_restore writes them."""
+    path = folder / "rows.dump"
+    path.write_bytes(dump)
+    done = subprocess.run(
+        ["/usr/bin/pg_restore", "--data-only", f"--table={table}", "--file=-", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr
+    data = done.stdout
+    body = data.split("FROM stdin;\n", 1)[1].split("\\.\n", 1)[0]
+    return len(body.splitlines())
+
+
+@pytest.mark.story("US-2940")
+def test_a_write_made_between_the_counts_and_the_dump_leaves_no_gap_in_the_manifest(
+    run: Run,
+    taking: BackupTask,
+    provider_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    # [US-2940] #4572: the accounts the manifest counts are read in the snapshot pg_dump dumps,
+    # exported and held open: an account written once they are counted, before pg_dump runs, is in
+    # neither. Counted in a snapshot of their own, they would miss it while the dump held it, and
+    # the test of a restoration would fail on a count that is no gap.
+    owner = create_database_engine(provider_url)
+    with owner.connect() as connection:
+        before = set(connection.execute(text("SELECT id FROM user_entity")).scalars())
+    real = cast("Callable[..., Any]", subprocess.run)
+    written: list[str] = []
+
+    def writing_first(command: list[str], **keywords: Any) -> Any:
+        if command[0] == "/usr/bin/pg_dump" and not written:
+            with owner.begin() as connection:
+                add_accounts(connection, 1)
+            written.append("account")
+        return real(command, **keywords)
+
+    monkeypatch.setattr(backup_module.subprocess, "run", writing_first)
+    try:
+        task_id = run(taking)
+        archived = stored(taking.bucket, f"backup-{task_id}.tar")
+    finally:
+        with owner.begin() as connection:
+            connection.execute(
+                text("DELETE FROM user_entity WHERE NOT (id = ANY(:kept))"), {"kept": list(before)}
+            )
+        owner.dispose()
+    assert written == ["account"]
+    with tarfile.open(fileobj=io.BytesIO(archived)) as tar:
+        manifest: dict[str, Any] = json.loads(member(tar, MANIFEST))
+        provided = member(tar, "identity_provider.dump")
+    counted = manifest["inventory"]["identity_accounts"]
+    # The account of service is in the dump, and counted by none.
+    assert rows_of_dump(provided, "user_entity", tmp_path) == len(before) == counted + 1
 
 
 def member(tar: tarfile.TarFile, name: str) -> bytes:

@@ -37,6 +37,7 @@ from waterfall.platform.database import utc_now
 from waterfall.platform.errors import NotFoundError
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
+from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import BackgroundTask, project_task_pending
 from waterfall.worker.exchanges import ExportTask
 from waterfall.worker.runner import Timing, Worker
@@ -53,7 +54,7 @@ if TYPE_CHECKING:
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.settings import ServiceSettings
-    from waterfall.platform.storage import Bucket, ObjectStream
+    from waterfall.platform.storage import ObjectStream
 
 TASKS = "/api/v1/tasks"
 AT_ONCE = Timing(claim_after=0, block=0.01, redeposit_every=0)
@@ -469,6 +470,55 @@ def test_an_export_whose_object_is_gone_is_a_result_that_does_not_exist(
     backups_bucket.remove(f"exports/{task_id}.png")
     assert refusal(result(api, stage, task_id))[:2] == (404, "NOT_FOUND")
     assert task_of(api, stage, task_id)["result_url"] is None
+
+
+def storage_calls(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Record, in order, the size and the stream the API asks of the bucket."""
+    order: list[str] = []
+    real_size, real_stream = Bucket.size, Bucket.stream
+
+    def size(self: Bucket, key: str) -> int | None:
+        order.append("size")
+        return real_size(self, key)
+
+    def stream(self: Bucket, key: str) -> ObjectStream:
+        order.append("stream")
+        return real_stream(self, key)
+
+    monkeypatch.setattr(Bucket, "size", size)
+    monkeypatch.setattr(Bucket, "stream", stream)
+    return order
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+@pytest.mark.story("US-2940")
+@pytest.mark.usefixtures("trial")
+def test_the_size_of_an_export_is_read_before_its_stream_is_opened(
+    api: ContractClient, stage: Scene, worker: Worker, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # [US-2940] #4680: the size first, so that a failure of it leaves no body open.
+    task_id, _ = exported(api, stage, worker)
+    order = storage_calls(monkeypatch)
+    assert result(api, stage, task_id).status_code == 200
+    assert order == ["size", "stream"]
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+@pytest.mark.story("US-2940")
+@pytest.mark.usefixtures("trial")
+def test_the_stream_of_an_export_whose_file_is_gone_is_never_opened(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    backups_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # [US-2940] #4680: a file that is gone opens nothing, and its result is no more.
+    task_id, _ = exported(api, stage, worker)
+    backups_bucket.remove(f"exports/{task_id}.png")
+    order = storage_calls(monkeypatch)
+    assert refusal(result(api, stage, task_id))[:2] == (404, "NOT_FOUND")
+    assert order == ["size"]
 
 
 @pytest.mark.requirement("WF-CYC-0110-A")

@@ -69,11 +69,9 @@ DECLARED = {
     "processes: added to when a registry is created at an import, and read by no request",
     "platform/settings.py:_time_zones": "the names of the IANA database, read once from the "
     "system: the same in every process of an image",
-    "platform/installation.py:TIME_ZONE": "the time zone of the installation, read once from the "
-    "database by the first request that needs it and kept: the bootstrap fixes it and nothing "
-    "changes it. Its limit: a restoration replaces the database without restarting the processes "
-    "(#4695), so a process that has read the zone keeps it after the restoration of a backup of an "
-    "installation in another time zone, until it restarts",
+    "platform/installation.py:TIME_ZONE": "the time zone of the installation, read from the "
+    "database by the first request that needs it and read again every minute: a restoration that "
+    "gives another zone is seen by each process within that time, with no restart (#4695)",
     "witness/revisions.py:_FILLERS": REGISTRY,
 }
 FAKE = "fake/module.py"

@@ -182,9 +182,15 @@ def test_a_task_that_outlasts_its_deadline_stops_says_so_and_leaves_nothing(
     allowed: list[float] = []
     real_dump = backup_module.dump
 
-    def spy(name: str, address: str, folder: Path, timeout: float | None = None) -> Any:
+    def spy(
+        name: str,
+        address: str,
+        folder: Path,
+        timeout: float | None = None,
+        snapshot: str | None = None,
+    ) -> Any:
         allowed.append(cast("float", timeout))
-        return real_dump(name, address, folder, timeout)
+        return real_dump(name, address, folder, timeout, snapshot)
 
     monkeypatch.setattr(backup_module, "dump", spy)
     with captured_logs() as logs:

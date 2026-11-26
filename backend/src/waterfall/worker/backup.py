@@ -11,26 +11,27 @@ maintenance, is the installation's and not the backup's, and a restoration repla
 alone (EP-13, US-2830); Keycloak keeps its tables in ``public``, as long as ``KC_DB_SCHEMA`` is
 not set. The archive — the two dumps, and a manifest that gives the date, the version of the
 application, the revision of the schema, the digest of each dump, and what the test of a restoration
-compares, counted just before each database is dumped (``waterfall.worker.inventory``, US-2930) — is
-written to the bucket of the backups under a key the task names, so that a task taken up again
-writes over what an attempt left. It is then read back from the bucket and verified: the manifest
-read, each dump against its digest, each dump listed by ``pg_restore``. The backup is recorded with
-the outcome of that verification, and inscribed in the journal at its date. A backup verified turns
-the list: the oldest backups not marked beyond the retention of the schedule go, and their archives
-with them once the transaction is committed (WF-ADM-0170). An archive that fails its verification
-fails the task, manual or scheduled, by ``UndoneError``: the work is undone, then the row is
-written, ``failed``, with its archive; neither the rotation nor a copy follows, and the task alone
-says the failure (#4230).
+compares, counted in the snapshot of each database that ``pg_dump`` then dumps
+(``waterfall.worker.inventory``, US-2930, #4572) — is written to the bucket of the backups under a
+key the task names, so that a task taken up again writes over what an attempt left. It is then read
+back from the bucket and verified: the manifest read, each dump against its digest, each dump listed
+by ``pg_restore``. The backup is recorded with the outcome of that verification, and inscribed in
+the journal at its date. A backup verified turns the list: the oldest backups not marked beyond the
+retention of the schedule go, and their archives with them once the transaction is committed
+(WF-ADM-0170). An archive that fails its verification fails the task, manual or scheduled, by
+``UndoneError``: the work is undone, then the row is written, ``failed``, with its archive; neither
+the rotation nor a copy follows, and the task alone says the failure (#4230).
 
 What the task costs is bounded (#896, #4191): a connection waits a few seconds to be made, and
 ``pg_dump`` a minute for a lock and hours for its dump; the folder of the task holds the dumps and
 the archive made of them, then the archive read back, one dump of it at a time, never about four
 times the databases; and an archive no row names is removed when the task stops by an exception
-once it may be in the bucket. Two cases stay outside that guard (#4679): the validation of the
+once it may be in the bucket. Two cases stay outside that guard: the validation of the
 transaction that follows the task, which may still fail once the task has returned, and the death
-of the worker, which leaves the archive in the bucket without a row. The transaction of the worker
-stays open for the whole task — the dumps, the upload, the reading back, the verification —, for
-the lock of the run it holds (``waterfall.worker.runner``, whose closing is #4681):
+of the worker, which leaves the archive in the bucket without a row; the task of purge removes such
+an archive once it is older than a day (``waterfall.worker.purge``, #4679). The transaction of the
+worker stays open for the whole task — the dumps, the upload, the reading back, the verification
+—, for the lock of the run it holds (``waterfall.worker.runner``, whose closing is #4681):
 ``TASK_DEADLINE`` bounds the task, and not each dump alone. Each dump is given what is left of it,
 and the task, checked between its steps, stops and says so (``backup.deadline_exceeded``) once it
 is spent; a step in progress — an upload, a download — is not interrupted by it.
@@ -63,10 +64,11 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import engine_url, utc_now
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.logs import get_logger
+from waterfall.platform.settings import RealmSettings
 from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import UndoneError
 from waterfall.worker.identity_sync import after_commit
-from waterfall.worker.inventory import Inventory, accounts_of, counted_in, read_or_none
+from waterfall.worker.inventory import Inventory, accounts_of, counted_in, read_while
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -94,8 +96,9 @@ TASK_DEADLINE = 4 * 3600
 DATABASES = ("waterfall", "identity_provider")
 # The connection service a dump reaches its database by.
 SERVICE = "backup"
-# The realm of the installation, whose accounts a backup counts, unless the settings name another.
-REALM = "waterfall"
+# The realm of the installation, whose accounts a backup counts, unless the settings name another:
+# the default of the settings, which no other place writes (#4662).
+REALM = str(RealmSettings.model_fields["keycloak_realm"].default)
 # The event a database the backup cannot reach writes to the journal of the service.
 UNREACHED = "backup.database_unreached"
 
@@ -198,8 +201,17 @@ def unavailable_database() -> UnavailableError:
     return UnavailableError(COMPONENT_UNAVAILABLE, {"component": "database"})
 
 
-def dump(name: str, address: str, folder: Path, timeout: float | None = None) -> Dumped:
+def dump(
+    name: str,
+    address: str,
+    folder: Path,
+    timeout: float | None = None,
+    snapshot: str | None = None,
+) -> Dumped:
     """Dump a database in the custom format, in one snapshot, once it has been reached.
+
+    ``snapshot`` is one PostgreSQL exported (``pg_export_snapshot()``) and keeps open: the dump
+    reads that state, the one the backup counted (#4572). Without it, ``pg_dump`` takes its own.
 
     A database that stops answering while it is dumped — PostgreSQL restarted, its connections
     spent — is a component out of reach (503, #907): the dump that fails reaches the database
@@ -215,7 +227,7 @@ def dump(name: str, address: str, folder: Path, timeout: float | None = None) ->
     environment = connection(address, folder / f"{name}.service")
     with path.open("wb") as written:
         try:
-            done = _pg_dump(written, environment, allowed)
+            done = _pg_dump(written, environment, allowed, snapshot)
         except subprocess.TimeoutExpired:
             reached(address)
             logger.exception("backup.dump_timed_out", database=name, seconds=allowed)
@@ -229,9 +241,12 @@ def dump(name: str, address: str, folder: Path, timeout: float | None = None) ->
 
 
 def _pg_dump(
-    written: IO[bytes], environment: Mapping[str, str], timeout: float
+    written: IO[bytes], environment: Mapping[str, str], timeout: float, snapshot: str | None = None
 ) -> subprocess.CompletedProcess[bytes]:
-    """Run pg_dump into a file: it waits for a lock for a time, and runs for a time, bounded."""
+    """Run pg_dump into a file: it waits for a lock for a time, and runs for a time, bounded.
+
+    The one value it is given is the snapshot PostgreSQL exported, never one from outside.
+    """
     return subprocess.run(
         [
             "/usr/bin/pg_dump",
@@ -244,6 +259,7 @@ def _pg_dump(
             "--schema=public",
             "--extension=*",
             "--large-objects",
+            *([] if snapshot is None else [f"--snapshot={snapshot}"]),
         ],
         stdout=written,
         stderr=subprocess.PIPE,
@@ -435,12 +451,18 @@ class BackupTask:
         nothing, if either does not hold what is counted.
         """
         waterfall, provider = (self.databases[name] for name in DATABASES)
-        accounts = read_or_none(provider, lambda connection: accounts_of(connection, self.realm))
-        provided = dump(DATABASES[1], provider, folder, deadline.left())
-        inventory = None
-        if accounts is not None:
-            inventory = read_or_none(waterfall, lambda connection: counted_in(connection, accounts))
-        dumped = dump(DATABASES[0], waterfall, folder, deadline.left())
+        # Each database is counted and dumped in the same snapshot, which stays open: what is
+        # written between the counts and the dump cannot part the manifest from the dump (#4572).
+        accounts, provided = read_while(
+            provider,
+            lambda connection: accounts_of(connection, self.realm),
+            lambda snapshot: dump(DATABASES[1], provider, folder, deadline.left(), snapshot),
+        )
+        inventory, dumped = read_while(
+            waterfall,
+            lambda connection: None if accounts is None else counted_in(connection, accounts),
+            lambda snapshot: dump(DATABASES[0], waterfall, folder, deadline.left(), snapshot),
+        )
         return [dumped, provided], inventory
 
     @staticmethod

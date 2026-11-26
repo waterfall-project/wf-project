@@ -245,7 +245,17 @@ class Settings(PlatformSettings):
         ]
 
 
-class KeycloakSettings(PlatformSettings):
+class RealmSettings(PlatformSettings):
+    """The realm of the installation, whose accounts a backup counts and its test counts again.
+
+    The one place the default realm is written (#4662): the backup, the test of a restoration and
+    the processes that reach Keycloak all read ``keycloak_realm`` from here.
+    """
+
+    keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
+
+
+class KeycloakSettings(RealmSettings):
     """What a process that reaches Keycloak reads besides.
 
     ``keycloak_address`` is where the browser reaches Keycloak, which names the issuer of every
@@ -256,7 +266,6 @@ class KeycloakSettings(PlatformSettings):
 
     keycloak_address: str = Field(min_length=1, pattern="^https?://")
     keycloak_backchannel: str | None = Field(default=None, min_length=1, pattern="^https?://")
-    keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
     service_client_secret: SecretStr = Field(min_length=1)
 
     def transport_faults(self) -> list[str]:
@@ -704,7 +713,7 @@ class RestoreSettings(ServiceSettings):
     realm_requests: str = Field(min_length=1)
 
 
-class RestoreTestSettings(StorageSettings):
+class RestoreTestSettings(StorageSettings, RealmSettings):
     """What the test of a restoration reads, ``waterfall-restore test`` (WF-EXP-0060, US-2930).
 
     ``database_url`` designates the database of Waterfall of the production, as the role of the
@@ -725,7 +734,6 @@ class RestoreTestSettings(StorageSettings):
     restore_test_authority: Roots = None
     restore_test_restored_file: str = Field(min_length=1)
     restore_test_patience: int = Field(default=1800, ge=1)
-    keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
 
     def transport_faults(self) -> list[str]:
         """Add the API of the ephemeral platform, which must be reached in ``https://``."""

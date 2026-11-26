@@ -25,7 +25,7 @@ from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import LIFETIME, FileUpload, Whole, object_key_of, record_whole
 from waterfall.worker import purge as purge_module
-from waterfall.worker.purge import PurgeTask
+from waterfall.worker.purge import ARCHIVE_DELAY, PurgeTask
 from waterfall.worker.runner import Timing, Worker
 from waterfall.worker.schedule import every
 
@@ -254,7 +254,10 @@ def test_the_purge_task_deletes_the_deposit_expired_and_its_object_once_it_is_co
     with database.transaction() as session:
         assert session.get(FileUpload, upload_id) is None
     ran = task(database, purged)
-    assert (ran.status, ran.result) == ("succeeded", {"objects": 1, "deposits": 0, "tasks": 0})
+    assert (ran.status, ran.result) == (
+        "succeeded",
+        {"objects": 1, "deposits": 0, "tasks": 0, "archives": 0},
+    )
 
 
 @pytest.mark.requirement("WF-DAT-0120-A")
@@ -346,3 +349,47 @@ def test_the_purge_task_removes_the_history_older_than_the_retention_it_is_given
     purge_run(database, queue, backups_bucket)
     ((before, now),) = called
     assert now - before == UNDO
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+@pytest.mark.story("US-2940")
+def test_the_purge_task_removes_the_archive_of_a_backup_no_row_names_once_it_is_older_than_a_day(
+    database: Database,
+    queue: TaskQueue,
+    backups_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Propre à US-2940 (#4679) : an archive left without its row — the validation of the task
+    # failed, or its worker died after the upload — is swept past ``ARCHIVE_DELAY``; a younger one
+    # may be about to be named, and a named one stays whatever its age.
+    stray, named = f"backup-{uuid4()}.tar", f"backup-{uuid4()}.tar"
+    for key in (stray, named):
+        backups_bucket.put(key, b"archive")
+    with database.transaction() as session:
+        session.execute(
+            insert(Backup).values(
+                id=uuid4(),
+                taken_at=utc_now(),
+                size_bytes=7,
+                verification="passed",
+                origin="scheduled",
+                is_retained=False,
+                object_key=named,
+                application_version="test",
+                schema_revision="0048",
+                task_id=ended_task(database, utc_now()),
+            )
+        )
+    young = purge_run(database, queue, backups_bucket)
+    assert backups_bucket.size(stray) is not None
+    assert task(database, young).result == {
+        "objects": 0,
+        "deposits": 0,
+        "tasks": 0,
+        "archives": 0,
+    }
+    monkeypatch.setattr(purge_module, "utc_now", lambda: utc_now() + ARCHIVE_DELAY * 2)
+    old = purge_run(database, queue, backups_bucket)
+    assert backups_bucket.size(stray) is None
+    assert backups_bucket.size(named) is not None
+    assert (task(database, old).result or {})["archives"] == 1
