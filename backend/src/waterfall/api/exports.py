@@ -19,7 +19,7 @@ covered (#3977, the question is put to the author).
 """
 
 import unicodedata
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any
 from urllib.parse import quote
 from uuid import UUID
@@ -50,51 +50,71 @@ router = APIRouter()
 
 
 class DeliveredResponse(StreamingResponse):
-    """A streamed answer that runs ``delivered`` only once it was sent to its end (#3977).
+    """A streamed answer that runs ``delivered`` only once its body was handed over whole (#3977).
 
     Starlette runs the background task of a response after the stream whatever became of the
     connection: with the ASGI ``spec_version`` below 2.4, a ``http.disconnect`` cancels the stream
-    and the task still runs. So the end is watched here, whatever the version: the last message
-    (``more_body`` false) was handed to the server, and no ``http.disconnect`` was received. The
-    ``chunks`` are closed on every path: whole, cut, or failed.
+    and the task still runs. So the end is watched here, whatever the version: every byte of the
+    body was handed to the server without a send failing or being cancelled, and no
+    ``http.disconnect`` came before the last of them. The client of a relay leaves as soon as it has
+    the last byte, before the closing message goes out (#4985): a disconnect read after the last
+    piece was sent changes nothing. The body is whole when the stream came to its end or, with the
+    ``length`` known, when that many bytes were sent: the end of the stream is awaited in a thread,
+    and a disconnect can cancel that wait before the thread ran. The ``chunks`` are closed on every
+    path: whole, cut, or failed.
     """
 
-    def __init__(self, chunks: ObjectStream, delivered: Callable[[], None], **options: Any) -> None:
-        super().__init__(chunks, **options)
+    def __init__(
+        self,
+        chunks: ObjectStream,
+        delivered: Callable[[], None],
+        length: int | None = None,
+        **options: Any,
+    ) -> None:
+        self.exhausted = False
+        self.length = length
+        super().__init__(self.watched(chunks), **options)
         self.chunks = chunks
         self.delivered = delivered
 
+    def watched(self, chunks: ObjectStream) -> Iterator[bytes]:
+        """Pass the pieces on, and note that the stream came to its end (it runs in a thread)."""
+        yield from chunks
+        self.exhausted = True
+
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        """Stream the answer; run ``delivered`` if it went to its end, and only then."""
-        disconnected = False
-        ended = False
+        """Stream the answer; run ``delivered`` if its body went whole to the server, only then."""
+        sent = 0  # the pieces of the body handed to the server
+        size = 0  # their bytes
+        left_after: int | None = None  # the pieces sent when the client left, if it did
+        broken = False  # a send failed or was cancelled: the bytes did not leave
 
         async def watched_receive() -> Message:
-            nonlocal disconnected
+            nonlocal left_after
             message = await receive()
-            # A disconnect told once the answer is whole (the test client does) changes nothing.
-            if message["type"] == "http.disconnect" and not ended:
-                disconnected = True
+            if message["type"] == "http.disconnect" and left_after is None:
+                left_after = sent
             return message
 
         async def watched_send(message: Message) -> None:
-            nonlocal ended
-            last = message["type"] == "http.response.body" and not message.get("more_body", False)
-            # The last message is held delivered as it is handed to the server: the client of a
-            # relay leaves as soon as it has the last byte, and its ``http.disconnect`` can be read
-            # while this ``send`` is still pending (#4985). A send that fails did not hand it over.
-            ended = ended or last
+            nonlocal sent, size, broken
             try:
                 await send(message)
-            except Exception:
-                ended = False
+            except BaseException:
+                broken = True
                 raise
+            if message["type"] == "http.response.body" and message.get("more_body", False):
+                sent += 1
+                size += len(message.get("body", b""))
 
         try:
             await super().__call__(scope, watched_receive, watched_send)
         finally:
             self.chunks.close()
-        if ended and not disconnected:
+        # A client gone before the last piece was sent got no whole file, though the server may take
+        # the pieces still (uvicorn drops them): only a disconnect after all of them is harmless.
+        whole = self.exhausted or (self.length is not None and size >= self.length)
+        if whole and not broken and (left_after is None or left_after >= sent):
             await run_in_threadpool(self.delivered)
 
 
@@ -195,4 +215,6 @@ def get_background_task_result(
     headers = {"Content-Disposition": disposition(found.filename)}
     if length is not None:
         headers["Content-Length"] = str(length)
-    return DeliveredResponse(chunks, delivered, media_type=found.media_type, headers=headers)
+    return DeliveredResponse(
+        chunks, delivered, length, media_type=found.media_type, headers=headers
+    )
