@@ -14,6 +14,7 @@ import json
 import os
 import re
 import signal
+import subprocess
 import threading
 import time
 import tomllib
@@ -22,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 import yaml
 
-from wftools import REPOSITORY, e2eimage
+from wftools import REPOSITORY, e2eimage, slots
 from wftools import registry as shared
 
 if TYPE_CHECKING:
@@ -248,9 +249,58 @@ def test_the_paths_against_the_service_play_in_the_image_pulled_first() -> None:
     # Tried again, as the registry is asked again before (#2530).
     assert "for attempt in 1 2 3 4" in found[pulled]["run"]
     played = next(i for i, step in enumerate(found) if step.get("run") == "make check-service")
-    built = next(i for i, step in enumerate(found) if step.get("run") == "make build-keycloak")
+    # Loaded, not built: keycloak-image builds it once (#4790).
+    built = next(i for i, step in enumerate(found) if step.get("run") == "make load-keycloak")
     assert pulled < built < played
     assert found[played]["env"]["E2E_IMAGE"] == "${{ inputs.image }}"
+
+
+class ResetLoader(yaml.SafeLoader):
+    """A safe loader that knows Compose's `!reset` tag, which it reads as None."""
+
+
+ResetLoader.add_constructor("!reset", lambda _loader, _node: None)
+
+
+def test_keycloak_is_built_once_per_run_and_loaded_by_the_parts() -> None:
+    # Four parts building it asked Maven Central four times at once (#4790): one job of ci.yml
+    # builds it, the parts load it and Compose does not build it again.
+    building = [
+        f"{path.name}:{name}"
+        for path in sorted(WORKFLOWS.glob("*.yml"))
+        for name, job in yaml.safe_load(path.read_text(encoding="utf-8"))["jobs"].items()
+        if any("make build-keycloak" in step.get("run", "") for step in job.get("steps", []))
+    ]
+    assert building == ["ci.yml:keycloak-image"]
+    ci = workflow("ci.yml")["jobs"]
+    assert "keycloak-image" in ci["service"]["needs"]
+    assert "keycloak-image" in ci["gate"]["needs"]
+    paths = workflow("service.yml")["jobs"]["paths"]
+    assert paths["env"]["WATERFALL_KEYCLOAK_LOADED"] == "1"
+    assert any(step.get("run") == "make load-keycloak" for step in paths["steps"])
+    known = tomllib.loads((REPOSITORY / "tools" / "queue-known.toml").read_text(encoding="utf-8"))
+    entry = next(e for e in known["known"] if e.get("issue") == "#4790")
+    assert re.search(entry["job"], "keycloak-image")
+    loaded = REPOSITORY / "deploy" / "compose" / "compose.keycloak-loaded.yaml"
+    override = ResetLoader(loaded.read_text(encoding="utf-8")).get_single_data()["services"]
+    compose = REPOSITORY / "deploy" / "compose" / "compose.service.yaml"
+    base = yaml.safe_load(compose.read_text(encoding="utf-8"))["services"]
+    built = {
+        name
+        for name, service in base.items()
+        if service.get("image", "").startswith("${WATERFALL_KEYCLOAK_IMAGE") and "build" in service
+    }
+    assert built
+    assert override == {name: {"build": None} for name in built}
+    printed = subprocess.run(
+        ["make", "-n", "--no-print-directory", "service-up", "WATERFALL_KEYCLOAK_LOADED=1"],
+        cwd=REPOSITORY,
+        env=os.environ | slots.variables(0),  # the slot's variables, so that no register is asked
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert "-f deploy/compose/compose.keycloak-loaded.yaml" in printed.stdout, printed.stderr
 
 
 def test_the_image_carries_the_python_of_the_tools_at_a_pinned_patch() -> None:

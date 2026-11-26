@@ -13023,6 +13023,35 @@ l'écran d'état, qui écarte un code qu'il ne connaît pas, ne la verrait jamai
 lirait mal ; un code de l'alerte au contrat, qui demanderait au front un libellé qu'il n'affiche
 jamais.
 
+### Les exemples de `getUser` décrivent un état, non une écriture (US-3020/L4, #1013)
+
+Décision de l'auteur au cadrage d'EP-13 (2026-11-19, conception d'EP-13, « Modifications du
+contrat ») : les exemples `deactivated` et `anonymized` de la réponse 200 de `getUser`, une
+lecture, ne racontent plus l'écriture dont ils sont la suite. Ils citent les fixtures que
+`setUserActivation` et `anonymizeUser` rendent, `user_deactivated.json` et `user_anonymized.json`,
+dont le `summary` disait « désactivé aujourd'hui par Camille Martin à partir de la version lue…
+ses sessions sont fermées ». Le `summary` de chacune décrit désormais l'état du compte, valable
+pour la réponse de l'écriture comme pour toute lecture qui la suit : le compte de Noé Vidal,
+« désactivé aujourd'hui par Camille Martin, tel que le rendent sa désactivation et toute lecture
+qui la suit […] ; aucune session ne lui reste ouverte » ; celui d'Alix Moreau, « anonymisé
+aujourd'hui par Camille Martin à la demande de la personne, tel que le rendent son anonymisation et
+toute lecture qui la suit ». L'auteur et le jour restent : l'`audit` de la valeur les porte
+(`updated_by`, `updated_at`). Seuls ces deux textes changent ; aucun schéma, champ, statut ni
+valeur, et aucun test ne lisait l'ancien texte. Une modification du contrat figé (« La règle
+d'après le gel ») qui ne touche que la documentation de deux exemples.
+
+Écartés : deux exemples de lecture propres à `getUser` (`user_deactivated_read.json`…), dont la
+valeur doublerait celle de l'écriture, octet pour octet, qu'un test devrait alors tenir égale ; et
+des `summary` posés dans le contrat sur le `$ref`, qu'OpenAPI 3.1 admet mais qui sépareraient le
+texte de sa valeur, quand le dépôt range tout exemple long sous `fixtures/api/` en objet Example.
+
+Le second point de #1013 — Prism sert le premier exemple de `getUser` pour tout `user_id` — n'est
+pas levé : le premier exemple est le compte actif du témoin (`active`, `user.json`) depuis
+e28c7bd7, de sorte que Prism ne nomme plus Noé Vidal pour tout `user_id`, et la limite des lectures
+par identifiant est documentée dans le guide (« Ce que le faux back ne fait pas ») ; un sélecteur
+d'exemple par identifiant, comme celui des avenants (`wftools.mock`, #1219), n'est pas ajouté pour
+un écran que le service sert depuis EP-03.
+
 ### Le contrat des échanges d'EP-33 : le compte rendu périmé, le dépôt sous permission, la tâche purgée, les colonnes d'un onglet, le montant écrit (US-3250/L1, #4525)
 
 Décisions de l'auteur du 2026-11-21, au cadrage d'EP-33 (conception, « Modifications du contrat »),

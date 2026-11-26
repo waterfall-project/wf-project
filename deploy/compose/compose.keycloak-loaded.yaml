@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The service platform on an image of Keycloak already loaded (make load-keycloak, #4790): added to
+# compose.service.yaml by the Makefile when WATERFALL_KEYCLOAK_LOADED is set, so that `up --build`
+# starts the image as it is and does not build it again, which downloads Maven's plugins anew.
+services:
+  keycloak:
+    build: !reset null
+  keycloak-realm:
+    build: !reset null

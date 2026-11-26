@@ -408,7 +408,9 @@ def test_the_chain_builds_the_front_once_and_every_part_plays_that_build() -> No
     assert not [s for s in paths_job["steps"] if "build" in s.get("run", "")]
 
     (service,) = yaml.safe_load((workflows / "service.yml").read_text())["jobs"].values()
-    assert downloaded(service["steps"]) == [played]
+    # Keycloak's image, built once by ci.yml too (#4790), is downloaded before the front.
+    kept = {"name": "keycloak-image", "path": "${{ runner.temp }}"}
+    assert downloaded(service["steps"]) == [kept, played]
     (checked,) = [step for step in service["steps"] if step.get("run") == "make check-service"]
     assert checked["env"]["E2E_BUILT"] == "1"
     assert not [s for s in service["steps"] if "build-front" in s.get("run", "")]
