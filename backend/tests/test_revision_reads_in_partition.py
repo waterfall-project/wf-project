@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""A revision is read in the partition of its project, at one project or six hundred (US-2970/L1).
+"""A revision is read in the partition of its project, on the schema.
 
 ``test_partitions`` holds it for ``cost_structure`` (EP-04, US-0910); here it is held for every
 table the catalog says is revised, those the EPICs created since included, found in the catalog
@@ -9,41 +9,26 @@ another key, fails the first two tests, naming it. The second explains, for each
 reading of a revision (its project, and its revision when the table names one): it holds the schema
 and that shape, not the statements of the code (issue #5076).
 
-The duration of a reading is not read on a clock, which a loaded runner moves by more than the
-effect looked for. A reading's work is the pages it touches (``EXPLAIN (ANALYZE, BUFFERS)``: hits
-and reads together, whatever the cache holds), which depend on the partition it reads alone: the
-same reading of the same project touches the same pages on a platform of one project and on one of
-six hundred, or it reads what it should not. The six hundred projects are written around the
-service, by the owner, as ``test_partitions`` writes its own: the full set of ``load-reference
---projects 600`` takes some ten minutes, beyond the delay of a test (``pyproject.toml``).
+The duration of a reading at six hundred projects is not held here: it is measured on the set of
+US-2950 (US-2970/L2).
 """
 
+import re
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from planning_support import node_row
-from project_rows import (
-    insert_project,
-    insert_revision,
-    insert_structure,
-    projects_with_partitions,
-)
+from project_rows import insert_revision, projects_with_partitions
 from sqlalchemy import (
     ARRAY,
     String,
     bindparam,
     column,
-    func,
-    insert,
     literal_column,
     select,
     table,
     text,
 )
-
-from waterfall.core.planning.tables import Node
-from waterfall.migrations.runner import upgrade
 
 if TYPE_CHECKING:
     from sqlalchemy import Engine
@@ -53,9 +38,6 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.requirement("WF-DAT-0050-A")
 
-PROJECTS = 600
-# The nodes of the revision of each project: what the pages of a reading are counted on.
-NODES = 100
 # The tables that name a revision and hold no revised data, so no partition: the revision and the
 # project, which hold the key itself; the history of a session, the plan of a paste kept an hour and
 # the report of an import, which are working state, read by their own key (EP-06, EP-09). A table
@@ -84,6 +66,9 @@ PARTITIONED_REVISED = frozenset(
     }
 )
 
+# The name of a partition of a project: its table, then ``_p_`` and the project, in hexadecimal.
+PARTITION_NAME = re.compile(r"(?P<parent>[a-z_]+)_p_[0-9a-f]{32}")
+
 PARTITIONED = text(
     "SELECT parent.relname, attribute.attname, partitioned.partstrat, partitioned.partnatts "
     "FROM pg_partitioned_table AS partitioned "
@@ -105,7 +90,10 @@ REVISED = text(
     "OR confrelid IN (SELECT partrelid FROM pg_partitioned_table)))) ORDER BY 1"
 )
 # The tables, among those given, that carry a column of the revision: those a reading of a revision
-# names it on, the others being read by their project alone.
+# names it on, the others being read by their project alone. A table tied to the revision by a
+# single foreign key, with no column ``revision_id`` of its own, is explained by its project alone
+# (its key leads to the revision through a partitioned table): the catalog gives none today, and
+# such a table would be read here by its project, not by a revision it does not hold.
 WITH_REVISION_COLUMN = text(
     "SELECT attrelid::regclass::text FROM pg_attribute WHERE attname = 'revision_id' "
     "AND NOT attisdropped AND attrelid = ANY (SELECT oid FROM pg_class WHERE relname = ANY(:names) "
@@ -126,10 +114,8 @@ def partitioned_by_project(connection: Connection) -> list[str]:
 
 
 def plan_tree(connection: Connection, statement: Any, **values: UUID) -> dict[str, Any]:
-    """Give the root of the plan of a statement, executed, with the pages it touched."""
-    explained = connection.execute(
-        text(f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {statement}"), values
-    ).scalar_one()
+    """Give the root of the plan of a statement, with its parameters."""
+    explained = connection.execute(text(f"EXPLAIN (FORMAT JSON) {statement}"), values).scalar_one()
     plan: dict[str, Any] = explained[0]["Plan"]
     return plan
 
@@ -140,11 +126,6 @@ def relations(plan: dict[str, Any]) -> set[str]:
     for child in plan.get("Plans", []):
         found |= relations(child)
     return found
-
-
-def pages(plan: dict[str, Any]) -> int:
-    """Give the pages a plan touched, those the cache held and those it read."""
-    return int(plan["Shared Hit Blocks"]) + int(plan["Shared Read Blocks"])
 
 
 def test_every_table_a_revision_names_is_partitioned_by_project_or_is_the_revision(
@@ -168,6 +149,10 @@ def test_every_table_a_revision_names_is_partitioned_by_project_or_is_the_revisi
     assert not NOT_PARTITIONED & partitioned, (
         f"drop the exemptions of the partitioned {sorted(NOT_PARTITIONED & partitioned)}"
     )
+    assert PARTITIONED_REVISED <= revised, (
+        f"the tables named here that the catalog no longer finds revised "
+        f"{sorted(PARTITIONED_REVISED - revised)}"
+    )
     assert partitioned == PARTITIONED_REVISED, (
         f"name the new {sorted(partitioned - PARTITIONED_REVISED)}, "
         f"drop the gone {sorted(PARTITIONED_REVISED - partitioned)}"
@@ -182,8 +167,8 @@ def test_the_plan_of_a_reading_of_a_revised_table_reads_the_partition_of_its_pro
     # plan of the reading of the first, by its project and by a revision it holds when the table
     # names one, reads the partition of the first and none of the others, and the partition is
     # there, which a table the function does not partition for the project is not. The test holds
-    # the schema and the shape of a reading of a revision, not the statements of the code, which
-    # issue #5076 follows.
+    # the schema and the shape of a reading of a revision; the statements of the code are the
+    # next test's.
     del database
     with projects_with_partitions(owner, 3) as projects, owner.begin() as connection:
         first = projects[0]
@@ -200,62 +185,3 @@ def test_the_plan_of_a_reading_of_a_revised_table_reads_the_partition_of_its_pro
                 values["revision"] = revision
             plan = plan_tree(connection, str(reading), **values)
             assert relations(plan) == {f"{name}_p_{first.hex}"}, name
-
-
-def written(connection: Connection, project_id: UUID) -> UUID:
-    """Write a revision of a project, its structure and its nodes, and give the revision."""
-    revision = uuid4()
-    connection.execute(insert_revision(project_id, id=revision))
-    structure = uuid4()
-    connection.execute(insert_structure(project_id, revision, id=structure))
-    connection.execute(
-        insert(Node),
-        [
-            node_row(project_id, revision, structure, rank=rank, lineage_id=uuid4())
-            for rank in range(1, NODES + 1)
-        ],
-    )
-    return revision
-
-
-@pytest.mark.timeout(1800)
-def test_the_reading_of_a_revision_touches_as_many_pages_at_six_hundred_projects_as_at_one(
-    empty_engine: Engine,
-) -> None:
-    # « La durée de lecture d'une révision est la même sur une plateforme d'un projet et sur une
-    # plateforme de six cents projets. » The same reading of the same revision, on a platform of
-    # that project alone and on one of six hundred: the nodes of the revision, which the nodes of
-    # the others must not make longer to read, are read in the same pages, and the plan reads the
-    # partition of the project alone. On a database of its own, dropped whole: the partitions of
-    # six hundred projects take minutes to drop one by one, more than the test takes to write.
-    owner = empty_engine
-    upgrade(owner)
-    project_id = uuid4()
-    reading = str(
-        select(Node.id).where(
-            Node.project_id == bindparam("project"), Node.revision_id == bindparam("revision")
-        )
-    )
-    with owner.begin() as connection:
-        connection.execute(insert_project(id=project_id))
-        connection.execute(select(func.create_project_partitions(project_id)))
-        revision = written(connection, project_id)
-    with owner.connect() as connection:
-        connection.execute(text("ANALYZE node"))
-        alone = plan_tree(connection, reading, project=project_id, revision=revision)
-    for _ in range(PROJECTS - 1):
-        with owner.begin() as connection:
-            other = uuid4()
-            connection.execute(insert_project(id=other))
-            connection.execute(select(func.create_project_partitions(other)))
-            written(connection, other)
-    with owner.connect() as connection:
-        connection.execute(text("ANALYZE node"))
-        crowded = plan_tree(connection, reading, project=project_id, revision=revision)
-        count = connection.scalar(text("SELECT count(*) FROM project"))
-    assert count == PROJECTS
-    assert alone["Actual Rows"] == crowded["Actual Rows"] == NODES
-    assert relations(alone) == {f"node_p_{project_id.hex}"}
-    assert relations(crowded) == relations(alone)
-    assert pages(alone) > 0
-    assert pages(crowded) == pages(alone)
