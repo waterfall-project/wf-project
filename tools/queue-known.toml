@@ -618,3 +618,14 @@ message = 'backup-schedule\.spec\.ts:344'
 runs = [45750823183]
 frequency = "1 passage : 45750823183 (2026-11-26, pr-5001), d'`epic/EP-13`"
 cause = "hypothèse : après le passage au tri croissant, la grille est lue avant ses lignes ; seul l'en-tête `aria-sort` est attendu"
+
+[[known]]
+class = "known flakiness"
+family = "le parcours du manager des référentiels compte et choisit avant que l'écran soit prêt"
+issue = "#5008"
+job = "^service / paths"
+test = 'e2e/service/reference-manager\.spec\.ts:154'
+message = 'reference-manager\.spec\.ts:(208|256)'
+runs = [45523807226, 45755084852]
+frequency = "2 passages, à deux endroits : 45523807226 (2026-11-25, pr-4845, `epic/EP-30`, ligne 208) et 45755084852 (2026-11-26, pr-5001, `epic/EP-13`, ligne 256)"
+cause = "hypothèse : le nombre d'intitulés lu (ligne 250) et le filtre choisi (ligne 206) avant l'hydratation de l'écran"
