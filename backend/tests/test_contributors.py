@@ -22,6 +22,8 @@ from sqlalchemy import event, insert, select, update
 from sqlalchemy.orm import Session
 from support import WITNESS, raw_account, wait_for_a_lock
 
+from waterfall.core.projects.interface import ContributorEntry
+from waterfall.core.projects.interface.contributors import changes
 from waterfall.core.projects.tables import Contributor, Project
 from waterfall.core.users.tables import UserAccount
 
@@ -718,6 +720,77 @@ def test_the_registration_the_change_and_the_removal_of_a_project_manager_are_in
         ("project_manager_add", by, str(newcomer), "Nora Blanc"),
         ("project_manager_change", by, str(participant), names[str(participant)]),
         ("project_manager_remove", by, str(newcomer), "Nora Blanc"),
+    ]
+
+
+# The one inscription of the creator of a project: its creation, by it, and no registration of a
+# project manager (``project_manager_add``), though the creation makes it one (DECISIONS.md,
+# US-2980/L1): no test walks the actions of the journal, and one that would names this exemption.
+CREATOR_INSCRIBED = "project_create"
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_the_creator_of_a_project_is_inscribed_by_its_creation_and_not_as_a_project_manager(
+    api: ContractClient, database: Database, realm: TestRealm, stage: Scene
+) -> None:
+    assert managers_inscribed(api, database, realm, stage) == []
+    auditor = person(database, realm, "audit_log.read", name="Camille")
+    query = f"project_id={stage.project['project_id']}&actions={CREATOR_INSCRIBED}"
+    answer = api.get(f"{EVENTS}?{query}", headers=auditor.headers)
+    assert answer.status_code == 200, answer.text
+    assert [(entry["action"], entry["actor"]["user_id"]) for entry in answer.json()["items"]] == [
+        (CREATOR_INSCRIBED, str(stage.manager.user_id))
+    ]
+
+
+def witness_value(name: str) -> dict[str, Any]:
+    """Give the value of an example of the witness, by its name."""
+    return json.loads((WITNESS / f"{name}.json").read_text(encoding="utf-8"))["value"]
+
+
+def written(items: list[dict[str, Any]]) -> list[ContributorEntry]:
+    """Give the lines of a list of the contract as the service writes them."""
+    return [ContributorEntry(UUID(item["user_id"]), item["kind"]) for item in items]
+
+
+def held_kinds(items: list[dict[str, Any]]) -> dict[UUID, Any]:
+    """Give the kind of each account of a list of the contract, as the service reads it."""
+    return {UUID(item["user_id"]): item["kind"] for item in items}
+
+
+def heading(name: str) -> tuple[str, UUID]:
+    """Give the inscription at the head of an example of the journal: its action, its account."""
+    head = witness_value(f"audit_events_manager_{name}")["items"][0]
+    assert head["object"]["kind"] == "contributor"
+    return head["action"], UUID(head["object"]["object_id"])
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_the_inscriptions_of_the_examples_are_those_the_service_makes_of_their_lists() -> None:
+    # The rule of the inscriptions is written twice, by the service (``changes``) and by the
+    # generator of the examples (``wftools.mockauditmanagers.changes``), which the back cannot
+    # import: the service plays here the lists of the witness, and finds the action and the
+    # account at the head of each of the three examples. The list the rescue writes and the one
+    # that follows ``contributors_set`` are no example: the list read, the account of the example
+    # added as project manager, or withdrawn.
+    before, after = (
+        witness_value("contributors")["items"],
+        witness_value("contributors_set")["items"],
+    )
+    assert changes(held_kinds(before), written(after)) == [heading("changed")]
+    action, rescued = heading("added")
+    read = witness_value("contributors_without_active_manager")["items"]
+    rescue = [*read, {"user_id": str(rescued), "kind": MANAGER}]
+    assert rescued not in held_kinds(read)
+    assert changes(held_kinds(read), written(rescue)) == [(action, rescued)]
+    action, withdrawn = heading("removed")
+    kept = [item for item in after if UUID(item["user_id"]) != withdrawn]
+    assert len(kept) == len(after) - 1
+    assert changes(held_kinds(after), written(kept)) == [(action, withdrawn)]
+    assert [action for action, _ in map(heading, ("changed", "added", "removed"))] == [
+        "project_manager_change",
+        "project_manager_add",
+        "project_manager_remove",
     ]
 
 
