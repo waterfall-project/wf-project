@@ -364,3 +364,33 @@ def test_a_configuration_mounted_without_its_root_is_named() -> None:
         "prometheus reads /tls/ca.crt (./prometheus-client.yml), which it does not mount",
         "grafana reads /trust/root.crt (./grafana-datasource.yml), which it does not mount",
     ]
+
+
+MEMORY = re.compile(r"^(\d+)(m|MiB|g|GiB)$")
+
+
+def mebibytes(text: str) -> int:
+    """Read a size of memory of Compose (``512m``) or of the Go runtime (``400MiB``) in MiB."""
+    found = MEMORY.fullmatch(text)
+    assert found, f"a size this test does not read: {text!r}"
+    return int(found[1]) * (1024 if found[2] in {"g", "GiB"} else 1)
+
+
+@pytest.mark.requirement("WF-CMP-0020-A")
+@pytest.mark.story("US-2810")
+@pytest.mark.parametrize("name", ["prometheus", "alertmanager", "grafana"])
+def test_the_supervision_has_a_memory_limit_the_go_runtime_collects_under(name: str) -> None:
+    # The three are bounded, so that the platform with its supervision holds in eight gigabytes;
+    # GOMEMLIMIT makes the runtime collect before the kernel kills the container at its limit.
+    service = services()[name]
+    limit = mebibytes(str(service["mem_limit"]))
+    assert limit <= 512
+    assert 0 < mebibytes(str(service["environment"]["GOMEMLIMIT"])) < limit
+
+
+@pytest.mark.requirement("WF-CMP-0020-A")
+@pytest.mark.story("US-2810")
+def test_the_limits_of_the_supervision_fit_in_a_fraction_of_the_eight_gigabytes() -> None:
+    names = ("prometheus", "alertmanager", "grafana")
+    limits = [mebibytes(str(services()[name]["mem_limit"])) for name in names]
+    assert sum(limits) <= 8 * 1024 // 4

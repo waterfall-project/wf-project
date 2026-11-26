@@ -76,9 +76,9 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-logs-search service-logs-fields service-down measure-core migrate \
+	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-reference service-reference-check service-purge service-logs service-logs-search service-logs-fields service-down measure-core migrate \
 	build-keycloak save-keycloak load-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
-	production-trial check-production kube-tools lint-chart test-chart chart-trial chart-upgrade check-chart \
+	production-trial check-production kube-tools lint-chart test-chart chart-trial chart-trial-k3s chart-upgrade check-chart \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens implementations readmes reuse lint-workflows \
 	lint-shell check slot slot-release e2e-down slots test-services test-services-down \
@@ -188,7 +188,7 @@ SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPE
 	WATERFALL_POSTGRES_PORT WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT \
 	WATERFALL_MAILPIT_PORT WATERFALL_PROXY_PORT
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT E2E_METRICS_FRONT_PORT E2E_METRICS_PORT
-$(call slot-export,service-up service-install service-witness service-purge keycloak-authority service-logs service-logs-search service-logs-fields service-down service-api-processes \
+$(call slot-export,service-up service-install service-witness service-reference service-reference-check service-purge keycloak-authority service-logs service-logs-search service-logs-fields service-down service-api-processes \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
 # e2e-down is not tolerant of a worktree without a slot, on purpose: its first command, stop-servers,
 # already stops on "run make slot" (US-1300), because without a slot there are no ports to look at and
@@ -349,6 +349,14 @@ chart-trial: export WATERFALL_CHART_CLUSTER ?= waterfall-chart-s$(call slot-valu
 chart-trial: kube-tools ## Install the chart on a throwaway cluster of kind from the images of WATERFALL_IMAGE_TAG (the commit by default, make images first), bootstrap it, hold its liveness, the sign-in of its first administrator and its services without state (one token answered the same by each instance, a worker killed in a marking) and the test of a restoration the platform plans (closed while it runs, gone after), then delete the cluster
 	@$(heavy) $(WFTOOLS).charttrial
 
+# The same chart on the second distribution, k3s in a container, by the very same values: that the
+# chart installs on two distributions without modification (WF-CMP-0020-A, US-2810). It holds the
+# installation, the sign-in of the first administrator and the transport; the rest is held on kind.
+chart-trial-k3s: export WATERFALL_CHART_CLUSTER ?= waterfall-chart-k3s-s$(call slot-value,WATERFALL_SLOT)
+chart-trial-k3s: export WATERFALL_CHART_DISTRIBUTION = k3s
+chart-trial-k3s: kube-tools ## Install the chart on a throwaway cluster of k3s, by the values of kind, from the images of WATERFALL_IMAGE_TAG (make images first), bootstrap it, hold its liveness, the sign-in of its first administrator and its transport, then delete the cluster (WF-CMP-0020-A)
+	@$(heavy) $(WFTOOLS).charttrial
+
 # The upgrade of the chart under load (US-2850): the version N — the last published version that
 # carries the chart, or else the base, BASE, or its nearest first parent whose images are published —
 # installed on a cluster of kind of its own, upgraded to the images of WATERFALL_IMAGE_TAG (make images
@@ -385,6 +393,25 @@ service-install: ## Bootstrap the installation of the service platform, started,
 service-witness: ## Load the witness, the examples of the contract (fixtures/api and fixtures/witness), on the service platform, started and bootstrapped
 	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet witness
 	@$(COMPOSE_SERVICE) run --rm --no-TTY witness
+
+# The reference set of WF-QUA-0040 (US-2950), on the platform that holds the witness or not: the
+# service `witness` runs `waterfall-api load-reference` in place of `load-witness`, which the command
+# runs first itself. Taken up where it stopped, a project and a month of PRJ-001 each in a transaction
+# of their own; the full set — three hundred projects, a hundred and eighty revisions of PRJ-001,
+# eighteen thousand lines of cost — takes most of an hour. REFERENCE_PROJECTS, REFERENCE_REVISIONS and
+# REFERENCE_COST_LINES say less, for a trial.
+# `waterfall-api check-reference` counts what the platform holds and checks the sums of its portfolio:
+# the volumes of the set are verified there, on the platform, never against fixtures/api/volume/.
+REFERENCE_PROJECTS ?= 300
+REFERENCE_REVISIONS ?= 180
+REFERENCE_COST_LINES ?= 18000
+service-reference: ## Load the reference set (the witness, then the 300 projects and the 180 revisions of PRJ-001) on the service platform, started and bootstrapped; REFERENCE_PROJECTS, REFERENCE_REVISIONS, REFERENCE_COST_LINES for less; taken up where it stopped
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet witness
+	@$(COMPOSE_SERVICE) run --rm --no-TTY witness waterfall-api load-reference --projects $(REFERENCE_PROJECTS) --revisions $(REFERENCE_REVISIONS) --cost-lines $(REFERENCE_COST_LINES)
+
+service-reference-check: ## Check the reference set the service platform holds: its volumes, its identifiers, the sums of its portfolio (same REFERENCE_* variables); ends 1 on a fault
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet witness
+	@$(COMPOSE_SERVICE) run --rm --no-TTY witness waterfall-api check-reference --projects $(REFERENCE_PROJECTS) --revisions $(REFERENCE_REVISIONS) --cost-lines $(REFERENCE_COST_LINES)
 
 # The purge of what expired (EP-06, "La purge"), by hand: the schedule the scheduler calls every five
 # minutes, run in its container with a purge interval of one second, so that the purge is due now;
@@ -791,9 +818,16 @@ check-service: $(call full-only,e2e-service) ## The paths against the real servi
 # them (production-trial): in the full tier only, as images.yml does again on the images it published.
 check-production: $(call full-only,images production-trial) ## The production platform starts on the images built here, bootstraps and lets its first administrator in, in the full tier only (US-0430)
 
-# The chart linted and rendered in every tier; installed on a cluster of kind from the three images
-# built here, in the full tier only, as check-production starts the Compose (US-2800).
-check-chart: lint-chart test-chart $(call full-only,images chart-trial) ## The chart lints and says what it must; in the full tier, it installs on a throwaway cluster, bootstraps and lets its first administrator in (US-2800)
+# The chart linted and rendered in every tier; installed on a cluster of kind, then of k3s, from the
+# three images built here, in the full tier only, as check-production starts the Compose (US-2800);
+# then, on a cluster of its own, the version N upgraded to them under load, from BASE (US-2850).
+# CHART_TRIALS names the clusters it is installed on and the upgrade, all by default: the chain gives
+# each its job, the upgrade to the one of kind.
+# CHART_CHECKS names the lint and the tests of the rendering: the job of the second cluster leaves
+# them to the first, which has run them (chart.yml).
+CHART_TRIALS ?= chart-trial chart-trial-k3s chart-upgrade
+CHART_CHECKS ?= lint-chart test-chart
+check-chart: $(CHART_CHECKS) $(call full-only,images $(CHART_TRIALS)) ## The chart lints and says what it must; in the full tier, it installs on throwaway clusters of kind and of k3s, bootstraps and lets its first administrator in (US-2800, US-2810), then upgrades from the version N under load, rolls back and upgrades again (US-2850)
 
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap

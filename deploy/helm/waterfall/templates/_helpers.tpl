@@ -93,13 +93,37 @@ imagePullSecrets:
 (US-2850, WF-EXP-0030): once its pod is ending, the Services and the ingress stop sending it
 requests, but each learns it from the cluster a moment later, and sends some until then. The
 container waits that moment before it is stopped, then its server ends the requests it holds,
-within the grace of its pod. Without it, make chart-upgrade saw 7 requests of 450 answered 502 by an
-upgrade; with it, none in three passages. The worker has none: stopped, its task is taken again. */}}
+within the grace of its pod. Without it, the requests sent in that moment are answered 502 by the
+ingress. The worker has none: stopped, its task is taken again. */}}
 {{- define "waterfall.drain" -}}
 lifecycle:
   preStop:
     sleep:
-      seconds: 10
+      seconds: {{ include "waterfall.drainSeconds" . }}
+{{- end -}}
+
+{{/* The drain of the API, whose clients keep their connections: the server of the front, whose
+connections the cluster keeps on the pod they were opened to, past its leaving the Service. It
+writes the file WATERFALL_DRAIN_FILE names before the wait, from which each answer closes its
+connection (waterfall.api.drain); one that serves nothing meanwhile is closed idle, by the API after
+five seconds (IDLE_SECONDS, uvicorn's timeout_keep_alive) and by the front after four (undici's
+keepAliveTimeout by default, Node 26), both within the wait: by the stop, the front holds none to the
+pod. Without it, the stop closed the connections idle at that moment, and a read sent on one was
+lost twice, its second sending on another of them (#5020). The image of the API has a shell; its
+/tmp is written by any user. Written or not, the file does not cut the wait short. */}}
+{{- define "waterfall.drainClosing" -}}
+lifecycle:
+  preStop:
+    exec:
+      command:
+        - sh
+        - -c
+        - touch "$WATERFALL_DRAIN_FILE"; sleep {{ include "waterfall.drainSeconds" . }}
+{{- end -}}
+
+{{/* The seconds a container that serves waits once its pod is ending, before it is stopped. */}}
+{{- define "waterfall.drainSeconds" -}}
+10
 {{- end -}}
 
 {{/* The grace a pod that serves is given to stop: the wait of its containers, then the requests

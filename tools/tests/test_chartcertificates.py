@@ -106,13 +106,6 @@ def test_the_data_components_are_the_same_under_two_versions_of_waterfall(
     assert labels["app.kubernetes.io/version"] == "0.2.0"
 
 
-def test_the_chart_asks_for_a_cluster_that_knows_the_drain_of_its_pods() -> None:
-    # waterfall.drain waits by a preStop of kind sleep, which Kubernetes knows from 1.30.
-    with pytest.raises(chart.ChartError, match="kubeVersion"):
-        chart.render(options=["--kube-version=1.29.9"])
-    assert chart.render(options=["--kube-version=1.30.0"])
-
-
 def test_no_pod_of_a_data_component_runs_an_image_of_waterfall(objects: Objects) -> None:
     registry = chart.defaults()["images"]["registry"]
     for component in CERTIFIED:

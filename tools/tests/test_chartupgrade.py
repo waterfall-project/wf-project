@@ -2,18 +2,20 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The upgrade of the chart under load, its rollback and the second upgrade (US-2850).
 
-The cluster is made, N installed, upgraded, rolled back and upgraded again by ``make
-chart-upgrade``, run by hand, not yet in the chain (#5020); these tests hold what the trial decides
-by itself — which version is N, what it is not executed for, what each passage must leave — on a
-cluster played by a fake.
+The cluster is made, N installed, upgraded, rolled back and upgraded again by ``make chart-upgrade``
+in the full tier of the chain (``make check-chart``), from the base of the pull request or of the
+queue; these tests hold what the trial decides by itself — which version is N, what it is not
+executed for, what each passage must leave — on a cluster played by a fake.
 
-The tests citing WF-EXP-0030-A or WF-DAT-0140-A exercise the parts of the trial without closing
-those criteria: the real trial, wired into the full tier by US-2850/L4 (#5029), will close them.
+The tests citing WF-EXP-0030-A (its first and third sentences) and WF-DAT-0140-A (its second) hold
+the parts of the trial by which it closes those criteria: no request failed and no one signed out
+through an upgrade, the rollback on the schema of N+1, no migration already applied run again.
 """
 
 import io
 import json
 import tarfile
+import threading
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -154,6 +156,17 @@ def test_a_trial_not_executed_says_so_and_what_it_does_not_hold_and_makes_no_clu
     assert "wftools.chartupgrade: not executed:" in said
     assert "carries no chart" in said
     assert "WF-EXP-0030-A, WF-DAT-0140-A are not held" in said
+    assert "::notice::" not in said
+
+
+@pytest.mark.requirement("WF-EXP-0030-A")
+def test_on_github_actions_a_trial_without_base_is_an_annotation_of_the_job(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A full tier run by hand gives no base: the job stays green, its summary says why.
+    assert chartupgrade.main([""], {"WATERFALL_IMAGE_TAG": BRANCH, "GITHUB_ACTIONS": "true"}) == 0
+    said = capsys.readouterr().out
+    assert said.startswith("::notice::wftools.chartupgrade: not executed: no base is given")
 
 
 def test_images_the_workstation_holds_are_not_asked_of_the_registry() -> None:
@@ -263,6 +276,17 @@ def test_the_pods_that_serve_are_those_of_deployments_running_and_not_ending() -
         ]
     }
     assert chartupgrade.serving(listing) == {"front-1": ("2026-11-25T10:02:00Z", front(OF_BRANCH))}
+
+
+def test_an_image_of_the_mirror_below_the_registry_is_not_one_of_the_platform() -> None:
+    pod = a_pod("alertmanager-1", OF_BRANCH, "2026-11-25T10:02:00Z")
+    mirrored = f"{REGISTRY}/mirror/prom/alertmanager:v0.35.0@sha256:e638"
+    pod["spec"]["containers"] = [{"image": mirrored}]
+    kept = a_pod("front-1", OF_BRANCH, "2026-11-25T10:02:00Z")
+    kept["spec"]["containers"].append({"image": mirrored})
+    found = chartupgrade.serving({"items": [pod, kept]})
+    assert found == {"front-1": ("2026-11-25T10:02:00Z", front(OF_BRANCH))}
+    chartupgrade.check_serving(found, OF_BRANCH, "the branch")
 
 
 def test_the_images_of_a_version_are_named_by_their_digests() -> None:
@@ -406,6 +430,10 @@ class Cluster:
                 restarts=self.restarted,
             )
             return 0, json.dumps({"items": [postgres]})
+        if chartupgrade.SERVING_PODS in command:
+            return 0, "front-1 the API dropped the connection"
+        if "wide" in command:
+            return 0, "api-1 Terminating"
         if "pods" in command:
             made = f"2026-11-25T10:{self.jobs:02d}:30Z"
             return 0, json.dumps({"items": [a_pod("api-1", self.digests, made)]})
@@ -524,3 +552,69 @@ def test_a_request_that_fails_during_a_passage_fails_the_trial(
     browser = Browser(unsent)
     with pytest.raises(ProductionError, match="1 of 50 requests failed"):
         upgrade.under_load(browser, lambda: None, "the upgrade")
+
+
+def test_what_the_serving_pods_said_at_the_first_failure_is_printed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    @contextmanager
+    def requests_held(*_: object) -> Generator[Tally]:
+        yield Tally(sent=chartload.LEAST, failed=["digest WATERFALL_API_UNREACHABLE"])
+
+    monkeypatch.setattr(chartload, "requests_held", requests_held)
+    monkeypatch.setattr(Trial, "sender", no_sender)
+    upgrade = upgrade_on(Cluster(), tmp_path)
+    with pytest.raises(ProductionError, match="WATERFALL_API_UNREACHABLE"):
+        upgrade.under_load(Browser(unsent), lambda: None, "the upgrade")
+    said = capsys.readouterr().err
+    assert said.count("at the first failure of the upgrade:") == 1
+    assert "front-1 the API dropped the connection" in said
+
+
+def test_what_the_serving_pods_said_is_printed_when_the_passage_itself_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    @contextmanager
+    def requests_held(*_: object) -> Generator[Tally]:
+        yield Tally(sent=chartload.LEAST, failed=["digest WATERFALL_API_UNREACHABLE"])
+
+    def passage() -> None:
+        message = "helm upgrade failed"
+        raise UpgradeError(message)
+
+    monkeypatch.setattr(chartload, "requests_held", requests_held)
+    monkeypatch.setattr(Trial, "sender", no_sender)
+    upgrade = upgrade_on(Cluster(), tmp_path)
+    with pytest.raises(UpgradeError, match="helm upgrade failed"):
+        upgrade.under_load(Browser(unsent), passage, "the upgrade")
+    said = capsys.readouterr().err
+    assert said.count("at the first failure of the upgrade:") == 1
+    assert "front-1 the API dropped the connection" in said
+
+
+def test_a_failure_is_witnessed_while_the_passage_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    held = Tally(sent=chartload.LEAST)
+    asked: list[int] = []
+    monkeypatch.setattr(chartupgrade, "WATCHED", 0.001)
+
+    def witness(_upgrade: Upgrade) -> str:
+        asked.append(1)
+        return "front-1 the API dropped the connection"
+
+    monkeypatch.setattr(Upgrade, "witness", witness)
+    upgrade = upgrade_on(Cluster(), tmp_path)
+    with upgrade.witnessed(held) as said:
+        held.record("the account answered 502")
+        while not said:
+            threading.Event().wait(0.001)
+        assert asked == [1]
+    assert asked == [1]
+
+
+def test_a_passage_without_failure_reads_no_log(tmp_path: Path) -> None:
+    upgrade = upgrade_on(Cluster(), tmp_path)
+    with upgrade.witnessed(Tally(sent=chartload.LEAST)) as said:
+        pass
+    assert said == []

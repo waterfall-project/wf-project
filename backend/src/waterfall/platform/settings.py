@@ -524,6 +524,9 @@ class ApiSettings(ServiceSettings):
     alone; neither, in HTTP, as on the workstation. ``metrics_port`` is a port of its own where it
     serves its metrics over HTTP, and nothing else (``getMetrics``, TFX-09): none by default, and
     then they are served on the port of the API alone.
+    ``drain_file`` is the file whose presence says the instance is being stopped: from then on,
+    each answer closes its connection (``waterfall.api.drain``, US-2850); none by default, as on
+    the workstation, where nothing drains.
     ``prometheus_address`` is where it reaches the query API of Prometheus, for the status screen
     (TFX-14): in ``https://``, the certificate checked against ``tls_authority``, when an authority
     is given (US-2840); none by default, and then the screen says the metrics unavailable. The
@@ -539,6 +542,7 @@ class ApiSettings(ServiceSettings):
     metrics_port: Annotated[
         Annotated[int, Field(ge=1, le=65535)] | None, BeforeValidator(_none_when_empty)
     ] = None
+    drain_file: Annotated[str | None, BeforeValidator(_none_when_empty)] = None
     prometheus_address: Annotated[
         Annotated[str, Field(pattern="^https?://")] | None, BeforeValidator(_none_when_empty)
     ] = None

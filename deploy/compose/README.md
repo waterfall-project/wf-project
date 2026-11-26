@@ -241,6 +241,15 @@ service du royaume (`WATERFALL_SERVICE_CLIENT_SECRET`), et attend donc que `keyc
 appliqué le royaume : il ne tient pas le mot de passe de l'administrateur de `master`. L'API, le worker et le
 service de restauration refusent aussi de démarrer sur un PostgreSQL qui ne convient pas (#3964).
 
+La plateforme entière — composants de données et supervision compris — tient sur une machine de quatre
+cœurs et de huit gigaoctets (WF-CMP-0020-A) : la chaîne démarre ce Compose, avec la sauvegarde, la
+restauration et le test de restauration, dans une tranche de cgroups bornée à ces ressources, sans
+swap (`.github/actions/bound-platform`, `wftools.bounded`). Mesuré sur le Compose seul : 2,4 Gio au
+repos, 4,9 Gio au démarrage, où Keycloak et l'application du royaume sont deux JVM à la fois ; la
+supervision en pèse 5 %, et ses limites de mémoire (`mem_limit`) sont fixées dans `compose.prod.yaml`,
+avec la mesure. Le nombre de processus de l'API (`WATERFALL_API_PROCESSES`) se choisit avec cette
+mémoire : un processus tient de 0,6 à 1,2 Go.
+
 Le service `migrate` applique ensuite les migrations sous le rôle propriétaire avant que l'API, qui ne
 tient que le rôle du service, ne démarre (#701, WF-DAT-0140) ; `keycloak-realm` applique de
 nouveau le royaume de l'image, et un réglage changé à la main dans la console y revient.
