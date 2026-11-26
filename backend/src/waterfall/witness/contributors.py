@@ -41,5 +41,5 @@ def load(session: Session, witness: Witness) -> bool:
     if is_loaded(imposed, contributors_present(session, project_id, imposed)):
         return False
     counter = 0 if described.lock_version is None else described.lock_version.root
-    load_contributors(session, ContributorsLoad(project_id, entries, counter))
+    load_contributors(session, ContributorsLoad(project_id, entries, counter), witness.act)
     return True

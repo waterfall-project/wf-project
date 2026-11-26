@@ -196,6 +196,10 @@ d'une mise à jour. Donc :
    que le code.
 6. **Un verrou long se prévoit** : un index sur une grande table se crée `CONCURRENTLY`, hors
    de la transaction d'une migration ; une contrainte se pose `NOT VALID` puis se valide à part.
+   Un verrou exclusif court s'attend lui aussi borné : derrière une lecture longue de la table
+   — une sauvegarde, un export —, sa demande en file bloquerait toute lecture et écriture
+   arrivée après elle. La migration le demande sous un `lock_timeout` court, dans un point de
+   sauvegarde qu'un refus annule avec tous ses verrous, et réessaie après une pause (`0056`).
 7. **Une migration écrite à la main**, relue comme le code ; l'autogénération d'Alembic
    produit un brouillon qu'on relit ligne à ligne, jamais une migration validée telle quelle.
 
@@ -281,7 +285,10 @@ séparerait plus.
   nouvel essai est réduite sous les cinq secondes du vacuum (essayé à 0 et à 2 s).
 - Les migrations d'une même base s'appliquent l'une après l'autre : l'environnement d'Alembic
   prend un verrou consultatif de session, pour que deux instances qui démarrent ensemble
-  n'appliquent pas la même migration deux fois.
+  n'appliquent pas la même migration deux fois. Elle l'essaie (`pg_try_advisory_lock`) hors
+  de toute transaction, sans l'attendre dans une requête : l'instance qui attendrait ainsi
+  tiendrait son instantané, qu'un index créé `CONCURRENTLY` par celle qui migre attend —
+  un interblocage (0056, US-2980/L1).
 
 *Contrôle* : la revue, qui vérifie aussi les routes sœurs de celle modifiée ; un test de
 concurrence pour chaque règle d'ensemble.

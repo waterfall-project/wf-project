@@ -982,8 +982,13 @@
       (`contributors_without_active_manager`); the list they send carries a project manager with
       an active account, new or promoted from participant, otherwise it is refused with 409
       `LAST_PROJECT_MANAGER`; any other entry remains refused to them, with 403
-      `NOT_CONTRIBUTOR`. As soon as an active project manager is registered, the list again
-      belongs to its project managers alone. A list that would keep no project manager is
+      `NOT_CONTRIBUTOR`: a list that removes a line, registers a participant or makes a project
+      manager a participant, judged against the list at the lock version sent (#3988). As soon as
+      an active project manager is registered, the list again belongs to its project managers
+      alone. The registration, the removal and the change of capacity of a project manager are
+      recorded in the audit log, each by an entry of its own under the correlation of the
+      request (`project_manager_add`, `project_manager_remove`, `project_manager_change`,
+      WF-SEC-0030); those of a participant are not. A list that would keep no project manager is
       refused (409, `LAST_PROJECT_MANAGER`); an account that the installation does not have, or
       a deactivated account registered or changed in capacity, is refused with 422, `fields`
       designating the account at its line (`/contributors/<n>/user_id`) with `UNKNOWN_USER` or
