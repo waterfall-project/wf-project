@@ -89,11 +89,13 @@ def _copy_links(copy: RevisionCopy, nodes: dict[UUID, UUID], structures: dict[UU
     links = {
         each: new_id()
         for each in session.scalars(
-            select(TaskLink.id).where(
+            select(TaskLink.id)
+            .where(
                 TaskLink.project_id == copy.project_id,
                 TaskLink.revision_id == copy.source,
                 among(TaskLink.structure_id, structures),
             )
+            .order_by(TaskLink.id)
         )
     }
     if not links:
@@ -171,9 +173,11 @@ def _copy(copy: RevisionCopy, *, attached: bool, left_out: frozenset[UUID] = fro
     """
     session, ids = copy.session, copy.identifiers
     sources = session.execute(
-        select(Node.id, Node.structure_id, Node.lineage_id).where(
-            Node.project_id == copy.project_id, Node.revision_id == copy.source
-        )
+        select(Node.id, Node.structure_id, Node.lineage_id)
+        .where(Node.project_id == copy.project_id, Node.revision_id == copy.source)
+        # In the order of the identifiers, not of the pages: the copies are drawn in this order, and
+        # two openings of one revision give the same identifiers (WF-QUA-0040-A).
+        .order_by(Node.id)
     ).all()
     nodes = {
         each: copy.imposed.node(ids[structure_id], lineage_id) or new_id()
