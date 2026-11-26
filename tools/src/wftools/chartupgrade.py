@@ -21,9 +21,7 @@ instances of the API and two of the front, and the first administrator signs in.
 of that administrator held through each passage by requests none of which may fail
 (``wftools.chartload``), whose cookies are the same from the first to the last — no one is signed
 out (WF-EXP-0030-A) —, and the pods of the data components, PostgreSQL, Redis and the storage, the
-same through all, none restarted: the sessions live in Redis, whose restart would sign everyone out
-(the author's decision of 2026-11-26, #4089, option C). The supervision is not held so: a version
-that changes its rules or its dashboards restarts it, by design, and no request goes through it.
+same through all, none replaced nor restarted:
 
 - the upgrade to N+1: its migrations first, by the hook of the chart, then the instances one by
   one — every pod of the platform's images is of N+1, and was made after the migrations ended;
@@ -32,6 +30,11 @@ that changes its rules or its dashboards restarts it, by design, and no request 
 - the upgrade to N+1 again: its hook of migrations runs anew, and no migration already applied runs
   a second time (WF-DAT-0140-A) — what is seen, not supposed: a trigger of the trial on the table in
   which Alembic stamps each migration it applies records every write to it, and there is none.
+
+The sessions live in Redis, whose restart would sign everyone out: no data component is restarted
+by an upgrade (the author's decision of 2026-11-26, #4089, option C). The supervision is not held
+so: a version that changes its rules or its dashboards restarts it, by design, and no request of a
+user goes through it.
 
 The cluster is deleted at the end, whatever the outcome; what the pods said is printed first when
 the trial fails.

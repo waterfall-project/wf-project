@@ -9,6 +9,7 @@ when none fails; and when no pod that was there is gone or restarted, PostgreSQL
 scaling the API changes one value, and no pod reads it.
 """
 
+import re
 import threading
 import time
 from contextlib import contextmanager
@@ -21,6 +22,10 @@ from wftools.production import OK, Browser, Platform, ProductionError, Send
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Mapping
 
+TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.DOTALL)
+"""The title of a page, which says what it is when it is not the account."""
+DIGEST = re.compile(r'digest\\?":\\?"([^"\\]+)')
+"""The digest of an error a page of Next streams: what failed, WATERFALL_SESSION_LOST or another."""
 THREADS = 4
 """How many requests are held at once."""
 PAUSE = 0.05
@@ -54,13 +59,19 @@ def request_once(
     """Ask for the account of the first administrator; return what failed, or None."""
     browser = Browser(send, dict(cookies))
     try:
-        answer, _ = browser.open(f"{platform.address}/account")
+        answer, address = browser.open(f"{platform.address}/account")
     except ProductionError as error:
         return str(error)
     if answer.status != OK:
         return f"the account answered {answer.status}"
     if email not in unescape(answer.body):
-        return "the account does not name the first administrator"
+        # Where the page ended, and what it is: the sign-in after a lost session, or the account
+        # saying it could not be read.
+        found = TITLE.search(answer.body)
+        title = unescape(found.group(1)).strip() if found else "no title"
+        failed = DIGEST.search(answer.body)
+        digest = f", digest {failed.group(1)}" if failed else ""
+        return f"the account does not name the first administrator: {address}, {title!r}{digest}"
     return None
 
 
