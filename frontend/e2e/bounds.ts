@@ -113,3 +113,20 @@ export const ACCOUNT_RESET = 90_000;
  * (twenty-five minutes), which only a path where every wait overran would reach.
  */
 export const FIFTY_ENTRIES_UNDONE = 20 * 60_000;
+
+/**
+ * How long the path of the administrator is given, whole, in milliseconds
+ * (`service/administrator-path.spec.ts`): the administrator signed in, four screens of the
+ * administration, three writes (an account, its role, a backup) and the account left anonymised by
+ * the API. No screen of the thousand tasks, and none of the waits of the path is a measure: twenty
+ * times `WORKING`, for the sign-in and the screens of a runner under load.
+ */
+export const ADMINISTRATOR_PATH = 300_000;
+
+/**
+ * How long the worker is given to take a backup the administrator started, and the tracker to show
+ * it done, in milliseconds (`service/administrator-path.spec.ts`): a task taken from the queue, a
+ * dump of the database and a copy of the files of the installation. Not measured on its own: twelve
+ * times `WORKING`, three times `MARKING`, which is the room a task is given to be taken.
+ */
+export const BACKUP_DONE = 180_000;
