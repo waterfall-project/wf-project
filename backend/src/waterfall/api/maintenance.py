@@ -7,8 +7,9 @@ and the metrics answers 503 ``COMPONENT_UNAVAILABLE``, the database being replac
 the maintenance, and its end, and a restoration given up that keeps it for an operator (#1016).
 The maintenance is read in the schema ``platform`` of the database,
 which the restoration leaves in place (``waterfall.platform.maintenance``): Redis emptied lifts
-nothing (#956). A database out of reach — refusing, mute, or its pool spent — says no
-maintenance: the operations that need it say so themselves, and the probe of liveness answers.
+nothing (#956). A database out of reach — refusing, mute, or its pool spent — says no maintenance
+to the probe of liveness, which answers; to any other operation it is the 503 ``database`` at once
+(#4710), not a second wait for the route to meet the same silence.
 """
 
 from typing import TYPE_CHECKING
@@ -19,9 +20,12 @@ from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 
 from waterfall.api.problems import problem_response
+from waterfall.platform.database import is_unreachable
 from waterfall.platform.logs import get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from starlette.types import ASGIApp, Receive, Scope, Send
 
     from waterfall.platform.maintenance import Maintenance, Restoring
@@ -37,17 +41,28 @@ logger = get_logger(__name__)
 
 
 def in_maintenance(maintenance: Maintenance | None) -> bool:
-    """Tell whether a restoration holds the platform in maintenance; not if the database is mute."""
-    return holding(maintenance) is not None
+    """Tell whether a restoration holds the platform in maintenance.
+
+    A database out of reach is raised, for the middleware of the requests to answer it 503
+    ``database`` (``is_unreachable``): the route would wait as long to meet it (#4710).
+    """
+    return holding(maintenance, raising=is_unreachable) is not None
 
 
-def holding(maintenance: Maintenance | None) -> Restoring | None:
-    """Give the restoration that holds the platform in maintenance; none if the database is mute."""
+def holding(
+    maintenance: Maintenance | None, *, raising: Callable[[BaseException], bool] | None = None
+) -> Restoring | None:
+    """Give the restoration that holds the platform in maintenance; none if the database is mute.
+
+    ``raising`` names the failures to raise rather than to read as no maintenance.
+    """
     if maintenance is None:
         return None
     try:
         return maintenance.current()
     except (DBAPIError, PoolTimeoutError) as error:
+        if raising is not None and raising(error):
+            raise
         # The cause in a line, not its traceback: rendered with its locals, it held the probe for
         # seconds, longer than the healthcheck waits.
         logger.warning(

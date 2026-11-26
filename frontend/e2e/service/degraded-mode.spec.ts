@@ -112,7 +112,8 @@ test(
         { timeout: 30_000 },
       )
       .not.toContain("/login/unavailable");
-    // A front that answers has not reached its session store again: sign in on a new page each time, for 60 s at most.
+    // A front that answers has not reached its session store again: sign in on a new page each
+    // time, for 60 s at most.
     await expect(async () => {
       const again = await workstation(browser);
       try {
@@ -166,7 +167,8 @@ test(
       await refused.context().close();
     });
 
-    // The directory back, a healthy container has not the realm reaching it again: its account signs in again on a new page each time, for 60 s at most.
+    // A healthy directory container is not the realm reaching it again: sign in on a new page each
+    // time, for 60 s at most.
     await expect(async () => {
       const restored = await workstation(browser);
       try {

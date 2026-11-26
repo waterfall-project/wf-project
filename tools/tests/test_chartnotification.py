@@ -151,14 +151,15 @@ def test_the_chart_runs_the_grafana_of_the_compose_on_its_dashboard_and_its_one_
     assert json.loads(data["waterfall.json"]) == json.loads(DASHBOARD.read_text(encoding="utf-8"))
     (source,) = yaml.safe_load(data["datasource.yml"])["datasources"]
     prometheus = named(objects, "Service", "prometheus")["metadata"]["name"]
-    # In HTTPS, its certificate checked against the roots of the pod (US-2840, TFX-14).
+    # In HTTPS, its certificate checked against the root of the platform, which the Secret of its
+    # own certificate holds beside it (US-2840, TFX-14, US-2850).
     assert (source["type"], source["uid"], source["url"]) == (
         "prometheus",
         "prometheus",
         f"https://{prometheus}:9090",
     )
     assert source["jsonData"] == {"tlsAuthWithCACert": True}
-    assert source["secureJsonData"] == {"tlsCACert": "$__file{/trust/root.crt}"}
+    assert source["secureJsonData"] == {"tlsCACert": "$__file{/tls/ca.crt}"}
     mounted = {mount["mountPath"] for mount in grafana["volumeMounts"]}
     assert "/var/lib/waterfall-dashboards/waterfall.json" in mounted
     other = rendered({"grafana": {"prometheusUrl": "http://prometheus.operator:9090"}})
@@ -191,10 +192,10 @@ def test_grafana_has_its_own_account_whose_password_is_a_secret_the_chart_cannot
 def test_grafana_reads_neither_postgresql_nor_redis_and_keeps_nothing(
     objects: list[dict[str, Any]],
 ) -> None:
-    # It stays served when they are down: no init container waits for them — the one it has
-    # issues its certificate (US-2840) —, no address of theirs.
+    # It stays served when they are down: no init container waits for them — its certificate is
+    # a Secret (US-2850) —, no address of theirs.
     pod = named(objects, "Deployment", "grafana")["spec"]["template"]["spec"]
-    assert [step["name"] for step in pod["initContainers"]] == ["transport"]
+    assert "initContainers" not in pod
     text = yaml.safe_dump(pod)
     assert "postgres" not in text.lower().replace("postgresql", "")
     assert "redis" not in text.lower()

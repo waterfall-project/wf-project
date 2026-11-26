@@ -184,7 +184,7 @@ def _chained(certificates: Sequence[x509.Certificate], path: Path) -> None:
             raise AuthorityError(message) from error
 
 
-def _loaded(certificate: Path, key: Path, now: datetime) -> Authority:
+def loaded(certificate: Path, key: Path, now: datetime) -> Authority:
     """Read an authority, and check that it may sign: a certificate of authority, valid, its key.
 
     The certificates after it, if any, are those up to its root, in order, each of authority with a
@@ -260,10 +260,10 @@ def authority_of(provided: Path, kept: Path, now: datetime) -> Authority:
             if not path.is_file():
                 message = f"the authority provided lacks {path}"
                 raise AuthorityError(message)
-        return _loaded(certificate, key, now)
+        return loaded(certificate, key, now)
     certificate, key = kept / KEPT_CERTIFICATE, kept / KEPT_KEY
     if certificate.exists() and key.exists():
-        return _loaded(certificate, key, now)
+        return loaded(certificate, key, now)
     authority = made(now)
     _write(
         key,

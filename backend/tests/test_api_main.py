@@ -6,8 +6,10 @@ It serves on the number of processes its setting says (US-2230), each building i
 the factory, which opens the services of the process and closes them when it stops.
 """
 
+import gc
 import json
 import os
+import weakref
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
@@ -18,6 +20,7 @@ from fastapi.testclient import TestClient
 import waterfall
 from waterfall import bootstrap
 from waterfall.api import main as api_main
+from waterfall.api.app import create_app
 from waterfall.platform.cache import PREFIX, IndicatorsCache
 from waterfall.platform.database import Database
 from waterfall.platform.keycloak import Keycloak
@@ -71,9 +74,12 @@ def test_with_its_secrets_the_process_serves_the_application_on_its_address(
     # Built by its factory, once per process: one by default, the workstation and the tests' own.
     assert (served["app"], served["factory"]) == ("waterfall.api.main:application", True)
     assert (served["host"], served["port"], served["workers"]) == ("127.0.0.1", 8123, 1)
-    (line,) = capsys.readouterr().err.splitlines()
-    record = json.loads(line)
-    assert record["event"] == "service.starting"
+    # The database is out of reach: the check of its version says so, and goes on (WF-CMP-0020-A).
+    records = {
+        record["event"]: record for record in map(json.loads, capsys.readouterr().err.splitlines())
+    }
+    assert "database.not_checked" in records
+    record = records["service.starting"]
     assert (record["version"], record["port"], record["processes"]) == (
         waterfall.__version__,
         8123,
@@ -103,7 +109,14 @@ def test_a_number_of_processes_that_is_no_whole_number_above_zero_stops_the_serv
 
 
 def closings(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """Record the closing of each service a process opens, instead of closing it."""
+    """Record the closing of each service a process opens, instead of closing it.
+
+    An application served without its lifespan closes its observation when it is collected
+    (``create_app``), and the tests before this one leave such applications for the collector,
+    which would run during it, whenever its thresholds say: they are collected first, closing for
+    real, so that what is recorded is what this process closes (#4981).
+    """
+    gc.collect()
     closed: list[str] = []
 
     def closing(name: str) -> Callable[[object], None]:
@@ -141,6 +154,30 @@ def test_each_process_closes_the_services_it_opened_when_it_stops(
     assert closed == ["database", "cache", "storage", "redis", "keycloak", "database"]
     events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
     assert events[-1] == "service.stopped"
+
+
+@pytest.mark.usefixtures("platform_environment")
+def test_an_application_left_to_the_collector_by_an_earlier_test_is_not_counted_as_a_closing(
+    services: Services, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Proper to US-2870 (#4981): in the queue the collector ran during the test of the stop and
+    # closed, as it does for any application served without its lifespan, the observation of those
+    # of the tests before it. The collector is off from the abandon to the end of closings(), so
+    # that only its own collection can free the application.
+    enabled = gc.isenabled()
+    gc.disable()
+    try:
+        left = create_app(services)
+        left.state.itself = left  # a cycle: only the collector frees it
+        gone = weakref.ref(left)
+        del left
+        assert gone() is not None
+        closed = closings(monkeypatch)
+        assert gone() is None  # collected, so its finalizer ran
+    finally:
+        if enabled:
+            gc.enable()
+    assert closed == []
 
 
 @pytest.mark.usefixtures("platform_environment")

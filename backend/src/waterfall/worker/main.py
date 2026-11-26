@@ -23,6 +23,7 @@ from waterfall.core.indicators import interface as indicators_interface
 from waterfall.core.planning import interface as planning_interface
 from waterfall.core.portfolio import interface as portfolio_interface
 from waterfall.core.risks import interface as risks_interface
+from waterfall.platform.components import database_accepted
 from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.installation import TIME_ZONE, stored_in
@@ -178,6 +179,8 @@ def _run(settings: WorkerSettings, metrics: WorkerMetrics) -> int:
     # Each write takes the lock of the drain, which a restoration waits for (#2229).
     guard_writes(database.engine)
     try:
+        if not database_accepted(database, NAME):
+            return 1
         TIME_ZONE.read_from(stored_in(database))
         queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)
         try:

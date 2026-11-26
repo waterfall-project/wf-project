@@ -5,10 +5,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 The encryption between the services (US-2840, WF-SEC-0010; EP-13, « Le transport »), as
 compose.prod.yaml makes it with its service authority. The authority of the platform is the Secret
 transport.authority names, or the one the chart makes at the installation (transport.yaml): ca.crt
-and ca.key. In each pod that serves in TLS, a container of initialisation issues the certificate of
-its server, for the name of its Service, by the command of the Compose, waterfall-authority, as the
-user the server runs as; it alone mounts the key of the authority. In every pod, it writes the
-roots the clients trust, /trust/root.crt: the root of the platform, followed by the roots of the
+and ca.key. In each pod of the API, Keycloak and the front, a container of initialisation issues the
+certificate of its server, for the name of its Service, by the command of the Compose,
+waterfall-authority, as the user the server runs as; it alone mounts the key of the authority. The
+data components and the supervision — PostgreSQL, Redis, the storage, Prometheus, Alertmanager and
+Grafana — have none: their pods must not depend on the version of Waterfall, whose image an upgrade
+changes, or every upgrade would restart them (US-2850, #4089, option C). Each mounts the Secret of
+its certificate, which the hook of certificates.yaml writes when it is missing or close to its end.
+In every other pod, the container of initialisation writes the roots the clients trust,
+/trust/root.crt: the root of the platform, followed by the roots of the
 data components the operator provides (transport.providedAuthority), when one is; each root
 followed by a line feed, that a file which does not end with one is not glued to the next.
 */ -}}
@@ -122,4 +127,43 @@ authority and its certificates: (list $) or (list $ "serves"). */}}
     medium: Memory
     sizeLimit: 1Mi
 {{- end }}
+{{- end -}}
+
+{{/* The Secret of the certificate of a data component or of the supervision (US-2850): tls.key,
+tls.crt for the name of its Service, and ca.crt, the root of the platform, which its own clients
+read. The hook of certificates.yaml writes it: (list $ "postgres"). */}}
+{{- define "waterfall.certificate" -}}
+{{- printf "%s-tls" (include "waterfall.name" .) -}}
+{{- end -}}
+
+{{/* The volume of that Secret in its pod, readable by the user and the group of the pod alone: the
+server runs in its fsGroup, which Kubernetes gives the files. (list $ "postgres"). */}}
+{{- define "waterfall.certificateVolume" -}}
+- name: certificates
+  secret:
+    secretName: {{ include "waterfall.certificate" . }}
+    # 0440: PostgreSQL refuses a key that others may read.
+    defaultMode: 288
+{{- end -}}
+
+{{/* Where a data component reads its certificate, its key and the root of the platform. */}}
+{{- define "waterfall.certificateMount" -}}
+- name: certificates
+  mountPath: /tls
+  readOnly: true
+{{- end -}}
+
+{{/* The workloads whose certificates the hook writes, those of the components the chart deploys,
+in JSON: each its resource, statefulsets or deployments, its name, and the name of its Secret, by
+waterfall.certificate, as its pods mount it. */}}
+{{- define "waterfall.certified" -}}
+{{- $ := . -}}
+{{- $certified := list -}}
+{{- range $component := list (list "postgres" "statefulsets" $.Values.postgresql.enabled) (list "redis" "deployments" $.Values.redis.enabled) (list "storage" "statefulsets" $.Values.storage.enabled) (list "prometheus" "statefulsets" $.Values.prometheus.enabled) (list "alertmanager" "deployments" true) (list "grafana" "deployments" true) -}}
+{{- if index $component 2 -}}
+{{- $named := list $ (index $component 0) -}}
+{{- $certified = append $certified (dict "resource" (index $component 1) "name" (include "waterfall.name" $named) "secret" (include "waterfall.certificate" $named)) -}}
+{{- end -}}
+{{- end -}}
+{{- toJson $certified -}}
 {{- end -}}

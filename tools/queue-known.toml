@@ -345,13 +345,13 @@ cause = "hypothèse : le test n'attend ni son `rerender` ni son `act` ; US-1920/
 
 [[known]]
 class = "known flakiness"
-family = "la base fermée pendant la vie de l'API, quand db ne se résout pas"
-issue = "#4981"
-job = "^back / tests"
-test = 'test_each_process_closes_the_services_it_opened_when_it_stops'
-message = "failed to resolve host 'db'"
-frequency = "4 passages : 44960344476 (2026-11-21, pr-4673), 45005289964 (2026-11-22, pr-4711), 45722567147 (2026-11-25, pr-4979), tous trois de la file d'`epic/EP-13`, et 45754715446 (2026-11-26, palier rapide de la pull request #4980, vers `epic/EP-13`) ; corrigée par US-2870/L3 (#4990)"
-cause = "hypothèse : la lecture de la maintenance ne joint pas `db`, que le morceau du back ne résout pas toujours, et la connexion fermée est comptée comme un arrêt"
+family = "C. lecture lourde de PRJ-001"
+issue = "#5016"
+job = '^service / paths(?: \(\d+/\d+\))?$'
+test = 'e2e/revisions\.spec\.ts:204\b'
+message = "toHaveURL"
+frequency = "1 passage : 45765660534 (2026-11-26, pr-4994, file d'`epic/EP-13`)"
+cause = "hypothèse : l'adresse de « Comparer » sur le devis de PRJ-001 n'arrive pas dans le délai de `WORKING` sous la charge de la file, comme la lecture lourde de PRJ-001 (#2942) et les comparaisons d'EP-30 (#4911)"
 
 [[known]]
 class = "known flakiness"
@@ -617,3 +617,36 @@ message = 'Exception ignored while finalizing socket <ssl\.SSLSocket'
 runs = [45100723995]
 frequency = "1 passage, le 2026-11-23 (45100723995, #4776)"
 cause = "hypothèse : une connexion TLS vers Keycloak laissée ouverte par un test précédent est finalisée pendant celui-ci"
+
+[[known]]
+class = "known flakiness"
+family = "le tri croissant de l'écran des sauvegardes lu avant ses lignes"
+issue = "#5005"
+job = "^service / paths"
+test = 'e2e/service/backup-schedule\.spec\.ts:\d+.*a backup taken is listed'
+message = 'backup-schedule\.spec\.ts:344'
+runs = [45750823183]
+frequency = "1 passage : 45750823183 (2026-11-26, pr-5001), d'`epic/EP-13`"
+cause = "hypothèse : après le passage au tri croissant, la grille est lue avant ses lignes ; seul l'en-tête `aria-sort` est attendu"
+
+[[known]]
+class = "known flakiness"
+family = "le retour au projet depuis les paramètres de coûts, au-delà des 30 s d'un test"
+issue = "#5021"
+job = "^service / paths"
+test = 'e2e/navigation\.spec\.ts:84\b'
+message = "Test timeout of 30000ms exceeded"
+runs = [45780553745]
+frequency = "1 passage : 45780553745 (2026-11-26, pr-5001), d'`epic/EP-13`"
+cause = "hypothèse : la somme des lectures de service du parcours (risques de PRJ-001, paramètres de coûts, deux fois chacun) frôle les 30 s d'un test sous la charge de la file, comme l'ancienne forme du parcours (#4714)"
+
+[[known]]
+class = "known flakiness"
+family = "la sonde de la base encore en échec après sa reprise"
+issue = "#5023"
+job = "^back / tests"
+test = 'test_table_12_postgresql_stopped_the_service_says_so_and_the_dashboard_of_the_operator_goes_on'
+message = 'assert 503 == 200'
+runs = [45783848620]
+frequency = "1 passage : 45783848620 (2026-11-26, palier rapide de la pull request #5001, vers `epic/EP-13`)"
+cause = "hypothèse : après la reprise de la base, la sonde de `/api/v1/health/ready` lit encore une connexion ou un état d'avant l'arrêt, et le test n'attend pas sa reprise"

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from waterfall import __version__
 from waterfall.migrations.runner import upgrade
+from waterfall.platform.components import database_accepted
 from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.keycloak import Keycloak as KeycloakClient
@@ -65,6 +66,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     configure_logging(settings.log_level, secrets=settings.secret_values())
     logger.info("restore.starting", version=__version__)
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
+    try:
+        accepted = database_accepted(database, NAME)
+    except BaseException:
+        database.dispose()
+        raise
+    if not accepted:
+        database.dispose()
+        return 1
     queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)
     try:
         return serve(Restorer(database, queue, restoration(settings, database, queue)))

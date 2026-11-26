@@ -6,8 +6,8 @@
 # volume of its own. The buckets are made by a step of the hooks (hooks.yaml). Garage does not
 # encrypt by itself: it listens on the loopback of its pod alone, and its proxy in TLS beside it, the
 # Caddy of the Compose (storage-proxy, Caddyfile.storage), serves it on the port of the Service, with
-# the certificate its container of initialisation issues (TFX-05, US-2840). The configuration of
-# both is the Compose's, the addresses of Garage moved to the loopback.
+# the certificate of its Secret, which the hook of certificates.yaml writes (TFX-05, US-2840,
+# US-2850). The configuration of both is the Compose's, the addresses of Garage moved to the loopback.
 {{- if .Values.storage.enabled }}
 {{- $name := include "waterfall.name" (list . "storage") }}
 {{- $garage := .Files.Get "files/garage.toml" | replace "\"[::]:3900\"" "\"127.0.0.1:3902\"" | replace "\"[::]:3901\"" "\"127.0.0.1:3901\"" | trimSuffix "\n" }}
@@ -65,8 +65,6 @@ spec:
       # is not the group's, not at each start. Not every kind of volume takes a group (hostPath,
       # local, some NFS do not): docs/exploitation/postgresql-fourni.md says what then.
       {{- include "waterfall.podDefaults" (list . (dict "fsGroup" 1000 "fsGroupChangePolicy" "OnRootMismatch")) | nindent 6 }}
-      initContainers:
-        {{- include "waterfall.transportInit" (list . "storage" 1000 1000) | nindent 8 }}
       containers:
         - name: storage
           image: {{ include "waterfall.thirdParty" (list . .Values.storage.image) }}
@@ -123,14 +121,14 @@ spec:
               mountPath: /etc/caddy/Caddyfile.storage
               subPath: Caddyfile.storage
               readOnly: true
-            {{- include "waterfall.tlsMount" (list . "storage") | nindent 12 }}
+            {{- include "waterfall.certificateMount" . | nindent 12 }}
           resources:
             {{- toYaml .Values.storage.proxyResources | nindent 12 }}
       volumes:
         - name: configuration
           configMap:
             name: {{ $name }}
-        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}
+        {{- include "waterfall.certificateVolume" (list . "storage") | nindent 8 }}
   volumeClaimTemplates:
     - metadata:
         name: data
