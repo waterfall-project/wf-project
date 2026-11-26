@@ -32,6 +32,7 @@ from waterfall.api.app import PREFIX, create_app
 from waterfall.api.authentication import Services
 from waterfall.api.status import StatusSources
 from waterfall.platform.cache import IndicatorsCache
+from waterfall.platform.components import database_accepted
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.keycloak import Keycloak
@@ -85,6 +86,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stderr.write(f"{NAME}: {error}\n")
         return 2
     configure_logging(settings.log_level, secrets=settings.secret_values())
+    if not _database_fits(settings.database_url.get_secret_value()):
+        return 1
     logger.info(
         "service.starting",
         version=__version__,
@@ -108,6 +111,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             ssl_keyfile=settings.tls_key,
         )
     return 0
+
+
+def _database_fits(address: str) -> bool:
+    """Tell whether the PostgreSQL of the service is the one Waterfall requires (WF-CMP-0020-A)."""
+    database = Database(create_database_engine(address))
+    try:
+        return database_accepted(database, NAME)
+    finally:
+        database.dispose()
 
 
 def application() -> FastAPI:

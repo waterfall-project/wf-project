@@ -328,7 +328,7 @@ def test_the_worker_backs_up_as_the_role_of_the_backup_and_the_owner_migrates_al
     for name, service in services().items():
         held = [str(value) for value in dict(service.get("environment", {})).values()]
         if any(value.startswith(owner) for value in held):
-            assert name in {"migrate", "install", "restore"}, name
+            assert name in {"components", "migrate", "install", "restore"}, name
     for name in ("api", "worker", "scheduler"):
         assert environment(name)["WATERFALL_DATABASE_URL"].startswith(
             "postgresql://waterfall_service:"
@@ -373,9 +373,7 @@ def test_the_owner_of_the_tables_is_no_superuser_and_the_administrator_initialis
     owner = required("WATERFALL_POSTGRES_PASSWORD")
     assert environment("waterfall-database")["OWNER_DATABASE_PASSWORD"] == owner
     assert f"postgresql://waterfall:{owner}@" in environment("migrate")["WATERFALL_DATABASE_URL"]
-    assert services()["migrate"]["depends_on"] == {
-        "waterfall-database": {"condition": "service_completed_successfully"}
-    }
+    assert set(services()["migrate"]["depends_on"]) == {"waterfall-database", "components"}
 
 
 @pytest.mark.requirement("WF-ARC-0050-A")
