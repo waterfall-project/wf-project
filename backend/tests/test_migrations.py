@@ -65,6 +65,7 @@ from waterfall.core.projects.tables import (
     Contributor,
     Deliverable,
     OrderItem,
+    PartitionReserve,
     Project,
     ProjectStateTransition,
     Subproject,
@@ -301,6 +302,7 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         WorkPackage.__tablename__,
         OrderItem.__tablename__,
         Deliverable.__tablename__,
+        PartitionReserve.__tablename__,
         Revision.__tablename__,
         CostStructure.__tablename__,
         Node.__tablename__,
@@ -451,6 +453,9 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "work_package": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "order_item": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "deliverable": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    # The sets of partitions made in advance (US-2830/L4, migration 0055): read, to know whether
+    # the filling is due; inscribed and taken by the functions of the owner, never written here.
+    "project_partition_reserve": {"SELECT"},
     # A revision abandoned is deleted with its rows (WF-REV-0010); a marked one, the database
     # refuses to change or delete, its rows too (migration 0020, test_revision_immutability.py).
     "revision": {"SELECT", "INSERT", "UPDATE", "DELETE"},

@@ -47,6 +47,7 @@ from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.marking import mark
 from waterfall.worker.merge import merge
 from waterfall.worker.occurrence import occur
+from waterfall.worker.partition_reserve import ReserveTask
 from waterfall.worker.purge import PurgeTask
 from waterfall.worker.runner import Timing, Worker
 from waterfall.worker.schedule import deposit_due, planned
@@ -89,7 +90,8 @@ def handlers(
     import and an export are the exchanges' (EP-06). The reading of the accounts counts in
     ``metrics`` the directories it could not read (#917). The purge is the task of what expired,
     which the schedule deposits (EP-13, "Une commande planifiée unique"); the copy of a backup, the
-    task a scheduled backup deposits once verified (US-2910/L3).
+    task a scheduled backup deposits once verified (US-2910/L3); the filling of the reserve of
+    partitions, which a creation of a project and the schedule deposit (US-2830/L4).
     """
     imports = exchanges.ImportTasks.of(settings)
     return {
@@ -103,6 +105,7 @@ def handlers(
         "import_apply": imports.apply,
         "export": exchanges.ExportTask.of(settings),
         "purge": PurgeTask.of(settings),
+        "partition_reserve": ReserveTask.of(settings),
     }
 
 

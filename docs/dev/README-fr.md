@@ -6151,6 +6151,13 @@ verrou consultatif les met à la queue. La commande s'arrête, avec le nom de la
 être fusionnée se rebase sur la première et prend le numéro suivant. Le test de la chaîne échoue
 sur deux têtes.
 
+**Une table partitionnée par projet.** Une migration qui partitionne une table nouvelle par
+l'identifiant d'un projet crée la partition des projets qui existent, comme `0031`, `0035` et
+`0044`, et aussi celle des jeux de la réserve (`project_partition_reserve`, migration `0055`,
+US-2830/L4) : un jeu à qui il manque une partition n'est jamais pris, et la création d'un projet
+retombe alors sur la création synchrone de ses partitions, qui attend un marquage en cours.
+`tests/test_migration_partition_reserve.py` le vérifie : un jeu fait en `0055` est entier à la tête.
+
 **Les lignes que la migration écrit.** Le catalogue des permissions, par exemple, est une
 migration de données, séparée de celle du schéma. Les lignes de l'installation, elles, sont
 celles de l'installateur : l'amorçage les écrit, pas une migration (US-0420).
