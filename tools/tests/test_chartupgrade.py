@@ -278,6 +278,17 @@ def test_the_pods_that_serve_are_those_of_deployments_running_and_not_ending() -
     assert chartupgrade.serving(listing) == {"front-1": ("2026-11-25T10:02:00Z", front(OF_BRANCH))}
 
 
+def test_an_image_of_the_mirror_below_the_registry_is_not_one_of_the_platform() -> None:
+    pod = a_pod("alertmanager-1", OF_BRANCH, "2026-11-25T10:02:00Z")
+    mirrored = f"{REGISTRY}/mirror/prom/alertmanager:v0.35.0@sha256:e638"
+    pod["spec"]["containers"] = [{"image": mirrored}]
+    kept = a_pod("front-1", OF_BRANCH, "2026-11-25T10:02:00Z")
+    kept["spec"]["containers"].append({"image": mirrored})
+    found = chartupgrade.serving({"items": [pod, kept]})
+    assert found == {"front-1": ("2026-11-25T10:02:00Z", front(OF_BRANCH))}
+    chartupgrade.check_serving(found, OF_BRANCH, "the branch")
+
+
 def test_the_images_of_a_version_are_named_by_their_digests() -> None:
     assert chartupgrade.designations(OF_N) == {
         f"front@sha256:{'1' * 64}",

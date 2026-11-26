@@ -231,6 +231,10 @@ def extract_chart(archive: Archive, commit: str, folder: Path) -> Path:
     return found
 
 
+PLATFORM = frozenset(image.name for image in IMAGES)
+"""The names of the images of the platform: those of the mirror, below the registry too, are not."""
+
+
 def designations(digests: Mapping[str, str]) -> frozenset[str]:
     """Return how the pods of a version name its images below the registry: ``<image>@<digest>``."""
     return frozenset(f"{image}@{digest}" for image, digest in digests.items())
@@ -254,6 +258,7 @@ def serving(listing: Mapping[str, Any]) -> dict[str, tuple[str, frozenset[str]]]
             image.removeprefix(f"{REGISTRY}/")
             for container in item["spec"]["containers"]
             if (image := container["image"]).startswith(f"{REGISTRY}/")
+            and image.removeprefix(f"{REGISTRY}/").split("@")[0].split(":")[0] in PLATFORM
         )
         if images:
             found[metadata["name"]] = (metadata["creationTimestamp"], images)
