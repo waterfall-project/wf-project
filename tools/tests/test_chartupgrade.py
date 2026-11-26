@@ -156,6 +156,17 @@ def test_a_trial_not_executed_says_so_and_what_it_does_not_hold_and_makes_no_clu
     assert "wftools.chartupgrade: not executed:" in said
     assert "carries no chart" in said
     assert "WF-EXP-0030-A, WF-DAT-0140-A are not held" in said
+    assert "::notice::" not in said
+
+
+@pytest.mark.requirement("WF-EXP-0030-A")
+def test_on_github_actions_a_trial_without_base_is_an_annotation_of_the_job(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A full tier run by hand gives no base: the job stays green, its summary says why.
+    assert chartupgrade.main([""], {"WATERFALL_IMAGE_TAG": BRANCH, "GITHUB_ACTIONS": "true"}) == 0
+    said = capsys.readouterr().out
+    assert said.startswith("::notice::wftools.chartupgrade: not executed: no base is given")
 
 
 def test_images_the_workstation_holds_are_not_asked_of_the_registry() -> None:
@@ -544,6 +555,27 @@ def test_what_the_serving_pods_said_at_the_first_failure_is_printed(
     upgrade = upgrade_on(Cluster(), tmp_path)
     with pytest.raises(ProductionError, match="WATERFALL_API_UNREACHABLE"):
         upgrade.under_load(Browser(unsent), lambda: None, "the upgrade")
+    said = capsys.readouterr().err
+    assert said.count("at the first failure of the upgrade:") == 1
+    assert "front-1 the API dropped the connection" in said
+
+
+def test_what_the_serving_pods_said_is_printed_when_the_passage_itself_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    @contextmanager
+    def requests_held(*_: object) -> Generator[Tally]:
+        yield Tally(sent=chartload.LEAST, failed=["digest WATERFALL_API_UNREACHABLE"])
+
+    def passage() -> None:
+        message = "helm upgrade failed"
+        raise UpgradeError(message)
+
+    monkeypatch.setattr(chartload, "requests_held", requests_held)
+    monkeypatch.setattr(Trial, "sender", no_sender)
+    upgrade = upgrade_on(Cluster(), tmp_path)
+    with pytest.raises(UpgradeError, match="helm upgrade failed"):
+        upgrade.under_load(Browser(unsent), passage, "the upgrade")
     said = capsys.readouterr().err
     assert said.count("at the first failure of the upgrade:") == 1
     assert "front-1 the API dropped the connection" in said

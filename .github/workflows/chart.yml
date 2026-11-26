@@ -59,5 +59,6 @@ jobs:
         env:
           TIER: ${{ inputs.tier }}
           # The commit the pull request targets, or the queue merges onto, which the upgrade starts
-          # from (make chart-upgrade); empty when run by hand, the upgrade then not executed.
+          # from (make chart-upgrade); empty when run by hand, the upgrade then not executed, which
+          # a notice of the job's summary says.
           BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}

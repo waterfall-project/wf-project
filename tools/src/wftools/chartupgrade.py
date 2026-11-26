@@ -477,20 +477,24 @@ class Upgrade:
     def under_load(self, browser: Browser, passage: Callable[[], None], what: str) -> None:
         """Run a passage under requests of the signed-in administrator, none of which may fail.
 
-        What the serving pods said at the first failure is printed when the passage fails.
+        What the serving pods said at the first failure of a request is printed, the passage
+        itself failed or not.
         """
         trial = self.trial
-        with (
-            chartload.requests_held(trial.sender(), browser, trial.platform, ADMIN) as held,
-            self.witnessed(held) as said,
-        ):
-            passage()
-        for witness in said:
-            print(
-                f"  what the serving pods said at the first failure of {what}:\n{witness}",
-                file=sys.stderr,
-                flush=True,
-            )
+        said: list[str] = []
+        try:
+            with (
+                chartload.requests_held(trial.sender(), browser, trial.platform, ADMIN) as held,
+                self.witnessed(held) as said,
+            ):
+                passage()
+        finally:
+            for witness in said:
+                print(
+                    f"  what the serving pods said at the first failure of {what}:\n{witness}",
+                    file=sys.stderr,
+                    flush=True,
+                )
         chartload.check_uninterrupted(held)
         print(f"  {held.sent} requests were held through {what}, none failed", flush=True)
 
@@ -586,7 +590,10 @@ def main(arguments: list[str] | None = None, environment: Mapping[str, str] | No
         return 1
     if isinstance(found, str) or found.commit == tag:
         why = found if isinstance(found, str) else f"{found.name} is the branch itself"
-        print(f"{TOOL}: not executed: {why}; {', '.join(REQUIREMENTS)} are not held", flush=True)
+        # On GitHub Actions, an annotation: the summary of a job left green says it as well.
+        notice = "::notice::" if given.get("GITHUB_ACTIONS") == "true" else ""
+        held = ", ".join(REQUIREMENTS)
+        print(f"{notice}{TOOL}: not executed: {why}; {held} are not held", flush=True)
         return 0
     name = given.get("WATERFALL_CHART_CLUSTER") or CLUSTER
     platform = Platform(charttrial.DOMAIN, charttrial.free_port(), 0)
