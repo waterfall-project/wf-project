@@ -270,6 +270,13 @@ Constats relevés à la livraison d'US-3070/L3 et d'US-3140/L1, tranchés par l'
 - #4878 — front : l'occupation partagée entre deux grilles d'un devis propre — clos sans suite, un
   écran n'en montre qu'une.
 
+Question d'US-3070/L3b tranchée par l'auteur le 2026-11-26 (option C) :
+
+- #4911, #4920, #4921 → US-3070/L3b, qui corrige les lectures et retire la famille de bornes
+  mesurées, sauf `REDATING` ;
+- #4874, #4883 → en attente de l'issue de spécification #5083 : `REDATING` reste pour
+  `reference-resources.spec.ts:126` et `:300` jusqu'au lot qui la réalise, après US-3090/L1.
+
 ## Conception
 
 Écrite au cadrage du 2026-11-21, sur le code d'`epic/EP-08` et d'`epic/EP-11` à cette date, après la
@@ -893,6 +900,19 @@ bascule fusionnée lente ferait payer chaque lot suivant à la file. L3 ne repas
 file. US-3070/L3b part de sa branche, sans attendre L4 (la piste ne dépend pas de l'élagage), et
 une seule pull request porte les deux lots. La file y juge la vraie vitesse, sans bornes élargies.
 US-3070/L4 part d'`epic/EP-30` une fois les deux fusionnés.
+
+La mesure d'US-3070/L3b (décision de l'auteur du 2026-11-26, option C, #4912) a trouvé deux causes.
+Les lectures listaient en Python les nœuds des devis propres entiers (`labour_categories`,
+`category_is_employed`) : elles joignent maintenant les lignes en base, sans changer de règle, et
+le palier `service` passe de 13,2 à 7,8 min. Les écritures du référentiel qui redatent ou
+rechiffrent rejouent chaque devis propre entier (le PUT des unités de durée : 19,2 s, dont 12,8 s
+dans trois devis propres). Les laisser en retard, recomposés à leur mise à jour, les ramène à 3,9 s,
+mais contredit la Vérif de WF-PRJ-0040-A, et la mise à jour d'un devis propre (US-3090/L1) n'existe
+pas encore. L3b se livre donc avec la correction des lectures, et retire toute la famille de bornes
+sauf `REDATING`, gardée pour `reference-resources.spec.ts:126` et `:300`. Un autre parcours qui
+dépasserait encore `WORKING` dans la file est un constat, pas une borne de plus. Le devis propre
+en retard sur un rechiffrage du référentiel est proposé à la spécification (#5083) ; retenu, un
+lot qui suit US-3090/L1 le réalise et retire `REDATING` (#4874, #4883).
 
 **Hors périmètre.** La gravité et la provision (US-3080) ; la mise à jour et ses refus (US-3090) ;
 la survenance (US-3100) ; les écrans (US-3140) ; le témoin (US-3150).
