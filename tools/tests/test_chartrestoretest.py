@@ -41,6 +41,17 @@ def rendered(values: dict[str, Any] | None = None) -> Objects:
     return [item for item in yaml.safe_load_all(chart.render(values)) if item]
 
 
+def released(objects: Objects) -> Objects:
+    """Return the objects of the release, without its hooks.
+
+    The hook of the certificates has an account of its own, removed once the hooks have run
+    (certificates.yaml, US-2850): no pod of the release holds it.
+    """
+    return [
+        item for item in objects if "helm.sh/hook" not in item["metadata"].get("annotations", {})
+    ]
+
+
 def named(objects: Objects, kind: str, name: str) -> dict[str, Any]:
     (found,) = [
         item for item in objects if item["kind"] == kind and item["metadata"]["name"] == name
@@ -194,9 +205,11 @@ def test_the_scheduler_alone_may_create_jobs_and_the_worker_holds_no_right_of_th
     binding = named(objects, "RoleBinding", "waterfall-restore-test")
     assert binding["roleRef"]["name"] == "waterfall-restore-test"
     assert [subject["name"] for subject in binding["subjects"]] == ["waterfall-scheduler"]
-    accounts = [item["metadata"]["name"] for item in objects if item["kind"] == "ServiceAccount"]
+    accounts = [
+        item["metadata"]["name"] for item in released(objects) if item["kind"] == "ServiceAccount"
+    ]
     assert accounts == ["waterfall-scheduler"]
-    assert len([item for item in objects if item["kind"] == "RoleBinding"]) == 1
+    assert len([item for item in released(objects) if item["kind"] == "RoleBinding"]) == 1
     scheduler = named(objects, "CronJob", "waterfall-scheduler")
     spec = scheduler["spec"]["jobTemplate"]["spec"]["template"]["spec"]
     assert spec["serviceAccountName"] == "waterfall-scheduler"
@@ -224,7 +237,9 @@ def test_without_the_test_the_chart_makes_none_of_it() -> None:
     assert not [
         item["metadata"]["name"] for item in objects if "restore-test" in item["metadata"]["name"]
     ]
-    assert not [item for item in objects if item["kind"] in {"ServiceAccount", "RoleBinding"}]
+    assert not [
+        item for item in released(objects) if item["kind"] in {"ServiceAccount", "RoleBinding"}
+    ]
     scheduler = named(objects, "CronJob", "waterfall-scheduler")
     spec = scheduler["spec"]["jobTemplate"]["spec"]["template"]["spec"]
     assert "serviceAccountName" not in spec

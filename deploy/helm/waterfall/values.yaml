@@ -11,10 +11,17 @@ platform:
   domain: ""
   httpsPort: ""
 
-# The images the chain publishes, front, waterfall and keycloak, under the same tag (images.yml).
+# The images the chain publishes, front, waterfall and keycloak, each designated by its digest, never
+# by a tag, which a writer of the registry may move (#3726): the publication writes them, at each
+# merge, in digests.values.yaml, an artifact of its run (images.yml) to give to the installation as
+# it is (--values). An image designated otherwise — a tag, an empty digest — stops the rendering, as
+# does an image of a third party below without its digest.
 images:
   registry: ghcr.io/waterfall-project
-  tag: ""
+  digests:
+    front: ""
+    waterfall: ""
+    keycloak: ""
   pullPolicy: IfNotPresent
   # The secrets of the registries the cluster pulls from, by their names.
   pullSecrets: []

@@ -43,7 +43,7 @@ SERVERS = {
 # A variable that gives a service the address of another: Waterfall's, and their equivalents in the
 # services of Keycloak's image and of the buckets of the storage.
 ADDRESS = re.compile(r"^(WATERFALL_\w+_(URL|ADDRESS|BACKCHANNEL)|STORAGE_ADDRESS|KEYCLOAK_URL)$")
-WATERFALL_IMAGE = "ghcr.io/waterfall-project/waterfall:"
+WATERFALL_IMAGE = "${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/waterfall@"
 # Where a client outside the back reads the root from: the server of Next, the curl of the buckets.
 TRUSTING = {"front": "NODE_EXTRA_CA_CERTS", "storage-buckets": "STORAGE_AUTHORITY"}
 # An address a service is given and does not reach: Caddy's is its own, where it sends HTTP to; it

@@ -279,6 +279,8 @@ target = "check-service"
 paths = [
     "deploy/compose/compose.prod.yaml",
     "deploy/compose/compose.prod.local.yaml",
+    # The registry the trial pushes the images built here to, and starts the platform from.
+    "deploy/compose/compose.registry.local.yaml",
     "deploy/compose/Caddyfile.prod",
     "deploy/compose/production.env.example",
     # The encryption between its services (US-2840): the proxy of the storage, the access to
@@ -325,6 +327,7 @@ paths = [
     "tools/src/wftools/slots.py",
     "tools/src/wftools/heavyturns.py",
     "tools/src/wftools/production.py",
+    "tools/src/wftools/trialregistry.py",
     "tools/src/wftools/restoration_trial.py",
     "tools/src/wftools/restoretest_trial.py",
     "tools/src/wftools/images.py",
@@ -372,6 +375,10 @@ paths = [
     "deploy/compose/pg_hba.conf",
     "deploy/compose/prometheus-web.yml",
     "deploy/compose/alertmanager-web.yml",
+    # The command the hook of the certificates runs in the image of Waterfall (US-2850), which the
+    # trial installs.
+    "backend/src/waterfall/platform/authority.py",
+    "backend/src/waterfall/platform/authority_secrets.py",
     # The launcher the Makefile starts the slots by, and the turns of the heavy runs the trial waits for.
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
@@ -384,6 +391,7 @@ paths = [
     "tools/src/wftools/chartstateless.py",
     "tools/src/wftools/charttrial.py",
     "tools/src/wftools/production.py",
+    "tools/src/wftools/trialregistry.py",
     "tools/src/wftools/restoration_trial.py",
     "tools/src/wftools/restoretest_trial.py",
     "tools/src/wftools/transport.py",
@@ -392,7 +400,10 @@ paths = [
     "tools/tests/test_chartprometheus.py",
     "tools/tests/test_chartprovided.py",
     "tools/tests/test_chartrestoretest.py",
+    "tools/tests/test_chartsecurity.py",
     "tools/tests/test_chartstateless.py",
+    "tools/tests/test_chartdrain.py",
+    "tools/tests/test_chartcertificates.py",
     "tools/tests/test_charttransport.py",
     "tools/tests/test_alerts.py",
     "tools/tests/test_chartnotification.py",

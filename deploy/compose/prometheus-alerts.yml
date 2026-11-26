@@ -22,11 +22,18 @@
 groups:
   - name: waterfall
     rules:
-      # A component stopped: the API or the worker that no collection reaches — one instance
-      # answering is enough —, or a component the API probes and no replica finds answering. For a
-      # minute, so that one collection missed does not raise it. The front is collected, and not
-      # named here: the contract has no such component (PlatformComponent), and the status screen
-      # is its own. Prometheus does not alert on itself: the API says it unavailable.
+      # A component stopped: the front, the API or the worker that no collection reaches — one
+      # instance answering is enough —, or a component the API probes and no replica finds
+      # answering. For a minute, so that one collection missed does not raise it. The front is named
+      # here, as the contract names it (PlatformComponent), but the status screen, which it serves,
+      # does not present it among its components: it is the alert that says it stopped.
+      # Prometheus does not alert on itself: the API says it unavailable.
+      - alert: component_unavailable
+        expr: (max(up{job="front"}) or vector(0)) < 1
+        for: 1m
+        labels:
+          component: front
+          severity: alert
       - alert: component_unavailable
         expr: (max(up{job="api"}) or vector(0)) < 1
         for: 1m

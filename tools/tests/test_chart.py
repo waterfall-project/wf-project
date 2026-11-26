@@ -27,7 +27,11 @@ pytestmark = [pytest.mark.chart, pytest.mark.requirement("WF-ARC-0050-A")]
 COMPOSE = REPOSITORY / "deploy" / "compose"
 PRODUCTION = COMPOSE / "compose.prod.yaml"
 MIRRORED = re.compile(r"^\$\{WATERFALL_MIRROR:-\}")
-PUBLISHED = re.compile(r"^(ghcr\.io/waterfall-project/\w+):\$\{WATERFALL_IMAGE_TAG:\?[^}]*\}$")
+# An image the chain publishes, in the Compose: by the digest .env gives it (#3726).
+PUBLISHED = re.compile(
+    r"^\$\{WATERFALL_REGISTRY:-ghcr\.io/waterfall-project\}/"
+    r"(\w+)@\$\{WATERFALL_DIGEST_(\w+):\?[^}]*\}$"
+)
 
 Objects = list[dict[str, Any]]
 
@@ -77,6 +81,11 @@ def services() -> dict[str, Any]:
     return yaml.safe_load(PRODUCTION.read_text(encoding="utf-8"))["services"]
 
 
+def published(name: str) -> str:
+    """Return an image the chain publishes, as the chart designates it with the chain's values."""
+    return f"ghcr.io/waterfall-project/{name}@{chart.CHAIN_DIGESTS[name]}"
+
+
 @pytest.mark.story("US-2830")
 def test_the_worker_of_the_chart_keeps_what_the_worker_of_the_compose_keeps(
     objects: Objects,
@@ -117,14 +126,14 @@ def test_the_front_the_api_the_worker_and_the_restoration_are_deployments_of_the
     }
     # The front, and its proxy in TLS beside it (US-2840).
     assert images["front"] == [
-        "ghcr.io/waterfall-project/front:chain",
+        published("front"),
         MIRRORED.sub("", services()["front-proxy"]["image"]),
     ]
-    assert images["api"] == images["worker"] == ["ghcr.io/waterfall-project/waterfall:chain"]
+    assert images["api"] == images["worker"] == [published("waterfall")]
     # The restoration, with the application of the realm beside it (#955), never two at once.
     assert images["restore"] == [
-        "ghcr.io/waterfall-project/waterfall:chain",
-        "ghcr.io/waterfall-project/keycloak:chain",
+        published("waterfall"),
+        published("keycloak"),
     ]
     assert deployments["restore"]["spec"]["replicas"] == 1
     assert deployments["restore"]["spec"]["strategy"] == {"type": "Recreate"}
@@ -240,6 +249,8 @@ def test_the_realm_is_applied_by_a_hook_after_each_installation_and_upgrade(
         for component, item in jobs.items()
     }
     assert hooks == {
+        # The certificates of the data components, before anything reaches them (US-2850).
+        "certificates": ("pre-install,pre-upgrade", -26),
         "migrate": ("post-install,pre-upgrade", -10),
         "buckets": ("post-install,pre-upgrade", -10),
         "realm": ("post-install,post-upgrade", 0),
@@ -306,8 +317,8 @@ def test_the_tasks_planned_are_one_cronjob_that_runs_the_one_command_of_the_sche
 
 
 def test_the_chart_reads_the_images_of_the_compose(objects: Objects) -> None:
-    published = {
-        f"{match.group(1)}:chain"
+    ours = {
+        published(match.group(1))
         for service in services().values()
         if (match := PUBLISHED.match(service["image"]))
     }
@@ -324,7 +335,7 @@ def test_the_chart_reads_the_images_of_the_compose(objects: Objects) -> None:
         if item["kind"] in {"Deployment", "StatefulSet", "Job", "CronJob"}
         for container in containers(item)
     }
-    assert images == published | third_parties
+    assert images == ours | third_parties
 
 
 def test_the_files_the_chart_mounts_are_those_of_the_compose(objects: Objects) -> None:

@@ -108,6 +108,23 @@ def load(session: Session, witness: Witness) -> bool:
     return True
 
 
+def described_accounts(witness: Witness) -> list[User]:
+    """Give the accounts the witness creates: those of the contributors, then the attached ones.
+
+    The reference set counts them among its five hundred (US-2950).
+    """
+    contributors = witness.read(CONTRIBUTORS_FILE, ContributorList).items
+    described = {user.user_id.root: user for user in witness.read(USERS_FILE, Users).items}
+    named = [described[each.user_id.root] for each in contributors]
+    listed = {each.user_id.root for each in contributors}
+    attached = [
+        user
+        for user in described.values()
+        if user.org_node_id is not None and user.user_id.root not in listed
+    ]
+    return [*named, *attached]
+
+
 def _load_accounts(session: Session, witness: Witness, act: Act) -> None:
     """Create the local accounts of the witness, the deactivated ones deactivated after.
 
@@ -117,15 +134,8 @@ def _load_accounts(session: Session, witness: Witness, act: Act) -> None:
     slice ``org_nodes`` has written.
     """
     contributors = witness.read(CONTRIBUTORS_FILE, ContributorList).items
-    described = {user.user_id.root: user for user in witness.read(USERS_FILE, Users).items}
     active = {each.user_id.root: each.is_active for each in contributors}
-    named = [described[each.user_id.root] for each in contributors]
-    attached = [
-        user
-        for user in described.values()
-        if user.org_node_id is not None and user.user_id.root not in active
-    ]
-    for user in (*named, *attached):
+    for user in described_accounts(witness):
         last_name, first_name = user.last_name, user.first_name
         identity = Identity(
             "" if last_name is None else last_name.root,

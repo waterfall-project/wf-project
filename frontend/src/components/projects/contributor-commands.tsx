@@ -72,7 +72,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { NativeSelect } from "@/components/ui/native-select";
-import { formatLocale } from "@/i18n/format";
+import { formatConjunction } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
 import { offersModification } from "./contributor-offer";
@@ -339,8 +339,9 @@ export function ContributorHead() {
         <p className="text-sm text-muted-foreground">
           {t("suggested", {
             count: proposed.length,
-            names: new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(
+            names: formatConjunction(
               proposed.map((suggestion) => naming.kept(suggestion.display_name)),
+              locale,
             ),
           })}
         </p>
@@ -574,9 +575,7 @@ function ContributorEditor({
                       {t("proposedFrom", {
                         node: one.org_node_label,
                         count: one.resource_role_labels.length,
-                        roles: new Intl.ListFormat(formatLocale(locale), {
-                          type: "conjunction",
-                        }).format(one.resource_role_labels),
+                        roles: formatConjunction(one.resource_role_labels, locale),
                       })}
                     </span>
                   </span>

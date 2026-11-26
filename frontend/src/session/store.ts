@@ -208,7 +208,7 @@ export function unreached(error: unknown, depth = 0): boolean {
  * Redis could not be reached — a connection refused, lost, or not made in time —: nothing was read,
  * and nothing written but, perhaps, a write in flight when the connection was lost. A refusal of
  * Redis itself, an answer — a password or a database refused at the connection included —, is not
- * this but a defect, but for the replies of a Redis that cannot serve for now (`UNAVAILABLE_REPLY`);
+ * this but a defect, except the replies of a Redis that cannot serve for now (`UNAVAILABLE_REPLY`);
  * nor is an address missing or badly written.
  */
 export class StoreUnreachable extends Error {

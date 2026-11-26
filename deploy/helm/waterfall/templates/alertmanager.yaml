@@ -7,7 +7,8 @@
 # configuration from the environment and refuses, naming it, a value that is not what it must be: the
 # pod does not start on it. The password of the mail server, if it asks one, is read from the Secret
 # of the platform, where nothing requires it. It serves in TLS alone (US-2840, #4508), with the
-# certificate its container of initialisation issues, as the Compose's does (alertmanager-web.yml).
+# certificate of its Secret, which the hook of certificates.yaml writes (US-2850), as the Compose's
+# does (alertmanager-web.yml).
 {{- $name := include "waterfall.name" (list . "alertmanager") }}
 {{- $smtp := .Values.alertmanager.smtp }}
 {{- $script := .Files.Get "files/alertmanager.sh" | trimSuffix "\n" }}
@@ -56,19 +57,13 @@ spec:
       annotations:
         checksum/script: {{ printf "%s%s" $script $web | sha256sum }}
     spec:
-      {{- include "waterfall.podDefaults" . | nindent 6 }}
       # The user of the image, nobody, who writes its configuration and its silences in /alertmanager.
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65534
-        runAsGroup: 65534
-        fsGroup: 65534
-      initContainers:
-        {{- include "waterfall.transportInit" (list . "alertmanager" 65534 65534) | nindent 8 }}
+      {{- include "waterfall.podDefaults" (list . (dict "runAsUser" 65534 "runAsGroup" 65534 "fsGroup" 65534)) | nindent 6 }}
       containers:
         - name: alertmanager
           image: {{ include "waterfall.thirdParty" (list . .Values.alertmanager.image) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command: [/bin/sh, /etc/waterfall/alertmanager.sh]
           # Alone: no cluster of replicas to join.
           args:
@@ -116,7 +111,7 @@ spec:
               readOnly: true
             - name: state
               mountPath: /alertmanager
-            {{- include "waterfall.tlsMount" (list . "alertmanager") | nindent 12 }}
+            {{- include "waterfall.certificateMount" . | nindent 12 }}
           resources:
             {{- toYaml .Values.alertmanager.resources | nindent 12 }}
       volumes:
@@ -125,4 +120,4 @@ spec:
             name: {{ $name }}
         - name: state
           emptyDir: {}
-        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}
+        {{- include "waterfall.certificateVolume" (list . "alertmanager") | nindent 8 }}

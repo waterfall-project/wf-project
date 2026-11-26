@@ -6,7 +6,11 @@ Usage: ``python -m wftools.production``.
 
 The platform of ``deploy/compose/compose.prod.yaml`` is started on the images tagged
 ``WATERFALL_IMAGE_TAG`` — the commit of the checkout unless it names another —, which the chain
-either just built (``make check-production``) or just published (``images.yml``), under a local
+either just built (``make check-production``) or just published (``images.yml``), each designated by
+its digest, as the Compose designates them (#3726): the three ``WATERFALL_DIGEST_<NAME>`` the
+publication wrote — the images of ghcr.io —, or else, for images built here and never pushed, those
+the pushes of the three to a registry of the trial say, which the Compose reads them from
+(``wftools.trialregistry``, ``WATERFALL_REGISTRY``). The platform runs under a local
 name, ``WATERFALL_DOMAIN`` (``waterfall.localhost`` by default), with ``compose.prod.local.yaml``:
 Caddy makes its certificate from its own authority, whose root this tool alone trusts. Its secrets
 come from the environment, as the chain gives them; no file holds them. Then it holds that:
@@ -55,7 +59,8 @@ from pathlib import Path
 from typing import cast
 from urllib.parse import urlencode, urljoin, urlsplit
 
-from wftools import REPOSITORY, transport
+from wftools import REPOSITORY, transport, trialregistry
+from wftools.images import DIGEST, IMAGES, digest_variable
 from wftools.restoration_trial import (
     API_REACHED,
     Administrator,
@@ -69,6 +74,7 @@ from wftools.restoration_trial import (
 )
 from wftools.restoretest_trial import GRACE, Run, restore_test, scheduled_backup
 from wftools.transport import SERVED, TransportError, check_clear_refused
+from wftools.trialregistry import RegistryError
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
 FILES = (COMPOSE / "compose.prod.yaml", COMPOSE / "compose.prod.local.yaml")
@@ -512,12 +518,38 @@ def platform_of(environment: Mapping[str, str]) -> Platform:
     return Platform(domain, https_port, http_port)
 
 
-def environment_of(environment: Mapping[str, str], tag: str, platform: Platform) -> dict[str, str]:
-    """Return the environment Compose starts the platform with: what is given, and the defaults."""
+def digests_of(environment: Mapping[str, str], pushed: Mapping[str, str]) -> dict[str, str]:
+    """Return the variable that designates each image by its digest: the three given, or none.
+
+    Given, they are the publication's; none given, those of the images the trial pushed to its own
+    registry, by name of image. Two of three would run images of two origins.
+    """
+    given = {digest_variable(image): environment.get(digest_variable(image)) for image in IMAGES}
+    if any(given.values()) and not all(given.values()):
+        message = f"give the digests of the three images, or none: {', '.join(given)}"
+        raise ProductionError(message)
+    found = {
+        variable: value or pushed.get(image.name, "")
+        for (variable, value), image in zip(given.items(), IMAGES, strict=True)
+    }
+    for variable, value in found.items():
+        if not DIGEST.fullmatch(value):
+            message = f"{variable} is not the digest of an image (sha256:…): {value!r}"
+            raise ProductionError(message)
+    return found
+
+
+def environment_of(
+    environment: Mapping[str, str], platform: Platform, pushed: Mapping[str, str]
+) -> dict[str, str]:
+    """Return the environment Compose starts the platform with: what is given, and the defaults.
+
+    Each image by its digest, as given or as the trial pushed it (``digests_of``).
+    """
     email = environment.get("WATERFALL_ADMIN_EMAIL") or ADMIN
     return {
         **environment,
-        "WATERFALL_IMAGE_TAG": tag,
+        **digests_of(environment, pushed),
         "WATERFALL_DOMAIN": platform.domain,
         "WATERFALL_ADMIN_EMAIL": email,
         "WATERFALL_ACME_EMAIL": environment.get("WATERFALL_ACME_EMAIL") or email,
@@ -530,6 +562,26 @@ def environment_of(environment: Mapping[str, str], tag: str, platform: Platform)
     }
 
 
+def local_images(
+    given: Mapping[str, str], tag: str, run: Run, read: Read
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Return what the trial adds to its environment, and the digest of each image it pushed.
+
+    Digests given: nothing is added, they are those of ghcr.io's. None: the images of the tag,
+    built here, are pushed to a registry of the trial (``trialregistry``), which Compose reads them
+    from by the digests the pushes said.
+    """
+    if any(given.get(digest_variable(image)) for image in IMAGES):
+        return {}, {}
+    address = trialregistry.start(run, read)
+    try:
+        digests = trialregistry.publish(tag, address, read)
+    except RegistryError:
+        trialregistry.stop(run)
+        raise
+    return {"WATERFALL_REGISTRY": trialregistry.location(address)}, digests
+
+
 def main(
     environment: Mapping[str, str] | None = None,
     run: Run | None = None,
@@ -539,20 +591,38 @@ def main(
 ) -> int:
     """Start the platform, hold it, and remove it; fail naming what it does not do."""
     given = dict(os.environ if environment is None else environment)
+    registry: list[str] = []
     try:
         platform = platform_of(given)
         tag = given.get("WATERFALL_IMAGE_TAG") or _head()
-        started = environment_of(given, tag, platform)
-    except (ProductionError, OSError, subprocess.CalledProcessError) as error:
+        added, pushed = local_images(given, tag, run or runner(given), read or _reader(given))
+        registry = list(added)
+        started = environment_of({**given, **added}, platform, pushed)
+        commands = (run or runner(started), read or _reader(started))
+        return hold(started, tag, platform, commands, (send, ask))
+    except (ProductionError, RegistryError, OSError, subprocess.CalledProcessError) as error:
         print(f"wftools.production: {error}", file=sys.stderr)
         return 1
-    run = run or runner(started)
-    read = read or _reader(started)
+    finally:
+        if registry:
+            trialregistry.stop(run or runner(given))
+
+
+def hold(
+    started: Mapping[str, str],
+    tag: str,
+    platform: Platform,
+    commands: tuple[Run, Read],
+    extras: tuple[Callable[[Platform], Callable[[Path], Send]], Ask | None],
+) -> int:
+    """Start the platform on the environment made, hold it, and remove it."""
+    run, read = commands
+    send, ask = extras
     restoration = None
-    if wanted(given):
-        secret = given.get("WATERFALL_FRONT_CLIENT_SECRET", "")
+    if wanted(started):
+        secret = started.get("WATERFALL_FRONT_CLIENT_SECRET", "")
         restoration = Restoration(ask or _asker(started), secret)
-    project = given.get("WATERFALL_PRODUCTION_PROJECT") or PROJECT
+    project = started.get("WATERFALL_PRODUCTION_PROJECT") or PROJECT
     compose = compose_command(project)
     up = [*compose, "up", "--detach", "--wait", "--quiet-pull"]
     print(f"  the images {tag}, at {platform.address}", flush=True)

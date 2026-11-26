@@ -34,6 +34,7 @@ metadata:
     {{- include "waterfall.labels" (list . "api") | nindent 4 }}
 spec:
   replicas: {{ .Values.api.replicas }}
+  {{- include "waterfall.oneByOne" . | nindent 2 }}
   selector:
     matchLabels:
       {{- include "waterfall.selector" (list . "api") | nindent 6 }}
@@ -43,6 +44,7 @@ spec:
         {{- include "waterfall.selector" (list . "api") | nindent 8 }}
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
+      {{- include "waterfall.drainGrace" . | nindent 6 }}
       initContainers:
         {{- include "waterfall.transportInit" (list . "api" 1000 1000) | nindent 8 }}
         {{- include "waterfall.waitForDatabase" (list . "waterfall_service" "waterfall" "WATERFALL_SERVICE_DATABASE_PASSWORD") | nindent 8 }}
@@ -50,6 +52,8 @@ spec:
         - name: api
           image: {{ include "waterfall.image" (list . "waterfall") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
+          {{- include "waterfall.drain" . | nindent 10 }}
           env:
             {{- include "waterfall.backEnvironment" (list . "service") | nindent 12 }}
             {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}

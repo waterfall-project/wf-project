@@ -41,27 +41,94 @@ app.kubernetes.io/managed-by: {{ (index . 0).Release.Service }}
 helm.sh/chart: {{ printf "%s-%s" (index . 0).Chart.Name (index . 0).Chart.Version }}
 {{- end -}}
 
-{{/* An image the chain publishes, by its name: (list $ "waterfall"). */}}
+{{/* An image the chain publishes, by its name, designated by its digest, which the publication wrote
+— never by a tag, which a writer of the registry may move (#3726): (list $ "waterfall"). */}}
 {{- define "waterfall.image" -}}
 {{- $images := (index . 0).Values.images -}}
-{{- printf "%s/%s:%s" $images.registry (index . 1) (required "images.tag: the tag of the images the chain published" $images.tag) -}}
+{{- $name := index . 1 -}}
+{{- $digest := index ($images.digests | default dict) $name | default "" -}}
+{{- if not (regexMatch "^sha256:[0-9a-f]{64}$" $digest) -}}
+{{- fail (printf "images.digests.%s: the digest of the image %s the chain published (sha256:…, digests.values.yaml of its publication), not %q" $name $name $digest) -}}
+{{- end -}}
+{{- printf "%s/%s@%s" $images.registry $name $digest -}}
 {{- end -}}
 
-{{/* An image of a third party, read from the mirror when one is given: (list $ "postgres:…"). */}}
+{{/* An image of a third party, read from the mirror when one is given, pinned by its digest:
+(list $ "postgres:…@sha256:…"). */}}
 {{- define "waterfall.thirdParty" -}}
-{{- printf "%s%s" (index . 0).Values.images.mirror (index . 1) -}}
+{{- $image := index . 1 -}}
+{{- if not (regexMatch "@sha256:[0-9a-f]{64}$" $image) -}}
+{{- fail (printf "%s: an image is designated by its digest (…@sha256:…), never by a tag alone" $image) -}}
+{{- end -}}
+{{- printf "%s%s" (index . 0).Values.images.mirror $image -}}
 {{- end -}}
 
 {{/* What every pod shares: no variable of the services of the namespace — a service named
-waterfall-api would give WATERFALL_API_PORT to every container —, and the secrets of the registries. */}}
+waterfall-api would give WATERFALL_API_PORT to every container —, the secrets of the registries, and
+the level "restricted" of the Pod Security Standards (#4664): no process as root, the profile seccomp
+of the runtime. A pod whose processes run as a user of their own gives it, and the group of its
+volumes: . or (list $ (dict "runAsUser" 65534 "runAsGroup" 65534 "fsGroup" 65534)). Each container
+adds its own part, waterfall.containerSecurity, which Kubernetes does not take from the pod. */}}
 {{- define "waterfall.podDefaults" -}}
+{{- $ := . -}}
+{{- $security := dict "runAsNonRoot" true "seccompProfile" (dict "type" "RuntimeDefault") -}}
+{{- if kindIs "slice" . -}}
+{{- $ = index . 0 -}}
+{{- range $key, $value := index . 1 -}}
+{{- $_ := set $security $key $value -}}
+{{- end -}}
+{{- end -}}
 enableServiceLinks: false
-{{- with .Values.images.pullSecrets }}
+securityContext:
+  {{- toYaml $security | nindent 2 }}
+{{- with $.Values.images.pullSecrets }}
 imagePullSecrets:
 {{- range . }}
   - name: {{ . }}
 {{- end }}
 {{- end }}
+{{- end -}}
+
+{{/* The drain of a container that serves requests — the API, the front and its proxy, Keycloak —
+(US-2850, WF-EXP-0030): once its pod is ending, the Services and the ingress stop sending it
+requests, but each learns it from the cluster a moment later, and sends some until then. The
+container waits that moment before it is stopped, then its server ends the requests it holds,
+within the grace of its pod. Without it, the trial of an upgrade under load (US-2850/L2b) saw 7
+requests of 450 answered 502; with it, none in three passages. The worker has none: stopped, its task is taken again. */}}
+{{- define "waterfall.drain" -}}
+lifecycle:
+  preStop:
+    sleep:
+      seconds: 10
+{{- end -}}
+
+{{/* The grace a pod that serves is given to stop: the wait of its containers, then the requests
+they hold, which none takes longer than the timeouts of their clients. */}}
+{{- define "waterfall.drainGrace" -}}
+terminationGracePeriodSeconds: 40
+{{- end -}}
+
+{{/* An upgrade replaces the instances that serve one by one: each new one is ready before an old
+one is removed (WF-EXP-0030). */}}
+{{- define "waterfall.oneByOne" -}}
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+{{- end -}}
+
+{{/* What every container adds to waterfall.podDefaults (#4664): no privilege gained at an exec,
+every capability dropped. A container of an image that runs as root, or as a user it names by a name
+the kubelet cannot hold against runAsNonRoot, gives the number of the user it runs as:
+(dict) or (dict "runAsUser" 999 "runAsGroup" 999). */}}
+{{- define "waterfall.containerSecurity" -}}
+{{- $security := dict "allowPrivilegeEscalation" false "capabilities" (dict "drop" (list "ALL")) -}}
+{{- range $key, $value := . -}}
+{{- $_ := set $security $key $value -}}
+{{- end -}}
+securityContext:
+  {{- toYaml $security | nindent 2 }}
 {{- end -}}
 
 {{/* The address the browser reaches the platform at. */}}
@@ -248,6 +315,7 @@ dependencies of compose.prod.yaml on service-database-role and keycloak-database
 - name: wait-for-database
   image: {{ include "waterfall.thirdParty" (list $ $.Values.postgresql.image) }}
   imagePullPolicy: IfNotPresent
+  {{- include "waterfall.containerSecurity" (dict "runAsUser" 999 "runAsGroup" 999) | nindent 2 }}
   command:
     - sh
     - -c
@@ -280,6 +348,7 @@ certificate checked against the roots of the pod — its readiness, 9000 /auth/h
 - name: wait-for-keycloak
   image: {{ include "waterfall.image" (list $ "waterfall") }}
   imagePullPolicy: {{ $.Values.images.pullPolicy }}
+  {{- include "waterfall.containerSecurity" (dict) | nindent 2 }}
   command:
     - sh
     - -c

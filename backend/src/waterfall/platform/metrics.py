@@ -33,6 +33,7 @@ import os
 import shutil
 import tempfile
 import threading
+import time
 from collections.abc import Callable, Generator, Iterator, Mapping
 from concurrent.futures import Future, wait
 from contextlib import contextmanager
@@ -66,6 +67,7 @@ if TYPE_CHECKING:
 
     from waterfall.platform.database import Database
     from waterfall.platform.keycloak import Keycloak
+    from waterfall.platform.keycloak_admin import KeycloakAdmin
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.storage import Bucket
     from waterfall.platform.tasks import Outcome
@@ -103,6 +105,9 @@ UNROUTED = "unrouted"
 TASK_BUCKETS = (0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1800.0, 3600.0)
 # How long a collection waits for the probes, in seconds: one that has not answered is down.
 PROBE_SECONDS = float(OBSERVATION_SECONDS)
+# The share of it after which the version of Keycloak, read beside its keys, is no longer waited
+# for: a slow version is left unsaid and never makes Keycloak down.
+VERSION_SHARE = 0.8
 # How long a reading of the database waits for a statement or a lock, at a collection.
 READING_WAIT = timedelta(seconds=2)
 
@@ -359,9 +364,19 @@ def _health(component: str, answer: Future[Any], checked_at: datetime) -> Health
 
 
 def probes_of(
-    database: Database, queue: TaskQueue, bucket: Bucket, keycloak: Keycloak
+    database: Database,
+    queue: TaskQueue,
+    bucket: Bucket,
+    keycloak: Keycloak,
+    administration: KeycloakAdmin,
 ) -> dict[str, Probe]:
-    """Give the probe of each component the API depends on, in the order of ``PROBED``."""
+    """Give the probe of each component the API depends on, in the order of ``PROBED``.
+
+    Keycloak answers when it serves the keys of the realm; its version is then read from the
+    extension, as the service account (#4641), beside the keys and within a budget of its own. A
+    version that cannot be read in time is not said, and leaves Keycloak available: its keys, which
+    every request needs, are served.
+    """
 
     def database_probe() -> str | None:
         with database.transaction() as session:
@@ -376,8 +391,28 @@ def probes_of(
     def storage_probe() -> None:
         bucket.reach()
 
-    def identity_provider_probe() -> None:
+    version_reads = Flights()
+    version_unread = False
+
+    def identity_provider_probe() -> str | None:
+        nonlocal version_unread
+        started = time.monotonic()
+        # Asked beside the keys, with a budget of its own: it ends before the collection gives up
+        # on the probe, so that the version, slow or absent, never costs Keycloak its availability.
+        reading = version_reads.start("version-identity_provider", administration.server_version)
         expect(keycloak.send("GET", f"{keycloak.protocol}/certs"), 200)
+        left = PROBE_SECONDS * VERSION_SHARE - (time.monotonic() - started)
+        wait([reading], timeout=max(left, 0.0))
+        fault = reading.exception() if reading.done() else TimeoutError("timed out")
+        if fault is None:
+            version_unread = False
+            return cast("str", reading.result())
+        if not version_unread:  # said when it changes, not at each collection
+            logger.warning(
+                "probe.version_unread", component="identity_provider", fault=type(fault).__name__
+            )
+        version_unread = True
+        return None
 
     return {
         "database": database_probe,

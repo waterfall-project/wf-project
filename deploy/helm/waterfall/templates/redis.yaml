@@ -3,8 +3,9 @@
 
 # Redis (compose.prod.yaml, redis): nothing durable is kept in it, the queue and the sessions are
 # lost with it, not the data; no volume, nothing saved. In TLS alone (TFX-04, TFX-10): no port in the
-# clear (--port 0), the certificate its container of initialisation issues; no certificate asked of
-# its clients, who sign in with the password (US-2840).
+# clear (--port 0), the certificate of its Secret, which the hook of certificates.yaml writes
+# (US-2850); no certificate asked of its clients, who sign in with the password (US-2840). An upgrade
+# does not restart it: the sessions it holds stay (WF-EXP-0030-A).
 {{- if .Values.redis.enabled }}
 {{- $name := include "waterfall.name" (list . "redis") }}
 apiVersion: v1
@@ -37,17 +38,13 @@ spec:
       labels:
         {{- include "waterfall.selector" (list . "redis") | nindent 8 }}
     spec:
-      {{- include "waterfall.podDefaults" . | nindent 6 }}
-      # The user redis of the image.
-      securityContext:
-        runAsUser: 999
-        runAsNonRoot: true
-      initContainers:
-        {{- include "waterfall.transportInit" (list . "redis" 999 1000) | nindent 8 }}
+      # The user redis of the image, in the group that reads its certificate.
+      {{- include "waterfall.podDefaults" (list . (dict "runAsUser" 999 "fsGroup" 999)) | nindent 6 }}
       containers:
         - name: redis
           image: {{ include "waterfall.thirdParty" (list . .Values.redis.image) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command:
             - sh
             - -c
@@ -69,9 +66,9 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
           volumeMounts:
-            {{- include "waterfall.tlsMount" (list . "redis") | nindent 12 }}
+            {{- include "waterfall.certificateMount" . | nindent 12 }}
           resources:
             {{- toYaml .Values.redis.resources | nindent 12 }}
       volumes:
-        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}
+        {{- include "waterfall.certificateVolume" (list . "redis") | nindent 8 }}
 {{- end }}

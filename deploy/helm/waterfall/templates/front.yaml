@@ -44,6 +44,7 @@ metadata:
     {{- include "waterfall.labels" (list . "front") | nindent 4 }}
 spec:
   replicas: {{ .Values.front.replicas }}
+  {{- include "waterfall.oneByOne" . | nindent 2 }}
   selector:
     matchLabels:
       {{- include "waterfall.selector" (list . "front") | nindent 6 }}
@@ -55,16 +56,19 @@ spec:
         checksum/configuration: {{ $proxy | sha256sum }}
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
+      {{- include "waterfall.drainGrace" . | nindent 6 }}
       {{- with .Values.front.hostAliases }}
       hostAliases:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       initContainers:
-        {{- include "waterfall.transportInit" (list . "front" 0 0) | nindent 8 }}
+        {{- include "waterfall.transportInit" (list . "front" 1000 1000) | nindent 8 }}
       containers:
         - name: front
           image: {{ include "waterfall.image" (list . "front") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
+          {{- include "waterfall.drain" . | nindent 10 }}
           env:
             - name: HOSTNAME
               value: 127.0.0.1
@@ -115,7 +119,16 @@ spec:
         - name: front-proxy
           image: {{ include "waterfall.thirdParty" (list . .Values.transport.proxyImage) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict "runAsUser" 1000 "runAsGroup" 1000) | nindent 10 }}
+          {{- include "waterfall.drain" . | nindent 10 }}
           command: [caddy, run, --config, /etc/caddy/Caddyfile.front, --adapter, caddyfile]
+          # Caddy runs as a user of no name, not as root (#4664): what it would write of its
+          # configuration and its data goes to /tmp, which any user writes.
+          env:
+            - name: XDG_CONFIG_HOME
+              value: /tmp/caddy/config
+            - name: XDG_DATA_HOME
+              value: /tmp/caddy/data
           ports:
             - name: https
               containerPort: 3443

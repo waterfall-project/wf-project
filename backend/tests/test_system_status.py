@@ -56,7 +56,13 @@ if TYPE_CHECKING:
 STATUS = "/api/v1/system/status"
 CHECKED_AT = datetime(2026, 6, 3, 14, 4, 30, tzinfo=UTC)
 COMPONENTS = ("api", "worker", "database", "cache", "object_storage", "identity_provider")
-VERSIONS_SAID = {"api": __version__, "worker": __version__, "database": "18.1", "cache": "8.2.1"}
+VERSIONS_SAID = {
+    "api": __version__,
+    "worker": __version__,
+    "database": "18.1",
+    "cache": "8.2.1",
+    "identity_provider": "26.8.2",
+}
 CORRELATION = "01926f3a-7c00-7000-8000-000000001983"
 GIB = 1024**3
 
@@ -250,13 +256,13 @@ def test_the_screen_presents_the_version_of_each_component(
     viewer: dict[str, str],
 ) -> None:
     # « L'écran d'état présente la version de chaque composant. » : the one each announces in the
-    # metrics, Prometheus's its own; the object storage announces none, as the contract says.
+    # metrics, Prometheus's its own, Keycloak's as the extension gives it to the service account
+    # (#4641); the object storage announces none, as the contract says.
     collected(prometheus)
     components = by_component(read(screen_on(contract, platform, prometheus), viewer))
     assert {c: each["version"] for c, each in components.items()} == {
         **VERSIONS_SAID,
         "object_storage": None,
-        "identity_provider": None,
         "metrics": "3.16.0",
     }
 
@@ -638,6 +644,34 @@ def test_a_space_without_its_capacity_is_not_presented_and_none_measured_says_no
     }
     assert fullest([space("database", 900, None)]) == UNMEASURED
     assert fullest([space("database", 0, 0)]) == {"used_bytes": 0, "available_bytes": 0}
+
+
+@pytest.mark.story("US-2880")
+def test_the_front_is_not_a_component_of_the_screen_but_its_stop_is_an_alert_of_it(
+    contract: OpenAPI,
+    platform: Services,
+    prometheus: TestPrometheus,
+    viewer: dict[str, str],
+) -> None:
+    # Proper to US-2880 (#4297, #4504): the front serves the screen and does not present itself
+    # among its components, even when Prometheus collects it; the alert of its stop, which the rule
+    # raises with component="front", is in the alerts of the screen, naming it.
+    collected(prometheus)
+    every = (*COMPONENTS, "front")
+    prometheus.holds(AVAILABILITY, [({"component": c}, 1.0) for c in every])
+    prometheus.holds(CHECKED, [({"component": c}, CHECKED_AT.timestamp()) for c in every])
+    stopped = datetime(2026, 6, 3, 0, 52, tzinfo=UTC)
+    prometheus.fires("component_unavailable", stopped, component="front", severity="alert")
+    status = read(screen_on(contract, platform, prometheus), viewer)
+    assert "front" not in by_component(status)
+    assert status["alerts"] == [
+        {
+            "code": "component_unavailable",
+            "since": "2026-06-03T00:52:00Z",
+            "severity": "alert",
+            "params": {"component": "front"},
+        }
+    ]
 
 
 @pytest.mark.story("US-2890")

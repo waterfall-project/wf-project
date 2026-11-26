@@ -31,7 +31,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { WORKING } from "../bounds";
 import { openFilters } from "../check-menu";
 import { compileAnswered } from "../compile";
-import { openMenu } from "../hydration";
+import { openMenu, untilHydrated } from "../hydration";
 import { answerOf, isDeactivation, pressOnce } from "../server-action";
 import type { components } from "../../src/api/generated/schema";
 import { heldToTheContract } from "./contract";
@@ -200,12 +200,15 @@ test(
       await expect(natures.getByRole("row", { name: new RegExp(nature.code) })).toHaveCount(1, {
         timeout: WORKING,
       });
+      // The screen hydrated before the choice: a choice made before is lost. Chosen once, the
+      // address awaited for the delay of an action. Hypothesis, from the trace of run 45523807226
+      // (#5008): the GET took 3.2 to 5.3 s under load while a retried `choose()` replayed every
+      // 2 s, each replay perhaps starting a navigation that abandons the read in flight.
+      await untilHydrated(page);
       await openFilters(page, page.getByRole("region", { name: "Catégories de coût" }));
       const filter = page.getByRole("combobox", { name: "Nature", exact: true });
-      await expect(async () => {
-        await choose(filter, nature.code);
-        await expect(page).toHaveURL(/category_cost_type_id=/, { timeout: 2_000 });
-      }).toPass({ timeout: WORKING });
+      await choose(filter, nature.code);
+      await expect(page).toHaveURL(/category_cost_type_id=/, { timeout: WORKING });
       await expect(
         page
           .getByRole("grid", { name: "Catégories de coût" })
@@ -247,13 +250,16 @@ test(
       const labels = page
         .getByRole("group", { name: new RegExp(`^${COLUMN}`) })
         .getByRole("textbox");
+      const add = page.getByRole("button", { name: `Ajouter un intitulé à « ${COLUMN} »` });
+      // The screen ready before it is counted: the page opens on the skeleton of its segment, where
+      // no label is drawn, and the labels already saved (the installation holds one for this
+      // column) come with the form. The count is read once the form is there and hydrated, and
+      // the command pressed once, the label it adds awaited (#5008).
+      await expect(add).toBeVisible({ timeout: WORKING });
+      await untilHydrated(page);
       const before = await labels.count();
-      await expect(async () => {
-        if ((await labels.count()) === before) {
-          await page.getByRole("button", { name: `Ajouter un intitulé à « ${COLUMN} »` }).click();
-        }
-        await expect(labels).toHaveCount(before + 1, { timeout: 1_000 });
-      }).toPass({ timeout: WORKING });
+      await add.click();
+      await expect(labels).toHaveCount(before + 1);
       await labels.last().fill(mapped);
       await page.getByRole("button", { name: "Enregistrer la correspondance" }).click();
       await expect(page.getByRole("status").filter({ hasText: "enregistrée" })).toHaveText(

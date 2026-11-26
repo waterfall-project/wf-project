@@ -132,6 +132,26 @@ describe("the state of the platform and its backups", () => {
     await expectAccessible(container);
   });
 
+  it.each([
+    ["fr", "Composant indisponible", "Interface web"],
+    ["en", "Component unavailable", "Web interface"],
+  ] as const)(
+    "names the front, in the words of the catalogue, in an alert of a component unavailable (%s) [US-2880] [WF-OBS-0030-A]",
+    (locale, title, name) => {
+      // The example of the contract, its unavailable component replaced by the front
+      // (the contract has no example that carries it).
+      const alerts = structuredClone(failed.alerts).map((alert) =>
+        alert.code === "component_unavailable"
+          ? { ...alert, params: { ...alert.params, component: "front" as const } }
+          : alert,
+      );
+      rendered(<AlertList alerts={alerts} />, locale);
+      const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const row = screen.getByRole("row", { name: new RegExp(escape(title)) });
+      expect(within(row).getByText(new RegExp(escape(name)))).toBeInTheDocument();
+    },
+  );
+
   it("says a list of alerts that is empty in a card of section [WF-IHM-0100-A]", () => {
     rendered(<AlertList alerts={[]} />, "en");
     const sentence = screen.getByText("No current alert.");

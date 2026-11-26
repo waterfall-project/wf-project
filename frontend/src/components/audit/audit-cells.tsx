@@ -26,7 +26,7 @@ import { useAccountNaming } from "@/components/account/account-name";
 import { AnonymizedName, KeptName } from "@/components/account/anonymized-name";
 import { usePendingLink } from "@/components/grid/pending-address";
 import { LocalTime, useLocalTimestamp } from "@/components/local-time";
-import { formatLocale } from "@/i18n/format";
+import { formatConjunction } from "@/i18n/format";
 
 import { type AuditObjectKind, correlationHref, historyHref } from "./audit-address";
 
@@ -75,8 +75,8 @@ type AuditAccessRole = components["schemas"]["AuditAccessRole"];
 function useAuditDetails(action: AuditEvent["action"], params: AuditParams): string | undefined {
   const t = useTranslations();
   const said = useTranslations("admin.auditLog.details");
-  const list = new Intl.ListFormat(formatLocale(useLocale()), { type: "conjunction" });
-  const listed = (items: readonly string[]) => list.format(items);
+  const locale = useLocale();
+  const listed = (items: readonly string[]) => formatConjunction(items, locale);
   const permissions = (codes: readonly PermissionCode[]) =>
     listed(codes.map((code) => t(`permissions.${code}`)));
   const roles = (held: readonly AuditAccessRole[]) => listed(held.map((role) => role.label));

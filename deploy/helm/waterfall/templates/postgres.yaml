@@ -6,8 +6,8 @@
 # database alone (hooks.yaml). One lock table per project at restoration, hence 1 024 locks per
 # transaction; the connections are a value of their own (postgresql.maxConnections), never computed
 # from the replicas: a flag that followed them would change the template of this pod and restart it
-# when the API scales (WF-ARC-0050-A). In TLS, with the certificate its container of initialisation
-# issues (TFX-03, TFX-10, TFX-12); pg_hba.conf, the Compose's, refuses a connection in the clear
+# when the API scales (WF-ARC-0050-A). In TLS, with the certificate of its Secret, which the hook of
+# certificates.yaml writes (TFX-03, TFX-10, TFX-12, US-2850); pg_hba.conf, the Compose's, refuses a connection in the clear
 # through the network, whoever asks (US-2840).
 {{- if .Values.postgresql.enabled }}
 {{- /* The connections PostgreSQL must accept: fifteen for each process of each instance of the API,
@@ -50,13 +50,17 @@ spec:
       labels:
         {{- include "waterfall.selector" (list . "postgres") | nindent 8 }}
     spec:
-      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      # PostgreSQL runs as the user postgres of the image from the start, not as root that hands
+      # over to it (#4664): the volume is given its group, once, when its root has another, so
+      # that the server may make its folder of data in a volume just made; its entry point
+      # brings that folder back to 0700 at each start.
+      {{- include "waterfall.podDefaults" (list . (dict "fsGroup" 999 "fsGroupChangePolicy" "OnRootMismatch")) | nindent 6 }}
       initContainers:
-        {{- include "waterfall.transportInit" (list . "postgres" 999 999) | nindent 8 }}
         # Refuses a volume that holds the data of another major version (US-1130), read-only.
         - name: postgres-volume
           image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict "runAsUser" 999 "runAsGroup" 999) | nindent 10 }}
           command:
             - /bin/sh
             - /files/postgres-volume.sh
@@ -71,6 +75,7 @@ spec:
         - name: postgres
           image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
           imagePullPolicy: IfNotPresent
+          {{- include "waterfall.containerSecurity" (dict "runAsUser" 999 "runAsGroup" 999) | nindent 10 }}
           args:
             - postgres
             - -c
@@ -110,14 +115,14 @@ spec:
             - name: files
               mountPath: /files
               readOnly: true
-            {{- include "waterfall.tlsMount" (list . "postgres") | nindent 12 }}
+            {{- include "waterfall.certificateMount" . | nindent 12 }}
           resources:
             {{- toYaml .Values.postgresql.resources | nindent 12 }}
       volumes:
         - name: files
           configMap:
             name: {{ include "waterfall.name" (list . "files") }}
-        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}
+        {{- include "waterfall.certificateVolume" (list . "postgres") | nindent 8 }}
   volumeClaimTemplates:
     - metadata:
         name: data
