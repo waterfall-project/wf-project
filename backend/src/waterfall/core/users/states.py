@@ -12,27 +12,33 @@ and its avatar are removed, the journal of audit forgets its name, and it is nev
 (WF-ADM-0060, WF-SEC-0030). Its row stays, its identifier, its roles and the subject the provider
 knows it by with it: its acts stay attributed to it. A restoration that brings back an account as
 the backup held it, before its anonymisation, anonymises it again (#988).
+
+A copy of the production is anonymised whole before it is opened elsewhere: every account at once,
+by the platform, out of any session, its reports of the readings of the accounts with it
+(WF-EXP-0010, US-2960).
 """
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, literal, select, update
 
 from waterfall.core.users.accounts import Stamp, change_columns, lock_account_at
 from waterfall.core.users.commands import DEACTIVATED_CONDITION, anonymized
 from waterfall.core.users.identity import LOCAL, inscribe, inscribed_actor
-from waterfall.core.users.tables import UserAccount
+from waterfall.core.users.tables import IdentitySyncReport, UserAccount
 from waterfall.platform.audit import (
     Act,
     AuditEntry,
     AuditObject,
     Inscription,
     forget_account,
+    forget_accounts,
     record,
 )
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
+    from datetime import datetime
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -142,3 +148,39 @@ def anonymize_again(session: Session) -> list[str]:
         if account.origin == LOCAL:
             subjects.append(account.idp_subject)
     return subjects
+
+
+def anonymize_every_account(session: Session, at: datetime) -> int:
+    """Anonymise every account of a copy of the production, by the platform; give how many.
+
+    The rules of the anonymisation of one account (``anonymize``), applied to all at once, active
+    ones included, before the copy is opened: their names, their addresses and their avatars become
+    null, each one deactivated and its sessions closed as of ``at``, and the journal forgets their
+    names, as their authors and as their objects (WF-EXP-0010, WF-SEC-0030). An account anonymised
+    already keeps its date. Nothing is inscribed: the copy is not the platform the journal tells.
+    The reports of the readings of the accounts go too: they name the persons of the provider the
+    readings left, and the addresses they removed (#918, #811). Every account is locked first, in
+    the order of their identifiers, then the lock of the forgetting taken, as one anonymisation
+    takes them.
+    """
+    held = session.scalars(select(UserAccount.id).order_by(UserAccount.id).with_for_update()).all()
+    # GREATEST passes over a null: an account never signed out is closed as of ``at``.
+    moment = literal(at, UserAccount.sessions_closed_at.type)
+    named = session.scalars(
+        update(UserAccount)
+        .where(UserAccount.anonymized_at.is_(None))
+        .values(
+            **dict.fromkeys(FORGOTTEN),
+            state=DEACTIVATED,
+            anonymized_at=at,
+            sessions_closed_at=func.greatest(UserAccount.sessions_closed_at, moment),
+            lock_version=UserAccount.lock_version + 1,
+            updated_at=at,
+            updated_by=None,
+        )
+        .returning(UserAccount.id)
+        .execution_options(synchronize_session=False)
+    ).all()
+    forget_accounts(session, held)
+    session.execute(delete(IdentitySyncReport))
+    return len(named)

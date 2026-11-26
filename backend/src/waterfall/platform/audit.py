@@ -28,7 +28,7 @@ their enumerations in the contract, not as texts: by their rank, an expression a
 serves (``ACTION_RANK``, ``OBJECT_KIND_RANK``).
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal, get_args
@@ -346,17 +346,27 @@ def forget_account(session: Session, user_id: UUID) -> None:
     wait for each other: an inscription may name both accounts, and each would hold the row the
     other waits for.
     """
+    forget_accounts(session, (user_id,))
+
+
+def forget_accounts(session: Session, user_ids: Collection[UUID]) -> None:
+    """Make null the labels of the accounts given, as ``forget_account`` does for one, at once.
+
+    The anonymisation of a copy of the production forgets every account of the journal in two
+    statements, not two per account (US-2960): each one anonymised first, in the same transaction.
+    """
     session.execute(select(func.pg_advisory_xact_lock(FORGETTING_LOCK)))
+    ids = list(user_ids)
     session.execute(
         update(AuditEntry)
-        .where(AuditEntry.actor_user_id == user_id, AuditEntry.actor_display_name.is_not(None))
+        .where(AuditEntry.actor_user_id.in_(ids), AuditEntry.actor_display_name.is_not(None))
         .values(actor_display_name=None)
     )
     session.execute(
         update(AuditEntry)
         .where(
             AuditEntry.object_kind == "user",
-            AuditEntry.object_id == user_id,
+            AuditEntry.object_id.in_(ids),
             AuditEntry.object_label.is_not(None),
         )
         .values(object_label=None)

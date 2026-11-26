@@ -738,6 +738,21 @@ class RestoreTestSettings(StorageSettings):
         ]
 
 
+class AnonymizationSettings(PlatformSettings):
+    """What the anonymisation of a copy of the production reads, ``waterfall-restore anonymize``.
+
+    (WF-EXP-0010, US-2960.) ``database_url`` designates the owner of the tables of Waterfall, who
+    applies the migrations and alone may delete the reports of the readings of the accounts;
+    ``keycloak_database_url`` the owner of the database of the identity provider, whose tables it
+    changes, Keycloak stopped; ``keycloak_realm`` the realm of the installation, whose accounts it
+    anonymises. The service of the restoration holds the three. It reaches neither Redis nor
+    Keycloak.
+    """
+
+    keycloak_database_url: SecretStr = Field(min_length=1)
+    keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
+
+
 class ComponentsSettings(Settings, KeycloakSettings):
     """What the check of the components reads, ``waterfall-check-components`` (WF-CMP-0020-A).
 
@@ -801,6 +816,11 @@ def load_restore_settings() -> RestoreSettings:
 def load_restore_test_settings() -> RestoreTestSettings:
     """Read the settings of the test of a restoration, as ``load_settings`` does."""
     return _load(RestoreTestSettings)
+
+
+def load_anonymization_settings() -> AnonymizationSettings:
+    """Read the settings of the anonymisation of a copy, as ``load_settings`` does."""
+    return _load(AnonymizationSettings)
 
 
 def load_installation_settings() -> InstallationSettings:

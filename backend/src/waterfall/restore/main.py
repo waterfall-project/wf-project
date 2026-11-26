@@ -6,7 +6,9 @@ It runs the restorations of their stream until it is stopped, and stops at start
 variable that lacks, rather than starting without its settings (WF-SEC-0010). ``waterfall-restore
 test`` runs the test of a restoration beside an ephemeral platform, once (WF-EXP-0060, US-2930,
 ``waterfall.restore.trial``): 0 if it succeeded, 1 if it failed or could not run, 2 if a setting
-lacks.
+lacks. ``waterfall-restore anonymize`` anonymises a copy of the production restored, before it
+is opened (WF-EXP-0010, US-2960, ``waterfall.restore.anonymization``): 0 if it did, 1 if it
+failed, 2 if a setting lacks.
 """
 
 import sys
@@ -31,6 +33,7 @@ from waterfall.platform.settings import (
     load_restore_test_settings,
 )
 from waterfall.platform.storage import Bucket
+from waterfall.restore import anonymization
 from waterfall.restore.provider import Keycloak, RealmRequests
 from waterfall.restore.runner import Restorer
 from waterfall.restore.task import RestoreTask
@@ -39,10 +42,10 @@ from waterfall.worker.backup import DATABASES
 from waterfall.worker.main import serve
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
 NAME = "waterfall-restore"
-USAGE = f"usage: {NAME} [--version | test]\n"
+USAGE = f"usage: {NAME} [--version | test | anonymize]\n"
 
 logger = get_logger(__name__)
 
@@ -53,8 +56,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments == ["--version"]:
         sys.stdout.write(f"{NAME} {__version__}\n")
         return 0
-    if arguments == ["test"]:
-        return restore_test()
+    if len(arguments) == 1 and arguments[0] in ONCE:
+        return ONCE[arguments[0]]()
     if arguments:
         sys.stderr.write(f"{USAGE}{NAME}: unexpected arguments: {' '.join(arguments)}\n")
         return 2
@@ -146,6 +149,13 @@ def trial(settings: RestoreTestSettings, production: Database) -> RestoreTrial:
         Readiness.of(settings.restore_test_api_address, roots, settings.restore_test_patience),
     )
     return RestoreTrial(production, Bucket.of_backups(settings), ephemeral, settings.keycloak_realm)
+
+
+# The commands that run once and stop, by their argument.
+ONCE: dict[str, Callable[[], int]] = {
+    "test": restore_test,
+    anonymization.COMMAND: anonymization.main,
+}
 
 
 if __name__ == "__main__":
