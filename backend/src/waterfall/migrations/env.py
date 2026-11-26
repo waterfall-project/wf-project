@@ -7,6 +7,8 @@ constraints, the connection, and a lock so that two instances starting together 
 the same migration twice. It never imports the tables of a module, which are private to it.
 """
 
+import time
+
 from alembic import context
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.sql import text
@@ -17,14 +19,32 @@ from waterfall.platform.settings import load_platform_settings
 
 # One number for the whole history: the key of the advisory lock of a migration run.
 MIGRATION_LOCK = 7_240_330
+# The pause between two tries of that lock, while another instance migrates.
+LOCK_RETRY_SECONDS = 0.2
+
+
+def take_lock(connection: Connection) -> None:
+    """Take the lock of a migration run, waiting for it out of any transaction.
+
+    A lock of the session, not of the transaction: Alembic may commit between two steps, and the
+    lock must hold until the last migration is written. It is tried, not awaited by
+    ``pg_advisory_lock``: an instance that waited in that statement would hold its snapshot all the
+    while, and an index created ``CONCURRENTLY`` (``0055``) by the instance that holds the lock
+    waits for every older snapshot of the database — each would wait for the other, a deadlock.
+    """
+    while True:
+        held = connection.execute(
+            text("SELECT pg_try_advisory_lock(:key)"), {"key": MIGRATION_LOCK}
+        ).scalar_one()
+        connection.commit()
+        if held:
+            return
+        time.sleep(LOCK_RETRY_SECONDS)
 
 
 def run_migrations(connection: Connection) -> None:
     """Apply the pending migrations, alone, and commit them."""
-    # A lock of the session, not of the transaction: Alembic may commit between two steps, and
-    # the lock must hold until the last migration is written.
-    connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": MIGRATION_LOCK})
-    connection.commit()
+    take_lock(connection)
     try:
         context.configure(connection=connection, target_metadata=schema.declared())
         with context.begin_transaction():

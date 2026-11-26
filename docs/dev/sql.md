@@ -281,7 +281,10 @@ séparerait plus.
   nouvel essai est réduite sous les cinq secondes du vacuum (essayé à 0 et à 2 s).
 - Les migrations d'une même base s'appliquent l'une après l'autre : l'environnement d'Alembic
   prend un verrou consultatif de session, pour que deux instances qui démarrent ensemble
-  n'appliquent pas la même migration deux fois.
+  n'appliquent pas la même migration deux fois. Elle l'essaie (`pg_try_advisory_lock`) hors
+  de toute transaction, sans l'attendre dans une requête : l'instance qui attendrait ainsi
+  tiendrait son instantané, qu'un index créé `CONCURRENTLY` par celle qui migre attend —
+  un interblocage (0055, US-2980/L1).
 
 *Contrôle* : la revue, qui vérifie aussi les routes sœurs de celle modifiée ; un test de
 concurrence pour chaque règle d'ensemble.

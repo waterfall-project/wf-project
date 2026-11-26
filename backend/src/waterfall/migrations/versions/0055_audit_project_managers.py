@@ -15,8 +15,19 @@ the service make null the label of a contributor as of an account — the journa
 alone changes; the accounts', that its account is anonymised (``0011``).
 
 Two composite indexes serve the latest inscription of each author and of each project, which the
-facets read, and the journal of one of them in its own order (#934). Created in the transaction of
-the migration, not ``CONCURRENTLY``, as ``0037`` did: the journal of an installation is small.
+facets read, and the journal of one of them in its own order (#934).
+
+The journal is the table the US takes to its volumes, which every action writes and nothing purges:
+no lock that stops its writes is held while it is read (``docs/dev/sql.md``, rule 6), unlike
+``0037`` before. The upgrade goes in four steps. Out of any transaction (``autocommit_block``,
+which commits the migrations applied before), the two indexes and the ranks in their new order —
+under a name of their own — are created ``CONCURRENTLY``, each dropped first if a stopped run left
+it invalid. Then a transaction poses the three checks ``NOT VALID``, which takes the exclusive
+lock of the table without reading it, and commits; out of it again, each is validated, reading
+the table under a lock that lets the writes go. Last, the transaction the migration is stamped in
+drops the former ranks, renames the new ones, writes the triggers and stamps the contributors,
+reading no row of the journal. Each step runs again if a later one stopped: the version stays
+``0054`` until the last, and the checks posed before it only widen.
 
 The table ``contributor`` receives its columns of audit (WF-DAT-0070, #3988): the dates by default
 the moment of the write, so that the code before this migration, which writes none, still writes a
@@ -24,7 +35,10 @@ line during an update (WF-DAT-0140), and a line there is dated by the migration,
 its authors null —, no one knowing who wrote it before.
 
 The descent drops the columns of the contributors, losing them, and refuses again the three actions
-and the contributor; it fails while the journal holds one.
+and the contributor; it fails while the journal holds one. It runs in one transaction, its checks
+validated at once and its ranks created in it: it never runs on an installation
+(``runner.downgrade``), and it must fail whole — a check validated apart would refuse once the rest
+of the descent was committed.
 """
 
 from typing import TYPE_CHECKING
@@ -147,6 +161,10 @@ LATEST_INDEXES = {
     "ix_audit_entry_actor_latest": "actor_user_id",
     "ix_audit_entry_project_latest": "project_id",
 }
+RANKED = ("action", "object_kind")
+CHECKS = ("action_known", "object_kind_known", "object_labeled")
+# The name a rank in its new order is created under, beside the former one it replaces.
+NEXT = "_next"
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -158,27 +176,37 @@ def _rank(column: str, values: tuple[str, ...]) -> str:
     return f"array_position(ARRAY[{array}], {column})"
 
 
-def _replace_check(name: str, condition: str) -> None:
-    constraint = op.f(f"ck_{TABLE}_{name}")
-    op.drop_constraint(constraint, TABLE, type_="check")
-    op.create_check_constraint(constraint, TABLE, condition)
+def _rank_index(column: str) -> str:
+    return f"ix_{TABLE}_{column}_rank"
 
 
-def _replace_rank(column: str, values: tuple[str, ...]) -> None:
-    index = f"ix_{TABLE}_{column}_rank"
-    op.drop_index(index, table_name=TABLE)
-    op.create_index(index, TABLE, [sa.text(_rank(column, values))])
+def _conditions(actions: tuple[str, ...], kinds: tuple[str, ...], step: int) -> dict[str, str]:
+    """Give the condition of each check of the journal, by its name."""
+    return dict(
+        zip(
+            CHECKS,
+            (_in("action", actions), _in("object_kind", kinds), LABELED[step]),
+            strict=True,
+        )
+    )
 
 
-def _journal(actions: tuple[str, ...], kinds: tuple[str, ...], step: int) -> None:
-    """Write the enumerations, their ranks, the labels and the triggers of the journal."""
-    _replace_check("action_known", _in("action", actions))
-    _replace_check("object_kind_known", _in("object_kind", kinds))
-    _replace_check("object_labeled", LABELED[step])
-    _replace_rank("action", actions)
-    _replace_rank("object_kind", kinds)
+def _replace_checks(conditions: dict[str, str], *, not_valid: bool) -> None:
+    for name, condition in conditions.items():
+        constraint = op.f(f"ck_{TABLE}_{name}")
+        op.drop_constraint(constraint, TABLE, type_="check")
+        op.create_check_constraint(constraint, TABLE, condition, postgresql_not_valid=not_valid)
+
+
+def _triggers(step: int) -> None:
     op.execute(GUARD.format(kinds=ACCOUNT_KINDS[step]))
     op.execute(FORGET_ANONYMIZED.format(kinds=ACCOUNT_KINDS[step]))
+
+
+def _create_concurrently(name: str, columns: list[str | sa.TextClause]) -> None:
+    """Create an index without stopping the writes, an invalid one a stopped run left dropped."""
+    op.drop_index(name, table_name=TABLE, postgresql_concurrently=True, if_exists=True)
+    op.create_index(name, TABLE, columns, postgresql_concurrently=True)
 
 
 def _author(name: str) -> sa.Column[UUID]:
@@ -199,10 +227,28 @@ def _dated(name: str) -> sa.Column[datetime]:
 
 
 def upgrade() -> None:
-    """Admit the three actions and the contributor, index the latest, stamp the contributors."""
-    _journal(ACTIONS, OBJECT_KINDS, 1)
-    for name, column in LATEST_INDEXES.items():
-        op.create_index(name, TABLE, [column, sa.text("occurred_at DESC"), sa.text("id DESC")])
+    """Admit the three actions and the contributor, index the latest, stamp the contributors.
+
+    No lock that stops the writes of the journal is held while it is read: the indexes are created
+    ``CONCURRENTLY`` and the checks validated apart, each out of a transaction.
+    """
+    ranks = {"action": ACTIONS, "object_kind": OBJECT_KINDS}
+    context = op.get_context()
+    with context.autocommit_block():
+        for name, column in LATEST_INDEXES.items():
+            _create_concurrently(name, [column, sa.text("occurred_at DESC"), sa.text("id DESC")])
+        for column in RANKED:
+            _create_concurrently(
+                _rank_index(column) + NEXT, [sa.text(_rank(column, ranks[column]))]
+            )
+    _replace_checks(_conditions(ACTIONS, OBJECT_KINDS, 1), not_valid=True)
+    with context.autocommit_block():
+        for name in CHECKS:
+            op.execute(f"ALTER TABLE {TABLE} VALIDATE CONSTRAINT ck_{TABLE}_{name}")
+    for column in RANKED:
+        op.drop_index(_rank_index(column), table_name=TABLE)
+        op.execute(f"ALTER INDEX {_rank_index(column) + NEXT} RENAME TO {_rank_index(column)}")
+    _triggers(1)
     op.add_column(CONTRIBUTOR, _dated("created_at"))
     op.add_column(CONTRIBUTOR, _author("created_by"))
     op.add_column(CONTRIBUTOR, _dated("updated_at"))
@@ -213,10 +259,15 @@ def downgrade() -> None:
     """Drop the columns of the contributors and the indexes; refuse the actions and the nature.
 
     The columns of audit of the contributors are lost; fails while the journal holds one of the
-    three actions or a contributor.
+    three actions or a contributor, in one transaction that leaves the schema as it was.
     """
     for name in ("updated_by", "updated_at", "created_by", "created_at"):
         op.drop_column(CONTRIBUTOR, name)
     for name in LATEST_INDEXES:
         op.drop_index(name, table_name=TABLE)
-    _journal(ACTIONS_BEFORE, OBJECT_KINDS_BEFORE, 0)
+    _replace_checks(_conditions(ACTIONS_BEFORE, OBJECT_KINDS_BEFORE, 0), not_valid=False)
+    ranks = {"action": ACTIONS_BEFORE, "object_kind": OBJECT_KINDS_BEFORE}
+    for column in RANKED:
+        op.drop_index(_rank_index(column), table_name=TABLE)
+        op.create_index(_rank_index(column), TABLE, [sa.text(_rank(column, ranks[column]))])
+    _triggers(0)
