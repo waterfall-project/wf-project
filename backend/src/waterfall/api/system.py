@@ -89,7 +89,9 @@ def observed(services: Services, capacities: Capacities, sources: StatusSources)
     """
     registry = MetricsRegistry()
     database = Database(create_observation_engine(services.database.engine.url))
-    probes = probes_of(database, services.queue, services.backups, services.keycloak)
+    probes = probes_of(
+        database, services.queue, services.backups, services.keycloak, services.keycloak_admin
+    )
     state = PlatformState(database, probes, services.backups, OUTCOMES, capacities)
     state.announced = {"api": __version__}
     registry.read_at_collection.append(state)

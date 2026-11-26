@@ -155,6 +155,7 @@ def test_every_image_of_docker_hub_the_files_name_is_pinned_by_a_digest() -> Non
     assert {image.path for image in images} == {
         "postgres",
         "redis",
+        "registry",
         "caddy",
         "axllent/mailpit",
         "dxflrs/garage",

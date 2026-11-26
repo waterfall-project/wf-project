@@ -184,7 +184,7 @@ public final class PasswordSetupLinkResource {
   }
 
   /** Tells whether a caller holds a realm role; one the realm does not declare, nobody holds. */
-  private static boolean holds(RealmModel realm, UserModel caller, String name) {
+  static boolean holds(RealmModel realm, UserModel caller, String name) {
     RoleModel role = realm.getRole(name);
     return role != null && caller.hasRole(role);
   }
@@ -218,7 +218,8 @@ public final class PasswordSetupLinkResource {
         && session.users().getFederatedIdentitiesStream(realm, user).findAny().isEmpty();
   }
 
-  private static Response refusal(Status status, String error) {
+  /** Refuses a request by its status and a machine code, never by a sentence. */
+  static Response refusal(Status status, String error) {
     return Response.status(status).entity(Map.of("error", error)).build();
   }
 }

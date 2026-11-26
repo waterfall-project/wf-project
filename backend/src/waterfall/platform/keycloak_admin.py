@@ -13,8 +13,9 @@ Waterfall, which also mails it as the invitation of the account: never by ``exec
 whose links would escape its nonce (#651, WF-ADM-0140). The bootstrap finds the account of an
 address and, as the client of the bootstrap, gives the realm the language of the installation (#873)
 and asks the extension for the link of the installation, valid until it is used and only for an
-account without a password (WF-EXP-0020, #652, #884). The token of the client is kept until shortly
-before it expires.
+account without a password (WF-EXP-0020, #652, #884). The probe of the API reads the version of
+Keycloak from the extension, which gives it to the service account alone (WF-CMP-0020, #4641). The
+token of the client is kept until shortly before it expires.
 
 Only Keycloak itself answers this API: what is here is tried against the Keycloak of the service
 platform, whose tests measure it (``make test-keycloak``); the measure of the back, which runs no
@@ -212,6 +213,7 @@ class KeycloakAdmin:
         self._admin = f"/admin/realms/{realm}"
         # The entry point of the extension, under the realm (deploy/keycloak/extension/).
         self._extension = f"/realms/{realm}/password-setup-link"
+        self._version = f"/realms/{realm}/server-version"
         self._client, self._secret = client or (SERVICE_CLIENT, settings.service_client_secret)
         self._clock = clock
         self._token: tuple[str, float] | None = None
@@ -401,6 +403,19 @@ class KeycloakAdmin:
             message = f"POST {response.request.url.path} answered no link"
             raise IdentityProviderError(message)
         return PasswordLink(url, moment)
+
+    def server_version(self) -> str:
+        """Read the version of Keycloak, which the extension gives the service account (#4641).
+
+        The administration API gives it only to an administrator of the realm ``master``, which the
+        service account is not: the status screen presents it (WF-CMP-0020).
+        """
+        response = expect(self._as_service("GET", self._version), HTTPStatus.OK)
+        version = _document(response).get("version")
+        if not isinstance(version, str) or not version:
+            message = f"GET {response.request.url.path} answered no version"
+            raise IdentityProviderError(message)
+        return version
 
     def find_account(self, email: str) -> str | None:
         """Give the subject of the account of the realm that holds ``email``, or ``None``."""

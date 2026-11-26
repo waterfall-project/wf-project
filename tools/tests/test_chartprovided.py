@@ -14,7 +14,17 @@ from typing import Any
 
 import pytest
 import yaml
-from test_chart import PRODUCTION, Objects, containers, environment, of_kind, pod, rendered
+from test_chart import (
+    PRODUCTION,
+    PUBLISHED,
+    Objects,
+    containers,
+    environment,
+    of_kind,
+    pod,
+    published,
+    rendered,
+)
 
 from wftools.chart import ChartError
 
@@ -34,6 +44,7 @@ PROVIDED: dict[str, dict[str, Any]] = {
         }
     },
 }
+PINNED = re.compile(r"@sha256:[0-9a-f]{64}$")
 CHART_OWN = {"postgres", "redis", "storage"}
 # What an address of PostgreSQL asks: TLS, the certificate and its name checked (US-2840).
 VERIFIED = "?sslmode=verify-full&sslrootcert=/trust/root.crt"
@@ -240,16 +251,23 @@ def test_the_api_scales_from_one_instance_to_three_by_one_value_that_no_pod_read
     assert differences == [("Deployment", "waterfall-api", 1, 3)]
 
 
+@pytest.mark.story("US-2800")
 def test_the_chart_and_the_compose_of_production_designate_the_same_images() -> None:
-    """Every image the chart renders is one of the Compose's, and every one the chart can run is."""
+    """Every image the chart renders is one of the Compose's, and every one the chart can run is.
+
+    Propre à l'US : « le chart et le Compose de production désignent chaque image par son
+    empreinte, non par une étiquette (#3726) » : the images of the chain by the digest the
+    publication writes — WATERFALL_DIGEST_<NAME> of .env, images.digests.<name> of the values —,
+    those of third parties by the digest written beside their tag.
+    """
     compose = {
         re.sub(r"\$\{WATERFALL_MIRROR:-\}", "", service["image"])
         for service in yaml.safe_load(PRODUCTION.read_text(encoding="utf-8"))["services"].values()
     }
-    tagged = {
-        image.replace("${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}", "chain")
-        for image in compose
+    pinned = {
+        re.sub(PUBLISHED, lambda found: published(found.group(1)), image) for image in compose
     }
+    assert all(PINNED.search(image) for image in pinned), pinned
 
     def images(values: dict[str, Any]) -> set[str]:
         return {
@@ -262,11 +280,29 @@ def test_the_chart_and_the_compose_of_production_designate_the_same_images() -> 
     every = images({})
     # Caddy is the door of the Compose, and the proxy in TLS of its front and its storage: the
     # chart runs the proxies alone, the ingress is its door (US-2840).
-    assert every == tagged
+    assert every == pinned
     # Provided components or not, nothing the chart runs is an image the Compose does not name.
-    assert images(PROVIDED) <= tagged
+    assert images(PROVIDED) <= pinned
     # A mirror is a prefix of the third parties alone, as WATERFALL_MIRROR is in the Compose.
     mirrored = images({"images": {"mirror": "mirror.example/"}})
     assert {image for image in mirrored if image.startswith("mirror.example/")} == {
         f"mirror.example/{image}" for image in every if not image.startswith("ghcr.io/")
     }
+
+
+@pytest.mark.story("US-2800")
+@pytest.mark.parametrize(
+    ("values", "named"),
+    [
+        ({"images": {"digests": {"waterfall": "0.3.0"}}}, r"images\.digests\.waterfall"),
+        ({"images": {"digests": {"front": ""}}}, r"images\.digests\.front"),
+        ({"images": {"digests": {"keycloak": "sha256:abc"}}}, r"images\.digests\.keycloak"),
+        ({"redis": {"image": "redis:8-alpine"}}, r"redis:8-alpine: an image is designated"),
+    ],
+    ids=["a tag", "nothing", "a digest cut short", "a third party by its tag"],
+)
+def test_the_chart_refuses_an_image_designated_otherwise_than_by_its_digest(
+    values: dict[str, Any], named: str
+) -> None:
+    with pytest.raises(ChartError, match=named):
+        rendered(values)

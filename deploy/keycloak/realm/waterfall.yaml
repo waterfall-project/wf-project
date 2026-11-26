@@ -86,7 +86,8 @@ roles:
     - name: waterfall-password-link
       description: >-
         Asks the extension of Waterfall for the password setup link of a local account
-        (password-setup-link). Held by the service account of Waterfall alone.
+        (password-setup-link), and for the version of Keycloak (server-version). Held by the
+        service account of Waterfall alone.
     - name: waterfall-installation-link
       description: >-
         Asks the extension of Waterfall for the link of the installation, valid until it is used

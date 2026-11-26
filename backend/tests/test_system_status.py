@@ -56,7 +56,13 @@ if TYPE_CHECKING:
 STATUS = "/api/v1/system/status"
 CHECKED_AT = datetime(2026, 6, 3, 14, 4, 30, tzinfo=UTC)
 COMPONENTS = ("api", "worker", "database", "cache", "object_storage", "identity_provider")
-VERSIONS_SAID = {"api": __version__, "worker": __version__, "database": "18.1", "cache": "8.2.1"}
+VERSIONS_SAID = {
+    "api": __version__,
+    "worker": __version__,
+    "database": "18.1",
+    "cache": "8.2.1",
+    "identity_provider": "26.8.2",
+}
 CORRELATION = "01926f3a-7c00-7000-8000-000000001983"
 GIB = 1024**3
 
@@ -250,13 +256,13 @@ def test_the_screen_presents_the_version_of_each_component(
     viewer: dict[str, str],
 ) -> None:
     # « L'écran d'état présente la version de chaque composant. » : the one each announces in the
-    # metrics, Prometheus's its own; the object storage announces none, as the contract says.
+    # metrics, Prometheus's its own, Keycloak's as the extension gives it to the service account
+    # (#4641); the object storage announces none, as the contract says.
     collected(prometheus)
     components = by_component(read(screen_on(contract, platform, prometheus), viewer))
     assert {c: each["version"] for c, each in components.items()} == {
         **VERSIONS_SAID,
         "object_storage": None,
-        "identity_provider": None,
         "metrics": "3.16.0",
     }
 

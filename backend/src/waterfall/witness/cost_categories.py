@@ -26,6 +26,8 @@ if TYPE_CHECKING:
 
     from waterfall.witness.description import Witness
 
+FILE = "volume/cost_categories.json"
+
 
 class CostCategories(BaseModel):
     """The value of ``listCostCategories`` the witness describes its categories by."""
@@ -35,7 +37,7 @@ class CostCategories(BaseModel):
 
 def load(session: Session, witness: Witness) -> bool:
     """Write this slice of the witness unless the platform holds it; tell whether it wrote."""
-    categories = witness.read("volume/cost_categories.json", CostCategories).items
+    categories = witness.read(FILE, CostCategories).items
     imposed = {category.cost_category_id.root for category in categories}
     if is_loaded(imposed, present_cost_categories(session, imposed)):
         return False

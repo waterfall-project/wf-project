@@ -38,6 +38,7 @@ spec:
         - name: restore
           image: {{ include "waterfall.image" (list . "waterfall") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command: [waterfall-restore]
           env:
             {{- include "waterfall.backEnvironment" (list . "owner") | nindent 12 }}
@@ -58,6 +59,7 @@ spec:
         - name: realm
           image: {{ include "waterfall.image" (list . "keycloak") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           command: [/opt/keycloak/bin/realm-service, /opt/keycloak/bin/apply-realm]
           env:
             {{- include "waterfall.realmEnvironment" . | nindent 12 }}
