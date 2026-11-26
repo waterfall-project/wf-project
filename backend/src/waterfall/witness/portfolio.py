@@ -97,7 +97,7 @@ from waterfall.witness.portfolio_slice import NOT_STARTED, Project, derived, mon
 from waterfall.witness.tasks import write_tasks
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
     from datetime import datetime
     from uuid import UUID
 
@@ -141,7 +141,7 @@ def load(session: Session, witness: Witness) -> bool:
     imposed = {project.project_id for project in described}
     if is_loaded(imposed, projects_present(session, imposed)):
         return False
-    manager, week = _manager(witness), default_week(witness)
+    manager, week = project_manager(witness), default_week(witness)
     for project in described:
         write_project(session, witness.act, project, (manager, week))
     return True
@@ -164,7 +164,7 @@ def default_week(witness: Witness) -> Week:
     raise ValueError(message)
 
 
-def _manager(witness: Witness) -> Viewer:
+def project_manager(witness: Witness) -> Viewer:
     """Give the project manager of the witness: the contributor of each project of the slice."""
     for item in witness.read(CONTRIBUTORS_FILE, ContributorList).items:
         if item.kind.value == MANAGER and item.is_active:
@@ -247,7 +247,7 @@ class _Writing:
         created = ProjectDraft(draft.label, draft.description, client, project.code)
         load_project(self.session, ProjectLoad(project.project_id, created), act)
         entries = (ContributorEntry(self.manager.user_id, MANAGER),)
-        load_contributors(self.session, ContributorsLoad(project.project_id, entries, 1))
+        load_contributors(self.session, ContributorsLoad(project.project_id, entries, 1), act)
         values = {
             "inflation_rate": project.inflation_rate.root,
             "win_probability": project.win_probability.root,
@@ -442,39 +442,7 @@ class _Writing:
 
     def _import(self, imported: Import) -> Callable[[Act], None]:
         def write(act: Act) -> None:
-            project_id = self.project.project_id
-            lines = imported.lines
-            first = min(each.document_date.root for each in lines)
-            last = max(each.document_date.root for each in lines)
-            exchange = derived("import", imported.cost_import_id)
-            opened = act.at - ANALYSED_BEFORE
-            loaded = ImportLoad(
-                import_id=exchange,
-                project_id=project_id,
-                kind=ACTUAL_COSTS,
-                filename=f"{lines[0].document_number}.xlsx",
-                period_from=first,
-                period_to=last,
-                report=_report(imported),
-                created_at=opened,
-                expires_at=opened + EXPIRES_AFTER,
-            )
-            requested = replace(act, author=self.manager.user_id)
-            load_import(self.session, loaded, requested)
-            logged = CostImportLoad(
-                cost_import_id=imported.cost_import_id,
-                import_report_id=exchange,
-                imported_at=act.at,
-                requested_by=self.manager.user_id,
-                period_from=first,
-                period_to=last,
-                created_count=len(lines),
-                updated_count=0,
-                unchanged_count=0,
-                rejected_count=0,
-            )
-            load_cost_import(self.session, project_id, logged)
-            brought = [
+            lines = [
                 CostLineLoad(
                     cost_line_id=each.cost_line_id.root,
                     document_number=each.document_number,
@@ -486,11 +454,64 @@ class _Writing:
                     else each.subproject_code.root,
                     passthrough=each.passthrough,
                 )
-                for each in lines
+                for each in imported.lines
             ]
-            load_cost_lines(self.session, project_id, imported.cost_import_id, brought, requested)
+            write_import(
+                self.session,
+                self.project.project_id,
+                (imported.cost_import_id, lines),
+                (self.manager.user_id, act),
+            )
 
         return write
+
+
+def write_import(
+    session: Session,
+    project_id: UUID,
+    imported: tuple[UUID, Sequence[CostLineLoad]],
+    requested: tuple[UUID, Act],
+) -> None:
+    """Write an import of actual costs applied, its lines all added, as the project manager asks.
+
+    ``imported`` the identifier of its entry of the journal and its lines, ``requested`` the account
+    that asks for it and the act, whose instant is that of the application: its extraction analysed
+    five minutes before, for a day. The project of the slice and the history of PRJ-001 of the
+    reference set (``reference_history``) write theirs so.
+    """
+    cost_import_id, lines = imported
+    manager_id, act = requested
+    first = min(each.document_date for each in lines)
+    last = max(each.document_date for each in lines)
+    exchange = derived("import", cost_import_id)
+    opened = act.at - ANALYSED_BEFORE
+    loaded = ImportLoad(
+        import_id=exchange,
+        project_id=project_id,
+        kind=ACTUAL_COSTS,
+        filename=f"{lines[0].document_number}.xlsx",
+        period_from=first,
+        period_to=last,
+        report=_report(lines),
+        created_at=opened,
+        expires_at=opened + EXPIRES_AFTER,
+    )
+    asked = replace(act, author=manager_id)
+    load_import(session, loaded, asked)
+    logged = CostImportLoad(
+        cost_import_id=cost_import_id,
+        import_report_id=exchange,
+        imported_at=act.at,
+        requested_by=manager_id,
+        period_from=first,
+        period_to=last,
+        created_count=len(lines),
+        updated_count=0,
+        unchanged_count=0,
+        rejected_count=0,
+    )
+    load_cost_import(session, project_id, logged)
+    load_cost_lines(session, project_id, cost_import_id, lines, asked)
 
 
 def _root(value: Uuid | None) -> UUID | None:
@@ -498,7 +519,7 @@ def _root(value: Uuid | None) -> UUID | None:
     return None if value is None else value.root
 
 
-def _report(imported: Import) -> dict[str, object]:
+def _report(lines: Sequence[CostLineLoad]) -> dict[str, object]:
     """Give the analysis an import is applied after: every line added, none refused."""
     differences: list[object] = [
         {
@@ -510,11 +531,11 @@ def _report(imported: Import) -> dict[str, object]:
             "predecessor_label": None,
             "fields": [],
         }
-        for each in imported.lines
+        for each in lines
     ]
     report: dict[str, object] = {
         "format_version": None,
-        "read_count": len(imported.lines),
+        "read_count": len(lines),
         "unchanged_count": 0,
         "rejected": [],
         "refusals": [],

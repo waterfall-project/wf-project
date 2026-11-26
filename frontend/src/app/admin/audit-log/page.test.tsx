@@ -18,6 +18,9 @@ import { queryOfCall } from "@/test/queries";
 
 import AuditLogPage, { generateMetadata } from "./page";
 
+type ManagerFixture =
+  "audit_events_manager_added" | "audit_events_manager_changed" | "audit_events_manager_removed";
+
 const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } => ({
   answers: {},
   clients: [],
@@ -362,6 +365,29 @@ describe("the journal of audit", () => {
     expect(rows(page).at(-1)).toBe("15 inscriptions");
     expect(queriesOf(EVENTS)).toEqual([{ project_id: PROJECT, ...NEWEST }]);
   });
+
+  it.each<[ManagerFixture, string, string]>([
+    ["audit_events_manager_added", "Ajout d’un chef de projet", "Sacha Lefèvre"],
+    ["audit_events_manager_changed", "Changement de la qualité de chef de projet", "Inès Roux"],
+    ["audit_events_manager_removed", "Retrait d’un chef de projet", "Inès Roux"],
+  ])(
+    "reads the inscription of a project manager in %s by its action, its contributor and no link of its own [WF-SEC-0030-A]",
+    async (fixture, action, account) => {
+      server.answers = { ...server.answers, [EVENTS]: fixture };
+      const page = await journal({ project_id: PROJECT });
+      const row = [...gridOf(page).matchAll(/<tr[^>]*>(.*?)<\/tr>/g)]
+        .map((line) => line[1] ?? "")
+        .find((line) => text(line).includes(action));
+      expect(row).toBeDefined();
+      expect(text(row ?? "")).toContain(`${action} Contributeur ${account}`);
+      // The contributor is an account: no page of its own. Beyond the filters of the journal, the row
+      // leads only to its project, by the Project column.
+      const links = [...(row ?? "").matchAll(/<a [^>]*href="([^"]*)"/g)].map((m) => m[1] ?? "");
+      const elsewhere = links.filter((link) => !link.startsWith("/admin/audit-log?"));
+      expect(elsewhere).toEqual([`/projects/${PROJECT}`]);
+      expect(links.some((link) => link.includes("object_kind=contributor"))).toBe(true);
+    },
+  );
 
   it("offers no command: nothing modifies nor deletes an inscription [WF-SEC-0030-A] [WF-ADM-0190-A]", async () => {
     const page = await journal();

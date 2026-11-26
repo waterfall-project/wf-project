@@ -146,7 +146,7 @@ def test_the_buckets_are_made_on_the_storage_of_the_operator() -> None:
 def test_the_steps_of_the_database_sign_in_as_the_administrator_the_operator_names() -> None:
     objects = rendered({**PROVIDED, "postgresql": {**PROVIDED["postgresql"], "adminUser": "dba"}})
     for step in containers(of_kind(objects, "Job")["migrate"]):
-        if step["name"] not in {"migrate", "transport"}:
+        if step["name"] not in {"components", "migrate", "transport"}:
             assert environment(step)["PGUSER"] == "dba", step["name"]
             assert environment(step)["PGPORT"] == "6432", step["name"]
 

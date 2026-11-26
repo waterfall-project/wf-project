@@ -10,6 +10,10 @@ than 1 024 locks per transaction (the rule of the start of each process, ``compo
 Redis in cluster mode. It says every cause it finds, not the first alone, and what it read when all
 fit. Status 0 when they fit, 1 when one does not, or does not answer, 2 for a setting that lacks.
 
+``--component NAME`` (``postgresql``, ``redis``, ``keycloak``, repeatable) limits the check to the
+components named: the chart gives only those it can reach where it runs the command, at an
+installation (``hooks.yaml``). None named, it checks all three, as the Compose does.
+
 Keycloak announces its version to the service account of its realm, through its extension
 (``KeycloakAdmin.server_version``): the command holds no password of the administrator of
 ``master``. It runs once the realm is applied, which creates that account and its role.
@@ -42,7 +46,7 @@ if TYPE_CHECKING:
     from waterfall.platform.metrics import Described
 
 NAME = "waterfall-check-components"
-USAGE = f"usage: {NAME} [--version]\n"
+USAGE = f"usage: {NAME} [--version | [--component postgresql|redis|keycloak]...]\n"
 # How long a component is waited for.
 WAIT_SECONDS = 10.0
 
@@ -94,7 +98,6 @@ def check_keycloak(settings: ComponentsSettings) -> tuple[str, list[str]]:
         httpx2.HTTPError,
         KeyError,
         ValueError,
-        TypeError,
     ) as error:
         # ``Keycloak.send`` gives a Keycloak that is unreachable, or fails (5xx), as unavailable.
         return "Keycloak", [f"Keycloak does not answer as expected: {type(error).__name__}"]
@@ -103,13 +106,33 @@ def check_keycloak(settings: ComponentsSettings) -> tuple[str, list[str]]:
     return f"Keycloak {version}", keycloak_faults(version)
 
 
+COMPONENTS = {"postgresql": check_database, "redis": check_redis, "keycloak": check_keycloak}
+
+
+def chosen(arguments: Sequence[str]) -> list[str] | None:
+    """Read the components to check from ``--component NAME`` pairs, or ``None`` if they are wrong.
+
+    Every component when none is named. The chart names those it can reach where it runs the
+    command: at an installation, Redis and Keycloak are its own and are not there yet.
+    """
+    names: list[str] = []
+    pairs = iter(arguments)
+    for flag in pairs:
+        name = next(pairs, "")
+        if flag != "--component" or name not in COMPONENTS:
+            return None
+        names.append(name)
+    return names or list(COMPONENTS)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Check every component, and say what is wrong with those that do not fit."""
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments == ["--version"]:
         sys.stdout.write(f"{NAME} {__version__}\n")
         return 0
-    if arguments:
+    names = chosen(arguments)
+    if names is None:
         sys.stderr.write(f"{USAGE}{NAME}: unexpected arguments: {' '.join(arguments)}\n")
         return 2
     try:
@@ -117,7 +140,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except SettingsError as error:
         sys.stderr.write(f"{NAME}: {error}\n")
         return 2
-    found = [check_database(settings), check_redis(settings), check_keycloak(settings)]
+    found = [COMPONENTS[name](settings) for name in names]
     faults = [fault for _, component in found for fault in component]
     for fault in faults:
         sys.stderr.write(f"{NAME}: {fault} (WF-CMP-0020)\n")

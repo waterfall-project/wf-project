@@ -98,6 +98,8 @@ jobs:
       WATERFALL_GRAFANA_ADMIN_PASSWORD: chain-only-grafana-admin
       # The trial backs the platform up, then restores it, by its API (US-0440, #948).
       WATERFALL_TRIAL_RESTORATION: "1"
+      # The slice the containers run under, bounded by the step below (WF-CMP-0020-A, US-2810).
+      WATERFALL_PRODUCTION_CGROUP_PARENT: waterfall-bounded.slice
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -113,6 +115,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ./.github/actions/bound-platform
       # The platform runs the images by the digests the publication wrote, as an operator would.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:

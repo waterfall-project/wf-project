@@ -55,7 +55,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from wftools import REPOSITORY, chart, chartload, charttrial, kubetools
+from wftools import REPOSITORY, chart, chartauthority, chartload, chartrun, charttrial, kubetools
 from wftools.images import IMAGES, REGISTRY, Holding, reference, registry_answers
 from wftools.production import Browser, Platform, ProductionError
 
@@ -614,7 +614,7 @@ def main(arguments: list[str] | None = None, environment: Mapping[str, str] | No
         try:
             chart_n = extract_chart(_archive, found.commit, Path(folder) / "version-n")
             pull(_run, found.tag)
-            charttrial.make_authority(_read, Path(folder), charttrial.DOMAIN)
+            chartauthority.make_authority(_read, Path(folder), charttrial.DOMAIN)
             trial.create(name, charttrial.docker_config_of(given))
             images_n = trial.load(name, found.tag)
             images = trial.load(name, tag)
@@ -627,7 +627,7 @@ def main(arguments: list[str] | None = None, environment: Mapping[str, str] | No
             failed = False
         except (
             UpgradeError,
-            charttrial.TrialError,
+            chartrun.TrialError,
             ProductionError,
             OSError,
             subprocess.CalledProcessError,
