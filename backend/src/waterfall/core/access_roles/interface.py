@@ -18,6 +18,7 @@ filters and sorts of the roles each one holds (``listUsers``).
 
 from waterfall.core.access_roles.administrators import (
     LAST_ADMINISTRATOR,
+    administrators,
     bound_administration_waits,
     guard_deactivation,
     guard_last_administrator,
@@ -89,6 +90,7 @@ __all__ = [
     "SortColumn",
     "Standing",
     "actor_of",
+    "administrators",
     "bound_administration_waits",
     "create_role",
     "delete_role",

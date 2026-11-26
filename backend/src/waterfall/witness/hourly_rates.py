@@ -20,10 +20,12 @@ if TYPE_CHECKING:
 
     from waterfall.witness.description import Witness
 
+FILE = "volume/hourly_rate_grid.json"
+
 
 def load(session: Session, witness: Witness) -> bool:
     """Write this slice of the witness unless the platform holds it; tell whether it wrote."""
-    rows = witness.read("volume/hourly_rate_grid.json", HourlyRateGrid).rows
+    rows = witness.read(FILE, HourlyRateGrid).rows
     rated = [row for row in rows if any(cell is not None for cell in row.cells)]
     imposed = {row.cost_category_id.root for row in rated}
     if is_loaded(imposed, category_is_rated(session, imposed)):

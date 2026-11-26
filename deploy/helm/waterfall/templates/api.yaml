@@ -52,6 +52,7 @@ spec:
         - name: api
           image: {{ include "waterfall.image" (list . "waterfall") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           {{- include "waterfall.drain" . | nindent 10 }}
           env:
             {{- include "waterfall.backEnvironment" (list . "service") | nindent 12 }}

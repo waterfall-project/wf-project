@@ -381,6 +381,27 @@ def test_a_parameter_out_of_its_schema_is_refused_at_its_field(
     assert [(each["pointer"], each["code"]) for each in body["fields"]] == [(pointer, code)]
 
 
+@pytest.mark.story("US-3020")
+@pytest.mark.parametrize(
+    ("correlation", "admitted"),
+    [("a" * 64, True), ("a" * 65, False), ("req.a_b-1", True), ("req+a", False), ("é", False)],
+)
+def test_the_pattern_of_the_correlation_is_applied_at_run_time_at_its_bounds(
+    api: ContractClient, reader: dict[str, str], correlation: str, admitted: bool
+) -> None:
+    # #2303: the pattern is carried by ``JournalQuery``, which the served description does not show
+    # (``CHECKED_BY_THE_ROUTE``): it is the runtime that proves it, at the 64 characters it allows.
+    response = api.get(f"{EVENTS}?{urlencode({'correlation_id': correlation})}", headers=reader)
+    if admitted:
+        assert response.status_code == 200, response.text
+    else:
+        assert response.status_code == 422, response.text
+        assert response.json()["code"] == "VALIDATION_FAILED"
+        assert [(each["pointer"], each["code"]) for each in response.json()["fields"]] == [
+            ("/query/correlation_id", "VALIDATION_FAILED")
+        ]
+
+
 @pytest.mark.requirement("WF-ADM-0190-A")
 @pytest.mark.parametrize("path", [EVENTS, FACETS])
 def test_a_user_without_the_permission_to_consult_the_journal_does_not_reach_it(

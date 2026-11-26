@@ -53,6 +53,7 @@ spec:
         - name: keycloak
           image: {{ include "waterfall.image" (list . "keycloak") }}
           imagePullPolicy: {{ .Values.images.pullPolicy }}
+          {{- include "waterfall.containerSecurity" (dict) | nindent 10 }}
           {{- include "waterfall.drain" . | nindent 10 }}
           env:
             {{- include "waterfall.keycloakDatabase" . | nindent 12 }}

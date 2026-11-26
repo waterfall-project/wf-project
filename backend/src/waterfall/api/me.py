@@ -21,6 +21,7 @@ from waterfall.core.users.interface import (
     change_preferences,
     note_sessions_closed,
     refuse,
+    shown_preferences,
 )
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, json_pointer
@@ -66,7 +67,7 @@ def user_self(
     return UserSelf.model_validate(
         {
             **account_fields(account, roles),
-            "display_preferences": account.display_preferences,
+            "display_preferences": shown_preferences(account.display_preferences),
             "permissions": list(permissions),
         }
     )
@@ -141,7 +142,8 @@ def patch_my_preferences(
         services.keycloak_admin.set_locale(account.subject, locale)
     with services.database.transaction() as session:
         # Described before the transaction is committed, as it leaves the block.
-        return DisplayPreferences.model_validate(change_preferences(session, account.user_id, sent))
+        changed = change_preferences(session, account.user_id, sent)
+        return DisplayPreferences.model_validate(shown_preferences(changed))
 
 
 @router.delete("/me/sessions", operation_id="closeMySessions", status_code=204)

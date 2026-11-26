@@ -78,6 +78,7 @@ from waterfall.core.users.personal import (
     image_type,
     put_avatar,
     read_avatar,
+    shown_preferences,
     withdraw_avatar,
 )
 from waterfall.core.users.provider import (
@@ -93,6 +94,7 @@ from waterfall.core.users.provider import (
     SkippedPerson,
     SyncReport,
     admit,
+    deactivate_all_unheld,
     deactivate_unheld,
     follow,
     identity_to_restore,
@@ -179,6 +181,7 @@ __all__ = [
     "check_account_anonymization",
     "check_account_change",
     "create_local_account",
+    "deactivate_all_unheld",
     "deactivate_unheld",
     "display_name",
     "follow",
@@ -211,6 +214,7 @@ __all__ = [
     "record_report",
     "refuse",
     "set_account_activation",
+    "shown_preferences",
     "sync_is_due",
     "unheld_accounts",
     "withdraw_avatar",

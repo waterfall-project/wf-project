@@ -26,7 +26,11 @@ build secret — the images read every secret from the environment of their cont
 request; from a checkout that is the commit named and is clean in the contexts of the images. The
 three images are built first, then searched for the known values of the development, and pushed
 only if all three were built and none holds one: every tag of the commit first, then the tags that
-move, so that a tag of a branch or of a version never names images of two commits.
+move, so that a tag of a branch or of a version never names images of two commits. The publication
+then writes, in ``DIGESTS``, the digest each push said of its image: ``digests.values.yaml``, the
+values of the chart, and ``digests.env``, the lines of the ``.env`` of the Compose of production,
+which designate each image by its digest, never by a tag, which a writer of the registry may move
+(#3726); the chain keeps them as an artifact of its run.
 """
 
 import argparse
@@ -43,6 +47,7 @@ from wftools import REPOSITORY
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+    from pathlib import Path
 
 REGISTRY = "ghcr.io/waterfall-project"
 """Where the images are published: the packages of the organisation on GitHub."""
@@ -73,6 +78,13 @@ WORKSTATION_SECRET = re.compile(
 # What the registry answers for a tag it does not hold.
 UNKNOWN_TAG = re.compile(r"not found|manifest unknown", re.IGNORECASE)
 CHUNK = 1 << 20
+DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
+DIGESTS = REPOSITORY / ".waterfall" / "digests"
+"""Where a publication writes the digests of the images it pushed (``images.yml`` keeps them)."""
+PUSHED = re.compile(r"\bdigest: (?P<digest>sha256:[0-9a-f]{64})\b")
+"""What ``docker push`` says of the manifest it wrote: ``<tag>: digest: sha256:… size: …``."""
+VALUES = "digests.values.yaml"
+ENVIRONMENT = "digests.env"
 
 
 @dataclass(frozen=True, slots=True)
@@ -285,6 +297,50 @@ def version_decision(release: str, answers: Mapping[str, Holding]) -> tuple[bool
     return False, f"the version {release} is posed on no image ({said})"
 
 
+def digest_variable(image: Image) -> str:
+    """Return the variable of the ``.env`` of the Compose of production that gives an image."""
+    return f"WATERFALL_DIGEST_{image.name.upper()}"
+
+
+def push(
+    commands: list[list[str]], commit: str, read: Callable[[list[str]], tuple[int, str]]
+) -> tuple[int, dict[str, str]]:
+    """Run the pushes, each shown first, and say what each said; stop at the first that fails.
+
+    Return the exit code, and the digest of each image, as the push of its tag of the commit said it
+    — the registry's own word on what it was given, not a read of a tag, which a writer may move
+    (#3726).
+    """
+    found: dict[str, str] = {}
+    for command in commands:
+        print(f"  {' '.join(command)}", flush=True)
+        code, said = read(command)
+        print(said, end="" if said.endswith("\n") else "\n", flush=True)
+        if code != 0:
+            return code, found
+        for image in IMAGES:
+            if command[-1] == reference(image, commit):
+                if not (digest := PUSHED.search(said)):
+                    message = f"the push of {command[-1]} said no digest"
+                    raise ImageError(message)
+                found[image.name] = digest["digest"]
+    return 0, found
+
+
+def write_digests(commit: str, digests: Mapping[str, str], folder: Path) -> None:
+    """Write the digests where the chart and the Compose of production read them."""
+    said = (
+        f"# The images of the commit {commit}, by their digests, as wftools.images published them"
+    )
+    folder.mkdir(parents=True, exist_ok=True)
+    values = [f"{said}: the values of the chart (--values).", "images:", "  digests:"]
+    values += [f"    {image.name}: {digests[image.name]}" for image in IMAGES]
+    (folder / VALUES).write_text("\n".join(values) + "\n", encoding="utf-8")
+    lines = [f"{said}: lines of the .env of compose.prod.yaml."]
+    lines += [f"{digest_variable(image)}={digests[image.name]}" for image in IMAGES]
+    (folder / ENVIRONMENT).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def check_checkout(commit: str) -> None:
     """Refuse a push from a checkout that is not the commit named, or not clean where it builds."""
     head = _git("rev-parse", "HEAD")
@@ -363,7 +419,11 @@ def main(
     read: Callable[[list[str]], tuple[int, str]] = _read,
     contents: Callable[[str], Iterable[bytes]] = _contents,
 ) -> int:
-    """Build the images, and push them with ``--push``; stop at the first command that fails."""
+    """Build the images, and push them with ``--push``; stop at the first command that fails.
+
+    Once pushed, the digests of the images, as the pushes said them, are written in ``DIGESTS``, a
+    version left unposed or not.
+    """
     parser = argparse.ArgumentParser(prog="wftools.images", description="Build the images.")
     parser.add_argument("--push", action="store_true", help="publish every tag of each image")
     options = parser.parse_args(arguments)
@@ -382,9 +442,13 @@ def main(
         if not options.push:
             return 0
         check_contents(commit, contents)
-        code = _execute(pushes(branch, commit, release, posed=posed), run)
-        if code or not failed:
+        code, digests = push(pushes(branch, commit, release, posed=posed), commit, read)
+        if code:
             return code
+        write_digests(commit, digests, DIGESTS)
+        print(f"wftools.images: the digests of the images are in {DIGESTS}", flush=True)
+        if not failed:
+            return 0
         print(f"wftools.images: {failed}", file=sys.stderr)
     except ImageError as error:
         print(f"wftools.images: {error}", file=sys.stderr)

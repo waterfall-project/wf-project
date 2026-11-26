@@ -39,7 +39,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, SessionTransaction
 from structlog.contextvars import get_contextvars
 
-from waterfall.core.access_roles.interface import guard_deactivation, lock_administrators
+from waterfall.core.access_roles.interface import (
+    administrators,
+    guard_deactivation,
+    lock_administrators,
+)
 from waterfall.core.users.interface import (
     HeldAccount,
     NotAdmitted,
@@ -49,6 +53,7 @@ from waterfall.core.users.interface import (
     SkippedAddressHeld,
     SkippedPerson,
     SyncReport,
+    deactivate_all_unheld,
     deactivate_unheld,
     follow,
     identity_to_restore,
@@ -252,8 +257,11 @@ def write_accounts(
 ) -> Written:
     """Follow the persons, then deactivate the accounts no longer held; tell what was written.
 
-    Under the lock of the rule, taken before any row: each deactivation runs under the guard of the
-    last administrator, who is kept and reported (WF-ADM-0120).
+    Under the lock of the rule, taken before any row: the deactivation of an administrator runs
+    under the guard of the last one, who is kept and reported (WF-ADM-0120); the others, which take
+    no administration away, are deactivated all at once. The journal therefore inscribes the
+    deactivations of the latter first, in a block, then those of the administrators one by one,
+    not the accounts in the order they were read.
     """
     lock_administrators(session)
     written = Written()
@@ -269,7 +277,14 @@ def write_accounts(
         written.counts[followed] += 1
         if followed == "restored":
             written.restorable.append(person.subject)
+    # Only the deactivation of an administrator can leave the installation without one: the
+    # others are deactivated all at once, and those under the guard one by one (WF-ADM-0120).
+    administration = administrators(session)
+    others = [account for account in unheld if account.user_id not in administration]
+    written.counts["deactivated"] += deactivate_all_unheld(session, others, at)
     for account in unheld:
+        if account.user_id not in administration:
+            continue
         try:
             with session.begin_nested(), guard_deactivation(session):
                 deactivated = deactivate_unheld(session, account, at)

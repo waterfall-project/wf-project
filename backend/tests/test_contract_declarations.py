@@ -511,11 +511,18 @@ def test_an_operation_that_lacks_either_is_found(tmp_path: Path) -> None:
 # correlation of
 # the journal is declared by its model (``Field(pattern=CORRELATION)``, ``api/audit.py``), which
 # FastAPI does not describe: a blind spot of this comparison, which reads the application
-# description. The decision on these drifts is still to take (#2303).
+# description. This is the rule, not a drift to correct (#2303, decided by the author on
+# 2026-11-18; ``docs/api/DECISIONS.md``): the route judges these parameters and gives the refusal
+# the contract names, which a bound declared on the served parameter would turn into the generic
+# 422.
+# The eight parameters of #2303 (the grid of the hourly rates, the roles of resource, the journal)
+# each have a test that runs its refusal; the other entries (``listRisks``, ``listBackups``,
+# ``listNodes``…) are pinned by their text here, and not all by such a test. A parameter a route
+# judges by hand is added here.
 #
 # The sort column of the contributors of a project (EP-04, US-0930, ``listContributors``) is
 # declared by a ``pattern`` where the contract names an ``enum``: the same three columns, read as
-# text and judged by the route. The author of #2303 decided to keep this tolerance pinned.
+# text and judged by the route, by the same rule.
 CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     ("listAccessRoles", "query", "holder_count_min"): (
         "declared nothing, contract low=(Decimal('0'), False)"

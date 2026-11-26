@@ -5143,15 +5143,16 @@ Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qu
 ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`. Ce qui
 dépend de l'horloge : rien dans le référentiel, dont les dates sont celles du chargement
 (WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas :
-l'ouverture, depuis `/`, du portefeuille de `navigation.spec.ts`, levée par **EP-11**, et celle de
-l'écran d'état du système, levée par **EP-13** (`getSystemStatus`, #2307). L'administration, elle,
-se lit sous `@administration` (le compte de la course n'y porte pas le rôle « Manager » mais
+l'ouverture, depuis `/`, du portefeuille de `navigation.spec.ts`, levée par **EP-11**. L'état du
+système, servi par EP-13 (`getSystemStatus`, #2307), se lit et s'ouvre des deux côtés, comme
+l'administration, sous `@administration` (le compte de la course n'y porte pas le rôle « Manager » mais
 « Administrateur (parcours) ») : les parcours d'`admin.spec.ts` qui lisent sont
 `@shared @administration`. Ne se rejouent pas ceux d'`admin.spec.ts` qui écrivent — les sauvegardes
 (lancer, garder, restaurer), l'horaire des sauvegardes, les comptes et les rôles : chacun écrit un
 objet unique de l'installation, ou demande `users.write` ou `access_roles.write`, que le compte de
 `@administration` n'a pas, et que les parcours de `frontend/e2e/service/` (`backups.spec.ts`,
-`accounts.spec.ts`, `roles.spec.ts`) éprouvent sous l'administrateur de l'installation. L'accueil
+`accounts.spec.ts`, `roles.spec.ts`, et `administrator-path.spec.ts`, qui porte WF-INTF-0030-A)
+éprouvent sous l'administrateur de l'installation. L'accueil
 est servi depuis US-0920/L2 et se joue des deux côtés (`projects.spec.ts`, et l'icône de l'onglet de
 `navigation.spec.ts`), de même que les écrans d'un projet depuis US-1000 (dont, dans
 `navigation.spec.ts`, le passage des paramètres au cycle de vie). Depuis EP-08, se joue des deux côtés, dans

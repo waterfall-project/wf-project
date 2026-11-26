@@ -401,7 +401,10 @@ def test_the_command_passes_anything_else_to_the_bootstrap_and_the_api(
     assert main(["--version"]) == 0
     assert capsys.readouterr().out == f"waterfall-api {__version__}\n"
     assert main(["serve"]) == 2
-    assert "usage: waterfall-api [--version | install | load-witness]" in capsys.readouterr().err
+    usage = (
+        "usage: waterfall-api [--version | install | load-witness | load-reference [--projects N]]"
+    )
+    assert usage in capsys.readouterr().err
 
 
 def test_the_witness_of_the_tests_is_installed_as_the_bootstrap_does_then_loaded(

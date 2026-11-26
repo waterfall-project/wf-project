@@ -43,6 +43,7 @@ from waterfall.core.users.interface import (
     SkippedAddressHeld,
     SkippedPerson,
     SyncReport,
+    deactivate_all_unheld,
     deactivate_unheld,
     follow,
     identity_to_restore,
@@ -279,6 +280,71 @@ def test_what_the_reading_leaves_is_reported_an_account_by_its_identifier_alone(
         assert session.get_one(UserAccount, gone["id"]).state == "active"
 
 
+@pytest.mark.requirement("WF-ADM-0120-A")
+def test_an_empty_directory_deactivates_the_others_at_once_and_the_administrators_under_the_guard(
+    database: Database,
+) -> None:
+    # #4748: the accounts that hold no administration are deactivated all at once; the two
+    # administrators one by one under the guard, the last of them kept and reported, as before.
+    with database.transaction() as session:
+        ordinary = [held(session, email=f"ordinary{rank}@example.org") for rank in range(2)]
+        first = held(session, email="first@example.org")
+        last = held(session, email="last@example.org")
+    role(database, "Administration", permissions=ADMINISTRATION, holders=(first["id"], last["id"]))
+    everyone = [*ordinary, first, last]
+    unheld = [HeldAccount(row["id"], row["idp_subject"]) for row in everyone]
+    with database.transaction() as session:
+        written = write_accounts(session, [], unheld, NOON)
+        assert written.counts["deactivated"] == 3
+        assert written.skipped == [SkippedAccount(last["id"], "LAST_ADMINISTRATOR")]
+        states = {
+            row["id"]: session.get_one(UserAccount, row["id"], populate_existing=True).state
+            for row in everyone
+        }
+        assert [states[row["id"]] for row in everyone] == [
+            "deactivated",
+            "deactivated",
+            "deactivated",
+            "active",
+        ]
+        deactivated = {entry[2] for entry in journal(session) if entry[0] == "user_deactivate"}
+        assert deactivated == {ordinary[0]["id"], ordinary[1]["id"], first["id"]}
+        # Each one deactivated is versioned and dated as the platform's own write; the kept not.
+        for row in everyone[:3]:
+            account = session.get_one(UserAccount, row["id"], populate_existing=True)
+            assert (account.lock_version, account.updated_at, account.updated_by) == (1, NOON, None)
+        kept = session.get_one(UserAccount, last["id"], populate_existing=True)
+        assert (kept.lock_version, kept.updated_at) == (0, datetime(2026, 10, 1, tzinfo=UTC))
+
+
+@pytest.mark.requirement("WF-ADM-0120-A")
+def test_an_administrator_is_deactivated_when_another_the_directory_holds_remains(
+    database: Database,
+) -> None:
+    # The guard sees the final state: the ordinary account is deactivated first, at once, and the
+    # administrator not last is deactivated since the other, retained by the directory, remains.
+    with database.transaction() as session:
+        ordinary = held(session, email="ordinary@example.org")
+        leaving = held(session, email="leaving@example.org")
+        remaining = held(session, email="remaining@example.org")
+    holders = (leaving["id"], remaining["id"])
+    role(database, "Administration", permissions=ADMINISTRATION, holders=holders)
+    unheld = [HeldAccount(row["id"], row["idp_subject"]) for row in (ordinary, leaving)]
+    with database.transaction() as session:
+        written = write_accounts(session, [of_provider(remaining)], unheld, NOON)
+        assert written.counts["deactivated"] == 2
+        assert written.skipped == []
+        states = {
+            row["id"]: session.get_one(UserAccount, row["id"], populate_existing=True).state
+            for row in (ordinary, leaving, remaining)
+        }
+        assert states == {
+            ordinary["id"]: "deactivated",
+            leaving["id"]: "deactivated",
+            remaining["id"]: "active",
+        }
+
+
 @pytest.mark.requirement("WF-DAT-0070-A")
 def test_an_account_the_provider_no_longer_holds_is_deactivated_by_the_platform(
     session: Session,
@@ -302,6 +368,37 @@ def test_an_account_the_provider_no_longer_holds_is_deactivated_by_the_platform(
     as_local = HeldAccount(local["id"], local["idp_subject"])
     assert deactivate_unheld(session, as_local, NOON) is False
     assert session.get_one(UserAccount, local["id"]).state == "active"
+
+
+@pytest.mark.requirement("WF-DAT-0070-A")
+def test_the_accounts_the_provider_no_longer_holds_are_deactivated_all_at_once_as_one_by_one(
+    session: Session,
+) -> None:
+    # The same as each deactivated alone, in one lock, one write and one inscription: the reading
+    # holds the lock of the rule for all of them (#4748).
+    gone = [held(session, email=f"gone{rank}@example.org") for rank in range(3)]
+    local = held(session, email="local@example.org", origin="local")
+    off = held(session, email="off@example.org", state="deactivated")
+    moved = held(session, email="moved@example.org")
+    before = session.get_one(UserAccount, gone[0]["id"]).lock_version
+    asked = [
+        *(HeldAccount(row["id"], row["idp_subject"]) for row in gone),
+        HeldAccount(local["id"], local["idp_subject"]),
+        HeldAccount(off["id"], off["idp_subject"]),
+        HeldAccount(moved["id"], "another-subject"),
+    ]
+    assert deactivate_all_unheld(session, [], NOON) == 0
+    assert deactivate_all_unheld(session, asked, NOON) == 3
+    for row in gone:
+        stored = session.get_one(UserAccount, row["id"], populate_existing=True)
+        assert (stored.state, stored.updated_by, stored.updated_at) == ("deactivated", None, NOON)
+        assert stored.lock_version == before + 1
+    for row in (local, moved):
+        assert session.get_one(UserAccount, row["id"], populate_existing=True).state == "active"
+    assert journal(session) == [("user_deactivate", None, row["id"], {}) for row in gone]
+    # Deactivated, they are left as they are.
+    assert deactivate_all_unheld(session, asked, NOON) == 0
+    assert len(journal(session)) == 3
 
 
 def test_the_report_read_is_that_of_the_latest_reading(session: Session) -> None:
