@@ -644,3 +644,16 @@ message = 'wftools\.charttrial: find ghcr\.io/waterfall-project/[a-z]+@sha256:[0
 runs = [45868657554, 45923534175]
 frequency = "2 passages, file d'`epic/EP-13` : le 2026-11-26 (45868657554, pr-5064, keycloak sur kind), le 2026-11-27 (45923534175, pr-5082, waterfall sur k3s)"
 cause = "hypothèse : la recherche de l'image par son empreinte dans le nœud de kind suit de trop près son chargement, ou l'empreinte cherchée n'est pas celle que containerd garde"
+
+# L'import abandonné du parcours des échanges, relu en 404 au lieu d'`abandoned` (#5138).
+[[known]]
+class = "known flakiness"
+family = "exchanges, le détail de l'import abandonné relu en 404"
+issue = "#5138"
+job = '^service / paths(?: \(\d+/\d+\))?$'
+test = 'e2e/exchanges\.spec\.ts:'
+lines = [497, 497]
+message = 'e2e/exchanges\.spec\.ts:614'
+runs = [45981157990]
+frequency = "1 passage, le 2026-11-27 (45981157990, file d'`epic/EP-13`, pr-5114)"
+cause = "hypothèse : le détail de l'import, relu après « Abandonner l'import », n'est plus lisible (404) et `toPass` répète le 404 jusqu'au délai"
