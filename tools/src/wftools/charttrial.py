@@ -52,6 +52,10 @@ values, then holds the first three of these, the installation, the sign-in and t
 chart installs on two distributions without modification (WF-CMP-0020-A, US-2810). The rest holds
 the chart and the platform, not the cluster, and is held once, on kind.
 
+The node of kind runs the oldest version of Kubernetes the chart declares, its ``kubeVersion``, read
+from ``Chart.yaml`` and not copied (``wftools.kubeversions``, WF-CMP-0020-A, US-2810/L3); k3s runs a
+recent one.
+
 The cluster is deleted at the end, whatever the outcome; what the pods said is printed first when it
 fails. The third-party images are read from the mirror when ``WATERFALL_MIRROR`` gives it, with the
 credentials of Docker, as the chain logs in.
@@ -80,6 +84,7 @@ from wftools import (
     chartrestoretest,
     chartstateless,
     kubetools,
+    kubeversions,
 )
 from wftools.chartauthority import issue, make_authority
 from wftools.chartrun import Ask, Read, Run, TrialError, must, output
@@ -122,10 +127,6 @@ DISTRIBUTIONS = (KIND, K3S)
 DOMAIN = "waterfall.localhost"
 NAMESPACE = "waterfall"
 ADMIN = "administrateur@waterfall.test"
-NODE = (
-    "kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"
-)
-"""The node of kind 0.33.0 for Kubernetes 1.37, by the digest its release names."""
 TRAEFIK = (
     "oci://ghcr.io/traefik/helm/traefik@"
     "sha256:50098cedd13beccdaae2bda8f17091b3eebede130ce73a7b2fc97bb72955e59f"
@@ -324,6 +325,10 @@ class Trial:
                 docker_config,
             )
             return
+        try:
+            node = kubeversions.node()
+        except kubeversions.VersionError as error:
+            raise TrialError(str(error)) from error
         configuration = self.folder / "kind.json"
         configuration.write_text(
             json.dumps(cluster_configuration(self.platform.https_port, docker_config)),
@@ -338,7 +343,7 @@ class Trial:
                 "--name",
                 name,
                 "--image",
-                NODE,
+                node,
                 "--config",
                 str(configuration),
                 "--kubeconfig",

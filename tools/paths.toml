@@ -386,6 +386,8 @@ paths = [
     "tools/src/wftools/heavyturns.py",
     "tools/src/wftools/bounded.py",
     "tools/src/wftools/kubetools.py",
+    "tools/src/wftools/kubeversions.py",
+    "tools/kubernetes-maintained.toml",
     "tools/src/wftools/chart.py",
     "tools/src/wftools/chartauthority.py",
     "tools/src/wftools/chartdata.py",

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from wftools import chartk3s, charttrial
+from wftools import chartk3s, charttrial, kubeversions
 from wftools.chartrun import TrialError
 from wftools.charttrial import Tools, Trial
 from wftools.production import Platform
@@ -31,7 +31,7 @@ PLATFORM = Platform("waterfall.localhost", 41443, 0)
 def test_k3s_is_pulled_by_the_digest_of_its_manifest_and_is_not_the_kubernetes_of_kind() -> None:
     assert re.search(r"@sha256:[0-9a-f]{64}$", chartk3s.K3S)
     assert "v1.36." in chartk3s.K3S
-    assert "v1.37." in charttrial.NODE
+    assert "v1.36." not in kubeversions.node()
 
 
 def test_the_node_is_a_privileged_container_that_publishes_https_and_the_api_on_the_loopback() -> (
