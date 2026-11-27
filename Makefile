@@ -79,6 +79,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-reference service-reference-check service-reference-backup service-reference-restore service-purge service-logs service-logs-search service-logs-fields service-down measure-core migrate \
 	build-keycloak save-keycloak load-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production kube-tools lint-chart test-chart chart-trial chart-trial-k3s chart-upgrade check-chart \
+	check-migrations migrations-tests migrations-backup \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens implementations readmes reuse lint-workflows \
 	lint-shell check slot slot-release e2e-down slots test-services test-services-down \
@@ -626,14 +627,15 @@ images: ## Build the images front, waterfall and keycloak, tagged by commit, by 
 # The production platform (compose.prod.yaml, US-0430) on the images tagged WATERFALL_IMAGE_TAG — the
 # commit of the checkout by default —, built here, pushed to a registry that lives for the run and
 # run by the digests its pushes say (wftools.trialregistry, #3726), or published and run by the
-# WATERFALL_DIGEST_* the environment gives, under a local name
-# (WATERFALL_DOMAIN, waterfall.localhost by default) on ports 80 and 443 (WATERFALL_HTTP_PORT,
+# WATERFALL_DIGEST_* the environment gives, under WATERFALL_DOMAIN — waterfall.example.org by
+# default, a public name whose certificate the trial gives the door, from an authority of test
+# (US-3010), or a local name, certified by Caddy — on ports 80 and 443 (WATERFALL_HTTP_PORT,
 # WATERFALL_HTTPS_PORT): started, bootstrapped, its API's liveness and the sign-in of its first
 # administrator held, then removed with its volumes (wftools.production). Its secrets come from the
 # environment, as production.env.example names them; the project of Compose is
 # WATERFALL_PRODUCTION_PROJECT (waterfall-production-trial). Outside the slots, at slot 0 alone: from
 # the worktree of a lot, it would take the ports 80 and 443 of the workstation (US-1100).
-production-trial: ## Start the production platform on the images of WATERFALL_IMAGE_TAG (the commit by default) under a local name, bootstrap it, hold its liveness and the sign-in of its first administrator, back it up and restore it by the API, then play the test of a restoration (deploy/compose/restore-test.sh) on a scheduled backup, with WATERFALL_TRIAL_RESTORATION=1, then remove it (needs its secrets); at slot 0 alone, the main repository
+production-trial: ## Start the production platform on the images of WATERFALL_IMAGE_TAG (the commit by default) under a public name whose certificate it gives, bootstrap it, hold its liveness and the sign-in of its first administrator, back it up and restore it by the API, then play the test of a restoration (deploy/compose/restore-test.sh) on a scheduled backup, with WATERFALL_TRIAL_RESTORATION=1, then remove it (needs its secrets); at slot 0 alone, the main repository
 	@[ "$$($(SLOTS) which 2>/dev/null)" = 0 ] || { echo "make production-trial runs at slot 0 alone, from the main repository, never from the worktree of a lot" >&2; exit 1; }
 	@$(WFTOOLS).production
 
@@ -859,6 +861,31 @@ check-production: $(call full-only,images production-trial) ## The production pl
 CHART_TRIALS ?= chart-trial chart-trial-k3s chart-upgrade
 CHART_CHECKS ?= lint-chart test-chart
 check-chart: $(CHART_CHECKS) $(call full-only,images $(CHART_TRIALS)) ## The chart lints and says what it must; in the full tier, it installs on throwaway clusters of kind and of k3s, bootstraps and lets its first administrator in (US-2800, US-2810), then upgrades from the version N under load, rolls back and upgrades again (US-2850)
+
+# The migrations of the branch against the last published version, without the chart (US-2850,
+# #4089), in the full tier only: the tests of the back of that version on the schema the branch
+# migrates, then a backup its production platform takes, restored and migrated by the branch. Both
+# run, the second whatever the first said, so that one run says every incompatibility.
+check-migrations: ## In the full tier, the tests of the back of the last published version run on the schema of the branch, and a backup of its production platform is restored then migrated by the branch, unchanged (WF-DAT-0140, US-2850)
+	$(if $(filter full,$(TIER)),@status=0; \
+		$(MAKE) --no-print-directory migrations-tests || status=1; \
+		$(MAKE) --no-print-directory migrations-backup || status=1; \
+		exit $$status)
+
+# On the services of the tests of the back, as test-back; SHARD=i/N runs one part of them. Each part
+# fails on a failure the known failures of the version do not hold (tools/migrations-known.toml), or
+# on one of them that no longer fails; the outcomes stay in .waterfall/migrations-tests.jsonl.
+migrations-tests: ## The tests of the back of the last published version, extracted from its tag, on the schema the migrations of the branch make, its own tests of its migrations left out; judged against tools/migrations-known.toml (SHARD=i/N one part of them)
+	@$(TESTING_BACK) $(WFTOOLS).migrationtests
+
+# The platform of the last published version under a project of the slot, which publishes no port:
+# its backup written to EARLIER_BACKUP, then read, restored and migrated by the tests of the branch
+# that name it (backend/tests/test_earlier_backup.py), on the services of the tests of the back, and
+# judged against the known failures; the outcomes stay in .waterfall/migrations-backup.jsonl.
+EARLIER_BACKUP ?= $(CURDIR)/.waterfall/earlier-backup.tar
+migrations-backup: export WATERFALL_MIGRATIONS_PROJECT ?= waterfall-migrations-s$(call slot-value,WATERFALL_SLOT)
+migrations-backup: ## A backup taken by the production platform of the last published version, its witness loaded, restored then migrated by the branch: no row lost, the rows of its marked revisions unchanged; judged against tools/migrations-known.toml
+	@$(TESTING_BACK) $(WFTOOLS).migrationbackup "$(EARLIER_BACKUP)"
 
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap

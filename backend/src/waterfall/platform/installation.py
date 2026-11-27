@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import BigInteger, CheckConstraint, Integer, SmallInteger, Text
+from sqlalchemy import BigInteger, CheckConstraint, Integer, SmallInteger, Text, text
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from waterfall.platform.database import Base, Database, UtcDateTime
@@ -66,7 +66,7 @@ class Installation(Base):
 
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, autoincrement=False)
     default_language: Mapped[str] = mapped_column(Text)
-    time_zone: Mapped[str] = mapped_column(Text)
+    time_zone: Mapped[str] = mapped_column(Text, server_default=text("'UTC'"))
     avatar_max_bytes: Mapped[int] = mapped_column(Integer)
     external_backup_max_bytes: Mapped[int] = mapped_column(BigInteger)
     installed_at: Mapped[datetime] = mapped_column(UtcDateTime)

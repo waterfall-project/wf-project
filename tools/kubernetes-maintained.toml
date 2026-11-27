@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Les versions de Kubernetes que le projet Kubernetes maintient, à la date de la liste (US-2810/L3).
+#
+# `kubeVersion` du chart (deploy/helm/waterfall/Chart.yaml) ne peut pas être plus ancien que la plus
+# ancienne version de cette liste : `make lint-chart` le refuse (wftools.kubeversions). La liste est
+# versionnée ici et datée : la publication la met à jour (US-3000, pas encore livrée) ; d'ici là, une
+# personne la relit contre https://kubernetes.io/releases/ à chaque version mineure.
+#
+# `as_of`        la date à laquelle la liste a été relevée ;
+# `version`      la version mineure, « 1.35 » ;
+# `end_of_life`  la fin de la maintenance, estimée (sortie + environ quatorze mois), non relevée ;
+#                à relire contre https://kubernetes.io/releases/. Elle doit suivre `as_of`, sans
+#                quoi la liste est périmée. Seule la plus ancienne version de la liste sert au
+#                contrôle de `kubeVersion` ; les dates ne servent qu'à refuser une liste périmée.
+
+as_of = 2026-11-27
+
+[[maintained]]
+version = "1.35"
+end_of_life = 2027-02-28
+
+[[maintained]]
+version = "1.36"
+end_of_life = 2027-06-28
+
+[[maintained]]
+version = "1.37"
+end_of_life = 2027-10-28

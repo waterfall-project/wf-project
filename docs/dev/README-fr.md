@@ -3359,6 +3359,9 @@ commande.
 | `make chart-trial` | installe le chart sur un cluster kind jetable, `WATERFALL_CHART_CLUSTER` (`waterfall-chart-s<créneau>`), avec Traefik pour l'ingress, à partir des images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit par défaut, `make images` d'abord —, sous `waterfall.localhost` sur un port libre de la boucle locale ; affirme que l'installation aboutit, ses crochets compris — migrations, royaume, amorçage —, que la sonde de vie de l'API répond et que le premier administrateur se connecte, par les fonctions de `wftools.production`, puis supprime le cluster (`wftools.charttrial`) ; une exécution lourde, qui attend son tour |
 | `make chart-upgrade` | met à jour le chart sous charge, sur un cluster kind jetable à lui (`waterfall-upgrade-s<créneau>`) : installe la version N — la dernière version publiée qui porte le chart, à défaut `BASE` ou son plus proche premier parent dont les images sont publiées, son chart extrait du commit —, la met à jour vers la branche (images de `WATERFALL_IMAGE_TAG`, `make images` d'abord), revient à N, puis remet à jour ; sous des requêtes du premier administrateur dont aucune ne doit échouer, affirme les migrations avant les instances, aucun pod de PostgreSQL, de Redis ou du stockage redémarré, le retour arrière sur le schéma de N+1 et aucune migration rejouée ; sans base qui porte le chart, se déclare non exécuté (`wftools.chartupgrade`, US-2850) ; une exécution lourde |
 | `make check-chart` | la famille `chart` : `lint-chart` et `test-chart` à chaque palier ; au palier complet, `make images`, sans poussée, puis `make chart-trial` et `make chart-upgrade` |
+| `make migrations-tests` | joue les tests du back de la dernière version publiée, extraits de son étiquette, sur le schéma des migrations de la branche, ses propres tests de migrations écartés (`wftools.migrationtests`, US-2850), jugés contre les échecs connus de `tools/migrations-known.toml` ; `SHARD=i/N` en joue un morceau ; une exécution lourde, sur les services des tests du back ; sans version publiée, se déclare non exécuté |
+| `make migrations-backup` | démarre le Compose de production de la dernière version publiée depuis ses images, sous un projet du créneau qui ne publie aucun port, l'amorce, charge son témoin et lui fait prendre une sauvegarde (`EARLIER_BACKUP`, `wftools.migrationbackup`), puis la restaure et la migre par la branche (`backend/tests/test_earlier_backup.py`) : aucune ligne perdue, les lignes de ses révisions marquées inchangées (US-2850), jugé contre les échecs connus ; une exécution lourde, sur les services des tests du back |
+| `make check-migrations` | la famille `migrations`, au palier complet seulement : `make migrations-tests` puis `make migrations-backup`, chacun jugé contre les échecs connus de `tools/migrations-known.toml` |
 | `make mirror`                                                           | vérifie que ghcr.io tient, par leur empreinte, les images de Docker Hub que les fichiers nomment derrière le miroir ; `PUSH=yes` copie celles qui manquent (`wftools.mirror`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `make mirror-sync`                                                      | recopie le manifeste des images de Docker Hub, `deploy/images/Dockerfile`, que Dependabot suit, dans les `Dockerfile`, les fichiers Compose et les workflows, étiquette et empreinte, sans toucher au préfixe du miroir, ancres YAML comprises ; relancée, elle ne change rien ; échoue en nommant ce que la recopie ne règle pas (image absente du manifeste, ligne du manifeste inutilisée ou mal formée ; `wftools.mirror sync`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
@@ -4020,6 +4023,40 @@ lui, met à jour sous charge la version N vers ces images, revient en arrière e
 (`make chart-upgrade`, `wftools.chartupgrade`, US-2850), à partir de la base de la pull request ou
 de la file, que `chart.yml` lui passe (`BASE`). Helm, kind et kubectl
 sont téléchargés aux versions et aux empreintes que `wftools.kubetools` épingle.
+
+La famille `migrations` (`migrations.yml`, US-2850, #4089) éprouve les migrations de la branche
+contre la dernière version publiée — la plus haute étiquette `vX.Y.Z` que le commit atteint, sans
+le chart —, au palier complet seulement, sur un runner à elle : `make migrations-tests` extrait le
+back de son étiquette, pose par-dessus les migrations de la branche, écarte ses propres tests de
+migrations et joue ses tests sur le schéma ainsi migré (`wftools.migrationtests`) ;
+`make migrations-backup` démarre son Compose de production depuis ses images publiées, l'amorce, y
+charge son témoin, lui fait prendre une sauvegarde, puis la branche la restaure et la migre, et
+affirme qu'aucune ligne n'est perdue et que les lignes de ses révisions marquées — montants et
+indicateurs conservés — sont inchangées (`wftools.migrationbackup`,
+`backend/tests/test_earlier_backup.py`). Elle ne se réveille qu'aux migrations et à ses propres
+outils ; sans version publiée, elle se déclare non exécutée. Les tests de la version se jouent en
+trois morceaux (`SHARD=i/N`), chacun sur un runner, et la sauvegarde sur un autre : la porte compte
+chaque job de la matrice, comme ceux de l'e2e.
+
+Une incompatibilité déjà trouvée ne bloque pas la file (décision du 2026-11-27, #4961). Chaque
+échec attendu de la version N est écrit dans `tools/migrations-known.toml`, sous sa version et sa
+partie (`tests` ou `backup`), avec le constat qui le suit (`issue`) ou la catégorie `frozen schema`
+— un test de N qui fige son propre schéma : le nom d'une contrainte, un catalogue, un plan d'index —,
+et sa cause. Une entrée reconnaît un échec par les tests qu'elle nomme (un nœud de pytest, ou un
+fichier entier), par un motif de son message, ou par les deux ; sans tests, elle tient une cause
+commune à beaucoup de tests, une même erreur de mise en place. Un greffon de pytest
+(`wftools.migrationreport`) écrit l'issue de chaque test, et `wftools.migrationknown` la juge :
+la partie échoue sur un échec qu'aucune entrée ne reconnaît, et sur une entrée qui n'échoue plus
+— un test nommé qui passe, ou une entrée sans tests qui n'a rien reconnu —, comme un
+`xfail(strict=True)` : la liste se vide à mesure que les constats se règlent, et aucune entrée ne
+reste masquer la régression du test qu'elle nomme. Le lot qui règle un constat retire ses
+entrées ; un test qu'un morceau ne joue pas n'est pas jugé, une entrée sans tests ne l'est que sur
+la suite entière (sans `SHARD`), une partie où aucun test n'a passé ni échoué — tous sautés — échoue,
+et les entrées d'une autre version ne sont pas jugées, ce que l'outil dit quand N passe à la
+suivante. Le motif est cherché dans tout le texte de l'échec, journaux capturés compris, et une
+entrée sans `message` reconnaît tout échec de ses tests : l'en-tête du fichier dit ces limites. Les issues des tests
+restent dans `.waterfall/migrations-tests.jsonl` et `.waterfall/migrations-backup.jsonl`, et la
+chaîne les garde en artefact d'un job en échec : c'est d'elles qu'une entrée s'écrit.
 
 Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
 déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le

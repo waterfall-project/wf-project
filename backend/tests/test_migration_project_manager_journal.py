@@ -316,3 +316,26 @@ def test_behind_a_reading_of_the_journal_that_lasts_the_upgrade_lets_the_journal
         migrating.result(timeout=60)
     assert waited < WRITE_BOUND_SECONDS
     assert_upgraded_whole(empty_engine)
+
+
+@pytest.mark.story("US-2850")
+def test_a_refused_lock_of_the_upgrade_is_written_to_the_log_with_its_table_and_its_step(
+    empty_engine: Engine, caplog: pytest.LogCaptureFixture
+) -> None:
+    # #5096: behind a reading that stays open, the upgrade waits; each refusal says where.
+    upgrade(empty_engine, "0055")
+    caplog.set_level("WARNING")
+    with ThreadPoolExecutor(1) as pool:
+        with empty_engine.connect() as reading, reading.begin():
+            reading.execute(select(AuditEntry.id)).all()
+            migrating = pool.submit(upgrade, empty_engine, "0056")
+            until(
+                empty_engine,
+                lambda _watching: any("lock refused" in each for each in caplog.messages),
+                "a refused lock written to the log",
+            )
+        migrating.result(timeout=60)
+    refused = [each for each in caplog.records if "lock refused" in each.getMessage()]
+    assert refused[0].levelname == "WARNING"
+    assert "audit_entry" in refused[0].getMessage()
+    assert "widen the checks" in refused[0].getMessage()

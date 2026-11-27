@@ -10,7 +10,9 @@
 #   wait for them: they sign in as the role of the service, which may once they have run (#701).
 #   Before the installation neither the Secret nor the ConfigMap of the chart exist: the Secret is
 #   the operator's then (`secrets.existingSecret`, required), and the files the steps read are a
-#   ConfigMap of the hook itself, made before it and removed after;
+#   ConfigMap of the hook itself, made before it and removed after. One instance migrates, before
+#   the others of the new image start, and a wait for a lock is read in its log
+#   (docs/exploitation/mise-a-jour.md);
 # - the buckets of the object storage, once it is there, after the installation and before each
 #   upgrade;
 # - the application of the realm, after the installation and after each upgrade, as the service

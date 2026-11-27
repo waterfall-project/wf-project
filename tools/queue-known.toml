@@ -499,11 +499,12 @@ cause = "hypothèse : `docker pull` depuis ghcr.io reste suspendu sans rendre d'
 [[known]]
 class = "known flakiness"
 family = "délai de back / tests"
-issue = "#2950"
+issue = "#5155"
 job = "^back / tests"
 message = 'The operation was canceled\.'
-frequency = "2 passages du 2026-11-05 au 2026-11-12 (42739027879, 43046175348)"
-cause = "établie : les tests passent, mais le job dépasse son délai de 20 minutes ; US-1910/L2 coupe `back / tests` en quatre morceaux"
+runs = [42739027879, 43046175348, 46012877699, 46016622523]
+frequency = "4 passages : 2 du 2026-11-05 au 2026-11-12 (#2950), 2 le 2026-11-27 (`back / tests (3/6)` puis `(2/6)`, annulés à 98 % après 20 minutes)"
+cause = "hypothèse : le morceau dépasse son délai de 20 minutes, les tests passant ; US-1910/L2 (#2950) avait coupé `back / tests` en morceaux, l'écart revient (#5155)"
 
 # Famille A, à défaut des entrées ci-dessus : tout autre parcours de ces 17 passages qui crée son
 # projet et échoue au même endroit. En dernier, pour que l'inventaire nomme d'abord ce qu'il a relevé.
@@ -644,27 +645,15 @@ runs = [45835940068]
 frequency = "1 passage, le 2026-11-26 (45835940068, file d'`epic/EP-13`, pr-5026)"
 cause = "hypothèse : sous la charge de la file, Entrée sur l'en-tête arrive avant que la grille du devis ait branché le tri au clavier, et l'URL ne change jamais"
 
-# Une image de Waterfall chargée dans le cluster de l'essai du chart, de kind ou de k3s, que la
-# recherche par empreinte ne trouve pas (#5065) : keycloak puis waterfall sur kind, waterfall sur k3s.
+# L'import abandonné du parcours des échanges, relu en 404 au lieu d'`abandoned` (#5138).
 [[known]]
 class = "known flakiness"
-family = "chart-trial, une image de Waterfall absente du cluster de kind ou de k3s"
-issue = "#5065"
-job = '^chart / check( \((kind|k3s)\))?$'
-step = 'chart-trial'
-message = 'wftools\.charttrial: find ghcr\.io/waterfall-project/[a-z-]+@sha256:[0-9a-f]+ in the cluster failed'
-runs = [45868657554, 45923534175, 45949402517]
-frequency = "3 passages, file d'`epic/EP-13` : le 2026-11-26 (45868657554, pr-5064, keycloak sur kind), le 2026-11-27 (45923534175, pr-5082, waterfall sur k3s ; 45949402517, pr-5117, waterfall sur kind)"
-cause = "hypothèse : la recherche de l'image par son empreinte dans le nœud de kind suit de trop près son chargement, ou l'empreinte cherchée n'est pas celle que containerd garde"
-
-# L'essai du chart sur k3s, qui attend le nœud avant que le serveur d'API réponde (#5103).
-[[known]]
-class = "known flakiness"
-family = "chart-trial-k3s, l'attente du nœud avant le serveur d'API de k3s"
-issue = "#5103"
-job = '^chart / check \(k3s\)$'
-step = 'chart-trial-k3s'
-message = 'wftools\.charttrial: wait for the node failed'
-runs = [45913572822, 45933825076]
-frequency = "2 passages, le 2026-11-26 (45913572822) et le 2026-11-27 (45933825076), file d'`epic/EP-13`, pr-5082"
-cause = "hypothèse : l'essai attend le nœud avant que le serveur d'API de k3s soit prêt (`informer-sync failed`, `no matching resources found`)"
+family = "exchanges, le détail de l'import abandonné relu en 404"
+issue = "#5138"
+job = '^service / paths(?: \(\d+/\d+\))?$'
+test = 'e2e/exchanges\.spec\.ts:'
+lines = [497, 497]
+message = 'e2e/exchanges\.spec\.ts:614'
+runs = [45981157990]
+frequency = "1 passage, le 2026-11-27 (45981157990, file d'`epic/EP-13`, pr-5114)"
+cause = "hypothèse : le détail de l'import, relu après « Abandonner l'import », n'est plus lisible (404) et `toPass` répète le 404 jusqu'au délai"

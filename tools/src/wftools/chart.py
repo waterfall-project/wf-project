@@ -7,7 +7,9 @@ Usage: ``python -m wftools.chart``.
 ``deploy/helm/waterfall`` is linted by Helm, strictly, with the values of the chain: every value the
 chart cannot do without, the secrets included, given values of the chain, visible and named as
 such. The tests of the chart (``make test-chart``) render it by :func:`render` and hold what the
-objects say; ``wftools.charttrial`` installs it on a cluster of its own.
+objects say; ``wftools.charttrial`` installs it on a cluster of its own. The lint also refuses a
+``kubeVersion`` older than the oldest version of Kubernetes still maintained
+(``wftools.kubeversions``, US-2810).
 """
 
 import hashlib
@@ -21,7 +23,7 @@ from typing import Any, cast
 
 import yaml
 
-from wftools import REPOSITORY, kubetools
+from wftools import REPOSITORY, kubetools, kubeversions
 from wftools.images import IMAGES
 
 TOOL = "wftools.chart"
@@ -126,7 +128,8 @@ def main() -> int:
     """Lint the chart strictly, with the values of the chain."""
     try:
         print(helm(["lint", "--strict"], chain_values()).strip())
-    except (ChartError, kubetools.ToolError, OSError) as error:
+        kubeversions.check()
+    except (ChartError, kubetools.ToolError, kubeversions.VersionError, OSError) as error:
         print(f"{TOOL}: {error}", file=sys.stderr)
         return 1
     return 0

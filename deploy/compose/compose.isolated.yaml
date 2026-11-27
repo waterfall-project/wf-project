@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # The production platform on a network without a way out (US-3010, WF-CMP-0030), as the chain tries
-# it (make production-trial, wftools.production): given after compose.prod.yaml and
-# compose.prod.local.yaml. Not for an installation, whose firewall does what this file does
-# (docs/exploitation/reseau-isole.md).
+# it (make production-trial, wftools.production): given after compose.prod.yaml — and
+# compose.prod.local.yaml under a local name; under a public one, the trial gives the door its
+# certificate (WATERFALL_DOOR_DIRECTORY), and Caddy asks for none. Not for an installation, whose
+# firewall does what this file does (docs/exploitation/reseau-isole.md).
 #
 # Every network of the platform is internal: Docker gives none a route out, and a connection to an
 # address outside fails at once. Every service resolves through the sink, egress-sink: Docker's

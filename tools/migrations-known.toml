@@ -1,0 +1,197 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Les échecs connus de la famille `migrations` (US-2850, #4961), contre lesquels `make
+# migrations-tests` et `make migrations-backup` jugent ce que leurs tests ont donné
+# (wftools.migrationknown).
+#
+# La famille éprouve WF-DAT-0140 contre la dernière version publiée, N : les tests du back de N sur
+# le schéma que les migrations de la branche font, et une sauvegarde de N restaurée puis migrée par
+# la branche. Un échec y dit une incompatibilité ; elle devient un constat, réglé avant la
+# publication de la version suivante, jamais dans le lot qui la trouve. Décision de l'auteur du
+# 2026-11-27 (#4961) : une incompatibilité déjà trouvée ne bloque pas la file. Elle s'écrit ici, et
+# la famille n'échoue que sur un échec qu'aucune entrée ne reconnaît — un échec nouveau.
+#
+# Une entrée `[[known]]` par cause. Elle donne :
+#   version   la version N dont les tests échouent (`v0.3.0`) : les entrées d'une autre version ne
+#             sont pas jugées, et l'outil le dit quand N passe à la suivante ;
+#   part      `tests` (make migrations-tests) ou `backup` (make migrations-backup) ;
+#   issue     le constat qui suit l'échec (`#5090`), ou
+#   category  `frozen schema` à sa place : un test de N qui fige le schéma de N — le nom d'une
+#             contrainte, un catalogue, un plan d'index —, que la branche a fait évoluer sans
+#             incompatibilité pour le code ;
+#   tests     les tests reconnus, nœuds de pytest (`tests/test_x.py::test_y`, un cas
+#             `…::test_y[cas]`, tous les cas `…::test_y`, ou tout un fichier `tests/test_x.py`) ;
+#   message   un motif (expression régulière de Python, cherchée et non ancrée) du texte de
+#             l'échec : la trace, et ce que le test a écrit et journalisé ;
+#   cause     ouverte par « établie : » ou « hypothèse : ».
+# Une entrée reconnaît un échec quand ses tests le nomment et que son message s'y trouve ; sans
+# tests, elle reconnaît tout échec dont le message porte son motif : une même erreur de mise en
+# place, commune à beaucoup de tests, s'écrit ainsi plutôt qu'en mille identifiants. Un échec est
+# à la première entrée qui le reconnaît.
+#
+# Une entrée qui n'échoue plus fait échouer la famille, comme un `xfail(strict=True)` : un test
+# nommé qui passe, ou une entrée sans tests qui n'a rien reconnu. La liste se vide ainsi à mesure
+# que les constats se règlent — le lot qui règle un constat retire ses entrées —, et aucune entrée
+# ne reste masquer la régression du test qu'elle nomme. Un test qu'un morceau de la chaîne
+# (`SHARD=i/N`) ne joue pas n'est pas jugé, et une entrée sans tests ne l'est que sur la suite
+# entière, sans `SHARD` : ses échecs peuvent tous tomber dans un autre morceau. Une partie où aucun
+# test n'a passé ni échoué (tous sautés, ou aucun) échoue : elle n'a rien prouvé.
+#
+# Limites connues de la reconnaissance :
+#   - le motif est cherché dans tout le texte de l'échec, journaux capturés compris : un échec nouveau
+#     dont le texte capturerait ce motif serait absorbé par l'entrée ;
+#   - une entrée sans `message` reconnaît tout échec des tests qu'elle nomme, ce qui contredit en
+#     partie le propos ci-dessus : c'est le cas de l'entrée #5091 des tests du témoin et des entrées
+#     `frozen schema`, dont les tests échouent de façons trop diverses (contrainte qui ne refuse plus,
+#     catalogue, plan d'index) pour un seul motif ; une régression de l'un de ces tests, autre que
+#     celle que l'entrée décrit, y est masquée tant que l'entrée dure ;
+#   - #5090, première entrée par motif, réclame tous les échecs de mise en place, y compris ceux des
+#     tests que les entrées plus bas nomment : aujourd'hui, aucune entrée `frozen schema` ne
+#     reconnaît donc rien, ni n'est jugée périmée par là. US-2850/L5 retire #5090 et réajustera
+#     alors ces entrées.
+#
+# Les issues de chaque test restent dans `.waterfall/migrations-tests.jsonl` et
+# `.waterfall/migrations-backup.jsonl` (la chaîne les garde en artefact d'un job en échec) : une
+# entrée s'écrit à partir d'elles.
+
+# --- tests : les tests du back de v0.3.0 sur le schéma de la branche ---------------------------
+
+# #5090 : 0029 ajoute installation.time_zone sans défaut ; v0.3.0 insère son installation sans elle.
+# Une même erreur de mise en place, dans 1556 tests le 2026-11-27 : reconnue par son message.
+# US-2850/L5 (#5118) rétablit le défaut et retire cette entrée.
+[[known]]
+version = "v0.3.0"
+part = "tests"
+issue = "#5090"
+message = 'NotNullViolation\) null value in column "time_zone" of relation "installation" violates not-null constraint'
+cause = "établie : 0029 retire le défaut de installation.time_zone, que le code de v0.3.0 n'écrit pas"
+
+# #5091 : 0034 supprime resource_role.monthly_hours, que v0.3.0 lit et écrit. Écart accepté pour
+# 0.3.0 → 0.4.0 (mise à jour avec arrêt, notes de v0.4.0) : l'entrée reste tant que N est v0.3.0.
+# Reconnue par son message, dans l'insertion comme dans la lecture, et par l'échec du chargement du
+# témoin de v0.3.0, qui écrit ses rôles avec cette colonne (`witness.failed`, journalisé une fois
+# par la session) : chaque test qui le prend échoue à sa mise en place sur `load_witness`. 65 tests
+# le 2026-11-27 ; 1521 une fois #5090 réglé.
+[[known]]
+version = "v0.3.0"
+part = "tests"
+issue = "#5091"
+message = 'column (?:"monthly_hours" of relation "resource_role"|resource_role\.monthly_hours) does not exist|where 1 = load_witness\('
+cause = "établie : 0034 supprime resource_role.monthly_hours, que le code et le témoin de v0.3.0 écrivent et lisent"
+
+# Les tests de la commande du témoin, que le même échec arrête avant ce qu'ils affirment : sans le
+# message de sa cause, que leur fixture `logs` garde. Masqués par #5090 le 2026-11-27.
+[[known]]
+version = "v0.3.0"
+part = "tests"
+issue = "#5091"
+tests = [
+  "tests/test_resource_settings_calendars.py::test_the_witness_loads_the_calendars_and_designates_its_default_one",
+  "tests/test_witness.py::test_the_command_loads_the_witness_its_settings_given",
+  "tests/test_witness.py::test_the_command_stops_saying_so_on_a_witness_the_rules_refuse_and_writes_nothing",
+  "tests/test_witness.py::test_the_loading_dates_and_signs_every_object_as_the_platform_not_as_the_witness",
+]
+cause = "établie : la commande du témoin de v0.3.0 échoue sur resource_role.monthly_hours avant ce que ces tests affirment"
+
+# Des tests de v0.3.0 qui figent son propre schéma : des contraintes que la branche a renommées,
+# remplacées ou retirées (les codes des sous-projets, spécification 1.0.7), les actions de ses clés
+# étrangères, le plan de ses index sur le journal, ses tables partitionnées. Le code de v0.3.0 n'y
+# perd rien : ces tests affirment le schéma de N, que N+1 a fait évoluer.
+[[known]]
+version = "v0.3.0"
+part = "tests"
+category = "frozen schema"
+tests = [
+  "tests/test_audit_consultation.py::test_the_sorts_on_the_action_the_nature_and_the_author_are_served_by_their_index[action-ix_audit_entry_action_rank]",
+  "tests/test_audit_consultation.py::test_the_sorts_on_the_action_the_nature_and_the_author_are_served_by_their_index[object_kind-ix_audit_entry_object_kind_rank]",
+  "tests/test_database_constraints_costs.py::test_the_database_refuses_a_row_of_the_actual_costs_that_breaks_a_rule[--ck_cost_line_subproject_code_length]",
+  "tests/test_database_constraints_planning.py::test_every_foreign_key_of_the_schema_refuses_by_default",
+  "tests/test_database_constraints_projects.py::test_a_body_that_succeeds_leaving_a_structure_of_another_kind_fails_at_the_validation",
+  "tests/test_database_constraints_projects.py::test_the_check_on_the_kind_of_a_structure_is_restored_when_the_body_that_lifted_it_fails",
+  "tests/test_database_constraints_projects.py::test_the_database_refuses_a_row_of_a_project_or_of_a_revision_that_breaks_a_rule[--ck_cost_structure_kind_known]",
+  "tests/test_database_constraints_projects.py::test_the_database_refuses_a_row_of_a_project_or_of_a_revision_that_breaks_a_rule[--ck_project_code_without_slash]",
+  "tests/test_database_constraints_projects.py::test_the_database_refuses_a_row_of_a_project_or_of_a_revision_that_breaks_a_rule[--ck_subproject_code_form0]",
+  "tests/test_database_constraints_projects.py::test_the_database_refuses_a_row_of_a_project_or_of_a_revision_that_breaks_a_rule[--ck_subproject_code_form1]",
+  "tests/test_database_constraints_projects.py::test_the_database_refuses_a_row_of_a_project_or_of_a_revision_that_breaks_a_rule[--ck_subproject_code_form2]",
+  "tests/test_database_constraints_projects.py::test_the_database_refuses_a_row_of_a_project_or_of_a_revision_that_breaks_a_rule[--ck_subproject_code_form3]",
+  "tests/test_database_constraints_projects.py::test_the_database_refuses_a_row_of_a_project_or_of_a_revision_that_breaks_a_rule[--ck_subproject_code_form4]",
+  "tests/test_database_constraints_projects.py::test_the_database_refuses_a_row_of_a_project_or_of_a_revision_that_breaks_a_rule[--ck_subproject_code_form5]",
+  "tests/test_database_constraints_projects.py::test_the_database_refuses_a_row_of_a_project_or_of_a_revision_that_breaks_a_rule[--ck_subproject_code_form6]",
+  "tests/test_database_constraints_projects.py::test_the_database_refuses_a_row_of_a_project_or_of_a_revision_that_breaks_a_rule[--ck_subproject_code_length1]",
+  "tests/test_partitions.py::test_the_revised_tables_the_catalogue_partitions_by_project_are_the_nine_expected",
+]
+cause = "établie : ces tests affirment le nom ou l'effet d'une contrainte, d'une clé ou d'un index de v0.3.0, ou ses tables partitionnées, que les migrations de la branche ont fait évoluer"
+
+# #5141 : 0048 crée le schéma `platform`. La sauvegarde de v0.3.0 vide toute la base (pg_dump sans
+# --schema), le schéma `platform` compris ; sa restauration ne supprime que `public`, puis pg_restore
+# --single-transaction --exit-on-error échoue sur `CREATE SCHEMA platform` (« schema "platform" already
+# exists », masqué en `schema "..."` par errors_of) : RestoreError: waterfall, et `public` laissé vide.
+[[known]]
+version = "v0.3.0"
+part = "tests"
+issue = "#5141"
+tests = [
+  "tests/test_restoration.py::test_a_backup_row_the_restored_database_holds_and_the_installation_does_not_is_not_listed",
+  "tests/test_restoration.py::test_a_keeping_another_restoration_left_is_taken_over_and_its_task_fails",
+  "tests/test_restoration.py::test_a_keeping_cut_short_before_the_replacement_is_made_again_whole",
+  "tests/test_restoration.py::test_a_restoration_taken_up_after_an_interruption_writes_back_what_it_kept_the_first_time",
+  "tests/test_restoration.py::test_a_task_restored_pending_fails_and_the_backup_kept_keeps_its_state_and_its_archive",
+  "tests/test_restoration.py::test_an_account_anonymised_after_the_backup_is_anonymised_again_once_it_is_restored",
+  "tests/test_restoration.py::test_an_inscription_made_while_the_backup_ran_is_written_back_once_and_the_backup_is_inscribed",
+  "tests/test_restoration.py::test_both_databases_are_replaced_and_hold_what_they_held_at_the_backup_and_nothing_after",
+  "tests/test_restoration.py::test_two_backups_stay_listed_and_downloadable_once_the_first_is_restored",
+  "tests/test_restore_service.py::test_a_restoration_asked_of_the_api_is_run_by_its_service_alone_and_inscribed_last",
+  "tests/test_restore_service.py::test_a_restoration_closes_the_sessions_of_the_front_before_it_keeps_and_once_done",
+  "tests/test_restore_service.py::test_a_restoration_ended_whose_maintenance_was_not_lifted_lifts_it_and_runs_no_more",
+  "tests/test_restore_service.py::test_a_restoration_interrupted_in_maintenance_starts_again_and_lifts_it_at_its_end",
+  "tests/test_restore_service.py::test_a_restoration_interrupted_once_the_caches_are_cleared_gives_the_realm_back_first",
+  "tests/test_restore_service.py::test_a_restoration_whose_attempts_are_spent_leaves_the_platform_in_maintenance",
+  "tests/test_restore_service.py::test_a_restoration_whose_caches_were_cleared_their_answer_lost_gives_the_realm_back_first",
+  "tests/test_restore_service.py::test_no_partial_restoration_is_offered_both_databases_are_replaced_whole",
+  "tests/test_uploads.py::test_a_backup_copied_deposited_and_restored_on_another_installation_makes_it_a_copy",
+]
+cause = "établie : 0048 crée le schéma platform, que la sauvegarde de v0.3.0 vide avec la base et que sa restauration, qui ne supprime que public, ne recrée pas"
+
+# Le contrecoup des restaurations échouées : une connexion de psycopg laissée ouverte, ramassée plus
+# tard dans un autre test du même processus (PytestUnraisableExceptionWarning). Il tombe sur le test qui
+# tourne alors : 4 le 2026-11-27 dans une suite (test_restore_service, test_uploads, test_users), 1 dans
+# l'autre. Intermittent : jamais tenu pour réglé.
+[[known]]
+version = "v0.3.0"
+part = "tests"
+issue = "#5141"
+message = 'Exception ignored while calling deallocator <function BaseConnection\.__del__|<psycopg\.Connection object at 0x[0-9a-f]+> was deleted while still open'
+intermittent = true
+cause = "hypothèse : une connexion qu'une restauration échouée de v0.3.0 laisse ouverte, ramassée dans un test suivant"
+
+# #5142 : 0030 et 0043 ajoutent au catalogue des permissions des codes que v0.3.0 ne connaît pas ;
+# son GET /permissions valide chaque code contre l'énumération de son contrat (Permission.model_validate)
+# et répond 500 ; le test du catalogue compare aussi les lignes à sa liste.
+[[known]]
+version = "v0.3.0"
+part = "tests"
+issue = "#5142"
+tests = [
+  "tests/test_access_evaluation.py::test_an_account_without_any_role_reads_its_own_account_and_the_catalogue",
+  "tests/test_access_evaluation.py::test_whether_each_permission_of_the_catalogue_consults_is_declared_in_its_order",
+  "tests/test_access_roles.py::test_each_function_of_the_second_level_has_its_two_permissions_or_the_one_to_consult",
+  "tests/test_access_roles.py::test_the_catalogue_is_the_enumeration_of_the_contract_in_its_order",
+  "tests/test_access_roles.py::test_the_journal_of_audit_has_the_permission_to_read_alone",
+]
+cause = "établie : 0030 et 0043 ajoutent au catalogue des permissions des codes hors de l'énumération du contrat de v0.3.0, dont GET /permissions répond 500"
+
+# --- backup : une sauvegarde de v0.3.0 restaurée puis migrée par la branche --------------------
+
+# #5092 : 0047 supprime les 5 lignes de coûts réels du témoin de v0.3.0 importées sous un
+# sous-projet absent, que la règle de la spécification 1.0.7 refuse (décision du 2026-11-21) ; elles
+# reviennent par la réimportation de l'extraction, ce que disent les notes de v0.4.0. Exclusion connue
+# de l'essai : reconnue à ses comptes exacts — la seule table perdue, 28 lignes puis 23 —, pour
+# qu'une autre perte reste un échec nouveau.
+[[known]]
+version = "v0.3.0"
+part = "backup"
+issue = "#5092"
+tests = ["tests/test_earlier_backup.py::test_a_backup_of_the_last_published_version_migrated_by_the_branch_loses_no_row"]
+message = "assert \\{'cost_line': \\(28, 23\\)\\} == \\{\\}"
+cause = "établie : 0047 supprime les lignes de coûts réels importées sous un sous-projet absent (décision du 2026-11-21)"

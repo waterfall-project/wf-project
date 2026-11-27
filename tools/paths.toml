@@ -390,9 +390,12 @@ paths = [
     "tools/src/wftools/heavyturns.py",
     "tools/src/wftools/bounded.py",
     "tools/src/wftools/kubetools.py",
+    "tools/src/wftools/kubeversions.py",
+    "tools/kubernetes-maintained.toml",
     "tools/src/wftools/chart.py",
     "tools/src/wftools/chartauthority.py",
     "tools/src/wftools/chartdata.py",
+    "tools/src/wftools/chartimages.py",
     "tools/src/wftools/chartk3s.py",
     "tools/src/wftools/chartload.py",
     "tools/src/wftools/chartrestoretest.py",
@@ -426,6 +429,35 @@ paths = [
     ".github/actions/**",
 ]
 target = "check-chart"
+
+[families.migrations]
+# The migrations of the branch against the last published version, without the chart (US-2850,
+# #4089), in the full tier only, on a runner of its own: the tests of the back of that version on the
+# schema the branch migrates, and a backup its production platform takes, restored then migrated by
+# the branch (WF-DAT-0140). Woken by the migrations and its own tools alone, the only change that can
+# change its result: not by the chart, which no migration added would wake, nor by the back, which
+# would pay it at each change of its code.
+paths = [
+    "backend/src/waterfall/migrations/**",
+    "backend/tests/test_earlier_backup.py",
+    # The launcher the Makefile starts the slots by, and the slots that run its heavy checks on the
+    # services of the tests of the back (US-2450, US-1110).
+    "tools/src/wftools/launch.py",
+    "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
+    "tools/src/wftools/migrationtests.py",
+    "tools/src/wftools/migrationbackup.py",
+    # The known failures of the version, which judge the outcomes the plugin writes.
+    "tools/src/wftools/migrationknown.py",
+    "tools/src/wftools/migrationreport.py",
+    "tools/migrations-known.toml",
+    "tools/tests/test_migrationtests.py",
+    "tools/tests/test_migrationbackup.py",
+    "tools/tests/test_migrationknown.py",
+    "tools/tests/test_migrationreport.py",
+    ".github/workflows/migrations.yml",
+]
+target = "check-migrations"
 
 [families.front]
 # The client of the front is generated from the contract: a contract change checks it. The
