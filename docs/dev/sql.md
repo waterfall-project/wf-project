@@ -138,7 +138,10 @@ sur le journal, qui lit `user_account` : la fonction du journal ne lit la table 
 (`0011_account_anonymization`, #702, #865). PostgreSQL déclenche les déclencheurs d'un même
 événement dans l'ordre de leur nom : celui du journal, `audit_entry_refuse_row_change`, refuse
 d'abord tout autre changement, puis celui des comptes, `user_account_forget_anonymized`, vérifie
-que le libellé effacé désigne un compte anonymisé. Renommer ou ajouter un déclencheur
+que le libellé effacé désigne un compte anonymisé — sauf dans l'anonymisation d'une copie de la
+production, où la transaction pose `waterfall.anonymizing_copy` et où le rôle connecté est le
+propriétaire du journal : les administrateurs gardés y sont oubliés sans être anonymisés
+(`0057`, #4068). Renommer ou ajouter un déclencheur
 `BEFORE UPDATE` sur `audit_entry` change cet ordre, qu'un test de `test_audit_journal.py` épingle
 (#876). Les références du journal — auteur, objet, projet — ne sont pas des clés étrangères :
 une inscription survit à ce qu'elle nomme (WF-DAT-0090).
