@@ -41,10 +41,10 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import catalogue from "../../messages/fr.json" with { type: "json" };
 import type { components } from "../../src/api/generated/schema";
 import { BACKUP_DONE, SCHEDULED_BACKUP_COPIED, WORKING } from "../bounds";
-import { container } from "./components";
 import { menuButton, openFilters, pick } from "../check-menu";
 import { compileAnswered } from "../compile";
 import { untilHydrated } from "../hydration";
+import { container } from "./components";
 import { heldToTheContract } from "./contract";
 import {
   accountAdministrator,
@@ -468,7 +468,7 @@ test("the copy of a schedule to a declared location is chosen, its location test
 }) => {
   // A scheduled backup by the worker, its verification, its copy: a minute or two, after the
   // minute the schedule is set to.
-  test.setTimeout(SCHEDULED_BACKUP_COPIED + 2 * WORKING);
+  test.setTimeout(SCHEDULED_BACKUP_COPIED + BACKUP_DONE + 2 * WORKING);
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   const administrator = await accountAdministrator(browser, calls);
   const holder = await localAccount(browser, administrator);
