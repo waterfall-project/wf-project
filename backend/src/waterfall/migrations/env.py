@@ -7,6 +7,7 @@ constraints, the connection, and a lock so that two instances starting together 
 the same migration twice. It never imports the tables of a module, which are private to it.
 """
 
+import logging
 import time
 
 from alembic import context
@@ -16,6 +17,8 @@ from sqlalchemy.sql import text
 from waterfall import schema
 from waterfall.platform.database import create_database_engine
 from waterfall.platform.settings import load_platform_settings
+
+logger = logging.getLogger(__name__)
 
 # One number for the whole history: the key of the advisory lock of a migration run.
 MIGRATION_LOCK = 7_240_330
@@ -39,6 +42,13 @@ def take_lock(connection: Connection) -> None:
         connection.commit()
         if held:
             return
+        logger.warning(
+            "migration lock refused: advisory lock %s held by another instance, "
+            "step %s, retrying in %ss",
+            MIGRATION_LOCK,
+            "lock of the migration run",
+            LOCK_RETRY_SECONDS,
+        )
         time.sleep(LOCK_RETRY_SECONDS)
 
 

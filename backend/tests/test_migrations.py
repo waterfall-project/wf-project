@@ -145,10 +145,10 @@ def test_four_instances_that_start_together_apply_each_migration_once(
 ) -> None:
     instances = [start_migration(empty_engine) for _ in range(4)]
     results = [instance.communicate(timeout=60) for instance in instances]
-    assert [
-        (instance.returncode, errors)
-        for instance, (_, errors) in zip(instances, results, strict=True)
-    ] == [(0, "")] * 4
+    # An instance that waits for the lock says so (#5096): its stderr holds nothing else.
+    assert [instance.returncode for instance in instances] == [0] * 4
+    for _, errors in results:
+        assert {line for line in errors.splitlines() if "lock refused" not in line} == set()
     with empty_engine.connect() as connection:
         assert applied(connection) == [HEAD]
 
@@ -907,7 +907,8 @@ def test_an_installation_bootstrapped_before_its_time_zone_is_given_universal_ti
                 " WHERE table_name = 'installation' AND column_name = 'time_zone'"
             )
         )
-    assert default is None
+    # 0029 removed the default; 0058 gives it back (#5090).
+    assert default == "'UTC'::text"
     downgrade(empty_engine, "0028")
     with empty_engine.connect() as connection:
         columns = connection.scalars(
