@@ -609,19 +609,19 @@ load-keycloak: ## Load the image of Keycloak from KEYCLOAK_ARCHIVE, without buil
 build-cache-from = --cache-from type=gha,scope=$(1)
 build-cache-to = --output type=cacheonly --cache-to type=gha,mode=max,scope=$(1) $(call build-cache-from,$(1))
 
-build-cache: ## Write the builds of the images front, waterfall and keycloak into the cache of GitHub Actions (images.yml)
+build-cache: ## Write the builds of the images front, waterfall and keycloak (the components) into the cache of GitHub Actions (images.yml)
 	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,front) frontend
 	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,waterfall) backend
 	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,keycloak) deploy/keycloak
 
-# The images the chain publishes (US-0430): front, waterfall and keycloak, under
+# The images the chain publishes (US-0430): wf-project-frontend, wf-project-backend and wf-project-keycloak, under
 # ghcr.io/waterfall-project, tagged by the commit and the branch they are built from, and by the
 # version of the back's distribution on main, unless the registry holds it already: the tag of a
 # version is immutable (wftools.images). The branch and the commit are the checkout's unless
 # IMAGE_BRANCH and IMAGE_COMMIT name them, read by the tool from its environment. PUSH=yes publishes
 # them, from main or an epic branch alone, from a clean checkout at the commit named, once the three
 # are built and none holds a value of the development (.github/workflows/images.yml).
-images: ## Build the images front, waterfall and keycloak, tagged by commit, by branch, and by version on main once; PUSH=yes publishes them
+images: ## Build the images wf-project-frontend, wf-project-backend and wf-project-keycloak, tagged by commit, by branch, and by version on main once; PUSH=yes publishes them
 	@$(WFTOOLS).images $(if $(filter yes,$(PUSH)),--push)
 
 # The production platform (compose.prod.yaml, US-0430) on the images tagged WATERFALL_IMAGE_TAG — the

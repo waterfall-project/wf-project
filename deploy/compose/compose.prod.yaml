@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # The production platform on one machine (US-0430, WF-ARC-0050): the images the chain publishes on
-# ghcr.io/waterfall-project — front, waterfall, keycloak —, each designated by its digest,
-# WATERFALL_DIGEST_FRONT, _WATERFALL and _KEYCLOAK, never by a tag a writer of the registry may move
-# (#3726), and nothing built here. Caddy is its only door, in HTTPS (Caddyfile.prod); the front,
+# ghcr.io/waterfall-project — wf-project-frontend, wf-project-backend, wf-project-keycloak —, each
+# designated by its digest, WATERFALL_DIGEST_FRONT, _WATERFALL and _KEYCLOAK, never by a tag a writer
+# of the registry may move (#3726), and nothing built here. Caddy is its only door, in HTTPS (Caddyfile.prod); the front,
 # the API, the worker and the schedule of its tasks, the service of the restoration; PostgreSQL
 # with two databases, Waterfall's and Keycloak's; Redis; Garage, the object storage, and the buckets
 # it makes; Keycloak and the application of its realm; Prometheus, which collects the metrics and
@@ -43,8 +43,8 @@ x-keycloak-address: &keycloak-address https://${WATERFALL_DOMAIN:?set WATERFALL_
 # on them, and PostgreSQL counts fifteen connections for each.
 x-api-processes: &api-processes ${WATERFALL_API_PROCESSES:-1}
 
-x-waterfall-image: &waterfall-image ${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/waterfall@${WATERFALL_DIGEST_WATERFALL:?set WATERFALL_DIGEST_WATERFALL in .env}
-x-keycloak-image: &keycloak-image ${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/keycloak@${WATERFALL_DIGEST_KEYCLOAK:?set WATERFALL_DIGEST_KEYCLOAK in .env}
+x-waterfall-image: &waterfall-image ${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/wf-project-backend@${WATERFALL_DIGEST_WATERFALL:?set WATERFALL_DIGEST_WATERFALL in .env}
+x-keycloak-image: &keycloak-image ${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/wf-project-keycloak@${WATERFALL_DIGEST_KEYCLOAK:?set WATERFALL_DIGEST_KEYCLOAK in .env}
 x-postgres-image: &postgres-image ${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
 
 # The API, the worker and the schedule connect as the role of the service, which holds only what the
@@ -253,7 +253,7 @@ services:
   # which it joins to reach the API, Redis and Keycloak. The port of the metrics of the front is its
   # own, in HTTP, on every interface, published nowhere (TFX-09).
   front:
-    image: ${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/front@${WATERFALL_DIGEST_FRONT:?set WATERFALL_DIGEST_FRONT in .env}
+    image: ${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/wf-project-frontend@${WATERFALL_DIGEST_FRONT:?set WATERFALL_DIGEST_FRONT in .env}
     networks:
       default: {}
       front:

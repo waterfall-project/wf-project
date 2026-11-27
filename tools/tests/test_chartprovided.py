@@ -265,7 +265,8 @@ def test_the_chart_and_the_compose_of_production_designate_the_same_images() -> 
         for service in yaml.safe_load(PRODUCTION.read_text(encoding="utf-8"))["services"].values()
     }
     pinned = {
-        re.sub(PUBLISHED, lambda found: published(found.group(1)), image) for image in compose
+        re.sub(PUBLISHED, lambda found: published(found.group(2).lower()), image)
+        for image in compose
     }
     assert all(PINNED.search(image) for image in pinned), pinned
 

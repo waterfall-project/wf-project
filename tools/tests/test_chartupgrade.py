@@ -251,7 +251,7 @@ def a_pod(name: str, digests: Mapping[str, str], made: str, **changes: Any) -> d
         },
         "spec": {
             "containers": [
-                {"image": f"{REGISTRY}/front@{digests['front']}"},
+                {"image": f"{REGISTRY}/wf-project-frontend@{digests['front']}"},
                 {"image": "mirror/caddy@sha256:0"},
             ]
         },
@@ -262,7 +262,7 @@ def a_pod(name: str, digests: Mapping[str, str], made: str, **changes: Any) -> d
 
 
 def front(digests: Mapping[str, str]) -> frozenset[str]:
-    return frozenset({f"front@{digests['front']}"})
+    return frozenset({f"wf-project-frontend@{digests['front']}"})
 
 
 @pytest.mark.requirement("WF-EXP-0030-A")
@@ -291,8 +291,8 @@ def test_an_image_of_the_mirror_below_the_registry_is_not_one_of_the_platform() 
 
 def test_the_images_of_a_version_are_named_by_their_digests() -> None:
     assert chartupgrade.designations(OF_N) == {
-        f"front@sha256:{'1' * 64}",
-        f"waterfall@sha256:{'2' * 64}",
+        f"wf-project-frontend@sha256:{'1' * 64}",
+        f"wf-project-backend@sha256:{'2' * 64}",
     }
 
 
@@ -303,7 +303,7 @@ def test_the_images_of_a_version_are_named_by_their_digests() -> None:
         ({}, "no pod of the platform's images runs"),
         (
             {"api-1": ("2026-11-25T10:02:00Z", front(OF_N))},
-            f"runs front@{OF_N['front']}, not an image of the branch",
+            f"runs wf-project-frontend@{OF_N['front']}, not an image of the branch",
         ),
         (
             {"api-1": ("2026-11-25T10:00:59Z", front(OF_BRANCH))},
@@ -534,7 +534,9 @@ def test_a_rollback_that_touches_the_schema_fails(tmp_path: Path) -> None:
 @pytest.mark.requirement("WF-EXP-0030-A")
 @pytest.mark.usefixtures("loaded")
 def test_an_upgrade_that_leaves_the_instances_of_n_fails(tmp_path: Path) -> None:
-    with pytest.raises(UpgradeError, match=f"runs front@{OF_N['front']}, not an image of the bra"):
+    with pytest.raises(
+        UpgradeError, match=f"runs wf-project-frontend@{OF_N['front']}, not an image of the bra"
+    ):
         upgrade_on(Cluster(stale=True), tmp_path).hold({})
 
 
@@ -618,3 +620,22 @@ def test_a_passage_without_failure_reads_no_log(tmp_path: Path) -> None:
     with upgrade.witnessed(Tally(sent=chartload.LEAST)) as said:
         pass
     assert said == []
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+def test_the_images_of_a_version_published_before_the_renaming_keep_their_former_names() -> None:
+    # « Les versions déjà publiées gardent leurs anciens noms » (#5123): N is 0.3.0, the branch is
+    # a commit, and the pods of each run the images under the names of its own.
+    assert chartupgrade.designations(OF_N, "0.3.0") == {
+        f"front@sha256:{'1' * 64}",
+        f"waterfall@sha256:{'2' * 64}",
+    }
+    assert chartupgrade.designations(OF_N, BASE) == chartupgrade.designations(OF_N)
+    former = a_pod("front-1", OF_N, "2026-11-25T10:02:00Z")
+    former["spec"]["containers"] = [{"image": f"{REGISTRY}/front@{OF_N['front']}"}]
+    found = chartupgrade.serving({"items": [former]})
+    assert found == {"front-1": ("2026-11-25T10:02:00Z", frozenset({f"front@{OF_N['front']}"}))}
+    chartupgrade.check_serving(found, OF_N, "0.3.0", tag="0.3.0")
+    with pytest.raises(UpgradeError, match="not an image of the branch"):
+        chartupgrade.check_serving(found, OF_N, "the branch")

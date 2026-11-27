@@ -4,19 +4,22 @@
 
 Usage: ``python -m wftools.images [--push]``.
 
-Three images, each the stage ``production`` of its Dockerfile: ``front``, ``waterfall`` — the API,
-the worker, its schedule and the migrations, commands of one distribution — and ``keycloak``, with
-the extension and the realm. Each is tagged by the full hash of the commit it is built from and by
-its branch, made a valid tag (``epic/EP-03`` gives ``epic-EP-03``); on ``main``, by the version of
-the distribution of the back besides, which the API and the worker report and a backup will carry.
-The tag of a version is immutable: once in the registry it is never posed again, and a merge into
-main that does not raise the version publishes the tags of its commit and of its branch alone. It
-is decided for the three images together, so that a version never gathers images of two commits:
-the three take it if the registry holds it for none, none takes it if it holds it for all three;
-anything else — some hold it, or the registry does not say — publishes the tags of the commit and
-of the branch, poses the version on none, and fails naming the images. An epic branch never takes
-it — a demonstration would pass for the release —, and the label of the version of an image that
-does not take it says so (``0.1.0+epic-EP-03``, ``0.1.0+main``).
+Three images, each the stage ``production`` of its Dockerfile: ``wf-project-frontend``,
+``wf-project-backend`` — the API, the worker, its schedule and the migrations, commands of one
+distribution — and ``wf-project-keycloak``, with the extension and the realm. Their components are
+``front``, ``waterfall`` and ``keycloak``, which key the digests; the versions published up to 0.3.0
+keep the names ``front``, ``waterfall`` and ``keycloak`` (``package_name``, #5123). Each is tagged
+by the full hash of the commit it is built from and by its branch, made a valid tag (``epic/EP-03``
+gives ``epic-EP-03``); on ``main``, by the version of the distribution of the back besides, which
+the API and the worker report and a backup will carry. The tag of a version is immutable: once in
+the registry it is never posed again, and a merge into main that does not raise the version
+publishes the tags of its commit and of its branch alone. It is decided for the three images
+together, so that a version never gathers images of two commits: the three take it if the registry
+holds it for none, none takes it if it holds it for all three; anything else — some hold it, or the
+registry does not say — publishes the tags of the commit and of the branch, poses the version on
+none, and fails naming the images. An epic branch never takes it — a demonstration would pass for
+the release —, and the label of the version of an image that does not take it says so
+(``0.1.0+epic-EP-03``, ``0.1.0+main``).
 
 The branch and the commit are those of the checkout, unless ``IMAGE_BRANCH`` and ``IMAGE_COMMIT``
 name them, as the chain does. Nothing is passed to a build but its context: no build argument, no
@@ -93,13 +96,26 @@ class Image:
 
     name: str
     context: str
+    package: str
 
 
 IMAGES = (
-    Image("front", "frontend"),
-    Image("waterfall", "backend"),
-    Image("keycloak", "deploy/keycloak"),
+    Image("front", "frontend", "wf-project-frontend"),
+    Image("waterfall", "backend", "wf-project-backend"),
+    Image("keycloak", "deploy/keycloak", "wf-project-keycloak"),
 )
+"""The images, by the name of their component — the key of ``images.digests``, the suffix of the
+variable of the ``.env`` of the Compose of production —, and by ``package``, their name in the
+registry (#5123)."""
+
+LAST_UNRENAMED = (0, 3, 0)
+"""The last version published under the names the images had before they were renamed (#5123)."""
+UNRENAMED = {"front": "front", "waterfall": "waterfall", "keycloak": "keycloak"}
+"""The names in the registry of the images of the versions up to ``LAST_UNRENAMED``, by component.
+
+The one place that says them: the registry does not rename a package, and the versions already
+published stay where they are. Every tool that reads a published version asks ``package_name``."""
+VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 
 
 MIRROR = ["--build-arg", "WATERFALL_MIRROR"]
@@ -174,9 +190,34 @@ def check_branch(branch: str) -> None:
         raise ImageError(message)
 
 
+def package_name(image: Image, tag: str) -> str:
+    """Return the name in the registry of an image under a tag.
+
+    A tag that is a published version up to ``LAST_UNRENAMED`` names its image as it was published;
+    any other — a later version, a commit, a branch — names it by its ``package``.
+    """
+    if (found := VERSION.fullmatch(tag)) and (
+        tuple(int(part) for part in found.groups()) <= LAST_UNRENAMED
+    ):
+        return UNRENAMED[image.name]
+    return image.package
+
+
 def reference(image: Image, tag: str) -> str:
-    """Return the reference of an image under a tag, in the registry."""
-    return f"{REGISTRY}/{image.name}:{tag}"
+    """Return the reference of an image built here, or published from here, under a tag.
+
+    Always under its ``package``: the publication, whatever the version it poses, never writes a
+    name of the versions published before the renaming.
+    """
+    return f"{REGISTRY}/{image.package}:{tag}"
+
+
+def published_reference(image: Image, tag: str) -> str:
+    """Return the reference of an image of a version already published, under its tag.
+
+    What a tool that pulls a published version asks, as ``package_name`` says it was published.
+    """
+    return f"{REGISTRY}/{package_name(image, tag)}:{tag}"
 
 
 def labels(
@@ -189,7 +230,7 @@ def labels(
     main once the version is published —, it says the branch the image is built from.
     """
     return {
-        "org.opencontainers.image.title": image.name,
+        "org.opencontainers.image.title": image.package,
         "org.opencontainers.image.source": SOURCE,
         "org.opencontainers.image.url": SOURCE,
         "org.opencontainers.image.revision": commit,
@@ -257,12 +298,18 @@ def held(contents: Iterable[bytes], values: Mapping[str, str]) -> list[str]:
 
 
 def registry_answers(
-    release: str, read: Callable[[list[str]], tuple[int, str]]
+    release: str,
+    read: Callable[[list[str]], tuple[int, str]],
+    named: Callable[[Image, str], str] = reference,
 ) -> dict[str, Holding]:
-    """Ask the registry, image by image, whether it holds the tag of this version."""
+    """Ask the registry, image by image, whether it holds the tag of this version.
+
+    The publication asks for the names it writes; a tool that reads a published version gives
+    ``published_reference``.
+    """
     found: dict[str, Holding] = {}
     for image in IMAGES:
-        tagged = reference(image, release)
+        tagged = named(image, release)
         code, answer = read(["docker", "buildx", "imagetools", "inspect", tagged])
         if code == 0:
             found[image.name] = Holding.HELD
@@ -358,7 +405,7 @@ def check_contents(commit: str, contents: Callable[[str], Iterable[bytes]]) -> N
     values = development_values()
     for image in IMAGES:
         if found := held(contents(reference(image, commit)), values):
-            message = f"the image {image.name} holds {', '.join(found)}: nothing is pushed"
+            message = f"the image {image.package} holds {', '.join(found)}: nothing is pushed"
             raise ImageError(message)
 
 

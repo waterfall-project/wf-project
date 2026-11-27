@@ -55,7 +55,7 @@ def published_users() -> dict[str, int]:
     users: dict[str, int] = {}
     for image in IMAGES:
         dockerfile = (REPOSITORY / image.context / "Dockerfile").read_text(encoding="utf-8")
-        users[f"{REGISTRY}/{image.name}"] = int(USER.findall(dockerfile)[-1].split(":")[0])
+        users[f"{REGISTRY}/{image.package}"] = int(USER.findall(dockerfile)[-1].split(":")[0])
     return users
 
 

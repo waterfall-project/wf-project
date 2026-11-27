@@ -56,7 +56,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from wftools import REPOSITORY, chart, chartauthority, chartload, chartrun, charttrial, kubetools
-from wftools.images import IMAGES, REGISTRY, Holding, reference, registry_answers
+from wftools.images import (
+    IMAGES,
+    REGISTRY,
+    UNRENAMED,
+    Holding,
+    package_name,
+    published_reference,
+    registry_answers,
+)
 from wftools.production import Browser, Platform, ProductionError
 
 if TYPE_CHECKING:
@@ -169,11 +177,14 @@ def images_held(read: Read, tag: str) -> Holding:
     unclear, never taken for an absence.
     """
     if all(
-        read(["docker", "image", "inspect", "--format", "{{.Id}}", reference(image, tag)])[0] == 0
+        read(
+            ["docker", "image", "inspect", "--format", "{{.Id}}", published_reference(image, tag)]
+        )[0]
+        == 0
         for image in IMAGES
     ):
         return Holding.HELD
-    answers = set(registry_answers(tag, read).values())
+    answers = set(registry_answers(tag, read, published_reference).values())
     if Holding.UNCLEAR in answers:
         return Holding.UNCLEAR
     return Holding.HELD if answers == {Holding.HELD} else Holding.LACKING
@@ -231,13 +242,19 @@ def extract_chart(archive: Archive, commit: str, folder: Path) -> Path:
     return found
 
 
-PLATFORM = frozenset(image.name for image in IMAGES)
-"""The names of the images of the platform: those of the mirror, below the registry too, are not."""
+PLATFORM = frozenset(image.package for image in IMAGES) | frozenset(UNRENAMED.values())
+"""The names of the images of the platform, under both generations of names: those of the mirror,
+below the registry too, are not."""
 
 
-def designations(digests: Mapping[str, str]) -> frozenset[str]:
-    """Return how the pods of a version name its images below the registry: ``<image>@<digest>``."""
-    return frozenset(f"{image}@{digest}" for image, digest in digests.items())
+def designations(digests: Mapping[str, str], tag: str = "") -> frozenset[str]:
+    """Return how the pods of a version name its images below the registry: ``<image>@<digest>``.
+
+    ``digests`` is keyed by component; the name of each image is the one the version of ``tag`` was
+    published under (``package_name``), the branch's by default.
+    """
+    packages = {image.name: package_name(image, tag) for image in IMAGES}
+    return frozenset(f"{packages[image]}@{digest}" for image, digest in digests.items())
 
 
 def serving(listing: Mapping[str, Any]) -> dict[str, tuple[str, frozenset[str]]]:
@@ -270,16 +287,19 @@ def check_serving(
     version: Mapping[str, str],
     what: str,
     migrated: str | None = None,
+    *,
+    tag: str = "",
 ) -> None:
     """Hold that every pod of the platform runs images of a version, made after ``migrated``.
 
-    ``version`` gives the digest of each image of it, ``what`` its name. Times are those of kubectl,
-    in UTC, in ISO form, which compare as text.
+    ``version`` gives the digest of each image of it, ``what`` its name,
+    ``tag`` the tag of its images. Times are those of kubectl, in UTC, in ISO form, which compare
+    as text.
     """
     if not pods:
         message = "no pod of the platform's images runs"
         raise UpgradeError(message)
-    expected = designations(version)
+    expected = designations(version, tag)
     for name, (made, images) in sorted(pods.items()):
         if other := images - expected:
             message = f"the pod {name} runs {', '.join(sorted(other))}, not an image of {what}"
@@ -509,7 +529,7 @@ class Upgrade:
         self.helm(["install", chart.RELEASE, str(self.chart_n)], n_values, "install the version N")
         print(f"  {self.version.name} is installed, its hooks done", flush=True)
         browser = self.trial.hold(ADMIN)
-        check_serving(self.pods(), self.images_n, self.version.name)
+        check_serving(self.pods(), self.images_n, self.version.name, tag=self.version.tag)
         if not (data := self.data()):
             message = f"no pod of {', '.join(DATA)} runs"
             raise UpgradeError(message)
@@ -541,7 +561,7 @@ class Upgrade:
             self.helm(["rollback", chart.RELEASE, str(INSTALLED)], None, "roll back to N")
 
         self.under_load(browser, rollback, f"the rollback to {self.version.name}")
-        check_serving(self.pods(), self.images_n, self.version.name)
+        check_serving(self.pods(), self.images_n, self.version.name, tag=self.version.tag)
         self.check_data_untouched(data, "the rollback")
         check_none_stamped(self.stamps(), "the rollback")
         check_schema(self.sql(SCHEMA, "read the schema"), head, "the rollback")
@@ -574,7 +594,7 @@ def values_of(values: Mapping[str, Any], digests: Mapping[str, str]) -> dict[str
 def pull(run: Callable[[list[str]], int], tag: str) -> None:
     """Pull the images of a tag the workstation does not hold."""
     for image in IMAGES:
-        tagged = reference(image, tag)
+        tagged = published_reference(image, tag)
         if run(["docker", "image", "inspect", "--format", "{{.Id}}", tagged]) == 0:
             continue
         if code := run(["docker", "pull", "--quiet", tagged]):

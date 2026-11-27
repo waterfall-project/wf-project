@@ -41,7 +41,7 @@ services:
 
   front:
     <<: *hardened
-    image: ghcr.io/waterfall-project/front:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
+    image: ghcr.io/waterfall-project/wf-project-frontend:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
     user: "1000:1000"
     environment:
       # The fake back grants the session; the production image refuses it without WATERFALL_DEMO.

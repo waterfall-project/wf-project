@@ -36,6 +36,12 @@ SUBSTITUTED = re.compile(r"\$\(env:[A-Z0-9_]+\)")
 # `--build-arg=X=…`.
 SECRET_OPTIONS = ("--build-arg", "--secret", "--ssh", "--env")
 NAMES = ("front", "waterfall", "keycloak")
+PACKAGES = {
+    "front": "wf-project-frontend",
+    "waterfall": "wf-project-backend",
+    "keycloak": "wf-project-keycloak",
+}
+COMPONENTS = {package: name for name, package in PACKAGES.items()}
 NOT_FOUND = (1, "ERROR: ghcr.io/waterfall-project/front:0.1.0: not found")
 FOUND = (0, "Name: ghcr.io/waterfall-project/front:0.1.0")
 FORBIDDEN = (1, "ERROR: unexpected status: 403 Forbidden")
@@ -154,9 +160,9 @@ def test_main_publishes_the_three_images_by_commit_by_branch_and_by_version() ->
     assert built("main") == {
         context: [f"ghcr.io/waterfall-project/{name}:{tag}" for tag in (COMMIT, "main", VERSION)]
         for name, context in (
-            ("front", "frontend"),
-            ("waterfall", "backend"),
-            ("keycloak", "deploy/keycloak"),
+            ("wf-project-frontend", "frontend"),
+            ("wf-project-backend", "backend"),
+            ("wf-project-keycloak", "deploy/keycloak"),
         )
     }
 
@@ -361,7 +367,7 @@ def test_each_image_is_labelled_by_its_own_name_its_source_its_commit_and_its_ve
             command[i + 1].split("=", 1) for i, word in enumerate(command) if word == "--label"
         )
         assert labels == {
-            "org.opencontainers.image.title": name,
+            "org.opencontainers.image.title": PACKAGES[name],
             "org.opencontainers.image.source": images.SOURCE,
             "org.opencontainers.image.url": images.SOURCE,
             "org.opencontainers.image.revision": COMMIT,
@@ -403,7 +409,7 @@ class Docker:
         return 1 if self.failing and command[-1] == self.failing else 0
 
     def read(self, command: list[str]) -> tuple[int, str]:
-        name = command[-1].rsplit("/", 1)[1].split(":", 1)[0]
+        name = COMPONENTS[command[-1].rsplit("/", 1)[1].split(":", 1)[0]]
         if command[:2] == ["docker", "push"]:
             self.ran.append(command)
             if self.failing and command[-1] == self.failing:
@@ -416,7 +422,7 @@ class Docker:
         return [command[-1] for command in self.read_]
 
     def contents(self, image: str) -> Iterable[bytes]:
-        yield b"usr/bin/" + (self.holding if "/keycloak:" in image else b"")
+        yield b"usr/bin/" + (self.holding if "/wf-project-keycloak:" in image else b"")
 
     def pushed(self) -> list[str]:
         return [command[2] for command in self.ran if command[:2] == ["docker", "push"]]
@@ -455,7 +461,9 @@ def test_the_images_are_built_from_the_branch_and_the_commit_the_chain_names(
     assert docker.main("epic/EP-03", "--push") == 0
     assert docker.ran == images.commands("epic/EP-03", COMMIT, VERSION, push=True)
     assert docker.version_reads() == []
-    assert f"--tag ghcr.io/waterfall-project/front:{COMMIT}" in capsys.readouterr().out
+    assert (
+        f"--tag ghcr.io/waterfall-project/wf-project-frontend:{COMMIT}" in capsys.readouterr().out
+    )
 
 
 @pytest.mark.usefixtures("checkout")
@@ -471,9 +479,11 @@ def test_a_new_version_is_posed_on_main() -> None:
     docker = Docker()
     assert docker.main("main", "--push") == 0
     assert docker.version_reads() == [
-        f"ghcr.io/waterfall-project/{name}:{VERSION}" for name in NAMES
+        f"ghcr.io/waterfall-project/{PACKAGES[name]}:{VERSION}" for name in NAMES
     ]
-    assert [f"ghcr.io/waterfall-project/{name}:{VERSION}" for name in NAMES] == docker.pushed()[-3:]
+    assert [
+        f"ghcr.io/waterfall-project/{PACKAGES[name]}:{VERSION}" for name in NAMES
+    ] == docker.pushed()[-3:]
 
 
 @pytest.mark.usefixtures("checkout")
@@ -523,7 +533,7 @@ def test_a_version_the_registry_holds_for_some_images_alone_is_posed_on_none_and
     docker = Docker(registry=registry)
     assert docker.main("main", "--push") == 2
     assert docker.version_reads() == [
-        f"ghcr.io/waterfall-project/{name}:{VERSION}" for name in NAMES
+        f"ghcr.io/waterfall-project/{PACKAGES[name]}:{VERSION}" for name in NAMES
     ]
     assert_no_version_and_the_tags_of_the_commit_and_the_branch_pushed(docker)
     error = capsys.readouterr().err
@@ -532,9 +542,11 @@ def test_a_version_the_registry_holds_for_some_images_alone_is_posed_on_none_and
 
 @pytest.mark.usefixtures("checkout")
 def test_a_push_that_fails_is_said_before_the_version_left_unposed() -> None:
-    docker = Docker(registry={"front": FOUND}, failing=f"ghcr.io/waterfall-project/front:{COMMIT}")
+    docker = Docker(
+        registry={"front": FOUND}, failing=f"ghcr.io/waterfall-project/wf-project-frontend:{COMMIT}"
+    )
     assert docker.main("main", "--push") == 1
-    assert docker.pushed() == [f"ghcr.io/waterfall-project/front:{COMMIT}"]
+    assert docker.pushed() == [f"ghcr.io/waterfall-project/wf-project-frontend:{COMMIT}"]
 
 
 @pytest.mark.story("US-2800")
@@ -577,7 +589,7 @@ def test_a_push_that_says_no_digest_fails_the_publication_and_writes_nothing(
 ) -> None:
     docker = Docker(said={"waterfall": said})
     assert docker.main("epic/EP-03", "--push") == 2
-    tagged = f"ghcr.io/waterfall-project/waterfall:{COMMIT}"
+    tagged = f"ghcr.io/waterfall-project/wf-project-backend:{COMMIT}"
     assert f"wftools.images: the push of {tagged} said no digest" in capsys.readouterr().err
     assert not images.DIGESTS.exists()
 
@@ -601,7 +613,10 @@ def test_an_image_that_holds_a_value_of_the_development_is_not_pushed_and_it_is_
     assert docker.main("epic/EP-03", "--push") == 2
     assert docker.pushed() == []
     error = capsys.readouterr().err
-    assert "keycloak holds WATERFALL_REDIS_PASSWORD (.github/workflows/keycloak.yml)" in error
+    assert (
+        "wf-project-keycloak holds WATERFALL_REDIS_PASSWORD (.github/workflows/keycloak.yml)"
+        in error
+    )
     assert "chain-only-redis" not in error
 
 
@@ -706,3 +721,91 @@ def test_without_the_chain_the_branch_and_the_commit_are_those_of_the_checkout()
     assert len(docker.ran) == len(images.IMAGES)
     for command in docker.ran:
         assert command[command.index("--tag") + 1].endswith(f":{head}")
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+def test_the_publication_pushes_the_three_images_under_their_new_names() -> None:
+    # « Les images publiées s'appellent wf-project-backend, wf-project-frontend et
+    # wf-project-keycloak » (#5123): what the push of the publication, and so the job `trial` that
+    # runs the platform on its digests, writes to the registry.
+    pushed = [
+        command[-1] for command in images.pushes("main", COMMIT, VERSION) if COMMIT in command[-1]
+    ]
+    assert pushed == [
+        f"ghcr.io/waterfall-project/{package}:{COMMIT}"
+        for package in ("wf-project-frontend", "wf-project-backend", "wf-project-keycloak")
+    ]
+    assert [image.name for image in images.IMAGES] == ["front", "waterfall", "keycloak"]
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+def test_the_compose_of_production_pulls_the_three_images_by_their_new_names() -> None:
+    text = PRODUCTION.read_text(encoding="utf-8")
+    pulled = re.findall(r"WATERFALL_REGISTRY:-[^}]+\}/([\w-]+)@", text)
+    assert sorted(set(pulled)) == sorted(image.package for image in images.IMAGES)
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+@pytest.mark.parametrize("version", ["0.1.0", "0.2.0", "0.3.0"])
+def test_a_version_published_before_the_renaming_is_still_pulled_under_its_former_names(
+    version: str,
+) -> None:
+    assert [images.published_reference(image, version) for image in images.IMAGES] == [
+        f"ghcr.io/waterfall-project/{name}:{version}" for name in NAMES
+    ]
+    asked: list[str] = []
+
+    def read(command: list[str]) -> tuple[int, str]:
+        asked.append(command[-1])
+        return 0, ""
+
+    images.registry_answers(version, read, images.published_reference)
+    assert asked == [f"ghcr.io/waterfall-project/{name}:{version}" for name in NAMES]
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+@pytest.mark.parametrize("tag", ["0.3.1", "0.4.0", "1.0.0", "main", "epic-EP-13", COMMIT])
+def test_a_later_version_a_branch_and_a_commit_are_pulled_under_the_new_names(tag: str) -> None:
+    assert [images.published_reference(image, tag) for image in images.IMAGES] == [
+        f"ghcr.io/waterfall-project/{package}:{tag}" for package in PACKAGES.values()
+    ]
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+def test_a_publication_never_writes_a_name_of_the_versions_published_before_the_renaming() -> None:
+    # Even under the tag of the last of them, which a main that does not raise the version carries.
+    assert [images.reference(image, "0.3.0") for image in images.IMAGES] == [
+        f"ghcr.io/waterfall-project/{package}:0.3.0" for package in PACKAGES.values()
+    ]
+
+
+OLD_NAME = re.compile(
+    r"waterfall-project/(?:front|waterfall|keycloak)\b|for image in front waterfall keycloak"
+)
+ROOTS = (".github", "deploy", "Makefile", "docs/dev", "docs/exploitation", "tools/src")
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+def test_no_file_but_the_correspondence_of_the_old_versions_names_an_image_by_its_old_name() -> (
+    None
+):
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", "--", *ROOTS],
+        cwd=REPOSITORY,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    found: list[str] = []
+    for name in filter(None, listed.split("\0")):
+        text = (REPOSITORY / name).read_text(encoding="utf-8", errors="ignore")
+        found += [f"{name}: {match.group(0)}" for match in OLD_NAME.finditer(text)]
+    assert found == []
+    # The one place that says them: the versions published before the renaming, up to 0.3.0.
+    assert {name: name for name in NAMES} == images.UNRENAMED

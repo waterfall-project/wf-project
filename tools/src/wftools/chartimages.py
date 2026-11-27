@@ -12,12 +12,11 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from wftools import chartk3s
 from wftools.chartrun import Read, Run, TrialError, must, output
-from wftools.images import DIGEST, REGISTRY
+from wftools.images import DIGEST, IMAGES, published_reference
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-IMAGES = ("front", "waterfall", "keycloak")
 FIND_WAIT = 10.0
 """How long the runtime of the node is given to know an image by its digest, once ``ctr`` named it.
 
@@ -57,7 +56,7 @@ def load(
     finds them by it.
     """
     run = commands[0]
-    references = {image: f"{REGISTRY}/{image}:{tag}" for image in IMAGES}
+    references = {image.name: published_reference(image, tag) for image in IMAGES}
     for reference in references.values():
         if run(["docker", "image", "inspect", "--format", "{{.Id}}", reference]):
             message = f"{reference} is not built here: make images first"
