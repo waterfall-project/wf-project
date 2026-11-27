@@ -12,7 +12,19 @@
 # Grafana. The host of a request goes to each as the browser gave it: Caddy would give the
 # upstream's to an upstream in HTTPS. A local name — localhost, *.localhost, *.internal, an
 # address — gets its certificate from Caddy's own authority instead, whose root is kept in its
-# volume (compose.prod.local.yaml).
+# volume (compose.prod.local.yaml). A certificate the operator gives, issued by their authority, is
+# served as it is, under any name, and Caddy then asks no one for one (WF-CMP-0030, below).
+# (Defined here, before the global options that import it: a snippet imported there is not found
+# when defined after.)
+(ocsp-given) {
+	# Caddy staples an OCSP answer to a certificate it loads when the certificate names a responder
+	# (AIA) and its chain holds the issuer: a connection out, to the responder of the operator's
+	# authority, which the network may not reach. None here. With no certificate given, Caddy is left
+	# as it was: Let's Encrypt no longer issues certificates that name a responder.
+	ocsp_stapling off
+}
+(ocsp-) {
+}
 {
 	# The account Let's Encrypt writes to before a certificate expires.
 	email {$WATERFALL_ACME_EMAIL}
@@ -25,6 +37,8 @@
 	servers {
 		protocols h1 h2
 	}
+	# What the certificate given says about its revocation, as the setting says (below).
+	import ocsp-{$WATERFALL_DOOR_CERTIFICATE}
 }
 
 # A server behind the door, in TLS: the host as the browser gave it, the certificate checked against
@@ -34,6 +48,17 @@
 	transport http {
 		tls_trust_pool file /trust/root.crt
 	}
+}
+
+# The certificate of the domain, as WATERFALL_DOOR_CERTIFICATE says (compose.prod.yaml). "given":
+# the one the operator gives in WATERFALL_DOOR_DIRECTORY, with its chain and its key, which Caddy
+# serves and never renews; no name is then left for it to obtain, and it reaches no server of
+# certificates, Let's Encrypt or other — the network may have no way out. Empty: none here, and Caddy
+# obtains it, as said above.
+(certificate-given) {
+	tls /door/tls.crt /door/tls.key
+}
+(certificate-) {
 }
 
 # The front, behind its proxy in TLS (Caddyfile.front).
@@ -50,6 +75,7 @@ http://{$WATERFALL_DOMAIN} {
 }
 
 {$WATERFALL_DOMAIN} {
+	import certificate-{$WATERFALL_DOOR_CERTIFICATE}
 	encode zstd gzip
 
 	# On every answer, whoever made it: the browser comes back in HTTPS alone for a year, takes no

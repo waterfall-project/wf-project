@@ -626,14 +626,15 @@ images: ## Build the images front, waterfall and keycloak, tagged by commit, by 
 # The production platform (compose.prod.yaml, US-0430) on the images tagged WATERFALL_IMAGE_TAG — the
 # commit of the checkout by default —, built here, pushed to a registry that lives for the run and
 # run by the digests its pushes say (wftools.trialregistry, #3726), or published and run by the
-# WATERFALL_DIGEST_* the environment gives, under a local name
-# (WATERFALL_DOMAIN, waterfall.localhost by default) on ports 80 and 443 (WATERFALL_HTTP_PORT,
+# WATERFALL_DIGEST_* the environment gives, under WATERFALL_DOMAIN — waterfall.example.org by
+# default, a public name whose certificate the trial gives the door, from an authority of test
+# (US-3010), or a local name, certified by Caddy — on ports 80 and 443 (WATERFALL_HTTP_PORT,
 # WATERFALL_HTTPS_PORT): started, bootstrapped, its API's liveness and the sign-in of its first
 # administrator held, then removed with its volumes (wftools.production). Its secrets come from the
 # environment, as production.env.example names them; the project of Compose is
 # WATERFALL_PRODUCTION_PROJECT (waterfall-production-trial). Outside the slots, at slot 0 alone: from
 # the worktree of a lot, it would take the ports 80 and 443 of the workstation (US-1100).
-production-trial: ## Start the production platform on the images of WATERFALL_IMAGE_TAG (the commit by default) under a local name, bootstrap it, hold its liveness and the sign-in of its first administrator, back it up and restore it by the API, then play the test of a restoration (deploy/compose/restore-test.sh) on a scheduled backup, with WATERFALL_TRIAL_RESTORATION=1, then remove it (needs its secrets); at slot 0 alone, the main repository
+production-trial: ## Start the production platform on the images of WATERFALL_IMAGE_TAG (the commit by default) under a public name whose certificate it gives, bootstrap it, hold its liveness and the sign-in of its first administrator, back it up and restore it by the API, then play the test of a restoration (deploy/compose/restore-test.sh) on a scheduled backup, with WATERFALL_TRIAL_RESTORATION=1, then remove it (needs its secrets); at slot 0 alone, the main repository
 	@[ "$$($(SLOTS) which 2>/dev/null)" = 0 ] || { echo "make production-trial runs at slot 0 alone, from the main repository, never from the worktree of a lot" >&2; exit 1; }
 	@$(WFTOOLS).production
 
