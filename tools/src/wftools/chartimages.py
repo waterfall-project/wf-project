@@ -24,10 +24,11 @@ FIND_WAIT = 10.0
 Measured on a node of kind (2026-11-27, #5065, containerd 2.3.4): ``crictl inspecti`` found the
 name at its first try, 0.12 s after ``ctr tag`` — a ``docker exec`` included — in 60 of 60 tags,
 and under a load of two busy loops per processor it did so in 90 of 90, in 0.7 s at most. The race
-the queue met twice (``no such image`` 120 ms after the tag) did not reproduce on the
-workstation, so the bound is not measured against it: it is a margin, some fifteen times the worst
-delay measured, for a node a loaded runner slows down; a name still unknown after it is another
-fault.
+the queue met three times (``no such image`` right after the tag: run 45868657554, keycloak on
+kind, 68 ms; run 45923534175, waterfall on k3s, 120 ms; run 45949402517, waterfall on kind) did
+not reproduce on the workstation, so the bound is not measured against it: it is a margin, some
+fifteen times the worst delay measured, for a node a loaded runner slows down; a name still
+unknown after it is another fault.
 """
 FIND_STEP = 0.5
 """The pause between two tries of ``crictl inspecti``."""
