@@ -3458,10 +3458,16 @@ passe. Famille `measures` de la chaîne, dans `make check-all`.
 
 `make measure-version` prend le rapport de mesures d'une version (US-2300,
 `frontend/e2e/measure/version.measure.ts`), sur un poste, le poste pour elle seule (`$(exclusive)`,
-« Le poste pour une mesure seule ») : elle remet à zéro les données de la plateforme de service du
-créneau (`make service-down WATERFALL_RESET_DATA=yes`), la démarre, l'amorce et charge le témoin
-comme `make measure`, puis mesure sur PRJ-001, sous la charge de cinquante utilisateurs, chaque
-opération d'écran du tableau 15 que le service sert. La préparation, hors de la mesure, crée par les
+« Le poste pour une mesure seule ») : elle retire les données de la plateforme de service du
+créneau et y restaure le jeu de référence aux trois cents projets (US-2970, `make
+service-reference-restore` : l'archive de `make service-reference-backup`, jamais réengendrée ici —
+sans elle, la mesure s'arrête en le disant ; `MEASURE_FROM=witness` charge le témoin à neuf, comme
+`make measure`, pour un essai), redemande le lien du premier administrateur — l'archive porte un
+administrateur qui n'a posé aucun mot de passe —, puis mesure sur PRJ-001, sous la charge de
+cinquante utilisateurs, chaque opération d'écran du tableau 15 que le service sert. Le jeu restauré
+a cent quatre-vingts révisions marquées sur PRJ-001 : la révision en cours n'est plus celle du
+témoin, la préparation la lit (`listRevisions`, `measuredRevision` de `steps.ts`) et les grilles, la
+charge et l'export s'ouvrent sur elle. La préparation, hors de la mesure, crée par les
 opérations du contrat cinquante et un comptes (`accounts.ts`) — cinquante pour la charge, un pour le
 navigateur —, les inscrit sur PRJ-001, prend au fournisseur d'identité les jetons des utilisateurs
 de la charge, par le flux du front (`frontTokens`), et choisit la tâche que chacun écrit — en mode
@@ -3530,6 +3536,32 @@ toute installation ou construction. Un objectif dépassé s'écrit dans une note
 échoue : la médiane d'une opération dans la `note` de l'opération ; la maille lue seule à froid,
 dans la `note` de l'objet `cache` de `indicators` (elle cite #3802, où se décide son calcul) ; une issue
 à trancher s'ensuit (US-2420).
+
+**La mesure aux volumes (US-2970/L2).** Avant la charge, la préparation ouvre la vue de portefeuille
+(`/portfolio/projects`, `portfolio-screen.ts` : de la requête à la valeur du portefeuille et à un
+premier projet affichés) une fois à froid — la première lecture après le démarrage, le cache des
+indicateurs vide — puis cinq fois à chaud, et lit les indicateurs conservés à cinq dates passées, celles
+du marquage de révisions réparties sur l'histoire de PRJ-001 (`getProjectIndicators?as_of=`,
+WF-DAT-0040 ; `volumes.ts`) : une première lecture à part, puis cinq. Le rapport porte ces
+lectures à côté de ses opérations — `portfolio` (à froid, à chaud, et la décision sur le préchauffage
+du cache, `portfolioReading` de `scale.ts` : à chaud au-dessus de l'objectif, le cache n'est pas ce qui
+coûte ; à froid au-dessus et à chaud en dessous, le préchauffage est retenu ; à froid dans l'objectif,
+il ne l'est pas) et `kept` —, que `make check-measures` ne lit pas ; la vue de portefeuille est aussi
+l'opération `portfolio-view` du tableau, ouverte à chaque passe sous la charge. La décision se consigne
+dans les notes de réalisation d'US-2970 du fichier de l'EPIC ; un préchauffage retenu devient une issue,
+il ne s'implémente pas ici.
+
+`make measure-scale` (US-2970/L2, WF-DAT-0050-A, seconde phrase :
+`frontend/e2e/measure/scale.measure.ts`, projet Playwright `measure-scale`) lit les mêmes révisions
+marquées de PRJ-001 sur le témoin chargé à neuf puis sur le jeu de référence restauré à six cents
+projets (`SCALE_PROJECTS`, l'archive de `make service-reference-backup REFERENCE_PROJECTS=600`), par la
+lecture des nœuds de leur structure principale, une première lecture à part et `SCALE_PASSES` (neuf)
+après elle : la durée est celle de l'API de la requête à la réponse entière, planification comprise,
+jamais un `EXPLAIN`. Il écrit l'écart de chaque lecture et de leur somme dans `SCALE_REPORT`
+(`frontend/.e2e/scale/scale.json`) : un écart de plus d'un quart, dans un sens ou dans l'autre, est
+un constat que le rapport signale, sans que la mesure échoue ; PRJ-001 porte en outre sur le grand jeu
+cent quatre-vingts révisions que le témoin n'a pas, ce que le rapport dit. Hors de la chaîne, comme
+toute mesure, le poste pour elle seule.
 
 `make tracking ISSUE=<n>` change une ligne du tableau de suivi du corps de l'issue de l'EPIC, par
 `gh`, et ne touche à rien d'autre : `LOT=<identifiant>` (`US-1080` pour une US d'un seul lot,

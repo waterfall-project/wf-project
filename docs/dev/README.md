@@ -3435,10 +3435,16 @@ chain, in `make check-all`.
 
 `make measure-version` takes the measure report of a version (US-2300,
 `frontend/e2e/measure/version.measure.ts`), on a workstation, the workstation for itself alone
-(`$(exclusive)`, "The workstation for a measure alone"): it drops the data of the service platform
-of the slot (`make service-down WATERFALL_RESET_DATA=yes`), starts it, bootstraps it and loads the
-witness as `make measure` does, then measures on PRJ-001, under the load of fifty users, each screen
-operation of table 15 the service serves. The preparation, outside the measure, makes fifty-one
+(`$(exclusive)`, "The workstation for a measure alone"): it removes the data of the service platform
+of the slot and restores on it the reference set of three hundred projects (US-2970, `make
+service-reference-restore`: the archive of `make service-reference-backup`, never engendered again
+here — without it, the measure stops and says so; `MEASURE_FROM=witness` loads the witness afresh, as
+`make measure` does, for a trial), asks again for the link of the first administrator — the archive
+holds an administrator who set no password —, then measures on PRJ-001, under the load of fifty
+users, each screen operation of table 15 the service serves. The restored set holds a hundred and
+eighty marked revisions of PRJ-001: the current revision is no longer the witness's, the preparation
+reads it (`listRevisions`, `measuredRevision` of `steps.ts`) and the grids, the load and the export
+open on it. The preparation, outside the measure, makes fifty-one
 accounts through the operations of the contract (`accounts.ts`) — fifty for the load, one for the
 browser —, registers them on PRJ-001, takes the tokens of the users of the load from the identity
 provider, by the flow of the front (`frontTokens`), and chooses the task each writes — in automatic
@@ -3507,6 +3513,31 @@ fresh witness and take the workstation alone, so they follow each other and neve
 refuses to start without the file of the first. An objective exceeded — the median of an operation, or a scope
 read cold — is written in the `note` of the operation of the report, and the measure does not fail; an issue to
 decide follows (US-2420).
+
+**The measure at volumes (US-2970/L2).** Before the load, the preparation opens the portfolio view
+(`/portfolio/projects`, `portfolio-screen.ts`: from the request to the value of the portfolio and a
+first project shown) once cold — the first reading after the start, the cache of the indicators
+empty — then five times hot, and reads the indicators kept at five past dates, those of the marking
+of revisions spread over the history of PRJ-001 (`getProjectIndicators?as_of=`, WF-DAT-0040;
+`volumes.ts`): a first read apart, then five. The report carries these readings beside its
+operations — `portfolio` (cold, hot, and the decision on warming the cache, `portfolioReading` of
+`scale.ts`: hot over the objective, the cache is not what costs; cold over it and hot under it,
+warming is retained; cold within the objective, it is not) and `kept` —, which `make check-measures`
+does not read; the portfolio view is also the `portfolio-view` operation of the table, opened in each
+pass under the load. The decision is written in the implementation notes of US-2970 in the file of
+the epic; a warming that is retained becomes an issue, it is not implemented here.
+
+`make measure-scale` (US-2970/L2, WF-DAT-0050-A, second sentence:
+`frontend/e2e/measure/scale.measure.ts`, Playwright project `measure-scale`) reads the same marked
+revisions of PRJ-001 on the witness freshly loaded and then on the reference set restored at six
+hundred projects (`SCALE_PROJECTS`, the archive of `make service-reference-backup
+REFERENCE_PROJECTS=600`), by reading the nodes of their main structure, a first read apart and
+`SCALE_PASSES` (nine) after it: the duration is the API's from the request to the whole answer,
+planning included, never an `EXPLAIN`. It writes the gap of each read and of their sum in
+`SCALE_REPORT` (`frontend/.e2e/scale/scale.json`): a gap of more than a quarter, either way, is a
+finding the report flags, and the measure does not fail; PRJ-001 also holds on the large set a
+hundred and eighty revisions the witness does not, which the report says. Outside the chain, like
+every measure, the workstation for itself alone.
 
 `make tracking ISSUE=<n>` changes one line of the tracking table in the body of the epic's issue,
 through `gh`, and touches nothing else: `LOT=<identifier>` (`US-1080` for a story of one lot,
