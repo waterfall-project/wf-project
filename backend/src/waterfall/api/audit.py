@@ -31,6 +31,7 @@ from waterfall.api.contract.models import (
     SortOrder,
 )
 from waterfall.api.evaluation import Acting, Requires
+from waterfall.api.projects import CONSULT
 from waterfall.api.queries import Offset, listed
 from waterfall.core.projects.interface import Viewer, openable, projects_named, projects_present
 from waterfall.core.users.interface import read_authors
@@ -124,10 +125,15 @@ def opened_by(session: Session, actor: Acting, project_ids: Collection[UUID]) ->
     """Give those of the projects an inscription cites that the caller opens (WF-ADM-0190).
 
     A project the caller opens is one that exists and that they read as the list of the projects
-    gives it (WF-ADM-0110, WF-PRJ-0060): a reader of them all, or a contributor. A project that
-    no longer exists — deleted, or created after the backup a restoration brought back — is
-    named by its inscription and led to by nothing. Two reads for the whole page.
+    gives it (WF-ADM-0110, WF-PRJ-0060): a reader of them all, or a contributor — and, as
+    ``judge_project`` judges every route of the project, one who holds ``project_settings.read``
+    (``CONSULT``): ``all_projects_read`` widens the projects, it does not dispense of that
+    permission, so a caller without it opens none (``GET /projects/{id}`` would refuse it). A
+    project that no longer exists — deleted, or created after the backup a restoration brought
+    back — is named by its inscription and led to by nothing. Two reads for the whole page.
     """
+    if CONSULT not in actor.permissions:
+        return frozenset()
     present = projects_present(session, project_ids)
     return openable(session, present, Viewer(actor.user_id, actor.permissions))
 

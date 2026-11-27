@@ -768,17 +768,40 @@ def test_an_inscription_leads_to_its_project_for_the_reader_who_opens_it_and_nam
     # le nomme par son libellé et son code sinon. » « Une inscription sur un projet que le lecteur
     # ne peut pas consulter nomme ce projet sans l'ouvrir. » : two projects, the creation of each
     # inscribed. A reader of the journal alone, who is no contributor, has both named by their
-    # code and label, neither opened; a contributor of the first opens that one; a holder of the
-    # reading of every project opens both. The facets say the same as the inscriptions.
+    # code and label, neither opened; a contributor of the first opens that one only if they also
+    # consult the projects (``project_settings.read``); a holder of the reading of every project
+    # opens both, but only with that permission too (``judge_project`` asks for it on every route
+    # of the project). For each reader the expectation is the very answer of ``GET
+    # /projects/{id}`` (200 against 403 or 404), and ``can_open`` says the same, in the
+    # inscriptions and in the facets.
     managing = person(database, realm, *MANAGING)
     first = create(api, managing, label="Premier projet", code="PRJ-001")["project_id"]
     second = create(api, managing, label="Autre projet", code="PRJ-002")["project_id"]
     named = {first: ("PRJ-001", "Premier projet"), second: ("PRJ-002", "Autre projet")}
-    alone = person(database, realm, "audit_log.read")
-    contributor = person(database, realm, "audit_log.read")
-    everything = person(database, realm, "audit_log.read", "all_projects_read")
+    log, consult = "audit_log.read", "project_settings.read"
+    alone = person(database, realm, log)
+    consulting_alone = person(database, realm, log, consult)
+    blind_contributor = person(database, realm, log)
+    contributor = person(database, realm, log, consult)
+    blind_everything = person(database, realm, log, "all_projects_read")
+    everything = person(database, realm, log, consult, "all_projects_read")
+    contribute(database, first, blind_contributor, "contributor")
     contribute(database, first, contributor, "contributor")
-    for who, opened in ((alone, set[str]()), (contributor, {first}), (everything, {first, second})):
+    expected = (
+        (alone, set[str]()),
+        (consulting_alone, set[str]()),
+        (blind_contributor, set[str]()),
+        (contributor, {first}),
+        (blind_everything, set[str]()),
+        (everything, {first, second}),
+    )
+    for who, opened in expected:
+        reached = {
+            project_id
+            for project_id in named
+            if api.get(f"/api/v1/projects/{project_id}", headers=who.headers).status_code == 200
+        }
+        assert reached == opened
         items = audited(api, who.headers, actions="project_create")["items"]
         seen = {item["project"]["project_id"]: item["project"] for item in items}
         facets = {
@@ -789,4 +812,4 @@ def test_an_inscription_leads_to_its_project_for_the_reader_who_opens_it_and_nam
             assert {first, second} <= set(found)
             for project_id, (code, label) in named.items():
                 assert (found[project_id]["code"], found[project_id]["label"]) == (code, label)
-                assert found[project_id]["can_open"] is (project_id in opened)
+                assert found[project_id]["can_open"] is (project_id in reached)

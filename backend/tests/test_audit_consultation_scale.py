@@ -16,8 +16,9 @@ from urllib.parse import urlencode
 
 import pytest
 from projects_support import person
-from sqlalchemy import event, func, select, text
+from sqlalchemy import delete, event, func, select, text
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.exc import DBAPIError
 from task_handlers import deposit, task
 from test_audit_consultation import CLAIRE, JOURNAL, Written, at, write
 from test_witness_reference import UNEXTENDED, settings
@@ -273,10 +274,13 @@ def test_the_journal_of_a_project_completed_five_years_ago_is_consultable_on_the
 ) -> None:
     # « Le journal d'un projet terminé depuis cinq ans est toujours consultable. » : a project
     # of the set of reference (US-2950) that its life completed, its journal read as a reader of it
-    # does; the clock then stands five years after its closing, and the purge — what the platform
+    # does. The set is loaded by ``reference_load``, the same rows as the set that
+    # ``make service-reference-restore`` restores; the five years are simulated by the clock, which
+    # then stands five years after the closing of the project, and the purge — what the platform
     # removes with time — runs on the set. The journal, which no process of the platform expires
     # (« conservé aussi longtemps que les projets »), is read again: whole, as it was, each
-    # inscription older than five years.
+    # inscription older than five years. The test is not empty of the purge: the purge is watched
+    # and writes nothing to the journal, and the oldest inscription cannot be deleted from it.
     with loaded_set.transaction() as session:
         completed = session.scalars(
             select(Project).where(Project.state == "completed").order_by(Project.code)
@@ -289,7 +293,8 @@ def test_the_journal_of_a_project_completed_five_years_ago_is_consultable_on_the
         ).one()
         held = session.scalar(select(func.count()).select_from(AuditEntry)) or 0
         code, label = completed.code, completed.label
-    reader = person(loaded_set, realm, "audit_log.read", "all_projects_read")
+    reading = ("audit_log.read", "project_settings.read", "all_projects_read")
+    reader = person(loaded_set, realm, *reading)
     before = project_journal(api, reader.headers, completed.id)
     actions = {event["action"] for event in before["items"]}
     assert {"project_create", "revision_mark", "project_exit"} <= actions
@@ -302,8 +307,37 @@ def test_the_journal_of_a_project_completed_five_years_ago_is_consultable_on_the
         "label": label,
         "can_open": True,
     }
-    five_years_later = closing.replace(year=closing.year + 5) + timedelta(days=1)
-    purging(five_years_later)
+    five_years_later = closing + timedelta(days=5 * 365 + 2)
+    statements: list[str] = []
+
+    def watch(*arguments: Any) -> None:
+        # The arguments of the event: the connection, the cursor, the statement, and the rest.
+        statements.append(str(arguments[2]).lower())
+
+    event.listen(loaded_set.engine, "before_cursor_execute", watch)
+    try:
+        purging(five_years_later)
+    finally:
+        event.remove(loaded_set.engine, "before_cursor_execute", watch)
+    # The purge ran, and not one of its statements changes the journal.
+    assert statements
+    assert not [
+        each
+        for each in statements
+        if "audit_entry" in each and each.lstrip().startswith(("delete", "update", "truncate"))
+    ]
+    oldest = (
+        select(AuditEntry.id)
+        .where(AuditEntry.project_id == completed.id)
+        .order_by(AuditEntry.occurred_at)
+        .limit(1)
+        .scalar_subquery()
+    )
+    with (
+        pytest.raises(DBAPIError, match="permission denied for table audit_entry"),
+        loaded_set.transaction() as session,
+    ):
+        session.execute(delete(AuditEntry).where(AuditEntry.id == oldest))
     after = project_journal(api, reader.headers, completed.id)
     assert after == before
     assert all(

@@ -185,17 +185,41 @@ def test_the_actions_walked_and_those_tried_elsewhere_are_the_enumeration_of_the
     assert WALKED | set(ELSEWHERE) == contract_actions()
 
 
+def marks_requirement(decorator: ast.expr) -> bool:
+    """Tell whether a decorator is ``pytest.mark.requirement("WF-SEC-0030-A")``."""
+    return (
+        isinstance(decorator, ast.Call)
+        and isinstance(decorator.func, ast.Attribute)
+        and decorator.func.attr == "requirement"
+        and [each.value for each in decorator.args if isinstance(each, ast.Constant)]
+        == ["WF-SEC-0030-A"]
+    )
+
+
 @pytest.mark.requirement("WF-SEC-0030-A")
 @pytest.mark.parametrize("action", sorted(ELSEWHERE))
 def test_the_test_named_for_an_action_that_is_not_walked_exists_and_spells_it(action: str) -> None:
-    # The test is a function of its module, which names the action it reads in the journal.
+    # The test is a function of its module that carries the marker of the requirement, and that
+    # names the action it reads in the journal: in its body, or in a constant of the module it uses.
     module, name = ELSEWHERE[action]
-    source = (TESTS / module).read_text(encoding="utf-8")
-    functions = {
-        node.name for node in ast.walk(ast.parse(source)) if isinstance(node, ast.FunctionDef)
-    }
+    tree = ast.parse((TESTS / module).read_text(encoding="utf-8"))
+    functions = {node.name: node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
     assert name in functions
-    assert f'"{action}"' in source
+    function = functions[name]
+    assert any(marks_requirement(decorator) for decorator in function.decorator_list)
+    constants = {
+        target.id: statement.value
+        for statement in tree.body
+        if isinstance(statement, ast.Assign)
+        for target in statement.targets
+        if isinstance(target, ast.Name)
+    }
+    used = [node for node in ast.walk(function) if isinstance(node, ast.Constant)]
+    for node in ast.walk(function):
+        if isinstance(node, ast.Name) and node.id in constants:
+            held = ast.walk(constants[node.id])
+            used += [each for each in held if isinstance(each, ast.Constant)]
+    assert action in {each.value for each in used}
 
 
 @pytest.mark.requirement("WF-SEC-0030-A")
