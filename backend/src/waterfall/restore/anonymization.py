@@ -17,7 +17,8 @@ It anonymises each database in one transaction, Waterfall's first, the migration
   account, and the journal of audit forgets their names (``anonymize_every_account``, WF-ADM-0060,
   WF-SEC-0030) — but its administrators, the active accounts that hold the administration, which
   stay active under an identity in the reserved domain ``waterfall.test``, lest nobody enter the
-  copy (WF-ADM-0120, #4068);
+  copy (WF-ADM-0120, #4068); the journal forgets their names too, the transaction telling the
+  database it anonymises a copy, which it admits of the owner of the tables alone (``0057``);
 - **the identity provider's**, which is not a module of Waterfall and is read in its tables, as the
   backup counts them (``worker.inventory``): every person of the realm — the accounts of service of
   its clients apart — keeps her identifier, the subject Waterfall knows her by, and loses her user
@@ -30,23 +31,29 @@ It anonymises each database in one transaction, Waterfall's first, the migration
   account they bind as among them — and its external identity providers, with their mappers, are
   removed, lest the copy opened read the directory of the production again, or sign in through its
   provider. The persons of ``master``, who administer Keycloak, lose their names and their
-  addresses — a user name that is an address too —, and keep their credentials: ``keycloak-realm``
-  gives its administrator the password of the environment back. Its events go too. Last, no realm
+  addresses — a user name that is an address too —, their attributes, their links to an external
+  provider, their consents, and the labels of their credentials, and keep their credentials:
+  ``keycloak-realm`` gives its administrator the password of the environment back. Its events and
+  its sessions go too (#5087). Last, no realm
   keeps its mail server, nor its listeners of events: the copy opened sends no mail by the server
   of the production (#5048). A table that the version of Keycloak does not have is passed over.
 
 The amounts, the projects and their dates stay: only the accounts designate persons. The
 administrators kept are written on the standard output, the installation's said: nothing is mailed
 to them, and the operator gives them their access back by the link of the installation, which
-``waterfall-api install`` writes once the copy is opened (WF-EXP-0020). Run again, it changes
-nothing more and succeeds: a run that failed halfway is run again. A realm the database of the
-provider does not hold stops it before anything is changed (1); so does an installation
+``waterfall-api install`` writes once the copy is opened (WF-EXP-0020). How many of them the realm
+holds is said after them, and each one it lacks, which cannot sign in (#5089). Run again, it
+changes nothing more and succeeds: a run that failed halfway is run again. A realm the database of
+the provider does not hold stops it before anything is changed (1); so does a realm it holds
+besides that of the installation and ``master``, whose persons would stay named, said on the
+standard error (#5088) (1); so does an installation
 administrator the copy would not keep — deactivated, or without the administration, in the backup
 —, said on the standard error, since the bootstrap would refuse it anonymised and nobody could
 enter the copy (1); so does any failure, said in the structured logs.
 """
 
 import sys
+from dataclasses import dataclass
 from typing import IO, TYPE_CHECKING
 
 from sqlalchemy import text
@@ -92,18 +99,36 @@ NOT_KEPT = (
     "again\n"
 )
 
+# What follows the address of an administrator kept that the realm does not hold.
+ABSENT_NOTE = " (absent from the realm {realm} of Keycloak: it cannot sign in)"
+# Why a database of the provider that holds a realm of its own besides the two known is refused.
+OTHER_REALMS_HELD = (
+    "waterfall-restore {command}: refused, nothing changed: the database of Keycloak holds "
+    "realms besides {realm} and master, whose persons it would leave named: {others}; remove them "
+    "from the copy, then run it again\n"
+)
+
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class RealmAnonymized:
+    """What the anonymisation of the realm did: how many persons, the administrators it lacks."""
+
+    persons: int
+    absent: tuple[KeptAdministrator, ...]
+
 
 REALM = text("SELECT id FROM realm WHERE name = :name")
 COUNT = text(
     "SELECT count(*) FROM user_entity "
     "WHERE realm_id = :realm AND service_account_client_link IS NULL"
 )
-# What names a person of the realm — one of its accounts, those of the service of its clients
-# apart — besides her account, deleted before it is changed: what she holds, then what the realm
-# keeps of her doings. Each statement is given with its table, passed over if the version of
-# Keycloak does not have it.
-FORGOTTEN: tuple[tuple[str, str], ...] = (
+# What a person of a realm — one of its accounts, those of the service of its clients apart —
+# holds besides her account and her credentials, deleted before it is changed: what names her, then
+# what the realm keeps of her doings. Each statement is given with its table, passed over if the
+# version of Keycloak does not have it. The realm of the administration loses them too (#5087).
+HELD: tuple[tuple[str, str], ...] = (
     (
         "user_attribute",
         (
@@ -115,13 +140,6 @@ FORGOTTEN: tuple[tuple[str, str], ...] = (
         "federated_identity",
         (
             "DELETE FROM federated_identity WHERE user_id IN (SELECT id FROM user_entity "
-            "WHERE realm_id = :realm AND service_account_client_link IS NULL)"
-        ),
-    ),
-    (
-        "credential",
-        (
-            "DELETE FROM credential WHERE user_id IN (SELECT id FROM user_entity "
             "WHERE realm_id = :realm AND service_account_client_link IS NULL)"
         ),
     ),
@@ -151,17 +169,10 @@ FORGOTTEN: tuple[tuple[str, str], ...] = (
         ),
     ),
     ("fed_user_consent", "DELETE FROM fed_user_consent WHERE realm_id = :realm"),
-    ("fed_user_credential", "DELETE FROM fed_user_credential WHERE realm_id = :realm"),
-    (
-        "fed_user_group_membership",
-        "DELETE FROM fed_user_group_membership WHERE realm_id = :realm",
-    ),
-    ("fed_user_required_action", "DELETE FROM fed_user_required_action WHERE realm_id = :realm"),
-    ("fed_user_role_mapping", "DELETE FROM fed_user_role_mapping WHERE realm_id = :realm"),
     # The events copy the user name, the address and the representation of an account.
     ("event_entity", "DELETE FROM event_entity WHERE realm_id = :realm"),
     ("admin_event_entity", "DELETE FROM admin_event_entity WHERE realm_id = :realm"),
-    # The sessions, kept in the database, and their notes.
+    # The sessions, online and offline, kept in the database, and their notes.
     (
         "offline_client_session",
         (
@@ -171,6 +182,25 @@ FORGOTTEN: tuple[tuple[str, str], ...] = (
     ),
     ("offline_user_session", "DELETE FROM offline_user_session WHERE realm_id = :realm"),
     ("login_failure", "DELETE FROM login_failure WHERE realm_id = :realm"),
+)
+# What lets a person of the realm of the installation sign in, or be given rights, deleted too: the
+# persons of ``master`` keep theirs, which administer Keycloak.
+FORGOTTEN: tuple[tuple[str, str], ...] = (
+    *HELD,
+    (
+        "credential",
+        (
+            "DELETE FROM credential WHERE user_id IN (SELECT id FROM user_entity "
+            "WHERE realm_id = :realm AND service_account_client_link IS NULL)"
+        ),
+    ),
+    ("fed_user_credential", "DELETE FROM fed_user_credential WHERE realm_id = :realm"),
+    (
+        "fed_user_group_membership",
+        "DELETE FROM fed_user_group_membership WHERE realm_id = :realm",
+    ),
+    ("fed_user_required_action", "DELETE FROM fed_user_required_action WHERE realm_id = :realm"),
+    ("fed_user_role_mapping", "DELETE FROM fed_user_role_mapping WHERE realm_id = :realm"),
 )
 # What ties the realm to the outside, removed: its federations of users, which would read the
 # directory of the production again and import its persons, with their settings — the address of
@@ -256,10 +286,19 @@ ADMINISTERING = text(
     "username = CASE WHEN strpos(username, '@') > 0 THEN id ELSE username END "
     "WHERE realm_id = :realm AND service_account_client_link IS NULL"
 )
-# What the realm of the administration keeps of the doings of its persons.
-ADMINISTRATION_EVENTS: tuple[tuple[str, str], ...] = (
-    ("event_entity", "DELETE FROM event_entity WHERE realm_id = :realm"),
-    ("admin_event_entity", "DELETE FROM admin_event_entity WHERE realm_id = :realm"),
+# What the realm of the administration holds of its persons besides their accounts, and keeps of
+# their doings, as the realm of the installation (#5087); and the label of a credential, which a
+# person may have written her name in, while the credential stays.
+ADMINISTRATION_HELD: tuple[tuple[str, str], ...] = (
+    *HELD,
+    (
+        "credential",
+        (
+            "UPDATE credential SET user_label = NULL WHERE user_label IS NOT NULL AND user_id IN "
+            "(SELECT id FROM user_entity "
+            "WHERE realm_id = :realm AND service_account_client_link IS NULL)"
+        ),
+    ),
 )
 # What would send a mail from a realm: its mail server, with its account and its password, and its
 # listeners of events, among which the one that mails (#5048).
@@ -268,6 +307,7 @@ SILENCED: tuple[tuple[str, str], ...] = (
     ("realm_events_listeners", "DELETE FROM realm_events_listeners WHERE realm_id = ANY(:realms)"),
 )
 EVERY_REALM = text("SELECT id FROM realm ORDER BY id")
+OTHER_REALMS = text("SELECT name FROM realm WHERE name <> ALL(:known) ORDER BY name")
 EXISTS = text("SELECT to_regclass(:table) IS NOT NULL")
 
 
@@ -296,12 +336,14 @@ def main(arguments: Sequence[str] = ()) -> int:
 def anonymize(settings: AnonymizationSettings, out: IO[str], err: IO[str]) -> int:
     """Anonymise the two databases of the copy, Waterfall's first; give the status.
 
-    The realm is looked for before anything is changed: one the provider does not hold stops it,
-    nothing changed in either database. The migrations are applied then, before the accounts of
-    Waterfall are read. An installation administrator the copy would not keep stops it, said on
-    ``err``, before any account is written: anonymised, the bootstrap would refuse it, and the
-    copy would have no way in (#4068). The administrators kept are written on ``out`` once both
-    are anonymised.
+    The realms are read before anything is changed: one the provider does not hold stops it, and
+    so does any realm the provider holds besides it and ``master``, which would keep its persons
+    named (#5088), said on ``err`` — nothing changed in either database. The migrations are
+    applied then, before the accounts of Waterfall are read. An installation administrator the
+    copy would not keep stops it, said on ``err``, before any account is written: anonymised, the
+    bootstrap would refuse it, and the copy would have no way in (#4068). The administrators kept
+    are written on ``out`` once both are anonymised, with how many of them the realm holds, and
+    those it lacks (#5089).
     """
     schema.declared()
     waterfall = create_database_engine(settings.database_url.get_secret_value())
@@ -309,9 +351,13 @@ def anonymize(settings: AnonymizationSettings, out: IO[str], err: IO[str]) -> in
     try:
         with provider.connect() as connection:
             known = connection.execute(REALM, {"name": settings.keycloak_realm}).scalar()
+            known_realms = [settings.keycloak_realm, ADMINISTRATION_REALM]
+            others = list(connection.execute(OTHER_REALMS, {"known": known_realms}).scalars())
         if known is None:
             logger.error("anonymization.realm_unknown", realm=settings.keycloak_realm)
             return 1
+        if others:
+            return _refuse_realms(err, settings.keycloak_realm, others)
         upgrade(waterfall)
         with Database(waterfall).transaction() as session:
             # The administrators are read under the lock of their rule (WF-ADM-0120), held until
@@ -324,7 +370,7 @@ def anonymize(settings: AnonymizationSettings, out: IO[str], err: IO[str]) -> in
                 return _refuse(err)
             done = anonymize_every_account(session, utc_now(), held)
         with provider.begin() as connection:
-            persons = anonymize_realm(connection, settings.keycloak_realm, done.administrators)
+            realm = anonymize_realm(connection, settings.keycloak_realm, done.administrators)
             administering = anonymize_administration(connection)
             silence(connection, connection.execute(EVERY_REALM).scalars().all())
     except Exception:
@@ -333,12 +379,14 @@ def anonymize(settings: AnonymizationSettings, out: IO[str], err: IO[str]) -> in
     finally:
         provider.dispose()
         waterfall.dispose()
-    _tell(out, done, installer)
+    absent = done.administrators if realm is None else realm.absent
+    _tell(out, done, installer, absent, settings.keycloak_realm)
     logger.info(
         "anonymization.done",
-        persons=persons,
+        persons=None if realm is None else realm.persons,
         accounts=done.accounts,
         administrators=len(done.administrators),
+        administrators_absent=len(absent),
         administering=administering,
     )
     return 0
@@ -351,6 +399,13 @@ def _refuse(err: IO[str]) -> int:
     return 1
 
 
+def _refuse_realms(err: IO[str], realm: str, others: Sequence[str]) -> int:
+    """Say why a database of the provider that holds other realms is refused; give 1."""
+    logger.error("anonymization.other_realms", realm=realm, others=others)
+    err.write(OTHER_REALMS_HELD.format(command=COMMAND, realm=realm, others=", ".join(others)))
+    return 1
+
+
 def _installation_administrator(session: Session) -> UUID | None:
     """Give the administrator the bootstrap created, if the copy holds it."""
     installation = session.get(Installation, THE_ROW)
@@ -360,27 +415,42 @@ def _installation_administrator(session: Session) -> UUID | None:
     return None if account is None else account.user_id
 
 
-def _tell(out: IO[str], done: CopyAnonymized, installer: UUID | None) -> None:
+def _tell(
+    out: IO[str],
+    done: CopyAnonymized,
+    installer: UUID | None,
+    absent: Collection[KeptAdministrator],
+    realm: str,
+) -> None:
     """Write for the operator the administrators kept, and how their access is given back.
 
     Nothing is mailed to them: their addresses reach nobody. The link of the installation, which
     ``waterfall-api install`` writes once the copy is opened, is the installation administrator's;
-    the others are given theirs by an administrator signed in (WF-ADM-0140).
+    the others are given theirs by an administrator signed in (WF-ADM-0140). How many the realm
+    holds is said last, and each one it lacks, which cannot sign in (#5089).
     """
     out.write(f"waterfall-restore {COMMAND}: administrators kept active, without a password:\n")
     for kept in done.administrators:
         note = INSTALLATION_NOTE if kept.user_id == installer else ""
+        if kept in absent:
+            note += ABSENT_NOTE.format(realm=realm)
         out.write(f"{kept.email}{note}\n")
+    updated = len(done.administrators) - len(absent)
+    out.write(
+        f"waterfall-restore {COMMAND}: {updated} of {len(done.administrators)} administrators "
+        f"kept updated in the realm {realm} of Keycloak\n"
+    )
 
 
 def anonymize_realm(
     connection: Connection, realm: str, kept: Sequence[KeptAdministrator] = ()
-) -> int | None:
+) -> RealmAnonymized | None:
     """Anonymise every person of ``realm`` in the database of the provider; give how many.
 
-    The administrators ``kept`` are given the identity Waterfall gave them, and stay enabled. The
-    realm is cut off from its federations of users and its external providers. ``None`` if the
-    database holds no such realm, nothing changed.
+    The administrators ``kept`` are given the identity Waterfall gave them, and stay enabled; one
+    the realm does not hold is given back among the absent (#5089). The realm is cut off from its
+    federations of users and its external providers. ``None`` if the database holds no such realm,
+    nothing changed.
     """
     realm_id = connection.execute(REALM, {"name": realm}).scalar()
     if realm_id is None:
@@ -388,6 +458,7 @@ def anonymize_realm(
     _run(connection, (*FORGOTTEN, *DETACHED), {"realm": realm_id})
     persons = connection.execute(COUNT, {"realm": realm_id}).scalar_one()
     connection.execute(ANONYMIZED, {"realm": realm_id})
+    absent: list[KeptAdministrator] = []
     for administrator in kept:
         identity = {
             "subject": administrator.subject,
@@ -395,19 +466,22 @@ def anonymize_realm(
             "first_name": administrator.first_name,
             "last_name": administrator.last_name,
         }
-        connection.execute(KEPT, {"realm": realm_id, **identity})
-    return int(persons)
+        if connection.execute(KEPT, {"realm": realm_id, **identity}).rowcount == 0:
+            absent.append(administrator)
+    return RealmAnonymized(int(persons), tuple(absent))
 
 
 def anonymize_administration(connection: Connection, realm: str = ADMINISTRATION_REALM) -> int:
     """Take from the persons of the realm of the administration their names and their addresses.
 
-    Their events go too. Give how many persons it holds; none if the database holds no such realm.
+    Their attributes, their links to an external provider, their consents, their sessions and their
+    events go too, and the labels of their credentials, which stay (#5087). Give how many persons
+    it holds; none if the database holds no such realm.
     """
     realm_id = connection.execute(REALM, {"name": realm}).scalar()
     if realm_id is None:
         return 0
-    _run(connection, ADMINISTRATION_EVENTS, {"realm": realm_id})
+    _run(connection, ADMINISTRATION_HELD, {"realm": realm_id})
     persons = connection.execute(COUNT, {"realm": realm_id}).scalar_one()
     connection.execute(ADMINISTERING, {"realm": realm_id})
     return int(persons)
