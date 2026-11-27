@@ -786,6 +786,26 @@ class WitnessSettings(PlatformSettings):
     witness_path: str = Field(min_length=1)
 
 
+class ReferenceBackupSettings(WitnessSettings, Settings, StorageSettings):
+    """What ``waterfall-api backup-reference`` reads (US-2950, #4114).
+
+    The role of the service, as the loader of the witness, to check the set and deposit its backup
+    as the schedule does; Redis, to put it in the queue; the bucket of the backups, to read its
+    archive back once the worker has taken it.
+    """
+
+
+class ReferenceRestoreSettings(PlatformSettings):
+    """What ``waterfall-api restore-reference`` reads (US-2950, #4114).
+
+    The owners of the two databases of a fresh platform, as the service of the restoration reaches
+    them (``RestoreSettings``): ``database_url`` Waterfall's, ``keycloak_database_url`` the identity
+    provider's. Nothing else: it reads an archive from a file, and starts nothing.
+    """
+
+    keycloak_database_url: SecretStr = Field(min_length=1)
+
+
 def load_settings() -> Settings:
     """Read the settings from the environment, or raise a ``SettingsError`` that names each fault.
 
@@ -842,6 +862,16 @@ def load_components_settings() -> ComponentsSettings:
 def load_witness_settings() -> WitnessSettings:
     """Read the settings of the loader of the witness, as ``load_settings`` does."""
     return _load(WitnessSettings)
+
+
+def load_reference_backup_settings() -> ReferenceBackupSettings:
+    """Read the settings of the backup of the reference set, as ``load_settings`` does."""
+    return _load(ReferenceBackupSettings)
+
+
+def load_reference_restore_settings() -> ReferenceRestoreSettings:
+    """Read the settings of the restoration of the reference set, as ``load_settings`` does."""
+    return _load(ReferenceRestoreSettings)
 
 
 def _named(location: tuple[int | str, ...]) -> str:

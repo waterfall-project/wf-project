@@ -87,11 +87,23 @@ ALLOWED = {
     "platform/external_locations.py": "a copy, or the witness of a test, written to a share "
     "mounted on the server — the external location itself, not the disk of the service —, and the "
     "witness first in the temporary folder of its test",
+    # No service: the two commands of the reference set kept as a backup (US-2950/L2b), which run
+    # once on a platform of development and stop.
+    "restore/fresh.py": "the archive of the reference set and its dumps, restored on a fresh "
+    "platform before it starts, in the temporary folder of its run",
+    "witness/reference_archive.py": "the archive of the reference set and its manifest, read from "
+    "the bucket into the folder of the workstation the command is given, out of any platform",
 }
 # What a ``with`` must wrap: a temporary folder that a ``finally`` or the end of a block removes.
 # ``worker/restore.py`` makes none and ``restore/provider.py`` neither: the first writes in the
 # folder of its caller, held below; the second in the folder of the chart, not of the code.
-LIVES = ("worker/backup.py", "restore/task.py", "restore/trial.py", "platform/metrics.py")
+LIVES = (
+    "worker/backup.py",
+    "restore/task.py",
+    "restore/trial.py",
+    "restore/fresh.py",
+    "platform/metrics.py",
+)
 # What starts a process, or opens a file by what a call does not name.
 INDIRECT = {"subprocess", "FileHandler", "RotatingFileHandler", "WatchedFileHandler", "pickle"}
 
@@ -259,8 +271,8 @@ def test_the_control_sees_a_subprocess_and_a_mode_that_is_not_a_literal() -> Non
 
 
 def test_the_restoration_writes_in_the_temporary_folder_of_its_task_alone() -> None:
-    # ``worker/restore.py`` makes no folder: it is given one, and the only caller gives it the
-    # ``TemporaryDirectory`` its ``with`` removes at the end of the task.
+    # ``worker/restore.py`` makes no folder: it is given one, and each caller gives it the
+    # ``TemporaryDirectory`` its ``with`` removes at the end of the task or of the run.
     trees = parsed()
     callers = [
         (module, function)
@@ -270,7 +282,11 @@ def test_the_restoration_writes_in_the_temporary_folder_of_its_task_alone() -> N
         for call in ast.walk(function)
         if isinstance(call, ast.Call) and getattr(call.func, "id", "") == "extracted"
     ]
-    assert {module for module, _ in callers} == {"restore/task.py", "restore/trial.py"}
+    assert {module for module, _ in callers} == {
+        "restore/task.py",
+        "restore/trial.py",
+        "restore/fresh.py",
+    }
     for module, function in callers:
         made = [
             item.context_expr

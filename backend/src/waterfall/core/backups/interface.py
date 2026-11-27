@@ -160,6 +160,7 @@ __all__ = [
     "deposit_restoration_lacks",
     "download_lacks",
     "failed_copy",
+    "holds_what_a_restoration_keeps",
     "inscribe_restoration",
     "judged_schedule",
     "keep_for_restoration",
@@ -358,7 +359,7 @@ def keep_for_restoration(connection: Connection, restoration: UUID) -> None:
 
 
 def write_back_after_restoration(
-    connection: Connection, restoration: UUID, at: datetime
+    connection: Connection, restoration: UUID, at: datetime, *, fresh: bool = False
 ) -> list[str]:
     """Write back, in the restored database, what ``keep_for_restoration`` kept, then forget it.
 
@@ -379,12 +380,18 @@ def write_back_after_restoration(
     fail. Gives the subjects of the local accounts anonymised again, which the caller removes from
     the identity provider restored.
 
+    ``fresh`` says a platform made from the archive before it starts (``waterfall.restore.fresh``,
+    US-2950), not restored by an account: the tasks of a backup it holds pending — the backup that
+    took the archive among them — are forgotten with those that ended, rather than failed. Failed,
+    the latest backup the platform scheduled would be said failed (``last_scheduled_outcome``) on a
+    platform that has never scheduled one; a restoration by an account fails them still (#892).
+
     The restored database must be migrated first, to the revision of the installation: the rows and
     the rights kept are those of its tables, which a backup of an earlier revision lacks — the
     columns of a table, or the table itself — until its migrations have run.
     """
     connection.execute(delete(Backup))
-    forget_backup_tasks(connection)
+    forget_backup_tasks(connection, pending=fresh)
     write_back_tasks(connection, restoration, at)
     write_back(connection, Backup)
     replace_by_kept(connection, BackupSchedule, unsure=AUTHORS)
@@ -396,16 +403,24 @@ def write_back_after_restoration(
     return subjects
 
 
-def forget_backup_tasks(connection: Connection) -> None:
+def forget_backup_tasks(connection: Connection, *, pending: bool = False) -> None:
     """Delete the tasks of a backup the restored database holds ended, that no backup kept names.
 
-    Those it holds pending are left, which the restoration fails (WF-ADM-0160).
+    Those it holds pending are left, which the restoration fails (WF-ADM-0160); with ``pending``,
+    they are deleted too.
     """
     named = kept(table_of(Backup))
-    connection.execute(
-        delete(BackgroundTask).where(
-            BackgroundTask.kind == BACKUP,
-            BackgroundTask.status.not_in(PENDING),
-            ~exists().where(named.c.task_id == BackgroundTask.id),
-        )
-    )
+    which = [BackgroundTask.kind == BACKUP, ~exists().where(named.c.task_id == BackgroundTask.id)]
+    if not pending:
+        which.append(BackgroundTask.status.not_in(PENDING))
+    connection.execute(delete(BackgroundTask).where(*which))
+
+
+def holds_what_a_restoration_keeps(connection: Connection) -> bool:
+    """Tell whether the database holds a row of what a restoration keeps, and writes back.
+
+    An inscription, a backup, a deposit or a task: none is in a database its migrations alone
+    wrote, and each would be written back into the database restored (``keep_for_restoration``).
+    """
+    tables = (AuditEntry, Backup, FileUpload, BackgroundTask)
+    return any(connection.scalar(select(exists().select_from(table))) for table in tables)

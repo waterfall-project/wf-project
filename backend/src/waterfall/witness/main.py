@@ -13,12 +13,14 @@ saying so.
 
 The command ``waterfall-api`` starts here: ``load-witness`` loads, ``load-reference`` loads the
 witness then the reference set (``reference_load``, US-2950), ``check-reference`` checks it
-(``reference_check``), anything else is the bootstrap's,
+(``reference_check``), ``backup-reference`` keeps it as a backup and ``restore-reference`` restores
+it on a fresh platform (``reference_archive``), anything else is the bootstrap's,
 which passes on to the API what is not its own.
 """
 
 import sys
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -34,12 +36,12 @@ from waterfall.platform.identifiers import drawn_in_order
 from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
 from waterfall.platform.settings import SettingsError, WitnessSettings, load_witness_settings
-from waterfall.witness import reference_check, reference_load
+from waterfall.witness import reference_archive, reference_check, reference_load
 from waterfall.witness.description import Witness
 from waterfall.witness.loader import load_slices
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
 COMMAND = "load-witness"
 # The key of the advisory lock of the transaction that loads the witness.
@@ -54,10 +56,14 @@ logger = get_logger(__name__)
 def main(argv: Sequence[str] | None = None) -> int:
     """Load the witness, or the reference set, if asked to; else, run the bootstrap's command."""
     arguments = list(sys.argv[1:] if argv is None else argv)
-    if arguments[:1] == [reference_load.COMMAND]:
-        return reference_load.main(arguments[1:], lambda: main([COMMAND]))
-    if arguments[:1] == [reference_check.COMMAND]:
-        return reference_check.main(arguments[1:])
+    commands: dict[str, Callable[[list[str]], int]] = {
+        reference_load.COMMAND: lambda rest: reference_load.main(rest, lambda: main([COMMAND])),
+        reference_check.COMMAND: reference_check.main,
+        reference_archive.BACKUP: partial(reference_archive.main, reference_archive.BACKUP),
+        reference_archive.RESTORE: partial(reference_archive.main, reference_archive.RESTORE),
+    }
+    if arguments and arguments[0] in commands:
+        return commands[arguments[0]](arguments[1:])
     if arguments != [COMMAND]:
         return bootstrap.main(arguments)
     try:
