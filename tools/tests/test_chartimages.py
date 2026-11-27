@@ -6,10 +6,15 @@ What the trial decides by itself about loading the images and naming them by the
 a cluster: the commands are recorded, and the answers of the node are given.
 """
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from wftools import chartimages
 from wftools.chartrun import TrialError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 pytestmark = [pytest.mark.requirement("WF-ARC-0050-A"), pytest.mark.story("US-2800")]
 
@@ -71,11 +76,50 @@ def test_an_image_the_cluster_holds_by_no_digest_stops_the_trial() -> None:
         chartimages.load((lambda _: 0, read), KIND, "cluster", "abc")
 
 
-def test_an_image_the_runtime_does_not_find_by_its_digest_stops_the_trial() -> None:
+class Time:
+    """A clock that only the pauses move: nothing sleeps for real."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+        self.pauses = 0
+
+    def sleep(self, seconds: float) -> None:
+        self.now += seconds
+        self.pauses += 1
+
+    def waiting(self) -> tuple[Callable[[], float], Callable[[float], None]]:
+        return (lambda: self.now, self.sleep)
+
+
+def node(unknown: int) -> Callable[[list[str]], tuple[int, str]]:
+    """Return a node whose runtime knows the name only after ``unknown`` tries of ``inspecti``."""
+    tries: list[list[str]] = []
+
     def read(command: list[str]) -> tuple[int, str]:
         if "ls" in command:
             return 0, listing(command[-1].removeprefix("name=="), f"sha256:{'b' * 64}")
-        return 1, ""
+        tries.append(command)
+        return (0, "{}") if len(tries) > unknown else (1, "no such image")
 
-    with pytest.raises(TrialError, match=rf"find .*front@sha256:{'b' * 64} in the cluster failed"):
-        chartimages.load((lambda _: 0, read), KIND, "cluster", "abc")
+    return read
+
+
+def test_an_image_the_runtime_knows_after_a_few_tries_is_found() -> None:
+    # #5065: ``ctr tag`` returns before the CRI plugin has the new name.
+    clock = Time()
+    found = chartimages.digest(
+        (lambda _: 0, node(3)), "n", "ghcr.io/waterfall-project/front:abc", clock.waiting()
+    )
+    assert found == f"sha256:{'b' * 64}"
+    assert clock.pauses == 3
+
+
+def test_an_image_the_runtime_never_finds_stops_the_trial_after_the_bound() -> None:
+    clock = Time()
+    with pytest.raises(
+        TrialError, match=rf"find .*front@sha256:{'b' * 64} in the cluster failed \(1\) in 10 s"
+    ):
+        chartimages.digest(
+            (lambda _: 0, node(10**6)), "n", "ghcr.io/waterfall-project/front:abc", clock.waiting()
+        )
+    assert clock.now == chartimages.FIND_WAIT

@@ -7,11 +7,29 @@ and each is named there by its digest too: the chart designates the images so (#
 kubelet finds them by it. ``wftools.charttrial`` calls this module once the cluster is made.
 """
 
+import time
+from typing import TYPE_CHECKING
+
 from wftools import chartk3s
 from wftools.chartrun import Read, Run, TrialError, must, output
 from wftools.images import DIGEST, REGISTRY
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 IMAGES = ("front", "waterfall", "keycloak")
+FIND_WAIT = 10.0
+"""How long the runtime of the node is given to know an image by its digest, once ``ctr`` named it.
+
+Measured on a node of kind (2026-11-27, #5065, containerd 2.3.4): ``crictl inspecti`` found the
+name at its first try, 0.12 s after ``ctr tag`` — a ``docker exec`` included — in 60 of 60 tags,
+and under a load of two busy loops per processor it did so in 90 of 90, in 0.7 s at most. The race
+the queue met twice (``no such image`` 120 ms after the tag) does not come back on a quiet
+workstation, so the bound is not measured against it: it is some fifteen times the worst delay
+seen, for a node a loaded runner slows down; a name still unknown after it is another fault.
+"""
+FIND_STEP = 0.5
+"""The pause between two tries of ``crictl inspecti``."""
 
 
 def load(
@@ -26,7 +44,7 @@ def load(
     as the runtime of the node holds it: the chart designates them so (#3726), and the kubelet
     finds them by it.
     """
-    run, read = commands
+    run = commands[0]
     references = {image: f"{REGISTRY}/{image}:{tag}" for image in IMAGES}
     for reference in references.values():
         if run(["docker", "image", "inspect", "--format", "{{.Id}}", reference]):
@@ -46,12 +64,25 @@ def load(
     }
 
 
-def digest(commands: tuple[Run, Read], node: str, reference: str) -> str:
+def digest(
+    commands: tuple[Run, Read],
+    node: str,
+    reference: str,
+    waiting: tuple[Callable[[], float], Callable[[float], None]] = (time.monotonic, time.sleep),
+) -> str:
     """Make the node hold an image by its digest too, and return it.
 
     ``kind load`` leaves an image under its tag, and ``crictl`` names no digest of it but the
     import's: the kubelet would not find ``name@sha256:…``. ``ctr`` lists the digest of the
     image under the tag, the node is told to name it so, and the runtime to find it.
+
+    The runtime is not told at once. The CRI plugin of containerd, which ``crictl`` and the kubelet
+    ask, keeps an image store of its own, refreshed from the events of images of containerd (the
+    log of the node shows an ``ImageCreate`` and an ``ImageUpdate`` event for the new name): ``ctr
+    tag`` returns when containerd has written the name, before the plugin has handled the event,
+    and a ``crictl inspecti`` run right after sometimes finds ``no such image`` (#5065: 120 ms
+    after the tag, on kind and on k3s). It is asked again every ``FIND_STEP`` seconds, for
+    ``FIND_WAIT``, with the clock and the pause of ``waiting``.
     """
     run, read = commands
     containerd = ["docker", "exec", node, "ctr", "--namespace=k8s.io", "images"]
@@ -64,5 +95,11 @@ def digest(commands: tuple[Run, Read], node: str, reference: str) -> str:
     tag = [*containerd, "tag", "--force", reference, named]
     must(run, tag, f"name {named} by its digest")
     find = ["docker", "exec", node, "crictl", "inspecti", named]
-    output(read, find, f"find {named} in the cluster")
+    clock, sleep = waiting
+    began = clock()
+    while (code := read(find)[0]) != 0:
+        if (waited := clock() - began) >= FIND_WAIT:
+            message = f"find {named} in the cluster failed ({code}) in {waited:.0f} s"
+            raise TrialError(message)
+        sleep(FIND_STEP)
     return found.group(0)

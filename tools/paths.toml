@@ -393,6 +393,7 @@ paths = [
     "tools/src/wftools/chart.py",
     "tools/src/wftools/chartauthority.py",
     "tools/src/wftools/chartdata.py",
+    "tools/src/wftools/chartimages.py",
     "tools/src/wftools/chartk3s.py",
     "tools/src/wftools/chartload.py",
     "tools/src/wftools/chartrestoretest.py",
