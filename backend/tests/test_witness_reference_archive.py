@@ -46,11 +46,12 @@ from waterfall.core.projects.tables import Project
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.database import Database, create_database_engine, engine_url
 from waterfall.platform.identifiers import new_id
+from waterfall.platform.locks import BACKUP_LOCK
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import ReferenceBackupSettings, ReferenceRestoreSettings
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.restore.trial import manifest_of
-from waterfall.witness import reference_check, reference_load
+from waterfall.witness import reference_archive, reference_check, reference_load
 from waterfall.witness.main import main
 from waterfall.witness.reference_archive import (
     ARCHIVE,
@@ -64,7 +65,7 @@ from waterfall.witness.reference_archive import (
 )
 from waterfall.witness.reference_draw import SEED
 from waterfall.witness.reference_history import COST_LINES, MARKED, History
-from waterfall.worker.backup import BackupTask
+from waterfall.worker.backup import BackupTask, verified
 from waterfall.worker.inventory import inventory_of
 from waterfall.worker.runner import Timing, Worker, end, failure
 from waterfall.worker.schedule import deposit_backup
@@ -382,9 +383,92 @@ def test_an_archive_cut_short_gone_or_read_while_a_backup_is_pending_keeps_nothi
     assert said["backup_id"] == str(gone)
     with logging_context(correlation_id=CORRELATION):
         assert isinstance(deposit_backup(database, queue), UUID)
-    assert not kept(database, backups_bucket, backup_id, into / "pending")
+    patient = Waiting(sleep=lambda _: None)
+    assert not kept(database, backups_bucket, backup_id, into / "pending", patient)
     (held,) = logs.named("reference.archive_not_read")
     assert held["missing_condition"] == NO_BACKUP_RUNNING
+    assert list(into.iterdir()) == []
+
+
+def deposit_is_free(database: Database) -> bool:
+    """Tell whether the lock of a deposit can be taken by another connection, at once."""
+    with database.transaction() as session:
+        return bool(session.scalar(select(func.pg_try_advisory_xact_lock(BACKUP_LOCK))))
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.story(STORY)
+def test_the_locks_of_a_deposit_are_held_for_the_download_alone_not_the_verification(
+    database: Database,
+    backups_bucket: Bucket,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The archive downloaded, the transaction ends: a startBackup, the scheduled backup or the
+    # deposit of a restoration does not wait for the verification (#5108).
+    key = f"backup-{uuid4()}.tar"
+    cut_short(backups_bucket, key, tmp_path)
+    backup_id = recorded(database, days(2), Row(origin="scheduled", key=key))
+    seen: list[tuple[str, bool]] = []
+    download = backups_bucket.download
+
+    def downloading(wanted: str, path: Path) -> None:
+        seen.append(("download", deposit_is_free(database)))
+        download(wanted, path)
+
+    def verifying(archive: Path, work: Path) -> bool:
+        seen.append(("verified", deposit_is_free(database)))
+        return verified(archive, work)
+
+    monkeypatch.setattr(backups_bucket, "download", downloading)
+    monkeypatch.setattr(reference_archive, "verified", verifying)
+    into = tmp_path / "into"
+    into.mkdir()
+    assert not kept(database, backups_bucket, backup_id, into / "cut")
+    assert seen == [("download", False), ("verified", True)]
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.story(STORY)
+def test_a_deposit_between_the_end_of_the_backup_and_the_download_is_taken_once_more(
+    database: Database,
+    queue: TaskQueue,
+    backups_bucket: Bucket,
+    tmp_path: Path,
+    logs: Logs,
+) -> None:
+    # A backup deposited after the one of the command ended holds its archive back: once the pause
+    # is spent, the deposit has ended, and the archive is read; one that has not ended is said,
+    # after the one retry, and nothing is kept.
+    work, into = tmp_path / "work", tmp_path / "into"
+    work.mkdir()
+    into.mkdir()
+    key = f"backup-{uuid4()}.tar"
+    cut_short(backups_bucket, key, work)
+    backup_id = recorded(database, days(2), Row(origin="scheduled", key=key))
+    with logging_context(correlation_id=CORRELATION):
+        deposited = deposit_backup(database, queue)
+    assert isinstance(deposited, UUID)
+    pauses: list[float] = []
+
+    def ending(pause: float) -> None:
+        pauses.append(pause)
+        if len(pauses) == 1:
+            with database.transaction() as session:
+                end(session, deposited, result={})
+
+    assert not kept(database, backups_bucket, backup_id, into / "late", Waiting(sleep=ending))
+    assert len(pauses) == 1
+    (waited,) = logs.named("reference.archive_not_read_yet")
+    assert waited["missing_condition"] == NO_BACKUP_RUNNING
+    assert logs.named("reference.archive_not_read") == []
+    assert len(logs.named("reference.archive_unverified")) == 1
+    with logging_context(correlation_id=CORRELATION):
+        assert isinstance(deposit_backup(database, queue), UUID)
+    patient = Waiting(sleep=pauses.append)
+    assert not kept(database, backups_bucket, backup_id, into / "held", patient)
+    assert len(pauses) == 2
+    assert len(logs.named("reference.archive_not_read")) == 1
     assert list(into.iterdir()) == []
 
 

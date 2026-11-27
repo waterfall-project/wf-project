@@ -61,6 +61,10 @@ def not_fresh(databases: Mapping[str, str]) -> str | None:
 
     The database of the identity provider holds a table, or Waterfall's a row its migrations alone
     do not write (``holds_what_a_restoration_keeps``).
+
+    A check of the operator, not a lock: nothing prevents Keycloak or a worker from starting on the
+    platform between this reading and the replacement of the databases. The operator restores before
+    he starts them, and does not start them meanwhile.
     """
     provider = create_database_engine(databases["identity_provider"])
     try:

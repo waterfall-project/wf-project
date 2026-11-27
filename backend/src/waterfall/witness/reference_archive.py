@@ -15,9 +15,10 @@ référence"). Neither actor, nor route, nor token of an administrator:
   one of them: ``scheduled``, it turns the list under the retention of the schedule, is the one the
   test of a restoration elects next, and serves the occurrence of the schedule it follows
   (``backup_is_due``). Once it is verified, its archive is read from the bucket of the backups,
-  under the locks of a deposit, verified again, and kept in ``DIR``, its manifest beside it, under
-  the name of the version and the seed (``archive_name``), readable by their owner alone: the
-  archive holds the database of the identity provider, the secrets of its clients included.
+  downloaded under the locks of a deposit, verified again outside them, and kept in ``DIR``, its
+  manifest beside it, under the name of the version and the seed (``archive_name``), readable by
+  their owner alone: the archive holds the database of the identity provider, the secrets of its
+  clients included.
 - ``waterfall-api restore-reference [the same volumes] --from DIR`` restores that archive on a fresh
   platform, before it starts, as the test of a restoration restores a backup on its ephemeral
   platform (``waterfall.restore.fresh``).
@@ -180,35 +181,46 @@ def ended(database: Database, task_id: UUID, waiting: Waiting) -> dict[str, Any]
         waiting.sleep(waiting.pause)
 
 
-def kept(database: Database, bucket: Bucket, backup_id: UUID, named: Path) -> bool:
+def kept(
+    database: Database,
+    bucket: Bucket,
+    backup_id: UUID,
+    named: Path,
+    waiting: Waiting | None = None,
+) -> bool:
     """Read the archive of a backup into ``named``, its manifest beside it, for their owner alone.
 
-    It is read under the locks of a deposit (``lock_backup_deposit``), none pending: no backup runs
-    nor is deposited meanwhile, whose rotation would delete it — with a retention of one, the next
-    scheduled backup would. Then it is verified again, as the worker verified it (``verified``): an
-    object cut short, or unlike its manifest, keeps nothing. Each is written under a name of its
-    own, then renamed, the archive last: an archive present is whole, and its manifest is there.
-    Gives whether they are kept; why not is said in the logs.
+    It is downloaded under the locks of a deposit (``lock_backup_deposit``), none pending: no backup
+    runs nor is deposited meanwhile, whose rotation would delete it — with a retention of one, the
+    next scheduled backup would. The locks are held to the end of the download alone, a transaction
+    that holds them while the archive is verified would hold back a ``startBackup``, the scheduled
+    backup and the deposit of a restoration for as long: the file is local, the rotation can no
+    longer touch it. A backup deposited between its end and the download (``ended``, then here)
+    holds the archive back; it is taken once more after a pause (``waiting``), then said. Then the
+    archive is verified again, as the worker verified it (``verified``): an object cut short, or
+    unlike its manifest, keeps nothing. Each is written under a name of its own, then renamed, the
+    archive last: an archive present is whole, and its manifest is there. Gives whether they are
+    kept; why not is said in the logs.
     """
+    waiting = waiting or Waiting()
     into, name = named.parent, named.name
     archive, manifest = into / f"{name}{ARCHIVE}", into / f"{name}{MANIFEST}"
     writing = into / f".{name}{ARCHIVE}.writing"
     described = into / f".{name}{MANIFEST}.writing"
     before = os.umask(PRIVATE)
     try:
-        with database.transaction() as session:
-            lacking = lock_backup_deposit(session)
-            if lacking:
-                logger.error("reference.archive_not_read", missing_condition=lacking[0])
-                return False
-            try:
-                key: str | None = read_backup(session, backup_id).object_key
-            except NotFoundError:
-                key = None
-            if key is None:
-                logger.error("reference.backup_gone", backup_id=str(backup_id))
-                return False
-            bucket.download(key, writing)
+        writing.unlink(missing_ok=True)
+        lacking = downloaded(database, bucket, backup_id, writing)
+        if lacking:
+            logger.info("reference.archive_not_read_yet", missing_condition=lacking[0])
+            waiting.sleep(waiting.pause)
+            lacking = downloaded(database, bucket, backup_id, writing)
+        if lacking:
+            logger.error("reference.archive_not_read", missing_condition=lacking[0])
+            return False
+        if not writing.exists():
+            logger.error("reference.backup_gone", backup_id=str(backup_id))
+            return False
         with tempfile.TemporaryDirectory(prefix=".reference-", dir=into) as work:
             if not verified(writing, Path(work)):
                 logger.error("reference.archive_unverified", backup_id=str(backup_id))
@@ -221,6 +233,25 @@ def kept(database: Database, bucket: Bucket, backup_id: UUID, named: Path) -> bo
         os.umask(before)
         writing.unlink(missing_ok=True)
         described.unlink(missing_ok=True)
+
+
+def downloaded(database: Database, bucket: Bucket, backup_id: UUID, into: Path) -> list[str]:
+    """Download the archive of a backup into ``into``, under the locks of a deposit.
+
+    Gives what holds the deposit back, nothing downloaded; empty otherwise. A backup the list does
+    not hold leaves ``into`` absent: the caller says it gone.
+    """
+    with database.transaction() as session:
+        lacking = lock_backup_deposit(session)
+        if lacking:
+            return lacking
+        try:
+            key: str | None = read_backup(session, backup_id).object_key
+        except NotFoundError:
+            key = None
+        if key is not None:
+            bucket.download(key, into)
+    return []
 
 
 def restore_reference(settings: ReferenceRestoreSettings, archive: Path) -> int:
