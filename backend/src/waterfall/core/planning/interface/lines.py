@@ -314,12 +314,13 @@ def lines_of_structures(
     return {structure_id: tuple(nodes) for structure_id, nodes in held.items()}
 
 
-def revision_bears(session: Session, revision_id: UUID, kind: str) -> bool:
+def revision_bears(session: Session, project_id: UUID, revision_id: UUID, kind: str) -> bool:
     """Tell whether a structure of a revision holds a node of a kind; a base is none (US-3050)."""
     criteria = (
+        Node.project_id == project_id,
         Node.revision_id == revision_id,
         Node.kind == kind,
-        not_a_base(Node.structure_id, Node.project_id, revision_id),
+        not_a_base(Node.structure_id, project_id, revision_id),
     )
     return bool(session.scalar(select(exists().where(*criteria))))
 

@@ -114,7 +114,7 @@ def state_of(
     return RevisionState(
         marked=status == "marked",
         no_task_running=standing.no_task_running,
-        has_tasks_and_lines=revision_has_tasks_and_lines(session, revision_id),
+        has_tasks_and_lines=revision_has_tasks_and_lines(session, project_id, revision_id),
         reference_correctable=standing.correctable,
         has_main_task=main_structure_has_task(session, project_id, revision_id),
         rate_update_available=status == "draft"

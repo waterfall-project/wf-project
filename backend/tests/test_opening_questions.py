@@ -40,7 +40,7 @@ def keeping(*kept: UUID) -> Any:
 def answering(*, value: bool) -> Any:
     """Give a question on a main structure that always answers ``value``."""
 
-    def question(_session: object, _selection: object) -> bool:
+    def question(_session: object, _project: object, _selection: object) -> bool:
         return value
 
     return question

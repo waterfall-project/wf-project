@@ -802,7 +802,9 @@ def test_a_revision_bears_tasks_and_lines_when_every_question_registered_says_so
         # Nothing, then tasks alone, refuse the designation; tasks and a line make it open.
         assert designation() == ([] if "lines" in holds else ["revision_has_tasks_and_lines"])
     with ExitStack() as registered:
-        registered.callback(register_tasks_and_lines("lines", lambda _session, _revision: False))
+        registered.callback(
+            register_tasks_and_lines("lines", lambda _session, _project, _revision: False)
+        )
         assert designation() == ["revision_has_tasks_and_lines"]
 
 
