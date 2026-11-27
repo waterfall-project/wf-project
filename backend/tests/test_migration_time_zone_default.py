@@ -37,7 +37,7 @@ def test_an_installation_inserted_without_its_time_zone_takes_universal_time(
     assert nullable == "NO"
 
 
-@pytest.mark.story("US-2850")
+@pytest.mark.requirement("WF-DAT-0140-A")
 def test_the_descent_removes_the_default_of_the_time_zone(empty_engine: Engine) -> None:
     upgrade(empty_engine)
     downgrade(empty_engine, "0057")

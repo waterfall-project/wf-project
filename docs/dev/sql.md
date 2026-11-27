@@ -291,7 +291,8 @@ séparerait plus.
   n'appliquent pas la même migration deux fois. Elle l'essaie (`pg_try_advisory_lock`) hors
   de toute transaction, sans l'attendre dans une requête : l'instance qui attendrait ainsi
   tiendrait son instantané, qu'un index créé `CONCURRENTLY` par celle qui migre attend —
-  un interblocage (0056, US-2980/L1).
+  un interblocage (0056, US-2980/L1). Une seule instance migre avant les autres, et chaque refus
+  s'écrit au journal : `docs/exploitation/mise-a-jour.md`.
 
 *Contrôle* : la revue, qui vérifie aussi les routes sœurs de celle modifiée ; un test de
 concurrence pour chaque règle d'ensemble.

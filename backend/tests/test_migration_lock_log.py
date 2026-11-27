@@ -20,7 +20,7 @@ KEY = 7_240_330
 
 
 @pytest.mark.story("US-2850")
-def test_a_run_that_waits_for_the_lock_of_another_writes_a_warning_naming_table_and_step(
+def test_a_run_that_waits_for_the_lock_of_another_writes_a_warning_naming_the_lock_and_step(
     empty_engine: Engine, caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level("WARNING")
@@ -37,5 +37,6 @@ def test_a_run_that_waits_for_the_lock_of_another_writes_a_warning_naming_table_
     assert caplog.records
     refusal = caplog.records[0]
     assert refusal.levelname == "WARNING"
-    assert "alembic_version" in refusal.getMessage()
+    assert f"advisory lock {KEY}" in refusal.getMessage()
+    assert "alembic_version" not in refusal.getMessage()
     assert "lock of the migration run" in refusal.getMessage()

@@ -43,8 +43,9 @@ def take_lock(connection: Connection) -> None:
         if held:
             return
         logger.warning(
-            "migration lock refused: another instance migrates; table %s, step %s, retrying in %ss",
-            "alembic_version",
+            "migration lock refused: advisory lock %s held by another instance, "
+            "step %s, retrying in %ss",
+            MIGRATION_LOCK,
             "lock of the migration run",
             LOCK_RETRY_SECONDS,
         )
