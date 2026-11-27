@@ -3934,6 +3934,23 @@ the « Merge when ready » button, or through the `enqueuePullRequest` mutation 
 repository. A branch without a merge queue runs the full tier by hand on the
 branch of a lot, before merging it: `gh workflow run chain --ref <branche>`.
 
+**The stale builds of the queue.** The queue builds a pull request on a ref of its own,
+`gh-readonly-queue/<base>/pr-<N>-<sha>`, and builds it again on another sha when it removes an
+entry or reforms. The concurrency group of `chain` does not catch the old run (the ref changes, and
+`cancel-in-progress` only holds for `pull_request`): on 2026-11-27, stale builds held the twenty or
+so places of the runner pool, the new ones waited, timed out, and the queue rebuilt them (#5122). On
+a `merge_group` only, the job `cancel-stale` of `ci.yml` (`make queue-cancel`,
+`wftools.queuecancel`) cancels the runs of `chain` that are waiting (`queued`, `waiting`,
+`pending`, `requested`) or in progress and whose ref is an earlier build of the same pull request in
+the queue of the same base (same base, same N, another sha), and those of a pull request that is no
+longer in the queue (`mergeQueue(branch:)` of the GraphQL API; when the queue cannot be read, only
+the earlier builds of the same pull request are cancelled). It never cancels a run of another base,
+of a `pull_request`, of a `workflow_dispatch` or of a `push`, nor its own, writes each cancellation
+to the log (run, pull request, ref), and no job waits for it; it alone carries `actions: write`.
+**Reading the state of the runners**: count the jobs (`gh run view <run> --json jobs`, those
+`in_progress` and `queued`), not the runs, as a run stays `queued` while one of its jobs waits; a
+full tier counts about 45 jobs.
+
 The third-party images of Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, k6, Node,
 Python, Debian, Maven, Keycloak and its `keycloak-config-cli` — stay named, in the Compose files and
 the `Dockerfile`s, as on Docker Hub, by their digest: the workstation, production and the demonstration

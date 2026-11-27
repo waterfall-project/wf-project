@@ -49,5 +49,7 @@ def test_the_gate_judges_every_job_of_the_chain() -> None:
     # lookup of the fast tier and the publication of the full one (PLC-10), as every other.
     chain = yaml.safe_load((REPOSITORY / ".github" / "workflows" / "ci.yml").read_text("utf-8"))
     jobs = chain["jobs"]
-    assert sorted(jobs["gate"]["needs"]) == sorted(name for name in jobs if name != "gate")
+    # Not the job that cancels the stale runs of the queue: no job waits for it (US-2800/L7).
+    judged = sorted(name for name in jobs if name not in {"gate", "cancel-stale"})
+    assert sorted(jobs["gate"]["needs"]) == judged
     assert {"e2e-image", "e2e-image-publish"} <= set(jobs["gate"]["needs"])
