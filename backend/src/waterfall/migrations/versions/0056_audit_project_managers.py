@@ -49,6 +49,7 @@ validated at once and its ranks created in it: it never runs on an installation
 of the descent was committed.
 """
 
+import logging
 import time
 from typing import TYPE_CHECKING
 
@@ -61,6 +62,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
     from datetime import datetime
     from uuid import UUID
+
+logger = logging.getLogger(__name__)
 
 revision: str = "0056"
 down_revision: str | None = "0055"
@@ -180,6 +183,9 @@ NEXT = "_next"
 # writings of the journal queued behind it all the while; and the pause before it tries again.
 LOCK_WAIT = "500ms"
 LOCK_RETRY_SECONDS = 1.0
+# A WARNING at the first refusal, then one every ``LOG_EVERY_SECONDS`` at most; not imported from
+# ``env.py``, a migration stays on its own.
+LOG_EVERY_SECONDS = 10.0
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -224,15 +230,20 @@ def _create_concurrently(name: str, columns: list[str | sa.TextClause]) -> None:
     op.create_index(name, TABLE, columns, postgresql_concurrently=True)
 
 
-def _locking_briefly(step: Callable[[], None]) -> None:
+def _locking_briefly(step: Callable[[], None], name: str) -> None:
     """Run a step that takes an exclusive lock, waiting ``LOCK_WAIT`` at most, until it goes.
 
     Refused, the step is rolled back to its savepoint, which gives back every lock it took, and
-    tried again after a pause; the ``lock_timeout`` of the transaction is given back after it.
+    tried again after a pause, a WARNING naming the table and the step (``name``) written at the
+    first refusal, then every ``LOG_EVERY_SECONDS`` at most with the count since the last, so that a
+    run that waits reads in its log why; the ``lock_timeout`` of the transaction
+    is given back after it.
     """
     bind = op.get_bind()
     before = bind.scalar(sa.text("SELECT current_setting('lock_timeout')"))
     bind.execute(sa.select(sa.func.set_config("lock_timeout", LOCK_WAIT, sa.true())))
+    refused = 0
+    last_logged: float | None = None
     while True:
         try:
             with bind.begin_nested():
@@ -240,6 +251,18 @@ def _locking_briefly(step: Callable[[], None]) -> None:
         except OperationalError as error:
             if not isinstance(error.orig, LockNotAvailable):
                 raise
+            refused += 1
+            now = time.monotonic()
+            if last_logged is None or now - last_logged >= LOG_EVERY_SECONDS:
+                logger.warning(
+                    "lock refused %s time(s) since the last warning: table %s, step %s, "
+                    "trying again in %ss",
+                    refused,
+                    TABLE,
+                    name,
+                    LOCK_RETRY_SECONDS,
+                )
+                refused, last_logged = 0, now
             time.sleep(LOCK_RETRY_SECONDS)
         else:
             break
@@ -294,11 +317,11 @@ def upgrade() -> None:
             _create_concurrently(
                 _rank_index(column) + NEXT, [sa.text(_rank(column, ranks[column]))]
             )
-    _locking_briefly(_widen_checks)
+    _locking_briefly(_widen_checks, "widen the checks")
     with context.autocommit_block():
         for name in CHECKS:
             op.execute(f"ALTER TABLE {TABLE} VALIDATE CONSTRAINT ck_{TABLE}_{name}")
-    _locking_briefly(_swap_ranks_and_stamp)
+    _locking_briefly(_swap_ranks_and_stamp, "swap the ranks and stamp the contributors")
 
 
 def downgrade() -> None:

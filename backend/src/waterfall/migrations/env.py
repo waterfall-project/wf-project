@@ -7,6 +7,7 @@ constraints, the connection, and a lock so that two instances starting together 
 the same migration twice. It never imports the tables of a module, which are private to it.
 """
 
+import logging
 import time
 
 from alembic import context
@@ -17,10 +18,14 @@ from waterfall import schema
 from waterfall.platform.database import create_database_engine
 from waterfall.platform.settings import load_platform_settings
 
+logger = logging.getLogger(__name__)
+
 # One number for the whole history: the key of the advisory lock of a migration run.
 MIGRATION_LOCK = 7_240_330
 # The pause between two tries of that lock, while another instance migrates.
 LOCK_RETRY_SECONDS = 0.2
+# The log of a wait: a WARNING at the first refusal, then one every ``LOG_EVERY_SECONDS`` at most.
+LOG_EVERY_SECONDS = 10.0
 
 
 def take_lock(connection: Connection) -> None:
@@ -32,6 +37,8 @@ def take_lock(connection: Connection) -> None:
     while, and an index created ``CONCURRENTLY`` (``0056``) by the instance that holds the lock
     waits for every older snapshot of the database — each would wait for the other, a deadlock.
     """
+    refused = 0
+    last_logged: float | None = None
     while True:
         held = connection.execute(
             text("SELECT pg_try_advisory_lock(:key)"), {"key": MIGRATION_LOCK}
@@ -39,6 +46,18 @@ def take_lock(connection: Connection) -> None:
         connection.commit()
         if held:
             return
+        refused += 1
+        now = time.monotonic()
+        if last_logged is None or now - last_logged >= LOG_EVERY_SECONDS:
+            logger.warning(
+                "migration lock refused %s time(s) since the last warning: advisory lock %s "
+                "held by another instance, step %s, retrying in %ss",
+                refused,
+                MIGRATION_LOCK,
+                "lock of the migration run",
+                LOCK_RETRY_SECONDS,
+            )
+            refused, last_logged = 0, now
         time.sleep(LOCK_RETRY_SECONDS)
 
 
