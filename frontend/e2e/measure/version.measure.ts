@@ -341,7 +341,9 @@ test("measures each operation of table 15 the service serves under the load of f
     console.log(`The load: ${JSON.stringify(summary)}, ${durationSeconds.toFixed(0)} s`);
     const unreached = [...new Set(measured.flatMap(({ unreached: step }) => step ?? []))];
     if (unreached.length > 0) {
-      console.log(`Not reached, counted at their bound, objective exceeded: ${unreached.join(", ")}`);
+      console.log(
+        `Not reached, counted at their bound, objective exceeded: ${unreached.join(", ")}`,
+      );
     }
     // The marking, last of the background tasks, froze the revision
     // from the asking of its first pass.
