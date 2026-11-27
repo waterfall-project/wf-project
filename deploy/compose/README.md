@@ -220,6 +220,9 @@ docker compose -f compose.prod.yaml up --detach --wait keycloak
 
 ## Mettre à jour
 
+L'ordre des migrations et des instances d'une montée, et ce que le journal dit d'un verrou attendu :
+`docs/exploitation/mise-a-jour.md`.
+
 1. Prendre une sauvegarde (ci-dessous).
 2. Remplacer dans `.env` les trois empreintes `WATERFALL_DIGEST_…` par celles de la nouvelle
    version. La plateforme ne désigne ses images que par leur empreinte, jamais par une étiquette,

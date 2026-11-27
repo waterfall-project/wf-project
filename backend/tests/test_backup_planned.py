@@ -170,14 +170,26 @@ def test_on_a_new_installation_a_backup_is_due_every_day_at_one_o_clock_without_
 
 
 @pytest.mark.requirement("WF-ADM-0170-A")
+@pytest.mark.parametrize("installation_time", [None, time(0, 57), time(1, 3)])
 def test_a_backup_missed_is_deposited_once_and_not_once_per_occurrence_missed(
-    database: Database,
+    database: Database, installation_time: time | None
 ) -> None:
-    installation = installed_at(database)
-    submitted(database, installation + MINUTE)
-    assert due(database, installation + 5 * DAY)
-    submitted(database, installation + 5 * DAY)
-    assert not due(database, installation + 5 * DAY + 5 * MINUTE)
+    # The instants stand on an occurrence (01:00 UTC), not on the installation: an installation
+    # between 00:55 and 01:00 would put an occurrence between the deposit and the instant read.
+    if installation_time is not None:
+        with database.transaction() as session:
+            session.execute(
+                update(BackupSchedule).values(
+                    timing_changed_at=datetime.combine(
+                        utc_now().date(), installation_time, tzinfo=UTC
+                    )
+                )
+            )
+    first = one_o_clock_after(installed_at(database))
+    submitted(database, first + MINUTE)
+    assert due(database, first + 5 * DAY)
+    submitted(database, first + 5 * DAY)
+    assert not due(database, first + 5 * DAY + 5 * MINUTE)
 
 
 @pytest.mark.requirement("WF-ADM-0170-A")
