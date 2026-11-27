@@ -2,13 +2,19 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """How the chain spreads the tests of the back over its parts, and the order each part runs them in.
 
-A part is the i-th of N of the tests, one in N in the order of their collection (``--shard i/N``,
-back.yml): the files that load the witness, the longest, are spread over all the parts. Within a
-part, the tests given a copy of the template of the witness run last, while it loads, and the ones
-marked ``heavy`` — each loads a platform of its own, one to two minutes — run first of their
-group: the heavy ones that need no copy before everything, the others first of the tests on the
-witness. Left where their files put them, they ended a part, two minutes alone with the other
-processes idle (#5155); first, they play beside the hundreds of tests that follow.
+A part is the i-th of N of the tests, one in N in the order of their collection, the heavy ones
+counted apart (``--shard i/N``, back.yml): the files that load the witness, the longest, are spread
+over all the parts, and so are the heavy tests, to within one. Within a
+part, the tests marked ``heavy`` — each loads a platform of its own, one to two minutes — head the
+slice of a process: pytest-xdist (``--dist worksteal``) hands each of its W processes a contiguous
+slice of the part, one in W of the tests, and steals from the tail of a slice, never its head; the
+k-th heavy test takes the head of the slice of the process k modulo W, the next ones the places
+that follow the head. So the heavy tests start together, one per process, as long as there are no
+more than W of them, and none waits behind another. Which test a process runs after its heavy one
+depends on what the others steal; the order fixes the starts, not the ends. The other tests keep
+the order of the collection, those that need a copy of the template of the witness last, while it
+loads. Left where their files put them, the heavy tests ended a part, two minutes alone with the
+other processes idle (#5155).
 """
 
 from typing import TYPE_CHECKING
@@ -17,28 +23,51 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
 
-def part_of[T](items: Sequence[T], part: int, parts: int) -> tuple[list[T], list[T]]:
-    """Split the items into those of the part ``part`` of ``parts``, and the rest."""
+def part_of[T](
+    items: Sequence[T], part: int, parts: int, heavy: Callable[[T], bool] = lambda _: False
+) -> tuple[list[T], list[T]]:
+    """Split the items into those of the part ``part`` of ``parts``, and the rest.
+
+    One item in N of the heavy ones, and one in N of the others, each in the order of the
+    collection: the heavy ones, few, are spread evenly over the parts, which one in N of all the
+    items would not do. Both lists keep the order of the collection.
+    """
+    seen = {True: 0, False: 0}
     kept: list[T] = []
     left: list[T] = []
-    for index, item in enumerate(items):
-        (kept if index % parts == part - 1 else left).append(item)
+    for item in items:
+        kind = heavy(item)
+        (kept if seen[kind] % parts == part - 1 else left).append(item)
+        seen[kind] += 1
     return kept, left
 
 
 def in_order[T](
-    items: Sequence[T], on_the_witness: Callable[[T], bool], heavy: Callable[[T], bool]
+    items: Sequence[T],
+    on_the_witness: Callable[[T], bool],
+    heavy: Callable[[T], bool],
+    workers: int = 1,
 ) -> list[T]:
-    """Give the heavy tests off the witness, the others off it, then those on it, heavy first.
+    """Put the heavy tests at the heads of the slices of ``workers`` processes, the others around.
 
-    Each group keeps the order of the collection.
+    The heavy tests off the witness take the heads first, then those on it. The others keep the
+    order of the collection, those off the witness before those on it. The result depends on the
+    items and ``workers`` alone: every process of pytest-xdist computes the same one.
     """
-    ahead = [item for item in items if heavy(item) and not on_the_witness(item)]
-    others = [item for item in items if not heavy(item) and not on_the_witness(item)]
-    witnessed = [item for item in items if on_the_witness(item)]
-    return (
-        ahead
-        + others
-        + [item for item in witnessed if heavy(item)]
-        + [item for item in witnessed if not heavy(item)]
-    )
+    workers = max(1, workers)
+    heavies = [item for item in items if heavy(item) and not on_the_witness(item)] + [
+        item for item in items if heavy(item) and on_the_witness(item)
+    ]
+    light = [item for item in items if not heavy(item)]
+    ordered = [item for item in light if not on_the_witness(item)] + [
+        item for item in light if on_the_witness(item)
+    ]
+    size = len(items) // workers
+    placed: dict[int, T] = {}
+    for rank, item in enumerate(heavies):
+        position = (rank % workers) * size + rank // workers
+        while position in placed or position >= len(items):
+            position = (position + 1) % len(items)
+        placed[position] = item
+    rest = iter(ordered)
+    return [placed[index] if index in placed else next(rest) for index in range(len(items))]

@@ -61,8 +61,11 @@ jobs:
     # average): the spread is the runner's, not a heavy part. Twice (#5155) a part was cancelled at
     # 98 %: seventeen tests load a platform of their own, one to two minutes each, and played last
     # of the tests on the witness, the other processes idle (4 minutes 15 after 98 % in a slow run).
-    # They are marked heavy and played first of their group (backend/tests/sharding.py): the
-    # part 2/6 took 6 minutes 23 then 5 minutes 27 locally. The four `lock timeout` of the
+    # They are marked heavy, counted apart when the parts are cut (so that each part holds three or
+    # two of them) and placed at the heads of the slices pytest-xdist hands its processes
+    # (`--dist worksteal`, backend/tests/sharding.py): they start together, one per process, none
+    # behind another. The order fixes the starts, not the ends. Part 4/6 took 9 minutes 35 of
+    # tests before, 6 minutes 16 after, locally on a loaded machine. The four `lock timeout` of the
     # journal are tests that hold a lock on purpose, not a wait. The delay is kept.
     timeout-minutes: 20
     services:

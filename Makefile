@@ -709,7 +709,7 @@ imports-back: ## The boundaries of the core (WF-ARC-0010)
 # The tests of the back wait on PostgreSQL, Redis and the storage more than they compute: they run on
 # one process per core (pytest-xdist), eight at most — each takes a database of Redis of its own,
 # which has sixteen. The tests of Keycloak (test-keycloak) stay on one: one of them restarts it.
-PYTEST_WORKERS = -n $(WATERFALL_PROCESSORS) --maxprocesses 8
+PYTEST_WORKERS = -n $(WATERFALL_PROCESSORS) --maxprocesses 8 --dist worksteal
 BACK_PART = $(if $(SHARD),--shard=$(SHARD))
 
 test-back: ## Tests of the back (TESTS=<file> runs one file; SHARD=i/N one part of them, as the chain spreads them)

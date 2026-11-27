@@ -139,6 +139,16 @@ def on_the_witness(item: pytest.Item) -> bool:
     return any(name in names for name in ON_THE_WITNESS)
 
 
+def processes(config: pytest.Config) -> int:
+    """Count the processes of pytest-xdist the run spreads its tests over: 1 without it.
+
+    The controller and each of its processes read the same number (``-n``), hence compute the same
+    order. ``auto`` is resolved by the controller before it collects, and handed to the others.
+    """
+    number = getattr(config.option, "numprocesses", None)
+    return number if isinstance(number, int) and number > 0 else 1
+
+
 @pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Keep the part of ``--shard``, the tests on the witness last; start loading the template.
@@ -146,11 +156,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     Under ``--shard i/N``, the tests at the positions that are i modulo N, from 1. The order of the
     collection is the same in every process of pytest-xdist, which compare what they collected:
     each keeps the same part. One in N, rather than N runs of files, spreads the files that load the
-    witness, the longest, over all the parts.
+    witness, the longest, over all the parts; the heavy tests are counted apart, to spread evenly.
 
-    The tests given a copy of the template of the witness run after the others, while it loads, the
-    heavy ones first (``sharding``): the first process to see one starts the loading, unless the
-    run only collects.
+    The heavy tests start at the heads of the slices of the processes, the tests given a copy of the
+    template of the witness after the others, while it loads (``sharding``): the first process to
+    see one starts the loading, unless the run only collects.
     """
     shard = cast("str | None", config.getoption("shard"))
     if shard is not None:
@@ -158,10 +168,10 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         if not (part.isdigit() and parts.isdigit() and 1 <= int(part) <= int(parts)):
             message = f"--shard must be i/N, 1 <= i <= N, not {shard!r}"
             raise pytest.UsageError(message)
-        kept, left = part_of(items, int(part), int(parts))
+        kept, left = part_of(items, int(part), int(parts), heavy)
         config.hook.pytest_deselected(items=left)
         items[:] = kept
-    items[:] = in_order(items, on_the_witness, heavy)
+    items[:] = in_order(items, on_the_witness, heavy, processes(config))
     if (
         any(on_the_witness(item) for item in items)
         and os.environ.get(TEST_DATABASE_VARIABLE)
