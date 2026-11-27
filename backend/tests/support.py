@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """What the tests of the service share: the secrets of a test platform, the logs, the contract."""
 
+import inspect
 import io
 import json
 import logging
+import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
@@ -746,3 +748,44 @@ class Watching(KeycloakAdmin):
         """Note, then give an account of the realm its language."""
         self._note("set_locale")
         super().set_locale(subject, locale)
+
+
+class RefusalClock:
+    """A clock of one second a reading, and no pause, for the migration files that retry a lock.
+
+    Only the files named see it (``time.monotonic`` and ``time.sleep`` are the module's, which a
+    migration loaded by Alembic cannot be patched through): the others read the real time. The
+    retry that follows the ``stop_after``-th refusal waits on ``gate`` until the test sets it, so
+    that a test holds the lock for exactly that many refusals, whatever the machine's speed.
+    """
+
+    def __init__(
+        self, monkeypatch: pytest.MonkeyPatch, files: tuple[str, ...], *, stop_after: int
+    ) -> None:
+        self.seconds = 0.0
+        self.pauses = 0
+        self.reached = threading.Event()
+        self.gate = threading.Event()
+        real_monotonic, real_sleep = time.monotonic, time.sleep
+
+        def ours() -> bool:
+            caller = inspect.stack(0)[2]
+            return caller.filename.endswith(files)
+
+        def monotonic() -> float:
+            if not ours():
+                return real_monotonic()
+            self.seconds += 1.0
+            return self.seconds
+
+        def sleep(duration: float) -> None:
+            if not ours():
+                real_sleep(duration)
+                return
+            self.pauses += 1
+            if self.pauses == stop_after:
+                self.reached.set()
+                self.gate.wait(60)
+
+        monkeypatch.setattr(time, "monotonic", monotonic)
+        monkeypatch.setattr(time, "sleep", sleep)
