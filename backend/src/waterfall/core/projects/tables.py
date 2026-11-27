@@ -163,10 +163,13 @@ class ProjectStateTransition(Base):
     reason: Mapped[str | None] = mapped_column(Text)
 
 
-class Contributor(Base):
+class Contributor(Stamped):
     """An account inscribed on a project, with its kind (WF-PRJ-0060): an association.
 
-    Added, changed in its kind or removed with the whole list, under the counter of the project.
+    Added, changed in its kind or removed with the whole list, under the counter of the project;
+    stamped by its writer, the platform for the loader of the witness (WF-DAT-0070, #3988). The
+    dates default to the moment of the write, for a line the code before them writes during an
+    update (WF-DAT-0140), and for the lines there at their migration (``0056``), which it dates.
     """
 
     __tablename__ = "contributor"
@@ -179,6 +182,8 @@ class Contributor(Base):
         ForeignKey("user_account.id", ondelete="RESTRICT"), primary_key=True, index=True
     )
     kind: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime, server_default=func.now())
 
 
 class Subproject(Audited):

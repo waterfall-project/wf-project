@@ -406,6 +406,34 @@ def test_an_anonymized_account_is_named_by_no_inscription_whose_number_dates_and
     assert [row["actor_display_name"] for row in after] == [None, "Paul Durand", "Paul Durand"]
 
 
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_an_anonymized_account_is_forgotten_as_the_contributor_it_was_and_no_other_is(
+    database: Database,
+) -> None:
+    # A project manager inscribed is named by its account (#4127): once that account anonymised,
+    # the inscription no longer bears its name, as the database lets the service forget it; the
+    # contributor of an account that is not anonymised keeps its own.
+    paul = AuditActor(uuid4(), "Paul Durand")
+    hold_account(database, CLAIRE.user_id, is_anonymized=True)
+    hold_account(database, paul.user_id, is_anonymized=False)
+    project = AuditProject(uuid4(), "PRJ-001", "Modernisation du poste de commande")
+    for named in (CLAIRE, paul):
+        contributor = AuditObject("contributor", named.user_id, named.display_name)
+        inscribe(
+            database,
+            role_created(
+                action="project_manager_add", actor=paul, audited=contributor, project=project
+            ),
+        )
+    with logging_context(correlation_id=CORRELATION), database.transaction() as session:
+        forget_account(session, CLAIRE.user_id)
+    after = {row["object_id"]: row["object_label"] for row in rows(database)}
+    assert after == {str(CLAIRE.user_id): None, str(paul.user_id): "Paul Durand"}
+    with pytest.raises(IntegrityError) as raised, database.engine.begin() as connection:
+        connection.execute(text("UPDATE audit_entry SET object_label = NULL"))
+    assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
+
+
 def test_an_account_forgotten_twice_is_forgotten_once(database: Database) -> None:
     hold_account(database, CLAIRE.user_id, is_anonymized=True)
     inscribe(database, role_created())

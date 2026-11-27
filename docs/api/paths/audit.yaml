@@ -142,6 +142,9 @@
               administration: { $ref: ../../../fixtures/api/audit_events_administration.json }
               restored: { $ref: ../../../fixtures/api/audit_events_restored.json }
               auditor: { $ref: ../../../fixtures/api/audit_events_auditor.json }
+              manager_changed: { $ref: ../../../fixtures/api/audit_events_manager_changed.json }
+              manager_added: { $ref: ../../../fixtures/api/audit_events_manager_added.json }
+              manager_removed: { $ref: ../../../fixtures/api/audit_events_manager_removed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':

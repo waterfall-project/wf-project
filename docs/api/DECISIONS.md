@@ -13052,6 +13052,50 @@ par identifiant est documentée dans le guide (« Ce que le faux back ne fait pa
 d'exemple par identifiant, comme celui des avenants (`wftools.mock`, #1219), n'est pas ajouté pour
 un écran que le service sert depuis EP-03.
 
+### Les chefs de projet au journal d'audit, le contributeur pour objet (US-2980/L1, #4127, #3988)
+
+La spécification 1.0.7 ajoute à WF-SEC-0030 « l'inscription, le retrait et le changement de
+qualité d'un chef de projet (WF-PRJ-0060) », que le contrat figé ne savait pas dire (« La règle
+d'après le gel »). Les noms sont ceux que la conception d'EP-13 propose (« Modifications du
+contrat »), dans le plan de lots que l'auteur a validé le 2026-11-19 ; le lot les retient. L'auteur
+ne les a pas tranchés un à un : il est invité à objecter sur #4127 avant la fusion du lot.
+`info.version` reste `1.0.0` : quatre valeurs d'énumération et trois exemples de plus ; aucune
+propriété ne change, aucune n'est exigée de plus.
+
+- **`AuditAction`** reçoit `project_manager_add`, `project_manager_remove` et
+  `project_manager_change`, rangées après `project_exit`, dans l'ordre où WF-SEC-0030 les nomme —
+  celui du tri par action. `setContributors` les inscrit, une par ligne, sous la corrélation de sa
+  requête : un compte inscrit chef de projet, un chef de projet retiré de la liste, un contributeur
+  déjà inscrit dont la qualité passe à chef de projet ou la quitte. L'inscription et le retrait
+  d'un participant ne s'inscrivent pas : WF-SEC-0030 ne nomme que les chefs de projet. Le créateur,
+  que la création inscrit chef de projet, ne l'est pas non plus : `project_create` le dit déjà,
+  par son auteur. `params` est vide pour les trois.
+- **`AuditObjectKind`** reçoit `contributor`, après `risk`, dans le même ordre. L'objet est le
+  contributeur, désigné par son compte : `object_id` est l'identifiant du compte, `label` le nom
+  qu'il affichait au moment de l'action, `revision` nul, `project` le projet de la liste.
+  L'anonymisation d'un compte oublie ce nom comme celui d'un compte objet (WF-ADM-0060) : le libellé
+  d'un contributeur peut être nul, et la base admet de le rendre nul pour un compte anonymisé
+  (migration `0056`).
+- **Les trois exemples** de `listAuditEvents`, engendrés par `wftools.mockauditmanagers` et tenus
+  par `tools/tests/test_mockauditmanagers.py`, lisent le journal du projet témoin, numérotés à part :
+  `manager_changed`, la suite de `contributors_set` — Inès Roux passée cheffe de projet par Camille
+  Martin, Sacha Lefèvre inscrit participant sans inscription — ; `manager_added`, variante
+  contrefactuelle du sauvetage de `contributors_without_active_manager`, où Dominique Bernard
+  inscrit Sacha Lefèvre chef de projet — une liberté, le sauvetage du contrat promouvant Inès
+  Roux — ; `manager_removed`, variante où Camille Martin retire Inès Roux par une seconde liste,
+  au même instant, après l'avoir faite cheffe de projet.
+- **Le sauvetage borné** (#3988) : la description de `setContributors` précise ce que « any other
+  entry remains refused » refuse, 403 `NOT_CONTRIBUTOR` — une ligne retirée, un participant inscrit,
+  un chef de projet passé participant —, jugé contre la liste au compteur envoyé, donc après le 412 ;
+  elle dit aussi les trois inscriptions.
+
+Écartés : un paramètre qui dirait le sens du changement de qualité (`to_kind`), qu'`AuditParams`
+n'a pas et que la décision exclut — un lecteur le déduit de l'inscription précédente du même
+contributeur, et, pour une ligne écrite avant la migration `0056`, qui n'en a pas, de la liste
+d'aujourd'hui seulement ; inscrire aussi les participants, que WF-SEC-0030 ne nomme pas ; désigner l'objet par
+le projet, qui perdrait le compte inscrit, ou par le compte (`user`), qui confondrait l'inscription
+d'un chef de projet avec l'administration du compte dans les filtres du journal.
+
 ### Le contrat des échanges d'EP-33 : le compte rendu périmé, le dépôt sous permission, la tâche purgée, les colonnes d'un onglet, le montant écrit (US-3250/L1, #4525)
 
 Décisions de l'auteur du 2026-11-21, au cadrage d'EP-33 (conception, « Modifications du contrat »),
