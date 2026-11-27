@@ -4,9 +4,8 @@
 
 What the files say is held here: the platform is made of the images the chain publishes, Caddy is
 its only door, its data live in named volumes, every secret comes from the file of settings the
-operator fills, and the backups pass by their own role. The platform itself is started, bootstrapped
-and signed in by ``make production-trial`` in the chain (production.yml, images.yml); these tests
-hold what the trial concludes from what Compose and the platform answer.
+operator fills, and the backups pass by their own role. ``make production-trial`` starts it in the
+chain (production.yml, images.yml); these tests hold what it concludes, under a local name.
 """
 
 import json
@@ -113,9 +112,9 @@ def test_the_platform_is_complete_on_one_machine_its_data_in_named_volumes() -> 
         "prometheus-data",
         "alertmanager-data",
         "realm-requests",
-        # The authority of the platform and what it issues (US-2840, test_transport_trial.py).
-        "authority",
+        "authority",  # the authority of the platform, what it issues (US-2840, test_transport)
         "trust",
+        "door-authority",  # the roots the front checks the door against (US-3010, test_door.py)
         *(f"certificates-{name}" for name in transport.COMPOSE.hosts().values()),
     }
     for name, kept in {
@@ -864,6 +863,7 @@ def platform_sender(fake: FakePlatform) -> Callable[[Platform], Callable[[Path],
 
 
 GIVEN = {"WATERFALL_IMAGE_TAG": TAG, "WATERFALL_PRODUCTION_PROJECT": "trial-a3", **GIVEN_DIGESTS}
+GIVEN["WATERFALL_DOMAIN"] = PLATFORM.domain
 
 
 @pytest.mark.requirement("WF-ARC-0050-A")
