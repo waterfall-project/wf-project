@@ -187,3 +187,17 @@ async function reactivated(
     });
   }
 }
+
+/** How old the token of the user of the browser may grow before it is asked again. */
+const TOKEN_RENEWED_AFTER = 4 * 60_000;
+
+/** The token of an account, asked again once it grows old. */
+export function renewedToken(browser: Browser, person: LocalPerson): () => Promise<string> {
+  let kept: { token: string; obtained: number } | undefined;
+  return async () => {
+    if (kept === undefined || Date.now() - kept.obtained > TOKEN_RENEWED_AFTER) {
+      kept = { token: await frontToken(browser, person), obtained: Date.now() };
+    }
+    return kept.token;
+  };
+}

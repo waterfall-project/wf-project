@@ -41,6 +41,8 @@ const ASKED_EVERY = 1_000;
 /** The API as the user of the measure calls it, by a token it renews itself. */
 export interface Caller {
   readonly get: <T>(path: string) => Promise<T>;
+  /** A read timed from its request to its whole answer, in seconds, with the status it got. */
+  readonly timed: (path: string) => Promise<{ seconds: number; status: number }>;
   readonly post: <T>(path: string, data: unknown) => Promise<T>;
   readonly upload: (name: string, content: Buffer) => Promise<string>;
 }
@@ -53,6 +55,13 @@ export function caller(request: APIRequestContext, token: () => Promise<string>)
       const answer = await request.get(`${API}${path}`, { headers: await headers() });
       expect(answer.status(), `GET ${path}: ${await answer.text()}`).toBe(200);
       return (await answer.json()) as T;
+    },
+    timed: async (path) => {
+      const asked = await headers();
+      const started = performance.now();
+      const answer = await request.get(`${API}${path}`, { headers: asked });
+      await answer.body();
+      return { seconds: (performance.now() - started) / 1000, status: answer.status() };
     },
     post: async <T>(path: string, data: unknown) => {
       const answer = await request.post(`${API}${path}`, { headers: await headers(), data });

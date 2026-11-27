@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { momentOf } from "./report";
+import { portfolioReading, summary } from "./scale";
 import { STEPS } from "./steps";
 import {
   type Cache,
@@ -133,10 +134,27 @@ describe("versionReport", () => {
     });
   });
 
-  it("names an operation the service does not serve with its epic, and no duration [WF-QUA-0060-A]", () => {
+  it("serves the portfolio view since EP-11: a duration, no operation left unserved [US-2970]", () => {
     const report = versionReport("0.4.0", new Date(), CONDITIONS, SAMPLES, CACHE);
-    const unserved = report.operations.filter((operation) => "unserved" in operation);
-    expect(unserved).toEqual([{ id: "portfolio-view", objective_s: 2, unserved: "EP-11" }]);
+    expect(report.operations.filter((operation) => "unserved" in operation)).toEqual([]);
+    expect(report.operations.find(({ id }) => id === "portfolio-view")).toMatchObject({
+      objective_s: 2,
+      median_s: 1.5,
+    });
+  });
+
+  it("carries the portfolio read cold and hot and the readings kept beside its operations, and nothing without them [US-2970]", () => {
+    const portfolio = portfolioReading(300, 2, 1.5, [0.4, 0.5]);
+    const kept = [summary("kept", 0.3, [0.2, 0.25])];
+    const plain = versionReport("0.4.0", new Date(), CONDITIONS, SAMPLES, CACHE);
+    expect(plain).not.toHaveProperty("portfolio");
+    expect(plain).not.toHaveProperty("kept");
+    const beside = versionReport("0.4.0", new Date(), CONDITIONS, SAMPLES, CACHE, {
+      portfolio,
+      kept,
+    });
+    expect(beside.portfolio).toEqual(portfolio);
+    expect(beside.kept).toEqual(kept);
   });
 
   it("carries the cost of the cache on the indicators, which the service serves, and on no other [WF-QUA-0060-A]", () => {
@@ -215,6 +233,7 @@ describe("the steps of the browser", () => {
       "indicators",
       "open-compared-grid",
       "open-grid",
+      "portfolio-view",
       "recompute-after-entry",
       "recompute-compared",
       "workload-or-projection",

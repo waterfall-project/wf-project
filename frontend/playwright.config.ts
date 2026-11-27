@@ -66,7 +66,8 @@
  * interface, as against the service, and holds its connections to the API as the users' front does.
  * `measure-version` plays the report of a version so, under the load of fifty users (`make
  * measure-version`, US-2300), in its project of the same name: its file alone,
- * `e2e/measure/version.measure.ts`.
+ * `e2e/measure/version.measure.ts`. `measure-scale` plays the reading of the same revisions on two
+ * platforms (`make measure-scale`, US-2970), its file alone, `e2e/measure/scale.measure.ts`.
  */
 import { randomBytes } from "node:crypto";
 import { availableParallelism } from "node:os";
@@ -191,7 +192,14 @@ const FRONT_ENV = {
 // What the front of the measure against the service is told: the users' front, whose connections
 // to the API are kept alive, as in production — no proxy closes them there (US-2210).
 const USERS_FRONT_ENV = { WATERFALL_API_ADDRESS: API, ...AUTHENTICATION };
-const PARTS = ["paths", "measure", "service", "measure-service", "measure-version"] as const;
+const PARTS = [
+  "paths",
+  "measure",
+  "service",
+  "measure-service",
+  "measure-version",
+  "measure-scale",
+] as const;
 type Part = (typeof PARTS)[number];
 
 /** The part of the harness the environment names, or the whole of it; anything else refused. */
@@ -212,7 +220,8 @@ const PLAYS_SERVICE = PART === "service";
 // The measure of the journey of the grids against the service (`make measure`, US-2210), and the
 // report of a version under the load of fifty users (`make measure-version`, US-2300): the same
 // harness, each its file.
-const MEASURES_SERVICE = PART === "measure-service" || PART === "measure-version";
+const MEASURES_SERVICE =
+  PART === "measure-service" || PART === "measure-version" || PART === "measure-scale";
 if (MEASURES_SERVICE && NAMED_API === undefined) {
   throw new Error(`E2E_PART=${PART} measures against the API WATERFALL_API_ADDRESS names`);
 }
@@ -449,6 +458,16 @@ function fronts(): WebServer[] {
   });
 }
 
+/** The file of the measure against the service the part names. */
+function serviceMeasureFile(): RegExp {
+  if (PART === "measure-version") {
+    return /e2e\/measure\/version\.measure\.ts$/;
+  }
+  return PART === "measure-scale"
+    ? /e2e\/measure\/scale\.measure\.ts$/
+    : /e2e\/measure\/grids\.measure\.ts$/;
+}
+
 /**
  * The measure of the journey of the grids against the service, alone (`make measure`, US-2210), or
  * the report of a version (`make measure-version`, US-2300), each in its project, of its file: one
@@ -461,10 +480,7 @@ function serviceMeasureProjects(): Project[] {
   return [
     {
       name: PART,
-      testMatch:
-        PART === "measure-version"
-          ? /e2e\/measure\/version\.measure\.ts$/
-          : /e2e\/measure\/grids\.measure\.ts$/,
+      testMatch: serviceMeasureFile(),
       workers: 1,
       use: {
         ...devices["Desktop Chrome"],

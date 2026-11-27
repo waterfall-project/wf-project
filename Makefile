@@ -1084,6 +1084,15 @@ LOAD_CONTAINER = $(WATERFALL_SERVICE_PROJECT)-load
 MEASURE_VERSION ?= $(shell sed -n 's/^  "version": "\([^"]*\)".*/\1/p' $(FRONT)/package.json)
 MEASURE_VERSION_REPORT ?= $(FRONT)/.e2e/measures/$(MEASURE_VERSION).json
 MEASURE_TASK_PASSES ?= 3
+# The data a report of a version is measured on (US-2970): the reference set restored from its archive
+# (make service-reference-backup, 300 projects; the platform of the slot dropped and made again from it),
+# or, for a trial or a measure at the volumes of the witness, MEASURE_FROM=witness: the witness loaded
+# afresh, as before. The link of the administrator is asked in both: the archive holds an administrator
+# who set no password.
+MEASURE_FROM ?= reference
+MEASURE_FRESH = service-down service-up WATERFALL_RESET_DATA=yes
+MEASURE_PLATFORM = $(if $(filter witness,$(MEASURE_FROM)),$(MEASURE_FRESH),service-reference-restore)
+MEASURE_WITNESS = $(if $(filter witness,$(MEASURE_FROM)),$(COMPOSE_SERVICE) run --rm --no-TTY witness &&)
 # The cost of the entry of the cache of the indicators (US-2420) is not measured here: make measure-core
 # ONLY=indicators JSON=<file> measures it, on a witness of its own, and the report of the version takes
 # it from MEASURE_CACHE. The two both start from a witness freshly loaded and take the workstation alone:
@@ -1111,13 +1120,12 @@ measure-version: export E2E_MEASURE_VERSION = $(MEASURE_VERSION)
 measure-version: export E2E_MEASURE_VERSION_REPORT = $(abspath $(MEASURE_VERSION_REPORT))
 measure-version: export E2E_MEASURE_CACHE = $(abspath $(MEASURE_CACHE))
 measure-version: export PRISM_VERSION := $(PRISM_VERSION)
-measure-version: measure-cache-present measure-secrets install-front $(call e2e-build) ## The report of the measures of a version (US-2300): on the witness loaded afresh, each operation of table 15 the service serves, measured by a browser under the load of fifty users played by k6, then the export, the import of 18,000 lines of actual costs and the marking, read at their tasks; takes the workstation alone; MEASURE_VERSION (that of frontend/package.json), MEASURE_PASSES=5, MEASURE_TASK_PASSES=3, MEASURE_VERSION_REPORT=<file> (frontend/.e2e/measures/<version>.json); the cost of the entry of the cache of the indicators is read in MEASURE_CACHE (frontend/.e2e/measure-core-indicators.json), which make measure-core ONLY=indicators JSON=<that file> writes first; needs the secrets of service-up and a browser
-	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
-	@$(MAKE) --no-print-directory service-up
+measure-version: measure-cache-present measure-secrets install-front $(call e2e-build) ## The report of the measures of a version (US-2300, US-2970): on the reference set of 300 projects restored from its archive (make service-reference-backup; MEASURE_FROM=witness for the witness loaded afresh, a trial), each operation of table 15 the service serves, measured by a browser under the load of fifty users played by k6, then the portfolio view read cold and hot, the indicators kept at past dates, the export, the import of 18,000 lines of actual costs and the marking, read at their tasks; takes the workstation alone; MEASURE_VERSION (that of frontend/package.json), MEASURE_PASSES=5, MEASURE_TASK_PASSES=3, MEASURE_VERSION_REPORT=<file> (frontend/.e2e/measures/<version>.json); the cost of the entry of the cache of the indicators is read in MEASURE_CACHE (frontend/.e2e/measure-core-indicators.json), which make measure-core ONLY=indicators JSON=<that file> writes first; needs the secrets of service-up and a browser
+	@$(MAKE) --no-print-directory $(MEASURE_PLATFORM)
 	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet install witness
 	@$(COMPOSE_SERVICE) --profile load pull --quiet load
 	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
-		$(COMPOSE_SERVICE) run --rm --no-TTY witness && \
+		$(MEASURE_WITNESS) \
 		WATERFALL_API_ADDRESS=http://127.0.0.1:$${WATERFALL_API_PORT:-8000} && \
 		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
 		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
@@ -1125,6 +1133,48 @@ measure-version: measure-cache-present measure-secrets install-front $(call e2e-
 		export E2E_INSTALLATION_LINK WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
 		{ ( cd $(FRONT) && $(exclusive) $(PNPM_ENV) pnpm exec playwright test ); status=$$?; \
 		docker stop --time 60 $(LOAD_CONTAINER) > /dev/null 2>&1; exit $$status; }
+
+# The reading of a revision on a platform of one project and on one of six hundred (US-2970/L2,
+# WF-DAT-0050-A, second sentence; frontend/e2e/measure/scale.measure.ts): the same marked revisions of
+# PRJ-001 are read on the witness freshly loaded, then on the reference set restored at SCALE_PROJECTS
+# projects (make service-reference-backup REFERENCE_PROJECTS=600 first), and the gap is written. Never in
+# the chain: the measure takes the workstation alone, and the set of six hundred takes an hour to engender.
+SCALE_PROJECTS ?= 600
+SCALE_PASSES ?= 9
+SCALE_DIRECTORY ?= $(FRONT)/.e2e/scale
+SCALE_REPORT ?= $(SCALE_DIRECTORY)/scale.json
+.PHONY: measure-scale measure-scale-play
+$(call slot-export,measure-scale measure-scale-play,$(SLOT_SERVICE) $(SLOT_PATHS))
+measure-scale: export E2E_PART = measure-scale
+measure-scale: export E2E_BUILT = 1
+measure-scale-play: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
+measure-scale-play: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)
+measure-scale-play: export E2E_PART = measure-scale
+measure-scale-play: export E2E_BUILT = 1
+measure-scale-play: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
+measure-scale-play: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
+measure-scale-play: export E2E_SCALE_PASSES = $(SCALE_PASSES)
+measure-scale-play: export PRISM_VERSION := $(PRISM_VERSION)
+measure-scale: measure-secrets install-front $(call e2e-build) ## The reading of the same revisions of PRJ-001 on the witness (one project) then on the reference set restored at SCALE_PROJECTS (600) projects, the gap written in SCALE_REPORT (frontend/.e2e/scale/scale.json); the workstation alone; SCALE_PASSES=9; needs the secrets of service-up, a browser and the archive of make service-reference-backup REFERENCE_PROJECTS=600
+	@$(MAKE) --no-print-directory measure-scale-play SCALE_STEP=witness
+	@$(MAKE) --no-print-directory measure-scale-play SCALE_STEP=large
+
+# One play of the reading of the revisions on the platform SCALE_STEP names: the witness freshly loaded,
+# or the reference set restored; the link of the administrator is asked again in both, the archive
+# holding an administrator who set no password.
+measure-scale-play:
+	@$(MAKE) --no-print-directory $(if $(filter witness,$(SCALE_STEP)),$(MEASURE_FRESH),service-reference-restore REFERENCE_PROJECTS=$(SCALE_PROJECTS))
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet install witness
+	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
+		$(if $(filter witness,$(SCALE_STEP)),$(COMPOSE_SERVICE) run --rm --no-TTY witness &&) \
+		WATERFALL_API_ADDRESS=http://127.0.0.1:$${WATERFALL_API_PORT:-8000} && \
+		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
+		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
+		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
+		E2E_SCALE_FILE=$(abspath $(SCALE_DIRECTORY))/$(SCALE_STEP).json && \
+		$(if $(filter large,$(SCALE_STEP)),E2E_SCALE_BASELINE=$(abspath $(SCALE_DIRECTORY))/witness.json E2E_SCALE_REPORT=$(abspath $(SCALE_REPORT)) &&) \
+		export E2E_INSTALLATION_LINK WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS E2E_SCALE_FILE $(if $(filter large,$(SCALE_STEP)),E2E_SCALE_BASELINE E2E_SCALE_REPORT) && \
+		( cd $(FRONT) && $(exclusive) $(PNPM_ENV) pnpm exec playwright test )
 
 # The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
 # (waterfall-slots of /run/user/<uid>, of /tmp without it), whatever the repository and the session.

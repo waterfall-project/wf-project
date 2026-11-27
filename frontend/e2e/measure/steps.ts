@@ -60,6 +60,18 @@ import { MEASURE_WINDOW } from "./window";
 export const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 export const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 
+/**
+ * The revision the grids are opened on: that of the witness, the current one of PRJ-001 — until a
+ * measure on the reference set (US-2970), whose history marks it and opens a later one, says
+ * which it is (`measuredRevision`).
+ */
+let measured = REVISION;
+
+/** Open the grids on the revision `revision`: the current one of PRJ-001 on the platform measured. */
+export function measuredRevision(revision: string): void {
+  measured = revision;
+}
+
 /** The steps of the journey, in its order: the names the report gives them. */
 export const STEPS = [
   "planning.by-address",
@@ -105,7 +117,7 @@ const REMAINING: GridScreen = {
 
 /** The address of the screen of a grid. */
 function address(screen: GridScreen): string {
-  return `/projects/${PROJECT}/revisions/${REVISION}/${screen.segment}`;
+  return `/projects/${PROJECT}/revisions/${measured}/${screen.segment}`;
 }
 
 /** Where the start of a gesture by a key that sends — Enter — is kept, beside that of a click. */

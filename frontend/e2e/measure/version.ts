@@ -27,6 +27,7 @@
  */
 import type { Refusal } from "./load-check";
 import { median } from "./report";
+import type { PortfolioReading, ReadingSummary } from "./scale";
 
 /** An operation of table 15: its identifier in the reports, its objective in seconds. */
 interface Line {
@@ -41,7 +42,7 @@ export const TABLE: readonly Line[] = [
   { id: "open-grid", objective: 1 },
   { id: "recompute-after-entry", objective: 1 },
   { id: "indicators", objective: 1 },
-  { id: "portfolio-view", objective: 2, unserved: "EP-11" },
+  { id: "portfolio-view", objective: 2 },
   { id: "open-compared-grid", objective: 2 },
   { id: "filter-sort-search", objective: 2 },
   { id: "recompute-compared", objective: 2 },
@@ -69,6 +70,7 @@ export const OPERATION_OF_STEP: Readonly<Record<string, string>> = {
   "workload.from-planning": "workload-or-projection",
   "spending.from-workload": "workload-or-projection",
   "indicators.from-spending": "indicators",
+  "portfolio.view": "portfolio-view",
 };
 
 /** A duration measured: the operation, the pass, in seconds. */
@@ -225,6 +227,16 @@ export interface VersionReport {
   readonly taken_at: string;
   readonly conditions: Conditions;
   readonly operations: readonly ReportedOperation[];
+  /** The portfolio read cold then hot, and the decision on warming the cache (US-2970). */
+  readonly portfolio?: PortfolioReading;
+  /** The readings kept at a past date, on the platform measured (WF-DAT-0040, US-2970). */
+  readonly kept?: readonly ReadingSummary[];
+}
+
+/** What a report of a version holds beside its operations, taken on a platform at volumes. */
+export interface Beside {
+  readonly portfolio?: PortfolioReading;
+  readonly kept?: readonly ReadingSummary[];
 }
 
 /** A duration in seconds, to the millisecond. */
@@ -314,6 +326,7 @@ export function versionReport(
   conditions: Conditions,
   samples: readonly Measured[],
   cache: Cache,
+  beside: Beside = {},
 ): VersionReport {
   if (!/^\d+\.\d+\.\d+$/.test(version)) {
     throw new Error(`a version is numbered as 0.4.0, not ${version}`);
@@ -327,7 +340,14 @@ export function versionReport(
     const own = line.id === "indicators" ? withNote(cache, line.objective) : undefined;
     return { ...head, ...served, ...noted(line, served), ...(own ? { cache: own } : {}) };
   });
-  return { version, taken_at: takenAt.toISOString(), conditions, operations };
+  return {
+    version,
+    taken_at: takenAt.toISOString(),
+    conditions,
+    operations,
+    ...(beside.portfolio ? { portfolio: beside.portfolio } : {}),
+    ...(beside.kept ? { kept: beside.kept } : {}),
+  };
 }
 
 /** A background task as the API answers it (`BackgroundTaskRef`), as far as the measure reads it. */

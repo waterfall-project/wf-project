@@ -36,9 +36,9 @@ import { dirname } from "node:path";
 import { type APIRequestContext, type Browser, test } from "@playwright/test";
 
 import { LOADED } from "../bounds";
-import { frontToken, type LocalPerson, resetGridPreferences } from "../service/realm";
+import { type LocalPerson, resetGridPreferences } from "../service/realm";
 import { settle } from "../usable";
-import { administratorReady, contributorsOf, measureUsers } from "./accounts";
+import { administratorReady, contributorsOf, measureUsers, renewedToken } from "./accounts";
 import { cacheRead } from "./cache-read";
 import { type Caller, caller, exportPlanning, importCosts, markRevision } from "./background";
 import {
@@ -50,8 +50,19 @@ import {
 } from "./load-check";
 import { placeAndTasks, prepareLoad, startLoad, stopLoad } from "./load-users";
 import type { Interval } from "./report";
-import { journey, type Player, PROJECT, REVISION, signedIn, type Target, targets } from "./steps";
+import { openPortfolio, PORTFOLIO_STEP } from "./portfolio-screen";
+import { portfolioReading, type PortfolioReading, type ReadingSummary } from "./scale";
+import {
+  journey,
+  measuredRevision,
+  type Player,
+  PROJECT,
+  signedIn,
+  type Target,
+  targets,
+} from "./steps";
 import { type Measured, OPERATION_OF_STEP, type VersionReport, versionReport } from "./version";
+import { currentOf, keptReads, markedOf, type RevisionRef, revisionsOf, spread } from "./volumes";
 import {
   INDICATORS_STEP,
   indicatorsFromSpending,
@@ -82,20 +93,6 @@ const PASSES = whole("E2E_MEASURE_PASSES", 5);
 const TASK_PASSES = whole("E2E_MEASURE_TASK_PASSES", 3);
 if (PASSES < 2 || TASK_PASSES < 2) {
   throw new Error("two passes at least: a single one gives no dispersion");
-}
-
-/** How old the token of the user of the browser may grow before it is asked again. */
-const TOKEN_RENEWED_AFTER = 4 * 60_000;
-
-/** The token of an account, asked again once it grows old. */
-function renewedToken(browser: Browser, person: LocalPerson): () => Promise<string> {
-  let kept: { token: string; obtained: number } | undefined;
-  return async () => {
-    if (kept === undefined || Date.now() - kept.obtained > TOKEN_RENEWED_AFTER) {
-      kept = { token: await frontToken(browser, person), obtained: Date.now() };
-    }
-    return kept.token;
-  };
 }
 
 /** A screen opened after the journey, settled after; none when it is not reached. */
@@ -129,12 +126,22 @@ async function passes(
   return measured;
 }
 
+/** The marked revisions whose kept indicators are read at their past date. */
+const KEPT_READS = 5;
+
+/** The reads of a kept reading after its first, which is read cold apart. */
+const KEPT_PASSES = 5;
+
 /** The user of the browser, ready: signed in, its task found, the API under its token. */
 interface Measurer {
   readonly person: LocalPerson;
   readonly player: Player;
   readonly target: Target;
   readonly api: Caller;
+  /** The current revision of PRJ-001, which the grids open on and the load writes. */
+  readonly revision: string;
+  /** The marked revisions of PRJ-001, the oldest first, whose kept indicators are read. */
+  readonly marked: readonly RevisionRef[];
 }
 
 /**
@@ -154,7 +161,10 @@ async function prepared(
     throw new Error("no user for the browser");
   }
   const api = caller(calls, renewedToken(browser, person));
-  const { place, tasks, volumes } = await placeAndTasks(api, PROJECT, REVISION, loaders.length);
+  const revisions = await revisionsOf(api, PROJECT);
+  const revision = currentOf(revisions);
+  measuredRevision(revision);
+  const { place, tasks, volumes } = await placeAndTasks(api, PROJECT, revision, loaders.length);
   const [player] = await signedIn(browser, [person], origin);
   const [target] = player === undefined ? [] : await targets(player, 1);
   if (player === undefined || target === undefined) {
@@ -164,7 +174,12 @@ async function prepared(
   console.log(
     `Prepared: ${String(loaders.length)} users of the load, the browser at ${String(target.position)}`,
   );
-  return { measurer: { person, player, target, api }, users: loaders.length, volumes };
+  const marked = markedOf(revisions);
+  return {
+    measurer: { person, player, target, api, revision, marked },
+    users: loaders.length,
+    volumes,
+  };
 }
 
 /**
@@ -187,6 +202,7 @@ async function screens(
       await screen(player, WORKLOAD_STEP, workloadFromPlanning),
       await screen(player, SPENDING_STEP, spendingFromWorkload),
       await screen(player, INDICATORS_STEP, indicatorsFromSpending),
+      await screen(player, PORTFOLIO_STEP, openPortfolio),
     ];
     for (const { step, span } of pass < 0 ? [] : steps) {
       const operation = OPERATION_OF_STEP[step];
@@ -207,17 +223,52 @@ async function screens(
  * then once the revision is marked.
  */
 async function backgroundTasks(
-  { api }: Measurer,
+  { api, revision }: Measurer,
   version: string,
 ): Promise<{ tasks: Measured[]; frozenAt: number | undefined }> {
   let frozenAt: number | undefined;
-  const exported = await passes("export-planning", () => exportPlanning(api, PROJECT, REVISION));
+  const exported = await passes("export-planning", () => exportPlanning(api, PROJECT, revision));
   const imported = await passes("import-costs", (pass) => importCosts(api, PROJECT, pass));
   const marked = await passes("mark-revision", async (pass) => {
     frozenAt ??= Date.now();
     return markRevision(api, PROJECT, version, pass);
   });
   return { tasks: [...exported, ...imported, ...marked], frozenAt };
+}
+
+/** How many openings of the portfolio, after the cold one, give its hot duration. */
+const HOT_OPENINGS = 5;
+
+/**
+ * The portfolio opened before anything else reads it, then again: the first opening computes what
+ * the cache of the indicators lacks, the others find it. Outside the load, so that the figure is
+ * the cache's and not the contention's. The decision on warming it is `portfolioReading`'s.
+ */
+async function portfolioColdAndHot({ player }: Measurer): Promise<PortfolioReading> {
+  const seconds = async () => {
+    const { start, end } = await openPortfolio(player.page);
+    return (end - start) / 1000;
+  };
+  const cold = await seconds();
+  const hot: number[] = [];
+  for (let opening = 0; opening < HOT_OPENINGS; opening += 1) {
+    hot.push(await seconds());
+  }
+  const total = await player.page
+    .getByRole("main")
+    .getByText(/\d+ projets/)
+    .first()
+    .innerText();
+  const projects = Number(/(\d+) projets/.exec(total)?.[1] ?? "0");
+  console.log(
+    `Portfolio, ${String(projects)} projects: cold ${cold.toFixed(2)} s, hot ${hot.map((value) => value.toFixed(2)).join(" ")} s`,
+  );
+  return portfolioReading(projects, 2, cold, hot);
+}
+
+/** The indicators kept at the past dates of marked revisions spread over the history of PRJ-001. */
+async function keptAtPastDates({ api, marked }: Measurer): Promise<ReadingSummary[]> {
+  return keptReads(api, PROJECT, spread(marked, KEPT_READS), KEPT_PASSES);
 }
 
 /** Write the report, and its lines in the log of the run. */
@@ -254,6 +305,9 @@ test("measures each operation of table 15 the service serves under the load of f
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
     const { measurer, users, volumes } = await prepared(browser, calls, origin);
+    const portfolio = await portfolioColdAndHot(measurer);
+    const kept = await keptAtPastDates(measurer);
+    console.log(`Portfolio: ${portfolio.decision}`);
     let summary: LoadSummary | undefined;
     let refusals: readonly Refusal[] = [];
     let measured: Awaited<ReturnType<typeof screens>>;
@@ -289,7 +343,7 @@ test("measures each operation of table 15 the service serves under the load of f
     }
     const conditions = {
       project: PROJECT,
-      revision: REVISION,
+      revision: measurer.revision,
       users,
       tasks: volumes.tasks,
       estimate_lines: volumes.estimate_lines,
@@ -304,7 +358,10 @@ test("measures each operation of table 15 the service serves under the load of f
     };
     written(
       report,
-      versionReport(version, new Date(), conditions, [...measured.samples, ...tasks], cache),
+      versionReport(version, new Date(), conditions, [...measured.samples, ...tasks], cache, {
+        portfolio,
+        kept,
+      }),
     );
   } finally {
     await calls.dispose();
