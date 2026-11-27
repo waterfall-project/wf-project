@@ -3511,7 +3511,7 @@ mesures, la dispersion l'écart-type (n − 1) des médianes des passages. Il s'
 `frontend/package.json` sauf `MEASURE_VERSION`), jamais de lui-même sous `docs/measures/`, où le
 versionne le lot de la version, avec les `note` de ses dépassements. La mesure n'échoue sur aucune
 durée : seulement sur un compte qu'elle ne peut créer, des volumes inférieurs à ceux du §4.6.2 (mille
-tâches, cinq lignes de devis par tâche en moyenne, à l'arrondi près du témoin : 4,9 au moins), une étape que le navigateur ne mène pas à sa fin, une tâche
+tâches, cinq lignes de devis par tâche en moyenne, à l'arrondi près du témoin : 4,9 au moins), une tâche
 de fond qui échoue, ou une charge qui n'a pas tourné comme demandé (`load-check.ts`) : sans résumé,
 un utilisateur refusé faute de jeton, plus d'un pour cent de lectures ou de saisies refusées (un refus isolé par catégorie est toléré s'il est nommé au rapport, lu dans le journal de k6 avant l'arrêt ; un refus que le résumé compte et que le journal ne nomme pas, survenu pendant l'arrêt, n'est pas toléré), hors
 les gestes que le marquage refuse — le `409` `STATE_FORBIDS_OPERATION`, seul attendu, et non tout
@@ -3538,7 +3538,13 @@ suivent et ne s'imbriquent pas, et la seconde refuse de partir sans le fichier d
 toute installation ou construction. Un objectif dépassé s'écrit dans une note, sans que la mesure
 échoue : la médiane d'une opération dans la `note` de l'opération ; la maille lue seule à froid,
 dans la `note` de l'objet `cache` de `indicators` (elle cite #3802, où se décide son calcul) ; une issue
-à trancher s'ensuit (US-2420).
+à trancher s'ensuit (US-2420). De même une étape que le navigateur ne mène pas à sa fin sous la
+charge (US-2970, #4117) : elle est comptée à sa borne (`STEP_BOUND` de `steps.ts`, 180 s), un
+échantillon censuré, marquée `unreached` — l'étape et le nombre de passages manqués — sur l'opération
+du rapport, dont la `note` la dit ; l'opération dépasse alors son objectif, et la mesure n'échoue
+pas, même quand une étape n'est atteinte à aucun passage. Les appels de la préparation et du
+suivi des tâches (pas les lectures mesurées) attendent `PREPARATION_CALL` (deux minutes), l'API mettant
+en file ses réponses à cette charge (#5158).
 
 **La mesure aux volumes (US-2970/L2).** Avant la charge, la préparation ouvre la vue de portefeuille
 (`/portfolio/projects`, `portfolio-screen.ts` : de la requête à la valeur du portefeuille et à un

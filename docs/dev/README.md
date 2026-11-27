@@ -3489,7 +3489,7 @@ median and the worst duration are those of every measure, the dispersion the sta
 `MEASURE_VERSION`), never by itself under `docs/measures/`, where the lot of the version versions
 it, with the `note` of its overruns. The measure fails on no duration: only on an account it cannot
 make, volumes below those of §4.6.2 (a thousand tasks, five estimate lines a task on average, less the
-witness's rounding: 4.9 at least), a step the browser does not reach the end of, a background task that fails, or a load that did not run as asked
+witness's rounding: 4.9 at least), a background task that fails, or a load that did not run as asked
 (`load-check.ts`): without a summary, a user refused for want of a token, more than one percent of
 readings or entries refused (one refusal isolated per category is tolerated if it is named in the
 report, read in the k6 log before the stop; a refusal the summary counts and the log does not name,
@@ -3515,7 +3515,12 @@ exports as `E2E_MEASURE_CACHE`) to put the `cache` object on the `indicators` op
 fresh witness and take the workstation alone, so they follow each other and never nest, and the second
 refuses to start without the file of the first. An objective exceeded — the median of an operation, or a scope
 read cold — is written in the `note` of the operation of the report, and the measure does not fail; an issue to
-decide follows (US-2420).
+decide follows (US-2420). So is a step the browser does not reach the end of under the load (US-2970,
+#4117): it is counted at its bound (`STEP_BOUND` of `steps.ts`, 180 s), a censored sample, and marked
+`unreached` — the step and the number of passes missed — on the operation of the report, whose `note` says
+it; the operation then exceeds its objective, and the measure does not fail, even when a step is reached in
+no pass. The calls of the preparation and of the follow-up of the tasks (not the reads that are timed) wait
+`PREPARATION_CALL` (two minutes), the API queueing its answers under that load (#5158).
 
 **The measure at volumes (US-2970/L2).** Before the load, the preparation opens the portfolio view
 (`/portfolio/projects`, `portfolio-screen.ts`: from the request to the value of the portfolio and a
