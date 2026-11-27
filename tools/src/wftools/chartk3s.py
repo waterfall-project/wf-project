@@ -37,6 +37,19 @@ REGISTRIES = "/etc/rancher/k3s/registries.yaml"
 WAIT = 180.0
 """How long the API of the new cluster is waited for, in seconds."""
 STEP = 2.0
+NODE_WAIT = 60.0
+"""How long the node is waited to register with the API once it answers, in seconds.
+
+Measured (US-2810/L4, #5103): the API answers ``/readyz`` before the kubelet has registered the
+node, and ``kubectl wait --all`` then ends at once on « no matching resources found ».
+Locally, the delay from the first successful ``/readyz`` to the node being listed was 0.50 to
+0.51 s over five runs of the pinned image (a sixth, disturbed by a pull, was set aside). On the
+runners of the chain, the logs hold no successful ``/readyz``: the delay is taken from the last
+failed one to the node being listed Ready, 2.2 s in the passage that held (45934597996), and the
+node was still missing 2.1 s after it in three passages that failed (45913572822, 45935509708,
+45937624908). Nothing seen exceeds 2.5 s, so 60 s leaves a margin of more than twenty times
+without hiding a node that never comes.
+"""
 
 
 class K3sError(Exception):
@@ -123,6 +136,29 @@ def wait_for(
         waited += STEP
 
 
+def wait_for_node(
+    read: Read,
+    command: list[str],
+    sleep: Callable[[float], None] = time.sleep,
+) -> None:
+    """Wait until the API lists a node, which ``kubectl wait --all`` does not do itself.
+
+    ``kubectl wait`` over ``--all`` ends at once, in error, when no resource matches: it does not
+    wait for one to appear. The node registers a moment after the API answers, so it is listed
+    again, for ``NODE_WAIT`` seconds, until the output is not empty.
+    """
+    waited = 0.0
+    while True:
+        code, output = read([*command, "get", "nodes", "--output", "name"])
+        if code == 0 and output.strip():
+            return
+        if waited >= NODE_WAIT:
+            message = f"wait for the node to register failed ({code}) in {NODE_WAIT:.0f} s"
+            raise K3sError(message)
+        sleep(STEP)
+        waited += STEP
+
+
 def create(
     commands: tuple[Run, Read],
     kubectl: tuple[list[str], Path],
@@ -156,6 +192,7 @@ def create(
         )
         access_file.write_text(access(written, api_port), encoding="utf-8")
         wait_for(read, [*command, "get", "--raw", "/readyz"], "wait for the API")
+        wait_for_node(read, command)
     except K3sError as error:
         raise TrialError(str(error)) from error
     must(
