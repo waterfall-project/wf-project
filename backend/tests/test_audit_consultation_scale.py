@@ -24,6 +24,7 @@ from waterfall.platform.audit_consultation import (
     journal_projects,
     latest_first,
     list_entries,
+    page_statement,
 )
 from waterfall.witness import reference_load
 
@@ -60,16 +61,17 @@ COMPOSITE = {
 def read_between(database: Database, between: Written) -> tuple[list[AuditEntry], int]:
     """Read a page of the whole journal, a second session writing ``between`` after its first read.
 
-    The write comes once the first statement of the journal has run, by the cursor that ran it: a
-    page read by two statements — the total, then the lines — has its second one see it.
+    The write comes once the statement that counts the journal has run, by the cursor that ran it:
+    a page read by two statements — the total, then the lines — has its second one see it, whatever
+    was read of the journal before.
     """
     pending = [between]
 
     def write_after_first_read(*arguments: Any) -> None:
         # The arguments of the event: the connection, the cursor, the statement, its parameters,
         # its context and whether it runs many.
-        statement = str(arguments[2])
-        if pending and statement.lstrip().startswith("SELECT") and "audit_entry" in statement:
+        statement = str(arguments[2]).lower()
+        if pending and "count(" in statement and "audit_entry" in statement:
             write(database, (pending.pop(),))
 
     event.listen(database.engine, "after_cursor_execute", write_after_first_read)
@@ -138,29 +140,38 @@ def reads_the_journal(node: dict[str, Any]) -> bool:
     return node.get("Relation Name") == "audit_entry" and "Scan" in node["Node Type"]
 
 
-def explained(owner: Engine, key: Any) -> dict[str, Any]:
-    """Give the plan, run, of the read of the latest inscription of each value of ``key``."""
-    query = latest_first(key).compile(
-        dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
-    )
+def explained(owner: Engine, statement: Any) -> dict[str, Any]:
+    """Give the plan, run, of a statement."""
+    query = statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})
     with owner.begin() as connection:
         run = connection.execute(text(f"EXPLAIN (ANALYZE, FORMAT JSON) {query}")).scalar_one()
     return run[0]["Plan"]
 
 
-@pytest.mark.parametrize("key", list(COMPOSITE), ids=["authors", "projects"])
-def test_a_facet_of_the_journal_of_the_set_reads_by_its_index_and_does_not_read_the_journal_whole(
-    witness: Database, service_database_url: str, owner: Engine, key: Any
-) -> None:
-    # #934, on the set of reference (US-2950) loaded, its journal grown to its volumes: the latest
-    # inscription of each author, and of each project, is one probe of the composite index, in its
-    # own order — no scan of the journal in sequence, no sort of it, and as few lines read as
-    # there are values, where a ``DISTINCT ON`` reads and sorts every one.
-    del witness
-    assert reference_load.load_reference(settings(service_database_url), PROJECTS, UNEXTENDED) == 0
-    held = grown(owner)
-    assert held > 50_000
-    plan = explained(owner, key)
+def assert_page_read_by_the_dates(owner: Engine, held: int, offset: int) -> None:
+    """Check the page by default is read by the index of the dates and the journal not sorted whole.
+
+    Under the page, the journal is read backward by the index of the dates, as far as the page
+    reaches and no further: the window that ranks the page reads the lines it holds, it does not
+    wait for the journal sorted. The only sort left is of the lines of the page, once joined to the
+    total, which reads the journal whole, as it always did.
+    """
+    limit = 50
+    plan = explained(owner, page_statement(AuditFilters(), AuditSort(), limit, offset))
+    under = [node for node in nodes(plan) if node["Node Type"] == "Limit"]
+    assert len(under) == 1
+    journal = [node for node in nodes(under[0]) if reads_the_journal(node)]
+    assert [node["Node Type"] for node in journal] == ["Index Scan"]
+    assert journal[0]["Scan Direction"] == "Backward"
+    assert journal[0]["Actual Rows"] <= offset + limit + held // 100
+    for node in nodes(plan):
+        if node["Node Type"] == "Sort":
+            assert node["Actual Rows"] <= limit, node
+
+
+def assert_facet_read_by_its_index(owner: Engine, held: int, key: Any) -> None:
+    """Check the latest inscription of each value of ``key`` is one probe of its composite index."""
+    plan = explained(owner, latest_first(key))
     journal = [node for node in nodes(plan) if reads_the_journal(node)]
     assert not [node for node in journal if node["Node Type"] == "Seq Scan"]
     probes = [node for node in journal if node.get("Index Name") == COMPOSITE[key]]
@@ -172,6 +183,25 @@ def test_a_facet_of_the_journal_of_the_set_reads_by_its_index_and_does_not_read_
     read = sum(node["Actual Rows"] * node["Actual Loops"] for node in journal)
     assert values >= 1
     assert read <= 3 * (values + 1) < held / 100
+
+
+def test_the_journal_of_the_set_is_read_by_its_indexes_for_its_page_and_for_its_facets(
+    witness: Database, service_database_url: str, owner: Engine
+) -> None:
+    # #934, on the set of reference (US-2950) loaded, its journal grown to its volumes: the latest
+    # inscription of each author, and of each project, is one probe of the composite index, in its
+    # own order — no scan of the journal in sequence, no sort of it, and as few lines read as
+    # there are values, where a ``DISTINCT ON`` reads and sorts every one. #928 must not cost the
+    # page what it had: the first page and a deep one are read by the index of the dates. One
+    # loading serves all of them: the journal is grown once, which is what takes the time.
+    del witness
+    assert reference_load.load_reference(settings(service_database_url), PROJECTS, UNEXTENDED) == 0
+    held = grown(owner)
+    assert held > 50_000
+    for key in COMPOSITE:
+        assert_facet_read_by_its_index(owner, held, key)
+    for offset in (0, 50_000):
+        assert_page_read_by_the_dates(owner, held, offset)
 
 
 def test_the_facets_read_the_same_authors_and_projects_as_the_journal_names(

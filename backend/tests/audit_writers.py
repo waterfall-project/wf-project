@@ -13,6 +13,16 @@ of the contract that the module spells out: the guard cannot follow a value acro
 reads what the module says of the contract.
 
 It reads the source, never runs it: a writer to come is seen as these are (#932).
+
+What it does not see, and where it stops. The functions that write the journal are listed
+(``ACTION_OF``); that the list is complete for the module that defines the journal is tried
+(``writing_functions``), but a function elsewhere that takes an action to pass it on to those, as
+``inscribe`` does, is listed by hand: one that takes none needs no listing, its module names
+``record`` and is read as a writer. A name reached by ``import *`` (Ruff forbids it in the
+service), by ``importlib`` or by ``getattr(audit, "record")`` is not seen either: only the
+imports and the attributes the syntax spells are followed. The actions of a call the module does
+not resolve are those of the contract spelled in its function, in the functions whose signature
+types an action by ``AuditAction`` (the ones that carry it to the call), and at its module level.
 """
 
 import ast
@@ -169,6 +179,8 @@ def inscriptions_of(
     holder = enclosing_functions(tree)
     actions: set[str] = set()
     is_unresolved = False
+    # Where the module says what it cannot follow: the functions of the calls it does not resolve.
+    unresolved: list[ast.FunctionDef] = []
     for call in calls:
         where = ACTION_OF[dotted(call.func, bound) or ""]
         expression = None if where is None else action_argument(call, where)
@@ -177,20 +189,73 @@ def inscriptions_of(
         literals = resolved(expression, holder.get(call), bound)
         if literals is None:
             is_unresolved = True
+            if (function := holder.get(call)) is not None:
+                unresolved.append(function)
         else:
             actions |= literals
     if is_unresolved:
-        actions |= spelled(tree) & contract
+        typed = [each for each in set(holder.values()) if types_an_action(each, bound)]
+        actions |= spelled(tree, [*unresolved, *typed], holder) & contract
     return Writer(frozenset(actions), is_unresolved)
 
 
-def spelled(tree: ast.Module) -> set[str]:
-    """Give every string a module writes as a literal."""
+def types_an_action(function: ast.FunctionDef, bound: dict[str, str]) -> bool:
+    """Tell whether a function types a parameter or its result by ``AuditAction``."""
+    arguments = function.args.args + function.args.kwonlyargs
+    annotations = [each.annotation for each in arguments] + [function.returns]
+    return any(
+        isinstance(node, ast.Name | ast.Attribute)
+        and (dotted(node, bound) or "").endswith(".AuditAction")
+        for annotation in annotations
+        if annotation is not None
+        for node in ast.walk(annotation)
+    )
+
+
+def spelled(
+    tree: ast.Module, functions: list[ast.FunctionDef], holder: dict[ast.AST, ast.FunctionDef]
+) -> set[str]:
+    """Give the strings written as literals where an action is not resolved.
+
+    Those of the functions given — whose call is not resolved, or which type an action — and of
+    the module level, outside any function, where a table the function reads is written. The
+    literals of the other functions are left out: a string spelled there is no reason to think it
+    is inscribed. What remains is a compromise: a table the unresolved function reads from
+    another module, or one defined inside another function, is not seen, and any contract action
+    spelled at the module level counts, wherever it is used.
+    """
+    inside = {node for function in functions for node in ast.walk(function)}
     return {
         node.value
         for node in ast.walk(tree)
-        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and (node not in holder or node in inside)
     }
+
+
+def writing_functions(source: str, module: str) -> set[str]:
+    """Give the public functions of a module that write the journal: by the dotted name.
+
+    A function writes it when it builds an ``AuditEntry`` or names it in an ``insert``, or adds
+    to a session: in the module that defines the journal, nothing else is added to a session.
+    A private function is left out, its public caller is the one the guard must know.
+    """
+    found: set[str] = set()
+    for function in ast.parse(source).body:
+        if not isinstance(function, ast.FunctionDef) or function.name.startswith("_"):
+            continue
+        for node in ast.walk(function):
+            if not isinstance(node, ast.Call):
+                continue
+            callee = node.func
+            name = callee.id if isinstance(callee, ast.Name) else None
+            if isinstance(callee, ast.Attribute) and callee.attr in ("add", "add_all"):
+                found.add(f"{module}.{function.name}")
+            names = [each.id for each in node.args if isinstance(each, ast.Name)]
+            if name == "AuditEntry" or (name == "insert" and "AuditEntry" in names):
+                found.add(f"{module}.{function.name}")
+    return found
 
 
 def writers_of(root: Path, contract: frozenset[str]) -> dict[str, Writer]:

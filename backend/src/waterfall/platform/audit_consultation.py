@@ -156,6 +156,21 @@ def journal_query(filters: AuditFilters, sort: AuditSort) -> Select[AuditEntry]:
     return select(AuditEntry).where(*_kept(filters)).order_by(*_order(sort))
 
 
+def page_statement(
+    filters: AuditFilters, sort: AuditSort, limit: int, offset: int
+) -> Select[Any, Any, AuditEntry]:
+    """Build the one statement that reads the total and the page, the page hung from the total."""
+    kept = select(func.count().label("total")).select_from(AuditEntry).where(*_kept(filters))
+    counted = kept.subquery()
+    ranked = journal_query(filters, sort).add_columns(
+        func.row_number().over(order_by=_order(sort)).label("rank")
+    )
+    page = ranked.limit(limit).offset(offset).subquery().lateral()
+    entry = aliased(AuditEntry, page)
+    read = select(counted.c.total, page.c.id, entry).select_from(counted).outerjoin(page, true())
+    return read.order_by(page.c.rank)
+
+
 def list_entries(
     session: Session, filters: AuditFilters, sort: AuditSort, limit: int, offset: int
 ) -> AuditPage:
@@ -168,15 +183,7 @@ def list_entries(
     total to a page past the end, which holds no row to bear it — so the page hangs, by a lateral
     join, from the one row that counts. A page past the end gives that row alone, its entry null.
     """
-    kept = select(func.count().label("total")).select_from(AuditEntry).where(*_kept(filters))
-    counted = kept.subquery()
-    ranked = journal_query(filters, sort).add_columns(
-        func.row_number().over(order_by=_order(sort)).label("rank")
-    )
-    page = ranked.limit(limit).offset(offset).subquery().lateral()
-    entry = aliased(AuditEntry, page)
-    read = select(counted.c.total, page.c.id, entry).select_from(counted).outerjoin(page, true())
-    rows = session.execute(read.order_by(page.c.rank)).all()
+    rows = session.execute(page_statement(filters, sort, limit, offset)).all()
     return AuditPage([row[2] for row in rows if row.id is not None], rows[0].total)
 
 

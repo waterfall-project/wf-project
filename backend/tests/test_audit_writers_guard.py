@@ -7,8 +7,18 @@ ones the tests try and to the contract. A guard that missed a form of import wou
 through unseen: each form is read here on a source of a few lines, and the actions of each.
 """
 
+from pathlib import Path
+
 import pytest
-from audit_writers import Writer, contract_actions, inscriptions_of
+from audit_writers import (
+    ACTION_OF,
+    Writer,
+    contract_actions,
+    inscriptions_of,
+    writing_functions,
+)
+
+import waterfall
 
 pytestmark = pytest.mark.story("US-2980")
 
@@ -150,3 +160,45 @@ def test_an_action_the_module_does_not_bind_is_read_as_the_contract_actions_it_s
 def test_the_enumeration_of_the_contract_is_that_of_the_schema_of_the_actions() -> None:
     actions = contract_actions()
     assert {"project_create", "reference_designate", "project_manager_change", "restore"} <= actions
+
+
+def test_a_contract_action_spelled_outside_the_unresolved_call_is_not_counted() -> None:
+    # The action of ``f`` is not followed; ``g`` spells 'restore' for no inscription, and a table at
+    # the module level is read, as the function that unpacks it would.
+    source = (
+        "from waterfall.platform.audit import AuditAction, Inscription\n"
+        "TABLE = ('backup',)\n"
+        "def f(action: AuditAction):\n"
+        "    return Inscription(action) if action != 'user_update' else None\n"
+        "def g():\n"
+        "    return 'restore'\n"
+    )
+    assert read(source) == Writer(frozenset({"backup", "user_update"}), is_unresolved=True)
+    # A function that types the action it gives carries it to the call: its literals are read.
+    typed = source + "def h() -> list[AuditAction]:\n    return ['restore']\n"
+    assert read(typed) == Writer(
+        frozenset({"backup", "user_update", "restore"}), is_unresolved=True
+    )
+
+
+def test_the_functions_that_write_the_journal_are_found_by_what_they_do() -> None:
+    source = (
+        "def record(session, inscription):\n"
+        "    session.execute(insert(AuditEntry).values(**inscription))\n"
+        "def put(session):\n"
+        "    session.add(AuditEntry(id=1))\n"
+        "def _entry(inscription): return AuditEntry()\n"
+        "def forget(session):\n"
+        "    session.execute(update(AuditEntry).values(x=1))\n"
+    )
+    assert writing_functions(source, "m") == {"m.record", "m.put"}
+
+
+def test_every_public_function_that_writes_the_journal_is_known_to_the_guard() -> None:
+    # A writer added to the module of the journal, and not listed in ``ACTION_OF``, would be a way
+    # to inscribe the guard does not follow.
+    module = "waterfall.platform.audit"
+    source = (Path(waterfall.__file__).parent / "platform" / "audit.py").read_text(encoding="utf-8")
+    writing = writing_functions(source, module)
+    assert writing
+    assert writing <= set(ACTION_OF), writing - set(ACTION_OF)
