@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from wftools import chartk3s, charttrial
+from wftools import chartk3s, charttrial, kubeversions
 from wftools.chartrun import TrialError
 from wftools.charttrial import Tools, Trial
 from wftools.production import Platform
@@ -30,8 +30,11 @@ PLATFORM = Platform("waterfall.localhost", 41443, 0)
 
 def test_k3s_is_pulled_by_the_digest_of_its_manifest_and_is_not_the_kubernetes_of_kind() -> None:
     assert re.search(r"@sha256:[0-9a-f]{64}$", chartk3s.K3S)
-    assert "v1.36." in chartk3s.K3S
-    assert "v1.37." in charttrial.NODE
+    # two distributions at two versions, the one of kind being the oldest the chart declares: were
+    # k3s on that minor, the trial would try the same Kubernetes twice
+    minor = re.search(r":v(\d+)\.(\d+)\.", chartk3s.K3S)
+    assert minor
+    assert (int(minor[1]), int(minor[2])) != kubeversions.minimum()
 
 
 def test_the_node_is_a_privileged_container_that_publishes_https_and_the_api_on_the_loopback() -> (
@@ -89,6 +92,52 @@ def test_a_cluster_that_never_answers_stops_the_trial_naming_what_it_waited_for(
 def test_a_cluster_that_answers_late_is_waited_for() -> None:
     answers = iter([(1, ""), (1, ""), (0, "ready")])
     assert chartk3s.wait_for(lambda _: next(answers), ["cat"], "x", lambda _: None) == "ready"
+
+
+def test_a_node_not_yet_registered_is_waited_for_not_taken_for_a_failure() -> None:
+    answers = iter([(0, ""), (1, "No resources found"), (0, "\n"), (0, "node/n\n")])
+    asked: list[list[str]] = []
+    slept: list[float] = []
+
+    def read(command: list[str]) -> tuple[int, str]:
+        asked.append(command)
+        return next(answers)
+
+    chartk3s.wait_for_node(read, ["kubectl"], slept.append)
+    assert len(asked) == 4
+    assert asked[0] == ["kubectl", "get", "nodes", "--output", "name"]
+    assert slept == [chartk3s.STEP] * 3
+
+
+def test_a_node_that_never_registers_stops_the_trial_with_a_readable_message() -> None:
+    slept: list[float] = []
+    expected = r"wait for the node to register failed \(0\) in 60 s"
+    with pytest.raises(chartk3s.K3sError, match=expected):
+        chartk3s.wait_for_node(lambda _: (0, ""), ["kubectl"], slept.append)
+    assert sum(slept) == chartk3s.NODE_WAIT
+
+
+def test_the_node_is_waited_for_only_once_registered_after_the_access_and_the_api(
+    tmp_path: Path,
+) -> None:
+    events: list[str] = []
+
+    def run(command: list[str]) -> int:
+        events.append("wait" if "wait" in command else command[1])
+        return 0
+
+    def read(command: list[str]) -> tuple[int, str]:
+        if "cat" in command:
+            events.append("access")
+            return 0, "server: https://127.0.0.1:6443\n"
+        if "/readyz" in command:
+            events.append("readyz")
+            return 0, "ok"
+        events.append("nodes")
+        return 0, "node/n\n"
+
+    chartk3s.create((run, read), (["kubectl"], tmp_path / "kubeconfig"), "c", (1, 2), None)
+    assert events == ["run", "access", "readyz", "nodes", "wait"]
 
 
 def trial_of(tmp_path: Path, ran: list[list[str]], *, fails: str = "") -> Trial:

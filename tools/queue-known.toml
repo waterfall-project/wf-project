@@ -482,6 +482,18 @@ message = '''ghcr\.io[^\n]*(?:dial tcp[^\n]*(?:i/o timeout|connection (?:refused
 frequency = "2 passages le 2026-11-24 : service / paths (4/4) (45392474366), service / paths (1/4) (45460308679)"
 cause = "établie : le registre ghcr.io est injoignable depuis le runner, au pull du miroir comme au push des images du projet (`publish` d'`images.yml`), `dial tcp … i/o timeout` au bout de 60 s ; `make e2e-service` ne finit pas de tirer `node:26-alpine`. Depuis US-3270b, la commande est rejouée quatre fois (`wftools.retried`) : l'échec qui reste est celui d'un registre injoignable pendant tous les essais"
 
+# Le pull de l'image de travail des parcours de service, suspendu sans erreur jusqu'au délai du
+# job (#5135) : le job annulé n'a pas de journal, l'étape seule le reconnaît.
+[[known]]
+class = "infrastructure"
+family = "ghcr.io, le pull de l'image de travail des parcours suspendu"
+issue = "#5135"
+job = '^service / paths(?: \(\d+/\d+\))?$'
+step = '^Pull the work image of the paths$'
+runs = [45972023627]
+frequency = "1 passage, le 2026-11-27 (45972023627, file d'`epic/EP-13`, pr-5117, service / paths (1/4))"
+cause = "hypothèse : `docker pull` depuis ghcr.io reste suspendu sans rendre d'erreur ; les quatre essais de l'étape ne jouent que sur un pull qui échoue"
+
 # Le délai d'un job, dépassé : la chaîne trop longue, que US-1910 raccourcit.
 
 [[known]]
@@ -633,26 +645,27 @@ frequency = "1 passage, le 2026-11-26 (45835940068, file d'`epic/EP-13`, pr-5026
 cause = "hypothèse : sous la charge de la file, Entrée sur l'en-tête arrive avant que la grille du devis ait branché le tri au clavier, et l'URL ne change jamais"
 
 # Une image de Waterfall chargée dans le cluster de l'essai du chart, de kind ou de k3s, que la
-# recherche par empreinte ne trouve pas (#5065) : keycloak sur kind, waterfall sur k3s.
+# recherche par empreinte ne trouve pas (#5065) : keycloak puis waterfall sur kind, waterfall sur k3s.
 [[known]]
 class = "known flakiness"
 family = "chart-trial, une image de Waterfall absente du cluster de kind ou de k3s"
 issue = "#5065"
-job = '^chart / check( \(k3s\))?$'
+job = '^chart / check( \((kind|k3s)\))?$'
 step = 'chart-trial'
-message = 'wftools\.charttrial: find ghcr\.io/waterfall-project/[a-z]+@sha256:[0-9a-f]+ in the cluster failed'
-runs = [45868657554, 45923534175]
-frequency = "2 passages, file d'`epic/EP-13` : le 2026-11-26 (45868657554, pr-5064, keycloak sur kind), le 2026-11-27 (45923534175, pr-5082, waterfall sur k3s)"
+message = 'wftools\.charttrial: find ghcr\.io/waterfall-project/[a-z-]+@sha256:[0-9a-f]+ in the cluster failed'
+runs = [45868657554, 45923534175, 45949402517]
+frequency = "3 passages, file d'`epic/EP-13` : le 2026-11-26 (45868657554, pr-5064, keycloak sur kind), le 2026-11-27 (45923534175, pr-5082, waterfall sur k3s ; 45949402517, pr-5117, waterfall sur kind)"
 cause = "hypothèse : la recherche de l'image par son empreinte dans le nœud de kind suit de trop près son chargement, ou l'empreinte cherchée n'est pas celle que containerd garde"
 
-# L'essai du chart sur k3s, qui attend le nœud avant que le serveur d'API réponde (#5103).
+# L'import abandonné du parcours des échanges, relu en 404 au lieu d'`abandoned` (#5138).
 [[known]]
 class = "known flakiness"
-family = "chart-trial-k3s, l'attente du nœud avant le serveur d'API de k3s"
-issue = "#5103"
-job = '^chart / check \(k3s\)$'
-step = 'chart-trial-k3s'
-message = 'wftools\.charttrial: wait for the node failed'
-runs = [45913572822, 45933825076]
-frequency = "2 passages, le 2026-11-26 (45913572822) et le 2026-11-27 (45933825076), file d'`epic/EP-13`, pr-5082"
-cause = "hypothèse : l'essai attend le nœud avant que le serveur d'API de k3s soit prêt (`informer-sync failed`, `no matching resources found`)"
+family = "exchanges, le détail de l'import abandonné relu en 404"
+issue = "#5138"
+job = '^service / paths(?: \(\d+/\d+\))?$'
+test = 'e2e/exchanges\.spec\.ts:'
+lines = [497, 497]
+message = 'e2e/exchanges\.spec\.ts:614'
+runs = [45981157990]
+frequency = "1 passage, le 2026-11-27 (45981157990, file d'`epic/EP-13`, pr-5114)"
+cause = "hypothèse : le détail de l'import, relu après « Abandonner l'import », n'est plus lisible (404) et `toPass` répète le 404 jusqu'au délai"
