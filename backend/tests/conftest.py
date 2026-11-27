@@ -3,6 +3,7 @@
 """The fixtures of the tests of the service."""
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
@@ -10,6 +11,7 @@ from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
 import pytest
+import structlog
 from access_rows import role
 from backup_support import stand_in_realm, worker_of
 from estimate_support import pin_year
@@ -21,7 +23,7 @@ from openapi_core import Config, OpenAPI
 from project_rows import drop_every_partition, empty_database, unguarded
 from pydantic import SecretStr
 from realm import KEY, TestRealm
-from sharding import in_order, part_of
+from sharding import in_order, part_of, processes
 from sqlalchemy import Engine, insert, text
 from sqlalchemy.orm import Session
 from support import (
@@ -139,16 +141,6 @@ def on_the_witness(item: pytest.Item) -> bool:
     return any(name in names for name in ON_THE_WITNESS)
 
 
-def processes(config: pytest.Config) -> int:
-    """Count the processes of pytest-xdist the run spreads its tests over: 1 without it.
-
-    The controller and each of its processes read the same number (``-n``), hence compute the same
-    order. ``auto`` is resolved by the controller before it collects, and handed to the others.
-    """
-    number = getattr(config.option, "numprocesses", None)
-    return number if isinstance(number, int) and number > 0 else 1
-
-
 @pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Keep the part of ``--shard``, the tests on the witness last; start loading the template.
@@ -202,6 +194,28 @@ def installation_time_zone() -> Iterator[None]:
     TIME_ZONE.read_from(lambda: DELIVERED_TIME_ZONE)
     yield
     TIME_ZONE.read_from(lambda: DELIVERED_TIME_ZONE)
+
+
+@pytest.fixture(autouse=True)
+def logging_left_as_found() -> Iterator[None]:
+    """Give each test the logging it found: the handlers of the root, its level, structlog.
+
+    The entry points of the processes configure the logging of the process (``configure_logging``):
+    a test that runs one, ``main(...)``, replaces the handlers of the root and the configuration of
+    structlog for the tests that follow, which then log elsewhere than they read (``captured_logs``
+    restores its own the same way).
+    """
+    root = logging.getLogger()
+    handlers, level = list(root.handlers), root.level
+    configuration = structlog.get_config()
+    configured = structlog.is_configured()
+    yield
+    root.handlers[:] = handlers
+    root.setLevel(level)
+    if configured:
+        structlog.configure(**configuration)
+    else:
+        structlog.reset_defaults()
 
 
 @pytest.fixture

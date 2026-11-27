@@ -6,15 +6,21 @@ No requirement of the specification speaks of how the chain cuts its tests or ho
 these tests cite none.
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import NamedTuple
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, NamedTuple, cast
 
-from sharding import in_order, part_of
+from sharding import in_order, part_of, processes
+
+if TYPE_CHECKING:
+    import pytest
 
 BACK = Path(__file__).parent.parent
 PARTS = 6
+WORKERS = 4
 
 
 class Item(NamedTuple):
@@ -91,22 +97,24 @@ def test_more_heavy_tests_than_places_still_lose_none() -> None:
     assert sorted(names(in_order(items, on_the_witness, heavy, 4))) == sorted(names(items))
 
 
-def collected(*arguments: str) -> subprocess.Popen[str]:
-    """Start the collection of the tests of the back, one id a line."""
+def collected(*arguments: str, order: Path | None = None) -> subprocess.Popen[str]:
+    """Start the collection of the tests of the back, one id a line.
+
+    With ``order``, the run is one of pytest-xdist, whose first process writes the order it
+    collected there (``order_report``): ``--collect-only`` skips pytest-xdist, whose processes alone
+    know how many they are.
+    """
+    only = [] if order else ["--collect-only"]
     return subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "pytest",
-            "--collect-only",
-            "-q",
-            "-p",
-            "no:cacheprovider",
-            *arguments,
-        ],
+        [sys.executable, "-m", "pytest", "-q", *only, "-p", "no:cacheprovider", *arguments],
         cwd=BACK,
         stdout=subprocess.PIPE,
         text=True,
+        env={
+            **os.environ,
+            "PYTHONPATH": str(BACK / "tests"),
+            "WATERFALL_ORDER_FILE": str(order or ""),
+        },
     )
 
 
@@ -115,20 +123,55 @@ def identifiers(process: subprocess.Popen[str]) -> list[str]:
     return [line for line in out.splitlines() if "::" in line]
 
 
-def test_the_parts_of_the_real_list_hold_every_test_once_the_heavy_ones_ahead_and_even() -> None:
-    """Collect the real tests: the full list, the heavy ones, and the six parts as they run."""
+def test_the_parts_of_the_real_list_hold_every_test_once_the_heavy_ones_ahead_and_even(
+    tmp_path: Path,
+) -> None:
+    """Collect the real tests: the full list, the heavy ones, and the six parts as they run.
+
+    The parts are collected by four processes of pytest-xdist, as a run does: the order of each is
+    the one a process computes, which reads the count the controller handed it (#5155).
+    """
     everything = collected()
     marked = collected("-m", "heavy")
-    parts = [collected("--shard", f"{part}/{PARTS}") for part in range(1, PARTS + 1)]
+    files = [tmp_path / f"part{part}" for part in range(1, PARTS + 1)]
+    parts = [
+        collected(
+            "-p", "order_report", "-n", str(WORKERS), "--shard", f"{part}/{PARTS}", order=file
+        )
+        for part, file in enumerate(files, 1)
+    ]
     complete = identifiers(everything)
     heavy_ones = set(identifiers(marked))
-    played = [identifiers(process) for process in parts]
+    for process in parts:
+        process.communicate()
+    # Exit code 5: no test was collected, as ``order_report`` leaves none to run.
+    assert [process.returncode for process in parts] == [5] * PARTS
+    played = [file.read_text(encoding="utf-8").splitlines() for file in files]
     union = [name for part in played for name in part]
     assert len(union) == len(set(union))
     assert sorted(union) == sorted(complete)
     counts = [sum(name in heavy_ones for name in part) for part in played]
     assert sum(counts) == len(heavy_ones) > 0
     assert max(counts) - min(counts) <= 1
-    # One process: the heavy tests of a part are its first ones.
+    # Four processes: the heavy tests of a part head the slices, one per process, a quarter of the
+    # part apart (a place or two off where another heavy test took the place, at most).
     for part, count in zip(played, counts, strict=True):
-        assert all(name in heavy_ones for name in part[:count])
+        assert count <= WORKERS
+        places = [index for index, name in enumerate(part) if name in heavy_ones]
+        wanted = [rank * (len(part) // WORKERS) for rank in range(count)]
+        assert all(abs(place - head) <= count for place, head in zip(places, wanted, strict=True))
+
+
+def test_the_processes_are_counted_as_the_controller_handed_them_to_the_one_that_collects() -> None:
+    """Under pytest-xdist only a process collects, and its ``-n`` is reset: read ``workercount``."""
+
+    class Configured:
+        def __init__(self, **given: object) -> None:
+            self.option = SimpleNamespace(numprocesses=None)
+            for name, value in given.items():
+                setattr(self, name, value)
+
+    assert processes(cast("pytest.Config", Configured(workerinput={"workercount": 4}))) == 4
+    assert processes(cast("pytest.Config", Configured())) == 1
+    assert processes(cast("pytest.Config", Configured(workerinput={}))) == 1
+    assert processes(cast("pytest.Config", Configured(workerinput={"workercount": 0}))) == 1

@@ -75,7 +75,7 @@ addopts = ["--strict-markers", "--strict-config", "-m", "not keycloak"]
 markers = [
     "requirement(identifier): the requirement this test covers, cited by its full identifier (WF-QUA-0010)",
     "story(identifier): the story whose own criterion this test carries, cited as US-nnnn (US-2440)",
-    "heavy: loads a platform of its own, one to two minutes; played first of its group (tests/sharding.py)",
+    "heavy: loads a platform of its own, one to two minutes; placed at the head of a slice of a process of pytest-xdist (tests/sharding.py)",
     "keycloak: runs against the Keycloak of the service platform (make test-keycloak)",
 ]
 xfail_strict = true

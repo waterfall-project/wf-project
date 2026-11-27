@@ -709,6 +709,9 @@ imports-back: ## The boundaries of the core (WF-ARC-0010)
 # The tests of the back wait on PostgreSQL, Redis and the storage more than they compute: they run on
 # one process per core (pytest-xdist), eight at most — each takes a database of Redis of its own,
 # which has sixteen. The tests of Keycloak (test-keycloak) stay on one: one of them restarts it.
+# `--dist worksteal` hands each process a contiguous slice and steals from the tail of a slice, never
+# its head: the heavy tests, placed at the heads of the slices (backend/tests/sharding.py), start
+# together, one per process, where `load` would send them in a batch to the same one (#5155).
 PYTEST_WORKERS = -n $(WATERFALL_PROCESSORS) --maxprocesses 8 --dist worksteal
 BACK_PART = $(if $(SHARD),--shard=$(SHARD))
 

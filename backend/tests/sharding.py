@@ -4,20 +4,21 @@
 
 A part is the i-th of N of the tests, one in N in the order of their collection, the heavy ones
 counted apart (``--shard i/N``, back.yml): the files that load the witness, the longest, are spread
-over all the parts, and so are the heavy tests, to within one. Within a
-part, the tests marked ``heavy`` — each loads a platform of its own, one to two minutes — head the
-slice of a process: pytest-xdist (``--dist worksteal``) hands each of its W processes a contiguous
-slice of the part, one in W of the tests, and steals from the tail of a slice, never its head; the
-k-th heavy test takes the head of the slice of the process k modulo W, the next ones the places
-that follow the head. So the heavy tests start together, one per process, as long as there are no
-more than W of them, and none waits behind another. Which test a process runs after its heavy one
-depends on what the others steal; the order fixes the starts, not the ends. The other tests keep
-the order of the collection, those that need a copy of the template of the witness last, while it
-loads. Left where their files put them, the heavy tests ended a part, two minutes alone with the
-other processes idle (#5155).
+over all the parts, and so are the heavy tests, to within one. In a part, the tests marked
+``heavy`` — each loads a platform of its own, one to two minutes — head the slices of the
+processes: pytest-xdist (``--dist worksteal``) hands each of its W processes a contiguous slice of
+the part and steals from the tail of a slice, never its head; the k-th heavy test takes the head of
+the slice of the process k modulo W, the next ones the places that follow the head. So the heavy
+tests start together, one per process, as long as there are no more than W of them, and none waits
+behind another. W is the count each process of pytest-xdist is handed (``processes``), once
+``--maxprocesses`` is applied. Which test a process runs after its heavy one depends on what the
+others steal; the order fixes the starts, not the ends. The other tests keep the order of the
+collection, those that need a copy of the template of the witness last, while it loads. Left where
+their files put them, the heavy tests ended a part, two minutes alone with the other processes idle
+(#5155).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -40,6 +41,18 @@ def part_of[T](
         (kept if seen[kind] % parts == part - 1 else left).append(item)
         seen[kind] += 1
     return kept, left
+
+
+def processes(config: object) -> int:
+    """Count the processes of pytest-xdist this run spreads its tests over: 1 without it.
+
+    Only its processes collect, and each reads the count the controller handed it
+    (``workerinput["workercount"]``), once ``--maxprocesses`` and ``auto`` are applied: ``-n`` is
+    reset to nothing in them, so it says nothing there. Every process computes the same order.
+    """
+    given = cast("dict[str, object] | None", getattr(config, "workerinput", None))
+    count = given.get("workercount") if given is not None else None
+    return count if isinstance(count, int) and count > 0 else 1
 
 
 def in_order[T](
