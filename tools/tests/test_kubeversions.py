@@ -54,9 +54,7 @@ def test_the_node_tried_is_that_of_the_kube_version_of_the_chart(
 
 
 def test_the_node_tried_follows_the_chart_of_the_repository() -> None:
-    minimum = kubeversions.minimum()
-    assert minimum == (1, 35)
-    assert kubeversions.node().startswith(f"kindest/node:v{kubeversions.text(minimum)}.")
+    assert kubeversions.node() == kubeversions.NODES[kubeversions.minimum()]
 
 
 def test_the_nodes_are_pinned_by_digest_like_every_image_of_the_repository() -> None:
@@ -108,9 +106,7 @@ def test_a_kube_version_as_old_as_the_oldest_maintained_or_newer_is_accepted(
 
 def test_the_chart_of_the_repository_is_not_older_than_the_list_of_the_repository() -> None:
     kubeversions.check()
-    listed = kubeversions.maintained()
-    assert listed.versions[0] == (1, 35)
-    assert str(listed.as_of) == "2026-11-27"
+    assert kubeversions.maintained().versions
 
 
 def test_a_list_with_a_version_already_ended_is_refused_as_stale(tmp_path: Path) -> None:

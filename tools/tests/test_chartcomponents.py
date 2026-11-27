@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The chart requires Kubernetes 1.35 and checks the components before its migrations (US-2810).
 
-« Kubernetes dans une version au moins égale à 1.27 » is what the specification still says; the
+« Kubernetes dans une version au moins égale à 1.27 » (WF-CMP-0020-A) is what the specification
+still says; the
 chart declares 1.35, the oldest maintained version (the author's decision of 2026-11-26, #4085), and
 the specification is to follow (#5069). « Le déploiement échoue en le disant si un composant est
-d'une version antérieure à celle exigée. » (WF-CMP-0020-A). The chart declares the version of
+d'une version antérieure à celle exigée. » The chart declares the version of
 Kubernetes it requires, whose native ``sleep`` it uses for the drain of the pods of the front, of
 Keycloak and of the worker; the command ``waterfall-check-components`` of the image of Waterfall
 runs, as a step of the hook of the migrations, before them. That a refusal fails the deployment is

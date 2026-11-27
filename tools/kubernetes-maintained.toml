@@ -10,9 +10,10 @@
 #
 # `as_of`        la date à laquelle la liste a été relevée ;
 # `version`      la version mineure, « 1.35 » ;
-# `end_of_life`  la fin de la maintenance, d'après le calendrier du projet (environ quatorze mois
-#                après la sortie de la version) : elle doit suivre `as_of`, sans quoi la liste est
-#                périmée.
+# `end_of_life`  la fin de la maintenance, estimée (sortie + environ quatorze mois), non relevée ;
+#                à relire contre https://kubernetes.io/releases/. Elle doit suivre `as_of`, sans
+#                quoi la liste est périmée. Seule la plus ancienne version de la liste sert au
+#                contrôle de `kubeVersion` ; les dates ne servent qu'à refuser une liste périmée.
 
 as_of = 2026-11-27
 
