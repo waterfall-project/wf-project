@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from wftools import chart, chartauthority, chartk3s, charttrial, kubetools
+from wftools import chart, chartauthority, chartimages, chartk3s, charttrial, kubetools
 from wftools.chartrun import TrialError
 from wftools.charttrial import Tools, Trial
 from wftools.kubetools import Binary, ToolError
@@ -382,3 +382,28 @@ def test_every_command_of_the_trial_is_named_by_what_it_is_for() -> None:
             ).split()
         assert len(words) >= LEAST_WORDS, f"{line}: {words} does not say what it is for"
         assert words[0] not in {"kubectl", "helm", "kind", "openssl", "docker"}, f"line {line}"
+
+
+@pytest.mark.parametrize(
+    ("distribution", "kind"), [("kind", ["kind"]), ("k3s", None)], ids=["kind", "k3s"]
+)
+def test_the_images_are_loaded_by_the_tool_of_kind_and_by_none_on_k3s(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, distribution: str, kind: list[str] | None
+) -> None:
+    seen: list[tuple[list[str] | None, str, str]] = []
+
+    def load(_: object, tool: list[str] | None, name: str, tag: str) -> dict[str, str]:
+        seen.append((tool, name, tag))
+        return {"front": "sha256:x"}
+
+    monkeypatch.setattr(chartimages, "load", load)
+    trial = Trial(
+        Tools(["kind"], ["kubectl"], ["helm"]),
+        lambda _: 0,
+        lambda _: (0, ""),
+        tmp_path,
+        PLATFORM,
+        distribution=distribution,
+    )
+    assert trial.load("cluster", "abc") == {"front": "sha256:x"}
+    assert seen == [(kind, "cluster", "abc")]

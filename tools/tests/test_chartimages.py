@@ -87,8 +87,8 @@ class Time:
         self.now += seconds
         self.pauses += 1
 
-    def waiting(self) -> tuple[Callable[[], float], Callable[[float], None]]:
-        return (lambda: self.now, self.sleep)
+    def waiting(self) -> chartimages.Waiting:
+        return chartimages.Waiting(lambda: self.now, self.sleep)
 
 
 def node(unknown: int) -> Callable[[list[str]], tuple[int, str]]:
@@ -117,7 +117,8 @@ def test_an_image_the_runtime_knows_after_a_few_tries_is_found() -> None:
 def test_an_image_the_runtime_never_finds_stops_the_trial_after_the_bound() -> None:
     clock = Time()
     with pytest.raises(
-        TrialError, match=rf"find .*front@sha256:{'b' * 64} in the cluster failed \(1\) in 10 s"
+        TrialError,
+        match=rf"find .*front@sha256:{'b' * 64} in the cluster failed \(1\) in 10 s: no such image",
     ):
         chartimages.digest(
             (lambda _: 0, node(10**6)), "n", "ghcr.io/waterfall-project/front:abc", clock.waiting()

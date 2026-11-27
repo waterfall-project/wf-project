@@ -8,7 +8,7 @@ kubelet finds them by it. ``wftools.charttrial`` calls this module once the clus
 """
 
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from wftools import chartk3s
 from wftools.chartrun import Read, Run, TrialError, must, output
@@ -24,12 +24,23 @@ FIND_WAIT = 10.0
 Measured on a node of kind (2026-11-27, #5065, containerd 2.3.4): ``crictl inspecti`` found the
 name at its first try, 0.12 s after ``ctr tag`` — a ``docker exec`` included — in 60 of 60 tags,
 and under a load of two busy loops per processor it did so in 90 of 90, in 0.7 s at most. The race
-the queue met twice (``no such image`` 120 ms after the tag) does not come back on a quiet
-workstation, so the bound is not measured against it: it is some fifteen times the worst delay
-seen, for a node a loaded runner slows down; a name still unknown after it is another fault.
+the queue met twice (``no such image`` 120 ms after the tag) did not reproduce on the
+workstation, so the bound is not measured against it: it is a margin, some fifteen times the worst
+delay measured, for a node a loaded runner slows down; a name still unknown after it is another
+fault.
 """
 FIND_STEP = 0.5
 """The pause between two tries of ``crictl inspecti``."""
+
+
+class Waiting(NamedTuple):
+    """The clock and the pause of the wait for the runtime: a test gives its own."""
+
+    clock: Callable[[], float]
+    sleep: Callable[[float], None]
+
+
+REAL = Waiting(time.monotonic, time.sleep)
 
 
 def load(
@@ -68,7 +79,7 @@ def digest(
     commands: tuple[Run, Read],
     node: str,
     reference: str,
-    waiting: tuple[Callable[[], float], Callable[[float], None]] = (time.monotonic, time.sleep),
+    waiting: Waiting = REAL,
 ) -> str:
     """Make the node hold an image by its digest too, and return it.
 
@@ -95,11 +106,13 @@ def digest(
     tag = [*containerd, "tag", "--force", reference, named]
     must(run, tag, f"name {named} by its digest")
     find = ["docker", "exec", node, "crictl", "inspecti", named]
-    clock, sleep = waiting
-    began = clock()
-    while (code := read(find)[0]) != 0:
-        if (waited := clock() - began) >= FIND_WAIT:
-            message = f"find {named} in the cluster failed ({code}) in {waited:.0f} s"
+    began = waiting.clock()
+    while (code := (answer := read(find))[0]) != 0:
+        if (waited := waiting.clock() - began) >= FIND_WAIT:
+            message = (
+                f"find {named} in the cluster failed ({code}) in {waited:.0f} s: "
+                f"{answer[1].strip()}"
+            )
             raise TrialError(message)
-        sleep(FIND_STEP)
+        waiting.sleep(FIND_STEP)
     return found.group(0)
