@@ -128,7 +128,7 @@ async function passes(
 }
 
 /** The marked revisions whose kept indicators are read at their past date. */
-const KEPT_READS = 5;
+const KEPT_READS = 7;
 
 /** The reads of a kept reading after its first, which is read cold apart. */
 const KEPT_PASSES = 5;

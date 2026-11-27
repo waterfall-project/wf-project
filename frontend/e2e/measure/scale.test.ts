@@ -85,6 +85,11 @@ describe("timeReads", () => {
     await expect(timeReads(api, "read", "/path", 2)).rejects.toThrow("answered 409, not 200");
   });
 
+  it("leaves a read out when its first answer is the status it was told to leave [WF-DAT-0040]", async () => {
+    const api = { timed: () => Promise.resolve({ seconds: 0, status: 409 }) } as unknown as Caller;
+    expect(await timeReads(api, "read", "/path", 2, 409)).toBeUndefined();
+  });
+
   it("refuses a summary of no pass [WF-DAT-0050-A]", () => {
     expect(() => summary("read", 1, [])).toThrow("no pass after the first");
   });

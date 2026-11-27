@@ -37,17 +37,23 @@ function fraction(value: number): number {
 /**
  * Time a read once cold then `passes` times: the first duration is kept apart, the median and the
  * worst are those of the passes after it. A read that does not answer 200 is refused: nothing is
- * measured of an answer that is not the reading.
+ * measured of an answer that is not the reading — but for the status `leaving`, which the first
+ * read may get: the read is then left out, none (a revision that kept no indicators has none to
+ * read).
  */
 export async function timeReads(
   api: Caller,
   name: string,
   path: string,
   passes: number,
-): Promise<ReadingSummary> {
+  leaving?: number,
+): Promise<ReadingSummary | undefined> {
   const seconds: number[] = [];
   for (let pass = 0; pass <= passes; pass += 1) {
     const read = await api.timed(path);
+    if (pass === 0 && read.status === leaving) {
+      return undefined;
+    }
     if (read.status !== 200) {
       throw new Error(`${name}: GET ${path} answered ${String(read.status)}, not 200`);
     }

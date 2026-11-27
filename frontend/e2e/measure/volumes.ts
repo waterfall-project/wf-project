@@ -87,22 +87,27 @@ export async function revisionReads(
     if (main === undefined) {
       throw new Error(`the revision ${revision} has no main structure`);
     }
-    reads.push(
-      await timeReads(
-        api,
-        `revision ${revision}`,
-        `/projects/${project}/revisions/${revision}/structures/${main.structure_id}/nodes`,
-        passes,
-      ),
+    const read = await timeReads(
+      api,
+      `revision ${revision}`,
+      `/projects/${project}/revisions/${revision}/structures/${main.structure_id}/nodes`,
+      passes,
     );
+    if (read !== undefined) {
+      reads.push(read);
+    }
   }
   return reads;
 }
 
+/** The refusal of the indicators of a revision that kept none (`STATE_FORBIDS_OPERATION`). */
+const NOT_KEPT = 409;
+
 /**
  * The indicators kept at the past date of the marking of each of the revisions given: the reading
  * of a past date, which the back answers from what the revision kept (WF-DAT-0040), never by
- * computing it anew.
+ * computing it anew. A revision that kept none — the witness's, marked before the project was in
+ * progress — is refused (409) and left out; none kept at all is a measure that did not happen.
  */
 export async function keptReads(
   api: Caller,
@@ -116,14 +121,19 @@ export async function keptReads(
       throw new Error("a marked revision has the instant of its marking");
     }
     const day = dayOf(markedAt);
-    reads.push(
-      await timeReads(
-        api,
-        `indicators kept at ${day}`,
-        `/projects/${project}/indicators?as_of=${day}`,
-        passes,
-      ),
+    const read = await timeReads(
+      api,
+      `indicators kept at ${day}`,
+      `/projects/${project}/indicators?as_of=${day}`,
+      passes,
+      NOT_KEPT,
     );
+    if (read !== undefined) {
+      reads.push(read);
+    }
+  }
+  if (reads.length === 0) {
+    throw new Error("no revision of the project kept its indicators: nothing past to read");
   }
   return reads;
 }

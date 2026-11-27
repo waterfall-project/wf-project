@@ -70,6 +70,21 @@ describe("the indicators kept at a past date", () => {
     expect(asked).toHaveLength(6);
   });
 
+  it("leave out the revisions that kept none, refused 409, and fail when none kept any [WF-DAT-0040]", async () => {
+    const api = {
+      timed: (path: string) =>
+        Promise.resolve({ seconds: 0.1, status: path.includes("2026-07-06") ? 409 : 200 }),
+    } as unknown as Caller;
+    const reads = await keptReads(api, "p", markedOf(REVISIONS), 2);
+    expect(reads.map(({ name }) => name)).toEqual(["indicators kept at 2026-09-07"]);
+    const refusing = {
+      timed: () => Promise.resolve({ seconds: 0, status: 409 }),
+    } as unknown as Caller;
+    await expect(keptReads(refusing, "p", markedOf(REVISIONS), 2)).rejects.toThrow(
+      "no revision of the project kept its indicators",
+    );
+  });
+
   it("refuse a revision with no marking instant [WF-DAT-0040]", async () => {
     const api = {} as unknown as Caller;
     await expect(
