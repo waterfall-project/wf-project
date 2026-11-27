@@ -5,17 +5,24 @@
 The total of a page and its lines are read on one snapshot, two sessions meeting between the two
 readings (#928); the facets, which name each author and each project of the journal, do not read
 the journal whole, tried on the set of reference loaded (US-2950) and a journal grown to its
-volumes (#934). Both are the criteria of US-2980 that belong to it.
+volumes (#934). Both are the criteria of US-2980 that belong to it. The journal of a project of the
+set that its life completed is read five years after its closing, the purge having run on it
+(WF-SEC-0030).
 """
 
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlencode
 
 import pytest
-from sqlalchemy import event, text
+from projects_support import person
+from sqlalchemy import event, func, select, text
 from sqlalchemy.dialects import postgresql
+from task_handlers import deposit, task
 from test_audit_consultation import CLAIRE, JOURNAL, Written, at, write
 from test_witness_reference import UNEXTENDED, settings
 
+from waterfall.core.projects.tables import Project
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.audit_consultation import (
     AuditFilters,
@@ -27,11 +34,21 @@ from waterfall.platform.audit_consultation import (
     page_statement,
 )
 from waterfall.witness import reference_load
+from waterfall.worker import purge as purge_module
+from waterfall.worker.purge import PurgeTask
+from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from uuid import UUID
+
+    from realm import TestRealm
     from sqlalchemy import Engine
+    from support import ContractClient
 
     from waterfall.platform.database import Database
+    from waterfall.platform.queue import TaskQueue
+    from waterfall.platform.storage import Bucket
 
 pytestmark = pytest.mark.story("US-2980")
 
@@ -216,3 +233,82 @@ def test_the_facets_read_the_same_authors_and_projects_as_the_journal_names(
     named = {each.actor.user_id: each.actor.display_name for each in JOURNAL if each.actor}
     assert actors == named
     assert projects == {each.project.project_id for each in JOURNAL if each.project}
+
+
+def project_journal(api: ContractClient, headers: dict[str, str], project_id: UUID) -> Any:
+    """Read the whole journal of a project, oldest first, as a reader of it does."""
+    query = urlencode({"project_id": str(project_id), "sort_order": "asc", "limit": 500})
+    response = api.get(f"/api/v1/audit-events?{query}", headers=headers)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+@pytest.fixture
+def purging(
+    witness: Database, queue: TaskQueue, backups_bucket: Bucket, monkeypatch: pytest.MonkeyPatch
+) -> Callable[[datetime], None]:
+    """Give a purge the worker runs as of an instant: the clock the platform reads stands there."""
+
+    def purge_at(now: datetime) -> None:
+        monkeypatch.setattr(purge_module, "utc_now", lambda: now)
+        queue.prepare()
+        task_id = deposit(witness, queue, "purge")
+        handlers = {"purge": PurgeTask(backups_bucket, timedelta(hours=12), timedelta(days=30))}
+        assert Worker(witness, queue, handlers, "worker", Timing(block=0.1)).step()
+        assert task(witness, task_id).status == "succeeded"
+
+    return purge_at
+
+
+@pytest.fixture
+def loaded_set(witness: Database, service_database_url: str) -> Database:
+    """Give the database the set of reference is loaded on, by the command (US-2950)."""
+    assert reference_load.load_reference(settings(service_database_url), PROJECTS, UNEXTENDED) == 0
+    return witness
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_the_journal_of_a_project_completed_five_years_ago_is_consultable_on_the_set(
+    loaded_set: Database, api: ContractClient, realm: TestRealm, purging: Callable[[datetime], None]
+) -> None:
+    # « Le journal d'un projet terminé depuis cinq ans est toujours consultable. » : a project
+    # of the set of reference (US-2950) that its life completed, its journal read as a reader of it
+    # does; the clock then stands five years after its closing, and the purge — what the platform
+    # removes with time — runs on the set. The journal, which no process of the platform expires
+    # (« conservé aussi longtemps que les projets »), is read again: whole, as it was, each
+    # inscription older than five years.
+    with loaded_set.transaction() as session:
+        completed = session.scalars(
+            select(Project).where(Project.state == "completed").order_by(Project.code)
+        ).first()
+        assert completed is not None
+        closing = session.scalars(
+            select(AuditEntry.occurred_at).where(
+                AuditEntry.project_id == completed.id, AuditEntry.action == "project_exit"
+            )
+        ).one()
+        held = session.scalar(select(func.count()).select_from(AuditEntry)) or 0
+        code, label = completed.code, completed.label
+    reader = person(loaded_set, realm, "audit_log.read", "all_projects_read")
+    before = project_journal(api, reader.headers, completed.id)
+    actions = {event["action"] for event in before["items"]}
+    assert {"project_create", "revision_mark", "project_exit"} <= actions
+    assert before["meta"]["total"] == len(before["items"]) >= 3
+    last = before["items"][-1]
+    assert (last["action"], last["params"]["to_state"]) == ("project_exit", "completed")
+    assert last["project"] == {
+        "project_id": str(completed.id),
+        "code": code,
+        "label": label,
+        "can_open": True,
+    }
+    five_years_later = closing.replace(year=closing.year + 5) + timedelta(days=1)
+    purging(five_years_later)
+    after = project_journal(api, reader.headers, completed.id)
+    assert after == before
+    assert all(
+        five_years_later - datetime.fromisoformat(event["occurred_at"]) > timedelta(days=5 * 365)
+        for event in after["items"]
+    )
+    with loaded_set.transaction() as session:
+        assert session.scalar(select(func.count()).select_from(AuditEntry)) == held

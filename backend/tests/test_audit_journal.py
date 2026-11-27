@@ -6,6 +6,7 @@ The refusals are tried as the service meets them — by a role of the service, t
 connect as — and as the owner of the tables, whom only the trigger stops (WF-SEC-0030).
 """
 
+import json
 from dataclasses import replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
@@ -513,3 +514,59 @@ def test_no_endpoint_modifies_or_deletes_an_inscription(
     for path, item in served.items():
         for method, operation in item.items():
             assert declared[operation["operationId"]] == (method.upper(), path)
+
+
+def reached_schemas(node: object, schemas: dict[str, Any], seen: set[str]) -> set[str]:
+    """Name the schemas a piece of the contract refers to, those they refer to in turn included."""
+    found: set[str] = set()
+    if isinstance(node, dict):
+        for key, value in cast("dict[str, Any]", node).items():
+            name = value.rsplit("/", 1)[-1] if key == "$ref" and isinstance(value, str) else None
+            if name is None:
+                found |= reached_schemas(value, schemas, seen)
+            elif name not in seen:
+                seen.add(name)
+                found |= {name} | reached_schemas(schemas[name], schemas, seen)
+    elif isinstance(node, list):
+        for each in cast("list[Any]", node):
+            found |= reached_schemas(each, schemas, seen)
+    return found
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+@pytest.mark.requirement("WF-ADM-0190-A")
+def test_no_operation_of_the_whole_contract_writes_an_inscription(
+    contract: OpenAPI, services: Services
+) -> None:
+    # « Aucun écran ni endpoint ne permet de modifier ou de supprimer une inscription » et
+    # « Aucune commande de la vue ne modifie ni ne supprime une inscription », constatés sur chaque
+    # opération du contrat, telle que le service la sert : les deux opérations qui nomment le
+    # journal le lisent ; aucune opération qui écrit — POST, PUT, PATCH, DELETE — ne prend, dans
+    # son chemin, sa requête ou son corps, une inscription, une facette, l'identifiant d'une
+    # inscription ni aucun schéma du journal.
+    served = create_app(services).openapi()
+    schemas = cast("dict[str, Any]", served["components"]["schemas"])
+    assert {name for name in operations(contract) if "audit" in name.lower()} == {
+        "listAuditEvents",
+        "listAuditFacets",
+    }
+    writing = 0
+    for path, item in cast("dict[str, Any]", served["paths"]).items():
+        for method, operation in cast("dict[str, Any]", item).items():
+            if method.upper() == "GET":
+                continue
+            writing += 1
+            asked = {
+                "parameters": operation.get("parameters", []),
+                "body": operation.get("requestBody"),
+            }
+            journal = {
+                name
+                for name in reached_schemas(asked, schemas, set())
+                if name.startswith("Audit") and name != "Audit"
+            }
+            where = f"{method.upper()} {path}"
+            assert "audit-events" not in path, where
+            assert not journal, (where, journal)
+            assert "audit_event_id" not in json.dumps(asked), where
+    assert writing > 50

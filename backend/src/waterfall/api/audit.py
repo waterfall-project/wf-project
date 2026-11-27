@@ -9,6 +9,8 @@ sentence, that the front words in the language of each reader (WF-ARC-0110). No 
 inscribes, changes or deletes an inscription: only the action itself inscribes (WF-SEC-0030).
 """
 
+from collections.abc import Collection
+from dataclasses import dataclass
 from datetime import UTC
 from typing import Annotated, Any
 from uuid import UUID
@@ -28,9 +30,9 @@ from waterfall.api.contract.models import (
     PaginationMeta,
     SortOrder,
 )
-from waterfall.api.evaluation import Requires
+from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.queries import Offset, listed
-from waterfall.core.projects.interface import projects_named
+from waterfall.core.projects.interface import Viewer, openable, projects_named, projects_present
 from waterfall.core.users.interface import read_authors
 from waterfall.platform.audit import AuditEntry, AuditProject
 from waterfall.platform.audit_consultation import (
@@ -103,15 +105,34 @@ def audit_sort(
     return AuditSort(sort_by, None if sort_order is None else sort_order is SortOrder.desc)
 
 
-PROJECT_OPENS = False
-"""Whether an inscription leads to its project (`AuditProject.can_open`, WF-ADM-0190): never yet.
+@dataclass(frozen=True, slots=True)
+class Window:
+    """The page asked for: how many inscriptions, after how many."""
 
-The evaluation of `can_open` per caller, from the permissions and the contributors, does not
-exist yet (US-0701/L8): until it does, no caller is known to consult a project, and the value
-stays `False`."""
+    limit: int
+    offset: int
 
 
-def audit_event(entry: AuditEntry) -> AuditEvent:
+def audit_window(
+    limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT, offset: Offset = 0
+) -> Window:
+    """Read the page the journal asks for: fifty inscriptions from the first by default."""
+    return Window(limit, offset)
+
+
+def opened_by(session: Session, actor: Acting, project_ids: Collection[UUID]) -> frozenset[UUID]:
+    """Give those of the projects an inscription cites that the caller opens (WF-ADM-0190).
+
+    A project the caller opens is one that exists and that they read as the list of the projects
+    gives it (WF-ADM-0110, WF-PRJ-0060): a reader of them all, or a contributor. A project that
+    no longer exists — deleted, or created after the backup a restoration brought back — is
+    named by its inscription and led to by nothing. Two reads for the whole page.
+    """
+    present = projects_present(session, project_ids)
+    return openable(session, present, Viewer(actor.user_id, actor.permissions))
+
+
+def audit_event(entry: AuditEntry, opens: frozenset[UUID]) -> AuditEvent:
     """Describe an inscription as the contract does, as it was at the moment of the action."""
     actor: dict[str, Any] = (
         {"kind": "platform"}
@@ -134,7 +155,7 @@ def audit_event(entry: AuditEntry) -> AuditEvent:
             "project_id": entry.project_id,
             "code": entry.project_code,
             "label": entry.project_label,
-            "can_open": PROJECT_OPENS,
+            "can_open": entry.project_id in opens,
         }
     )
     return AuditEvent.model_validate(
@@ -161,16 +182,20 @@ def audit_event(entry: AuditEntry) -> AuditEvent:
 @router.get("/audit-events", operation_id="listAuditEvents", dependencies=READ)
 def get_audit_events(
     session: Transaction,
+    actor: Acting,
     filters: Annotated[AuditFilters, Depends(audit_filters)],
     sort: Annotated[AuditSort, Depends(audit_sort)],
-    limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT,
-    offset: Offset = 0,
+    window: Annotated[Window, Depends(audit_window)],
 ) -> dict[str, Any]:
     """Give a page of the journal, filtered and sorted by the server (WF-ADM-0190)."""
+    limit, offset = window.limit, window.offset
     page = list_entries(session, filters, sort, limit, offset)
+    cited = {entry.project_id for entry in page.entries if entry.project_id is not None}
+    opens = opened_by(session, actor, cited)
     return {
         "items": [
-            audit_event(entry).model_dump(mode="json", exclude_unset=True) for entry in page.entries
+            audit_event(entry, opens).model_dump(mode="json", exclude_unset=True)
+            for entry in page.entries
         ],
         "meta": PaginationMeta(limit=limit, offset=offset, total=page.total).model_dump(),
     }
@@ -197,7 +222,7 @@ def _projects_today(session: Session) -> list[AuditProject]:
 
 
 @router.get("/audit-events/facets", operation_id="listAuditFacets", dependencies=READ)
-def get_audit_facets(session: Transaction) -> AuditFacets:
+def get_audit_facets(session: Transaction, caller: Acting) -> AuditFacets:
     """Give the accounts and the projects the whole journal names, to choose one in its filters.
 
     An account by the name it shows today, read from the accounts — by the name its latest
@@ -209,6 +234,8 @@ def get_audit_facets(session: Transaction) -> AuditFacets:
     the identifiers; a project without code after the codes (#2166).
     """
     named = journal_actors(session)
+    projects = _projects_today(session)
+    opens = opened_by(session, caller, [project.project_id for project in projects])
     today = read_authors(session, [actor.user_id for actor in named])
     actors = sorted(
         (
@@ -227,9 +254,9 @@ def get_audit_facets(session: Transaction) -> AuditFacets:
                     "project_id": project.project_id,
                     "code": project.code,
                     "label": project.label,
-                    "can_open": PROJECT_OPENS,
+                    "can_open": project.project_id in opens,
                 }
-                for project in _projects_today(session)
+                for project in projects
             ],
         }
     )
