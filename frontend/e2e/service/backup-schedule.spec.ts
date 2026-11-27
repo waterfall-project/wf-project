@@ -40,7 +40,8 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import catalogue from "../../messages/fr.json" with { type: "json" };
 import type { components } from "../../src/api/generated/schema";
-import { WORKING } from "../bounds";
+import { BACKUP_DONE, SCHEDULED_BACKUP_COPIED, WORKING } from "../bounds";
+import { container } from "./components";
 import { menuButton, openFilters, pick } from "../check-menu";
 import { compileAnswered } from "../compile";
 import { untilHydrated } from "../hydration";
@@ -428,29 +429,29 @@ test("a backup taken is listed, marked to keep and released, filtered and sorted
 
 /** What the worker sees in a folder of the location: the volume has no path on the host. */
 function onTheLocation(path: string): string[] {
-  const worker = process.env.E2E_SERVICE_WORKER;
-  if (worker === undefined || worker === "") {
-    throw new Error(
-      "E2E_SERVICE_WORKER must name the container of the worker: run make e2e-service",
-    );
-  }
+  const worker = container("worker");
   try {
     return execFileSync("docker", ["exec", worker, "ls", `${FOLDER}/${path}`], {
       encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
+      stdio: ["ignore", "pipe", "pipe"],
     })
       .split("\n")
       .filter((name) => name !== "");
-  } catch {
-    // The folder is written with the first copy: none yet.
-    return [];
+  } catch (error) {
+    // The folder is written with the first copy: none yet. Any other failure is not an empty folder.
+    const said = (error as { stderr?: string }).stderr ?? "";
+    if (said.includes("No such file or directory")) {
+      return [];
+    }
+    throw error;
   }
 }
 
 /** Deposit what is due, as the planners do every five minutes: the container of the worker has the settings. */
 function planDue(): void {
-  const worker = process.env.E2E_SERVICE_WORKER ?? "";
-  execFileSync("docker", ["exec", worker, "waterfall-worker", "schedule"], { stdio: "ignore" });
+  execFileSync("docker", ["exec", container("worker"), "waterfall-worker", "schedule"], {
+    stdio: "ignore",
+  });
 }
 
 /** The name of the copy of a backup: its date, in universal time (`copy_name` of the service). */
@@ -467,7 +468,7 @@ test("the copy of a schedule to a declared location is chosen, its location test
 }) => {
   // A scheduled backup by the worker, its verification, its copy: a minute or two, after the
   // minute the schedule is set to.
-  test.setTimeout(600_000);
+  test.setTimeout(SCHEDULED_BACKUP_COPIED + 2 * WORKING);
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   const administrator = await accountAdministrator(browser, calls);
   const holder = await localAccount(browser, administrator);
@@ -511,7 +512,8 @@ test("the copy of a schedule to a declared location is chosen, its location test
 
     // Due at the next minute, with a margin to save before it: the occurrence must come after the
     // writing of the schedule (`backup_is_due`).
-    const ahead = new Date(Date.now() + (new Date().getUTCSeconds() > 35 ? 120_000 : 60_000));
+    // At least forty seconds of margin: the next minute, or the one after it.
+    const ahead = new Date(Date.now() + (new Date().getUTCSeconds() > 20 ? 120_000 : 60_000));
     ahead.setUTCSeconds(0, 0);
     const at = ahead.toISOString().slice(11, 16);
     await form.getByLabel("Heure (UTC)").fill(at);
@@ -519,6 +521,12 @@ test("the copy of a schedule to a declared location is chosen, its location test
     await expect(form).toBeHidden({ timeout: WORKING });
     await expect(section.getByRole("status")).toHaveText("Planification enregistrée.");
     await expect(section).toContainText(`Vers ${LOCATION}, dossier ${folder}`);
+
+    // Saved before the minute, or the occurrence is tomorrow's and nothing would be deposited.
+    expect(
+      Date.now(),
+      `the schedule was saved after ${at} UTC, the minute it is due: the runner is too slow`,
+    ).toBeLessThan(ahead.getTime());
 
     // The copy kept by the service: the schedule read anew carries it, and the page too.
     const written = await current();
@@ -537,18 +545,18 @@ test("the copy of a schedule to a declared location is chosen, its location test
     await expect
       .poll(
         async () => {
-          if (Date.now() > ahead.getTime()) {
+          if (taken === undefined && Date.now() > ahead.getTime()) {
             planDue();
           }
           taken = (await scheduled()).find((one) => !before.has(one.backup_id));
           return taken?.verification;
         },
-        { timeout: 300_000, intervals: [5_000] },
+        { timeout: SCHEDULED_BACKUP_COPIED, intervals: [5_000] },
       )
       .toBe("passed");
     const name = copyName(taken?.taken_at ?? "");
     await expect
-      .poll(() => onTheLocation(folder), { timeout: 120_000, intervals: [2_000] })
+      .poll(() => onTheLocation(folder), { timeout: BACKUP_DONE, intervals: [2_000] })
       .toEqual([name]);
   } finally {
     try {
