@@ -183,6 +183,8 @@ NEXT = "_next"
 # writings of the journal queued behind it all the while; and the pause before it tries again.
 LOCK_WAIT = "500ms"
 LOCK_RETRY_SECONDS = 1.0
+# A WARNING at the first refusal, then one every ``LOG_EVERY_SECONDS`` at most; not imported from
+# ``env.py``, a migration stays on its own.
 LOG_EVERY_SECONDS = 10.0
 
 

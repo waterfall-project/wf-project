@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy import text
+from support import RefusalClock
 
 from waterfall.migrations.runner import upgrade
 
@@ -44,18 +45,29 @@ def test_a_run_that_waits_for_the_lock_of_another_writes_a_warning_naming_the_lo
 
 @pytest.mark.story("US-2850")
 @pytest.mark.requirement("WF-DAT-0140-A")
-def test_a_lock_held_two_seconds_gives_at_most_two_warnings_of_the_run_that_waits(
-    empty_engine: Engine, caplog: pytest.LogCaptureFixture
+def test_a_lock_refused_thirteen_times_over_a_clock_of_a_second_a_try_gives_two_warnings(
+    empty_engine: Engine, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # #5151: a WARNING at the first refusal, then one every ten seconds, not one per refusal.
+    """Give the first refusal, then the one past ten seconds with the count of those between.
+
+    #5151. The clock is the test's, one second a try, so that the limit is proved whatever the
+    speed of the machine: thirteen refusals cover thirteen seconds, which is more than the two
+    seconds of the criterion (a lock held two seconds gives at most two lines) and crosses the
+    ten-second limit once. Over the real time, the former code, a line per refusal, passed that
+    criterion too: the period of a refusal was too long for the test to tell them apart.
+    """
+    clock = RefusalClock(monkeypatch, ("env.py",), stop_after=13)
     caplog.set_level("WARNING")
     with ThreadPoolExecutor(1) as pool, empty_engine.connect() as holder:
         holder.execute(text("SELECT pg_advisory_lock(:key)"), {"key": KEY})
         holder.commit()
         migrating = pool.submit(upgrade, empty_engine, "0001")
-        time.sleep(2)
+        assert clock.reached.wait(60)
         holder.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": KEY})
         holder.commit()
+        clock.gate.set()
         migrating.result(timeout=60)
     refusals = [each for each in caplog.messages if "migration lock refused" in each]
-    assert 1 <= len(refusals) <= 2
+    assert len(refusals) == 2
+    assert "refused 1 time(s)" in refusals[0]
+    assert "refused 10 time(s)" in refusals[1]
