@@ -41,12 +41,14 @@ NODE_WAIT = 60.0
 """How long the node is waited to register with the API once it answers, in seconds.
 
 Measured (US-2810/L4, #5103): the API answers ``/readyz`` before the kubelet has registered the
-node, and ``kubectl wait --all`` then ends at once on « no matching resources found ». Locally the
-node is listed 0.5 s after ``/readyz`` (five runs of the pinned image, 0.50 to 0.51 s); on the
-runners of the chain the node was still missing 2.1 s after the last failed ``/readyz`` in three
-passages (45913572822, 45935509708, 45937624908), and registered and Ready within 2.2 s of it in
-the passage that held (45934597996). Nothing seen exceeds 2.5 s, so 60 s leaves a margin of more
-than twenty times without hiding a node that never comes.
+node, and ``kubectl wait --all`` then ends at once on « no matching resources found ».
+Locally, the delay from the first successful ``/readyz`` to the node being listed was 0.50 to
+0.51 s over five runs of the pinned image (a sixth, disturbed by a pull, was set aside). On the
+runners of the chain, the logs hold no successful ``/readyz``: the delay is taken from the last
+failed one to the node being listed Ready, 2.2 s in the passage that held (45934597996), and the
+node was still missing 2.1 s after it in three passages that failed (45913572822, 45935509708,
+45937624908). Nothing seen exceeds 2.5 s, so 60 s leaves a margin of more than twenty times
+without hiding a node that never comes.
 """
 
 
