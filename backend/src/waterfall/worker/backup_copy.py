@@ -32,6 +32,7 @@ from waterfall.core.backups.interface import (
 from waterfall.platform.database import utc_now
 from waterfall.platform.external_locations import (
     COPY_TIMEOUT,
+    TIMED_OUT,
     UNREACHABLE,
     WRITE_FAILED,
     ExternalStore,
@@ -46,6 +47,7 @@ from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import UndoneError
 
 if TYPE_CHECKING:
+    import threading
     from collections.abc import Callable
 
     from sqlalchemy.orm import Session
@@ -130,21 +132,41 @@ class CopyTask:
             expected = (archive.stat().st_size, _digest(archive))
             if expected[0] != copy.size_bytes:
                 raise ArchiveChangedError(copy.object_key)
-            return bounded(self.timeout, lambda: self._written(copy, declared, archive, expected))
+            return bounded(
+                self.timeout,
+                lambda abandoned: self._written(copy, declared, archive, expected, abandoned),
+            )
 
     def _written(
-        self, copy: CopyToMake, declared: DeclaredLocation, archive: Path, expected: tuple[int, str]
+        self,
+        copy: CopyToMake,
+        declared: DeclaredLocation,
+        archive: Path,
+        expected: tuple[int, str],
+        abandoned: threading.Event,
     ) -> list[str]:
-        """Write the archive, read it back and turn the folder; give the removed copies."""
+        """Write the archive, read it back and turn the folder; give the removed copies.
+
+        Once ``abandoned`` is set — the time spent, the copy said ``timed_out`` — it goes no
+        further: it does not read back, and erases no older copy.
+        """
         key = key_of(copy.path, copy.name)
         with reached(declared, self.opened) as store:
             store.put(key, archive)
+            _go_on(abandoned)
             if store.read_back(key) != expected:
                 raise LocationRefusedError(WRITE_FAILED)
             gone = copies_beyond(store.names(copy.path), copy.retained_count)
             for name in gone:
+                _go_on(abandoned)
                 store.remove(key_of(copy.path, name))
         return gone
+
+
+def _go_on(abandoned: threading.Event) -> None:
+    """Refuse to go further once the copy has been said ``timed_out``."""
+    if abandoned.is_set():
+        raise LocationRefusedError(TIMED_OUT)
 
 
 def _digest(path: Path) -> str:

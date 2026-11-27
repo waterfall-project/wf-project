@@ -43,7 +43,7 @@ spec:
       labels:
         {{- include "waterfall.selector" (list . "api") | nindent 8 }}
     spec:
-      {{- include "waterfall.podDefaults" (list . (dict "fsGroup" 1000)) | nindent 6 }}
+      {{- include "waterfall.podDefaults" (list . (dict "fsGroup" 1000 "fsGroupChangePolicy" "OnRootMismatch")) | nindent 6 }}
       {{- include "waterfall.drainGrace" . | nindent 6 }}
       initContainers:
         {{- include "waterfall.transportInit" (list . "api" 1000 1000) | nindent 8 }}

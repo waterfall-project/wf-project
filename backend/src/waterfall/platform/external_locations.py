@@ -390,23 +390,28 @@ def witness_test(store: ExternalStore, folder: str) -> None:
         store.tidy()
 
 
-def bounded[T](seconds: float, work: Callable[[], T]) -> T:
+def bounded[T](seconds: float, work: Callable[[threading.Event], T]) -> T:
     """Run work for ``seconds`` at most; give its result, or raise what it raised.
 
     A location that does not answer — a share whose mount hangs, a storage that holds a connection —
     is said ``timed_out`` once the time is spent. The work runs in a thread of its own, a daemon: a
     call stuck in the file system cannot be interrupted, and is let go of rather than joined, so
     that it holds neither the task nor the stop of the worker.
+
+    The work is given an event, set once the time is spent: a work let go of must not go on to do
+    what the refusal said was not done — read back, or erase the older copies. A copy it wrote
+    before may remain on the location.
     """
     outcome: list[T] = []
-    failed: list[Exception] = []
+    failed: list[BaseException] = []
+    abandoned = threading.Event()
 
     def run() -> None:
         try:
-            outcome.append(work())
+            outcome.append(work(abandoned))
         except LocationRefusedError as refused:
             failed.append(refused)
-        except Exception as error:
+        except BaseException as error:
             # A fault of the program, handed to the caller as it is: the thread has no one to tell.
             logger.exception("location.copy_failed")
             failed.append(error)
@@ -415,6 +420,7 @@ def bounded[T](seconds: float, work: Callable[[], T]) -> T:
     thread.start()
     thread.join(seconds)
     if thread.is_alive():
+        abandoned.set()
         raise LocationRefusedError(TIMED_OUT)
     if failed:
         raise failed[0]

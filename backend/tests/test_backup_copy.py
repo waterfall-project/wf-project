@@ -13,6 +13,7 @@ refusal fails the task, which the gauge and the status screen read.
 import hashlib
 import re
 import threading
+import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -55,6 +56,7 @@ from waterfall.platform.external_locations import (
     ExternalStore,
     S3Store,
     ShareStore,
+    bounded,
     store_of,
 )
 from waterfall.platform.keycloak_admin import KeycloakAdmin
@@ -397,6 +399,72 @@ def test_a_copy_that_does_not_end_within_the_bound_fails_as_timed_out_and_says_s
             assert failed_copy(session) == FailedCopy(backup_id, SHARE, "timed_out")
     finally:
         released.set()
+
+
+class Recording(Damaging):
+    """A location that holds the end of the writing until let go, and counts what it erases."""
+
+    def __init__(
+        self, store: ExternalStore, released: threading.Event, read: list[str], erased: list[str]
+    ) -> None:
+        super().__init__(store)
+        self.released = released
+        self.read = read
+        self.erased = erased
+
+    def put(self, key: str, path: Path) -> None:
+        # The file is written, as a mount that hangs on closing it leaves it, then the call hangs.
+        super().put(key, path)
+        self.released.wait(10)
+
+    def read_back(self, key: str) -> tuple[int, str]:
+        self.read.append(key)
+        return self.store.read_back(key)
+
+    def remove(self, key: str) -> None:
+        self.erased.append(key)
+        super().remove(key)
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_a_copy_let_go_of_at_the_bound_erases_no_older_copy_when_it_ends_later(
+    bench: Bench, tmp_path: Path
+) -> None:
+    # The refusal ``timed_out`` says the rotation was not done: the work let go of, once its writing
+    # ends, goes no further, and the older copies stay.
+    locations = bench.located()
+    location = locations.get(SHARE)
+    assert location is not None
+    bench.copy_set(SHARE, retained_count=1, platform_retained=1)
+    for day in (1, 2):
+        put_in(location, f"{FOLDER}/waterfall-backup-202610{day:02}T010000Z.tar", b"old", tmp_path)
+    released = threading.Event()
+    read: list[str] = []
+    erased: list[str] = []
+    backup_id = bench.archived(FOURTH)
+
+    def recording(declared_location: DeclaredLocation) -> ExternalStore:
+        return Recording(store_of(declared_location), released, read, erased)
+
+    try:
+        task_id = bench.copied(bench.copying(locations, opened=recording, timeout=0.2), backup_id)
+        assert task(bench.database, task_id).status == "failed"
+    finally:
+        released.set()
+    # The work let go of runs on, the time to reach what it must not do.
+    time.sleep(0.5)
+    assert read == []
+    assert erased == []
+    assert len(names_in(location, FOLDER)) == 3
+    assert bench.copy_row(backup_id) == (SHARE, FOLDER, "timed_out")
+
+
+def test_a_work_that_raises_a_base_exception_is_raised_to_the_caller_not_an_index_error() -> None:
+    def leaving(_: threading.Event) -> None:
+        raise SystemExit(3)
+
+    with pytest.raises(SystemExit):
+        bounded(5, leaving)
 
 
 class Clock:

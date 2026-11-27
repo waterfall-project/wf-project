@@ -86,6 +86,8 @@ def test_the_api_and_the_worker_of_the_chart_read_the_same_file_from_one_secret(
     for component in ("api", "worker"):
         spec = pod(of_kind(objects, "Deployment")[component])
         assert spec["securityContext"]["fsGroup"] == 1000
+        # The group of a volume is not copied again, file by file, at each start.
+        assert spec["securityContext"]["fsGroupChangePolicy"] == "OnRootMismatch"
         assert spec["securityContext"]["runAsNonRoot"] is True
 
 

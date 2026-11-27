@@ -21,7 +21,7 @@ spec:
       labels:
         {{- include "waterfall.selector" (list . "worker") | nindent 8 }}
     spec:
-      {{- include "waterfall.podDefaults" (list . (dict "fsGroup" 1000)) | nindent 6 }}
+      {{- include "waterfall.podDefaults" (list . (dict "fsGroup" 1000 "fsGroupChangePolicy" "OnRootMismatch")) | nindent 6 }}
       initContainers:
         {{- include "waterfall.transportInit" (list .) | nindent 8 }}
         {{- include "waterfall.waitForDatabase" (list . "waterfall_service" "waterfall" "WATERFALL_SERVICE_DATABASE_PASSWORD") | nindent 8 }}
