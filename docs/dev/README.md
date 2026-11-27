@@ -3942,11 +3942,14 @@ so places of the runner pool, the new ones waited, timed out, and the queue rebu
 a `merge_group` only, the job `cancel-stale` of `ci.yml` (`make queue-cancel`,
 `wftools.queuecancel`) cancels the runs of `chain` that are waiting (`queued`, `waiting`,
 `pending`, `requested`) or in progress and whose ref is an earlier build of the same pull request in
-the queue of the same base (same base, same N, another sha), and those of a pull request that is no
-longer in the queue (`mergeQueue(branch:)` of the GraphQL API; when the queue cannot be read, only
-the earlier builds of the same pull request are cancelled). It never cancels a run of another base,
-of a `pull_request`, of a `workflow_dispatch` or of a `push`, nor its own, writes each cancellation
-to the log (run, pull request, ref), and no job waits for it; it alone carries `actions: write`.
+the queue of the same base (same base, same N, another sha, and a run older than its own: a newer
+one is the live build), and those of a pull request that is no longer in the queue
+(`mergeQueue(branch:)` of the GraphQL API; when the queue cannot be read, or when it exceeds the
+hundred entries read, only the earlier builds of the same pull request are cancelled; the runs are
+read before the queue). It never cancels a run of another base, of a `pull_request`, of a
+`workflow_dispatch` or of a `push`, nor its own, writes each cancellation to the log (run, pull
+request, ref), never fails (a failure to read or to cancel becomes a `::warning::` annotation),
+and no job waits for it; it alone carries `actions: write`.
 **Reading the state of the runners**: count the jobs (`gh run view <run> --json jobs`, those
 `in_progress` and `queued`), not the runs, as a run stays `queued` while one of its jobs waits; a
 full tier counts about 45 jobs.
