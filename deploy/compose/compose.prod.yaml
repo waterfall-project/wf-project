@@ -101,6 +101,14 @@ x-alert-thresholds: &alert-thresholds
   WATERFALL_ERROR_RATE_THRESHOLD: ${WATERFALL_ERROR_RATE_THRESHOLD:-0.05}
   WATERFALL_ERROR_RATE_WINDOW_SECONDS: ${WATERFALL_ERROR_RATE_WINDOW_SECONDS:-300}
 
+# The external locations of the backups (US-2910, WF-ADM-0170): one file in JSON, a secret since it
+# holds the keys of the S3 storages, mounted in the API, which lists and tests the locations, and in
+# the worker, which copies to them: the same file in both, or a copy would find its location
+# unreachable. The file of the operator, WATERFALL_EXTERNAL_LOCATIONS_FILE (its format:
+# docs/exploitation/copie-externe.md), or external-locations.none.json, which declares none.
+x-external-locations: &external-locations
+  WATERFALL_EXTERNAL_BACKUP_LOCATIONS_FILE: /run/secrets/external-locations
+
 x-healthy: &healthy
   condition: service_healthy
 x-done: &done
@@ -425,7 +433,7 @@ services:
   api:
     image: *waterfall-image
     environment:
-      <<: [*back-environment, *keycloak-client-environment, *storage-environment, *alert-thresholds]
+      <<: [*back-environment, *keycloak-client-environment, *storage-environment, *alert-thresholds, *external-locations]
       WATERFALL_INDICATORS_CACHE_TTL: ${WATERFALL_INDICATORS_CACHE_TTL:-600}
       WATERFALL_API_PROCESSES: *api-processes
       # The capacities of the spaces, of which the metrics say what is left, and without which the
@@ -441,6 +449,8 @@ services:
       # What the status screen presents (WF-ADM-0130, #4636): the retention the purge of the worker
       # applies, and the thresholds the rules of Prometheus are written with (x-alert-thresholds).
       WATERFALL_BACKGROUND_TASK_RETENTION_DAYS: ${WATERFALL_BACKGROUND_TASK_RETENTION_DAYS:-30}
+    secrets:
+      - external-locations
     volumes:
       - certificates-api:/tls:ro
       - *trust
@@ -460,7 +470,7 @@ services:
   worker:
     image: *waterfall-image
     environment:
-      <<: [*back-environment, *keycloak-client-environment, *storage-environment]
+      <<: [*back-environment, *keycloak-client-environment, *storage-environment, *external-locations]
       WATERFALL_BACKUP_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?set WATERFALL_BACKUP_DATABASE_PASSWORD in .env}@postgres:5432/waterfall?sslmode=verify-full&sslrootcert=/trust/root.crt
       WATERFALL_KEYCLOAK_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?set WATERFALL_BACKUP_DATABASE_PASSWORD in .env}@postgres:5432/keycloak?sslmode=verify-full&sslrootcert=/trust/root.crt
       # Its metrics, on every interface of the container, on a port published nowhere, where
@@ -474,7 +484,12 @@ services:
       WATERFALL_UNKNOWN_KIND_WAIT_SECONDS: ${WATERFALL_UNKNOWN_KIND_WAIT_SECONDS:-3600}
       # How many sets of partitions it keeps made for the projects to come (US-2830/L4).
       WATERFALL_PARTITION_RESERVE_SIZE: ${WATERFALL_PARTITION_RESERVE_SIZE:-3}
+      # The longest a copy of a backup to an external location takes, in seconds, then it is refused
+      # as timed out (#4656).
+      WATERFALL_EXTERNAL_COPY_TIMEOUT_SECONDS: ${WATERFALL_EXTERNAL_COPY_TIMEOUT_SECONDS:-3600}
     command: ["waterfall-worker"]
+    secrets:
+      - external-locations
     volumes:
       - *trust
     restart: unless-stopped
@@ -844,6 +859,10 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
+
+secrets:
+  external-locations:
+    file: ${WATERFALL_EXTERNAL_LOCATIONS_FILE:-./external-locations.none.json}
 
 networks:
   # Where Garage listens in the clear: its proxy in TLS alone joins it, and nothing leaves it.

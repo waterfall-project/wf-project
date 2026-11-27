@@ -653,6 +653,9 @@ class WorkerSettings(ServiceSettings, ReserveSettings):
     nor turn a trigger off (#895). Never the owner of the tables, who could give itself back the
     rights or turn off the trigger of the journal, nor a superuser (#701). The worker connects by
     either to dump alone.
+    ``external_copy_timeout_seconds`` is the longest a copy of a backup to an external location
+    may take, in seconds, an hour by default (WF-ADM-0170, #4656): an operating parameter, past
+    which the copy is refused as ``timed_out`` rather than left to hold the worker.
     """
 
     backup_database_url: SecretStr = Field(min_length=1)
@@ -660,6 +663,7 @@ class WorkerSettings(ServiceSettings, ReserveSettings):
     metrics_port: int = Field(default=9100, ge=1, le=65535)
     undo_retention_hours: int = Field(default=12, ge=1)
     unknown_kind_wait_seconds: int = Field(default=3600, ge=1)
+    external_copy_timeout_seconds: int = Field(default=3600, ge=1)
 
 
 # The largest avatar a new installation accepts, as the specification ships it (§4.4.1).

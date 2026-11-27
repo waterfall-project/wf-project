@@ -43,7 +43,7 @@ spec:
       labels:
         {{- include "waterfall.selector" (list . "api") | nindent 8 }}
     spec:
-      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      {{- include "waterfall.podDefaults" (list . (dict "fsGroup" 1000)) | nindent 6 }}
       {{- include "waterfall.drainGrace" . | nindent 6 }}
       initContainers:
         {{- include "waterfall.transportInit" (list . "api" 1000 1000) | nindent 8 }}
@@ -61,6 +61,7 @@ spec:
               value: /tmp/waterfall-draining
             {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}
             {{- include "waterfall.storageEnvironment" . | nindent 12 }}
+            {{- include "waterfall.externalLocationsEnvironment" . | nindent 12 }}
             - name: WATERFALL_INDICATORS_CACHE_TTL
               value: {{ .Values.api.indicatorsCacheTtl | quote }}
             - name: WATERFALL_API_PROCESSES
@@ -114,7 +115,9 @@ spec:
           volumeMounts:
             {{- include "waterfall.trustMount" . | nindent 12 }}
             {{- include "waterfall.tlsMount" (list . "api") | nindent 12 }}
+            {{- include "waterfall.externalLocationsMounts" . | nindent 12 }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
       volumes:
         {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}
+        {{- include "waterfall.externalLocationsVolumes" . | nindent 8 }}

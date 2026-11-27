@@ -328,6 +328,12 @@ les rend lisibles au rôle de sauvegarde, ceux qui existent et ceux que Keycloak
 sauvegardes de l'administration la demande et la télécharge une fois branché sur le service
 (US-0440/L3).
 
+Une sauvegarde planifiée se copie d'elle-même sur un emplacement externe — un compartiment S3 d'un
+autre site, ou un partage monté — que déclare un fichier JSON, un secret, que l'API et le worker
+montent tous deux (`WATERFALL_EXTERNAL_LOCATIONS_FILE` du `.env`, `external-locations.none.json`,
+qui ne déclare rien, à défaut). Son format, le montage d'un partage, la copie et sa relecture hors
+de la plateforme : `docs/exploitation/copie-externe.md`.
+
 Une copie à froid des volumes reste possible, plateforme arrêtée (`down`, sans `--volumes`) :
 
 ```sh

@@ -21,7 +21,7 @@ spec:
       labels:
         {{- include "waterfall.selector" (list . "worker") | nindent 8 }}
     spec:
-      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      {{- include "waterfall.podDefaults" (list . (dict "fsGroup" 1000)) | nindent 6 }}
       initContainers:
         {{- include "waterfall.transportInit" (list .) | nindent 8 }}
         {{- include "waterfall.waitForDatabase" (list . "waterfall_service" "waterfall" "WATERFALL_SERVICE_DATABASE_PASSWORD") | nindent 8 }}
@@ -35,6 +35,7 @@ spec:
             {{- include "waterfall.backEnvironment" (list . "service") | nindent 12 }}
             {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}
             {{- include "waterfall.storageEnvironment" . | nindent 12 }}
+            {{- include "waterfall.externalLocationsEnvironment" . | nindent 12 }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_BACKUP_DATABASE_PASSWORD") | nindent 12 }}
             - name: WATERFALL_UNDO_RETENTION_HOURS
               value: {{ .Values.worker.undoRetentionHours | quote }}
@@ -44,6 +45,8 @@ spec:
               value: {{ .Values.worker.unknownKindWaitSeconds | quote }}
             - name: WATERFALL_PARTITION_RESERVE_SIZE
               value: {{ .Values.worker.partitionReserveSize | quote }}
+            - name: WATERFALL_EXTERNAL_COPY_TIMEOUT_SECONDS
+              value: {{ .Values.worker.externalCopyTimeoutSeconds | quote }}
             - name: WATERFALL_BACKUP_DATABASE_URL
               value: {{ include "waterfall.databaseUrl" (list . "waterfall_backup" "$(WATERFALL_BACKUP_DATABASE_PASSWORD)" "waterfall") | quote }}
             - name: WATERFALL_KEYCLOAK_DATABASE_URL
@@ -59,7 +62,9 @@ spec:
               containerPort: {{ .Values.metrics.port }}
           volumeMounts:
             {{- include "waterfall.trustMount" . | nindent 12 }}
+            {{- include "waterfall.externalLocationsMounts" . | nindent 12 }}
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
       volumes:
         {{- include "waterfall.transportVolumes" (list .) | nindent 8 }}
+        {{- include "waterfall.externalLocationsVolumes" . | nindent 8 }}

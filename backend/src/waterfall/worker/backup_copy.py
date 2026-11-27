@@ -31,10 +31,12 @@ from waterfall.core.backups.interface import (
 )
 from waterfall.platform.database import utc_now
 from waterfall.platform.external_locations import (
+    COPY_TIMEOUT,
     UNREACHABLE,
     WRITE_FAILED,
     ExternalStore,
     LocationRefusedError,
+    bounded,
     key_of,
     reached,
     store_of,
@@ -71,11 +73,20 @@ class CopyTask:
     bucket: Bucket
     locations: ExternalLocations
     opened: Callable[[DeclaredLocation], ExternalStore] = store_of
+    timeout: float = COPY_TIMEOUT
 
     @classmethod
     def of(cls, settings: WorkerSettings) -> CopyTask:
-        """Copy from the bucket of the backups to the locations the settings declare."""
-        return cls(Bucket.of_backups(settings), settings.external_locations)
+        """Copy from the bucket of the backups to the locations the settings declare.
+
+        The writing, the reading back and the rotation take ``external_copy_timeout_seconds`` at
+        most (#4656).
+        """
+        return cls(
+            Bucket.of_backups(settings),
+            settings.external_locations,
+            timeout=settings.external_copy_timeout_seconds,
+        )
 
     def __call__(self, session: Session, task: Task) -> dict[str, Any]:
         """Copy, read back, turn the copies of the folder; write the result on the backup's row."""
@@ -107,7 +118,8 @@ class CopyTask:
     def _copied(self, copy: CopyToMake) -> list[str]:
         """Write the archive on the location, check it read back, turn the folder; give the removed.
 
-        A location the settings no longer declare is one the copy cannot reach.
+        A location the settings no longer declare is one the copy cannot reach; one that does not
+        answer within ``timeout`` seconds is ``timed_out``.
         """
         declared = self.locations.get(copy.location)
         if declared is None:
@@ -118,14 +130,20 @@ class CopyTask:
             expected = (archive.stat().st_size, _digest(archive))
             if expected[0] != copy.size_bytes:
                 raise ArchiveChangedError(copy.object_key)
-            key = key_of(copy.path, copy.name)
-            with reached(declared, self.opened) as store:
-                store.put(key, archive)
-                if store.read_back(key) != expected:
-                    raise LocationRefusedError(WRITE_FAILED)
-                gone = copies_beyond(store.names(copy.path), copy.retained_count)
-                for name in gone:
-                    store.remove(key_of(copy.path, name))
+            return bounded(self.timeout, lambda: self._written(copy, declared, archive, expected))
+
+    def _written(
+        self, copy: CopyToMake, declared: DeclaredLocation, archive: Path, expected: tuple[int, str]
+    ) -> list[str]:
+        """Write the archive, read it back and turn the folder; give the removed copies."""
+        key = key_of(copy.path, copy.name)
+        with reached(declared, self.opened) as store:
+            store.put(key, archive)
+            if store.read_back(key) != expected:
+                raise LocationRefusedError(WRITE_FAILED)
+            gone = copies_beyond(store.names(copy.path), copy.retained_count)
+            for name in gone:
+                store.remove(key_of(copy.path, name))
         return gone
 
 

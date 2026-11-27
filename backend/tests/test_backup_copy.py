@@ -12,9 +12,10 @@ refusal fails the task, which the gauge and the status screen read.
 
 import hashlib
 import re
+import threading
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
@@ -49,7 +50,13 @@ from waterfall.core.backups.interface import (
     last_copy_outcome,
 )
 from waterfall.core.backups.tables import Backup, BackupSchedule
-from waterfall.platform.external_locations import ExternalStore, S3Store, ShareStore, store_of
+from waterfall.platform.external_locations import (
+    COPY_TIMEOUT,
+    ExternalStore,
+    S3Store,
+    ShareStore,
+    store_of,
+)
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.maintenance import Maintenance
@@ -122,11 +129,14 @@ class Bench:
         return Worker(self.database, self.queue, handlers, "worker-copy", Timing(0, 0.1))
 
     def copying(
-        self, locations: ExternalLocations | None = None, opened: Opened = store_of
+        self,
+        locations: ExternalLocations | None = None,
+        opened: Opened = store_of,
+        timeout: float = COPY_TIMEOUT,
     ) -> Worker:
         """Give a worker that copies, to the locations given or to the share and the bucket."""
         declared_now = self.located() if locations is None else locations
-        return self.worker({"backup_copy": CopyTask(self.bucket, declared_now, opened)})
+        return self.worker({"backup_copy": CopyTask(self.bucket, declared_now, opened, timeout)})
 
     def archived(self, taken_at: datetime) -> UUID:
         """Record a scheduled backup verified, its archive in the bucket of the backups."""
@@ -351,6 +361,88 @@ def test_a_copy_that_does_not_read_back_as_written_is_a_writing_refused(bench: B
     task_id = bench.copied(bench.copying(opened=damaging), backup_id)
     assert task(bench.database, task_id).status == "failed"
     assert bench.copy_row(backup_id) == (SHARE, FOLDER, "write_failed")
+
+
+class Hanging(Damaging):
+    """A location that holds the writing until the test lets it go, as a mount that hangs does."""
+
+    def __init__(self, store: ExternalStore, released: threading.Event) -> None:
+        super().__init__(store)
+        self.released = released
+
+    def put(self, key: str, path: Path) -> None:
+        self.released.wait(10)
+        super().put(key, path)
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_a_copy_that_does_not_end_within_the_bound_fails_as_timed_out_and_says_so(
+    bench: Bench,
+) -> None:
+    # #4656: the writing, the reading back and the rotation take the operating parameter at most; a
+    # location that holds the copy past it is refused as ``timed_out``, on the row and for the
+    # alert, and the task is not left to hold the worker.
+    released = threading.Event()
+    bench.copy_set(SHARE)
+    backup_id = bench.archived(FOURTH)
+
+    def hanging(location: DeclaredLocation) -> ExternalStore:
+        return Hanging(store_of(location), released)
+
+    try:
+        task_id = bench.copied(bench.copying(opened=hanging, timeout=0.2), backup_id)
+        assert task(bench.database, task_id).status == "failed"
+        assert bench.copy_row(backup_id) == (SHARE, FOLDER, "timed_out")
+        with bench.database.transaction() as session:
+            assert failed_copy(session) == FailedCopy(backup_id, SHARE, "timed_out")
+    finally:
+        released.set()
+
+
+class Clock:
+    """A clock that goes on by itself when told, as the time a copy takes does."""
+
+    def __init__(self, now: datetime) -> None:
+        self.now = now
+
+    def __call__(self) -> datetime:
+        return self.now
+
+
+class Slow(Damaging):
+    """A location whose writing takes an hour of the clock of the test."""
+
+    def __init__(self, store: ExternalStore, clock: Clock) -> None:
+        super().__init__(store)
+        self.clock = clock
+
+    def put(self, key: str, path: Path) -> None:
+        super().put(key, path)
+        self.clock.now += timedelta(hours=1)
+
+    def read_back(self, key: str) -> tuple[int, str]:
+        return self.store.read_back(key)
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_the_date_of_a_copy_is_taken_when_the_copy_ends_not_when_it_starts(
+    bench: Bench, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #4658: ``last_copy_at`` says when the copy was made, which is when it ended: with a clock that
+    # goes on an hour during the writing, it is the end, and the start is not.
+    started = datetime(2026, 10, 4, 3, tzinfo=UTC)
+    clock = Clock(started)
+    monkeypatch.setattr("waterfall.worker.backup_copy.utc_now", clock)
+    bench.copy_set(SHARE)
+    backup_id = bench.archived(FOURTH)
+
+    def slow(location: DeclaredLocation) -> ExternalStore:
+        return Slow(store_of(location), clock)
+
+    bench.copied(bench.copying(opened=slow), backup_id)
+    with bench.database.transaction() as session:
+        made = session.get_one(Backup, backup_id).last_copy_at
+    assert made == started + timedelta(hours=1)
 
 
 def test_an_archive_the_bucket_gives_at_another_size_is_not_copied(
