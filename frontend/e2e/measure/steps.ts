@@ -483,7 +483,7 @@ async function gridsShown(page: Page): Promise<string> {
  * the bounds of each of its waits, so that a wait that never ends — a page that never answers —
  * ends the step rather than the whole measure.
  */
-const STEP_BOUND = 180_000;
+export const STEP_BOUND = 180_000;
 
 /** Play a step within its bound; past it, the step fails. */
 async function bounded<T>(step: Step, play: () => Promise<T>): Promise<T> {
@@ -513,8 +513,8 @@ export interface Timed {
 /**
  * Play the journey once for a user, writing a task of its own, its label marked by `tag`. A step
  * that does not reach its end ends the journey of the pass: it and the steps after it have no span,
- * and the report counts them incomplete; for a user alone, they fail the measure once its report
- * is written (`brokenSteps`).
+ * and the report of a version counts them at their bound, `unreached` (`version.ts`); for a user
+ * alone, they fail the measure once its report is written (`brokenSteps`).
  */
 export async function journey(player: Player, target: Target, tag: string): Promise<Timed[]> {
   const { page, requests } = player;

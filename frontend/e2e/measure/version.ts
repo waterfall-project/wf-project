@@ -79,6 +79,19 @@ export interface Measured {
   readonly operation: string;
   readonly pass: number;
   readonly seconds: number;
+  /**
+   * The step the sample counts, when the user did not reach its end: the sample is then censored,
+   * its seconds are the bound of the step, and the report marks it `unreached` (US-2970).
+   */
+  readonly unreached?: string;
+}
+
+/** The steps of an operation the browser did not reach the end of, and in how many passes. */
+export interface Unreached {
+  readonly step: string;
+  readonly passes: number;
+  /** The bound the step is counted at, in seconds. */
+  readonly bound_s: number;
 }
 
 /** An operation of a report: served, with its durations, or named for the epic to serve it. */
@@ -90,6 +103,11 @@ export type ReportedOperation =
       readonly worst_s: number;
       readonly dispersion_s: number;
       readonly note?: string;
+      /**
+       * The steps counted at their bound, because the browser did not reach their end (US-2970):
+       * absent when every sample is a duration measured.
+       */
+      readonly unreached?: readonly Unreached[];
       /** What the entry of the cache of the indicators costs (`indicators` only, US-2420). */
       readonly cache?: Cache;
     }
@@ -285,22 +303,49 @@ function inSeconds(value: number): string {
 }
 
 /**
- * The note of a served operation: only that its median stands over its objective, with the
- * figures — nothing otherwise, so that a note means a finding documented. A measure never fails on
- * a duration: the note documents, and an issue decides (US-2420). The scope read cold past the
- * objective is documented by the `note` of the cache, not here (`withNote`).
+ * The steps of an operation the browser did not reach the end of, each with the passes it was
+ * missed in, in the order the samples name them; none when every sample is a duration measured.
+ */
+function unreachedOf(id: string, samples: readonly Measured[]): Unreached[] {
+  const missed = new Map<string, { passes: Set<number>; bound_s: number }>();
+  for (const sample of samples) {
+    if (sample.operation === id && sample.unreached !== undefined) {
+      const own = missed.get(sample.unreached) ?? { passes: new Set<number>(), bound_s: 0 };
+      own.passes.add(sample.pass);
+      own.bound_s = Math.max(own.bound_s, second(sample.seconds));
+      missed.set(sample.unreached, own);
+    }
+  }
+  return [...missed].map(([step, { passes, bound_s }]) => ({ step, passes: passes.size, bound_s }));
+}
+
+/**
+ * The note of a served operation: that its median stands over its objective, with the figures, and
+ * the steps counted at their bound — nothing otherwise, so that a note means a finding documented.
+ * A measure never fails on a duration, nor on a step not reached: the note documents, and an issue
+ * decides (US-2420, US-2970). The scope read cold past the objective is documented by the `note`
+ * of the cache, not here (`withNote`).
  */
 function noted(
   line: Line,
   served: { median_s: number; worst_s: number; dispersion_s: number },
+  unreached: readonly Unreached[],
 ): { note?: string } {
-  return served.median_s > line.objective
-    ? {
-        note:
-          `Objective exceeded: ${inSeconds(served.median_s)} for ${String(line.objective)} s at the ` +
-          `median (worst ${inSeconds(served.worst_s)}, dispersion ${inSeconds(served.dispersion_s)}).`,
-      }
-    : {};
+  const exceeded =
+    served.median_s > line.objective
+      ? `Objective exceeded: ${inSeconds(served.median_s)} for ${String(line.objective)} s at the ` +
+        `median (worst ${inSeconds(served.worst_s)}, dispersion ${inSeconds(served.dispersion_s)}).`
+      : "";
+  const missed =
+    unreached.length === 0
+      ? ""
+      : "Not reached, counted at their bound: " +
+        unreached
+          .map(({ step, passes, bound_s }) => `${step} in ${String(passes)} pass(es), ${String(bound_s)} s`)
+          .join("; ") +
+        ".";
+  const note = [exceeded, missed].filter((text) => text !== "").join(" ");
+  return note === "" ? {} : { note };
 }
 
 /** The issue that decides the calculation of one scope read cold (the author's, 2026-11-17). */
@@ -342,7 +387,14 @@ export function versionReport(
     }
     const served = durations(line.id, samples);
     const own = line.id === "indicators" ? withNote(cache, line.objective) : undefined;
-    return { ...head, ...served, ...noted(line, served), ...(own ? { cache: own } : {}) };
+    const unreached = unreachedOf(line.id, samples);
+    return {
+      ...head,
+      ...served,
+      ...noted(line, served, unreached),
+      ...(unreached.length > 0 ? { unreached } : {}),
+      ...(own ? { cache: own } : {}),
+    };
   });
   return {
     version,

@@ -220,6 +220,62 @@ describe("versionReport", () => {
     expect(cache?.note).toMatch(/#3802/);
   });
 
+  it("counts a step not reached at its bound, marks it unreached and documents it, without refusing the report [US-2970]", () => {
+    const quick = TABLE.filter((line) => line.unserved === undefined).flatMap(({ id }) => [
+      measured(id, 0, 0.4),
+      measured(id, 1, 0.6),
+      measured(id, 2, 0.5),
+    ]);
+    // portfolio.view is missed in one pass of three: counted at its bound of 180 s, the median holds.
+    const missed = quick.map((sample) =>
+      sample.operation === "portfolio-view" && sample.pass === 1
+        ? { ...sample, seconds: 180, unreached: "portfolio.view" }
+        : sample,
+    );
+    const report = versionReport("0.4.0", new Date(), CONDITIONS, missed, CACHE);
+    const view = report.operations.find(({ id }) => id === "portfolio-view");
+    expect(view).toMatchObject({
+      worst_s: 180,
+      median_s: 0.5,
+      unreached: [{ step: "portfolio.view", passes: 1, bound_s: 180 }],
+    });
+    expect(view !== undefined && "note" in view ? view.note : "").toMatch(
+      /Not reached, counted at their bound: portfolio\.view in 1 pass\(es\), 180 s\./,
+    );
+    // The other operations say nothing of it.
+    expect(
+      report.operations.filter((operation) => "unreached" in operation).map(({ id }) => id),
+    ).toEqual(["portfolio-view"]);
+  });
+
+  it("publishes a step not reached in any pass: its median is its bound, over its objective [US-2970]", () => {
+    const quick = TABLE.filter((line) => line.unserved === undefined).flatMap(({ id }) => [
+      measured(id, 0, 0.4),
+      measured(id, 1, 0.6),
+    ]);
+    const never = [0, 1].map((pass) => ({
+      operation: "workload-or-projection",
+      pass,
+      seconds: 180,
+      unreached: "spending.from-workload",
+    }));
+    const samples = [
+      ...quick.filter(({ operation }) => operation !== "workload-or-projection"),
+      ...never,
+      measured("workload-or-projection", 0, 0.5),
+      measured("workload-or-projection", 1, 0.7),
+    ];
+    const report = versionReport("0.4.0", new Date(), CONDITIONS, samples, CACHE);
+    const own = report.operations.find(({ id }) => id === "workload-or-projection");
+    expect(own).toMatchObject({
+      worst_s: 180,
+      unreached: [{ step: "spending.from-workload", passes: 2, bound_s: 180 }],
+    });
+    const note = own !== undefined && "note" in own ? own.note : "";
+    expect(note).toMatch(/Objective exceeded: .* for 2 s at the median/);
+    expect(note).toMatch(/spending\.from-workload in 2 pass\(es\), 180 s/);
+  });
+
   it("refuses an operation measured in a single pass, which has no dispersion to give", () => {
     const short = SAMPLES.filter(
       ({ operation, pass }) => operation !== "mark-revision" || pass === 0,

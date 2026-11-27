@@ -35,6 +35,15 @@ export const IMPORTED_LINES = 18_000;
 /** How long a background task is waited for: past the five minutes of the slowest objective. */
 const TASK_BOUND = 20 * 60_000;
 
+/**
+ * How long a call of the measure outside its steps is waited for, in milliseconds: the reads and
+ * writes that prepare a task or follow it, never the reads the measure times. Under fifty users at
+ * the volumes of §4.6.2 the API queues its answers (2026-11-27: a light read of PRJ-001 took up to
+ * 60 s, the portfolio up to 207 s, #5158), where the 15 s of the request context cut the
+ * preparation of the import short; two minutes are twice the worst light read seen.
+ */
+export const PREPARATION_CALL = 120_000;
+
 /** How often a task is asked how it stands, in milliseconds. */
 const ASKED_EVERY = 1_000;
 
@@ -52,7 +61,10 @@ export function caller(request: APIRequestContext, token: () => Promise<string>)
   const headers = async () => ({ Authorization: `Bearer ${await token()}` });
   return {
     get: async <T>(path: string) => {
-      const answer = await request.get(`${API}${path}`, { headers: await headers() });
+      const answer = await request.get(`${API}${path}`, {
+        headers: await headers(),
+        timeout: PREPARATION_CALL,
+      });
       expect(answer.status(), `GET ${path}: ${await answer.text()}`).toBe(200);
       return (await answer.json()) as T;
     },
@@ -64,13 +76,18 @@ export function caller(request: APIRequestContext, token: () => Promise<string>)
       return { seconds: (performance.now() - started) / 1000, status: answer.status() };
     },
     post: async <T>(path: string, data: unknown) => {
-      const answer = await request.post(`${API}${path}`, { headers: await headers(), data });
+      const answer = await request.post(`${API}${path}`, {
+        headers: await headers(),
+        data,
+        timeout: PREPARATION_CALL,
+      });
       expect(answer.ok(), `POST ${path}: ${await answer.text()}`).toBe(true);
       return (await answer.json()) as T;
     },
     upload: async (name, content) => {
       const answer = await request.post(`${API}/file-uploads`, {
         headers: await headers(),
+        timeout: PREPARATION_CALL,
         multipart: {
           purpose: "import",
           file: {

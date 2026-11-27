@@ -22,9 +22,10 @@
  * measure-core ONLY=indicators` wrote (`E2E_MEASURE_CACHE`).
  *
  * The measure fails on no duration: an operation past its objective is the report's to document,
- * once versioned (US-2300/L3). Only a measure that did not happen fails it: an account it cannot
- * make, a step of the journey the browser does not reach the end of — the browser is the only user
- * that measures —, a background task that fails, data below the volumes of §4.6.2, or a load that
+ * once versioned (US-2300/L3). Nor does it fail on a step of the browser that does not reach its
+ * end under the load: the step is counted at its bound, marked `unreached` in the report and
+ * signalled as an objective exceeded (US-2970, #4117). Only a measure that did not happen fails it: an account it cannot
+ * make, a background task that fails, data below the volumes of §4.6.2, or a load that
  * did not run as asked (`load-check.ts`: no summary, readings refused, too few gestures, entries
  * refused as frozen before any marking or beyond the share of the load the revision stood
  * frozen). Not a path: it plays alone, in its project `measure-version` (`playwright.config.ts`),
@@ -59,6 +60,7 @@ import {
   type Player,
   PROJECT,
   signedIn,
+  STEP_BOUND,
   type Target,
   targets,
 } from "./steps";
@@ -191,9 +193,8 @@ async function screens(
   browser: Browser,
   calls: APIRequestContext,
   { person, player, target }: Measurer,
-): Promise<{ samples: Measured[]; unreached: Set<string> }> {
+): Promise<Measured[]> {
   const samples: Measured[] = [];
-  const unreached = new Set<string>();
   for (let pass = -1; pass < PASSES; pass += 1) {
     console.log(`Screens, pass ${pass < 0 ? "unmeasured" : String(pass + 1)}`);
     await resetGridPreferences(browser, calls, person);
@@ -207,14 +208,19 @@ async function screens(
     ];
     for (const { step, span } of pass < 0 ? [] : steps) {
       const operation = OPERATION_OF_STEP[step];
-      if (span === undefined) {
-        unreached.add(step);
-      } else if (operation !== undefined) {
-        samples.push({ operation, pass, seconds: (span.end - span.start) / 1000 });
+      if (operation === undefined) {
+        continue;
       }
+      // A step the user did not reach the end of is counted at its bound, a censored sample: the
+      // measure reports it and fails on nothing (US-2970).
+      samples.push(
+        span === undefined
+          ? { operation, pass, seconds: STEP_BOUND / 1000, unreached: step }
+          : { operation, pass, seconds: (span.end - span.start) / 1000 },
+      );
     }
   }
-  return { samples, unreached };
+  return samples;
 }
 
 /**
@@ -311,7 +317,7 @@ test("measures each operation of table 15 the service serves under the load of f
     console.log(`Portfolio: ${portfolio.decision}`);
     let summary: LoadSummary | undefined;
     let refusals: readonly Refusal[] = [];
-    let measured: Awaited<ReturnType<typeof screens>>;
+    let measured: Measured[];
     let tasks: Measured[];
     let frozenAt: number | undefined;
     const started = Date.now();
@@ -327,9 +333,9 @@ test("measures each operation of table 15 the service serves under the load of f
       ({ summary, refusals } = stopLoad());
     }
     console.log(`The load: ${JSON.stringify(summary)}, ${durationSeconds.toFixed(0)} s`);
-    if (measured.unreached.size > 0) {
-      const steps = [...measured.unreached].join(", ");
-      throw new Error(`The journey no longer works: the browser did not reach the end of ${steps}`);
+    const unreached = [...new Set(measured.flatMap(({ unreached: step }) => step ?? []))];
+    if (unreached.length > 0) {
+      console.log(`Not reached, counted at their bound, objective exceeded: ${unreached.join(", ")}`);
     }
     // The marking, last of the background tasks, froze the revision
     // from the asking of its first pass.
@@ -359,7 +365,7 @@ test("measures each operation of table 15 the service serves under the load of f
     };
     written(
       report,
-      versionReport(version, new Date(), conditions, [...measured.samples, ...tasks], cache, {
+      versionReport(version, new Date(), conditions, [...measured, ...tasks], cache, {
         portfolio,
         kept,
         scale: scaleRead(process.env.E2E_MEASURE_SCALE ?? ""),
