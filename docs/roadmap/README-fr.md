@@ -183,6 +183,7 @@ sommer (décision de l'auteur du 2026-11-17), les trois cents projets en EP-13, 
 | [EP-38](EP-38-contrat-et-schema.md) | Contrat et schéma | à planifier | EP-13 |
 | [EP-40](EP-40-lectures-et-performance.md) | Lectures et performance | à planifier | EP-13 |
 | [EP-31](EP-31-copier-et-coller-dans-les-grilles.md) | Fonctions après le MVP : copier-coller, export « Heures » | à planifier | EP-27 |
+| [EP-41](EP-41-recette-d-exploitation.md) | Recette d'exploitation : exercice de reprise, test de restauration, réseau isolé, navigateurs | à planifier | EP-13 |
 
 La ventilation du 2026-11-14, à la livraison d'EP-24, a réparti le reste à faire par thème — celui du
 code touché — et non plus par date de report : EP-25 ne garde que la refonte ergonomique et passe en
