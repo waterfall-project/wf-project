@@ -214,10 +214,13 @@ def test_only_the_current_revision_is_modified_by_an_import(
     assert {node[0] for node in nodes(database) if node not in of_marked} == {current}
 
 
+@pytest.mark.requirement("WF-SEC-0030-A")
 @pytest.mark.usefixtures("trial")
 def test_an_applied_import_is_inscribed_in_the_journal_and_not_in_the_undo_history(
     api: ContractClient, stage: Scene, worker: Worker, database: Database
 ) -> None:
+    # « Chacune des actions énumérées produit une inscription datée et attribuée. » : the applied
+    # import is inscribed, attributed to its author, naming its object.
     found = analysed(api, stage, worker)
     assert apply(api, stage, found["import_id"]).status_code == 202
     run(worker)

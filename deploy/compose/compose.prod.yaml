@@ -58,6 +58,11 @@ x-postgres-image: &postgres-image ${WATERFALL_MIRROR:-}postgres:18-trixie@sha256
 # the clients of Keycloak and of the storage, and makes a process of the back refuse to start on an
 # address in the clear, naming it (TFX-03, TFX-04, TFX-10).
 x-trust: &trust trust:/trust:ro
+# The certificate of the domain the operator gives, if any (WATERFALL_DOOR_DIRECTORY, beside
+# ./authority): tls.crt, followed by those of the authorities between it and its root, tls.key, its
+# key, unencrypted, readable by root alone, and ca.crt, that root, which the front trusts
+# (door-authority).
+x-door: &door ${WATERFALL_DOOR_DIRECTORY:-./door}:/door:ro
 x-back-environment: &back-environment
   WATERFALL_DATABASE_URL: postgresql://waterfall_service:${WATERFALL_SERVICE_DATABASE_PASSWORD:?set WATERFALL_SERVICE_DATABASE_PASSWORD in .env}@postgres:5432/waterfall?sslmode=verify-full&sslrootcert=/trust/root.crt
   WATERFALL_REDIS_URL: rediss://:${WATERFALL_REDIS_PASSWORD:?set WATERFALL_REDIS_PASSWORD in .env}@redis:6379/0?ssl_ca_certs=/trust/root.crt
@@ -102,6 +107,14 @@ x-alert-thresholds: &alert-thresholds
   WATERFALL_STORAGE_USAGE_THRESHOLD: ${WATERFALL_STORAGE_USAGE_THRESHOLD:-0.85}
   WATERFALL_ERROR_RATE_THRESHOLD: ${WATERFALL_ERROR_RATE_THRESHOLD:-0.05}
   WATERFALL_ERROR_RATE_WINDOW_SECONDS: ${WATERFALL_ERROR_RATE_WINDOW_SECONDS:-300}
+
+# The external locations of the backups (US-2910, WF-ADM-0170): one file in JSON, a secret since it
+# holds the keys of the S3 storages, mounted in the API, which lists and tests the locations, and in
+# the worker, which copies to them: the same file in both, or a copy would find its location
+# unreachable. The file of the operator, WATERFALL_EXTERNAL_LOCATIONS_FILE (its format:
+# docs/exploitation/copie-externe.md), or external-locations.none.json, which declares none.
+x-external-locations: &external-locations
+  WATERFALL_EXTERNAL_BACKUP_LOCATIONS_FILE: /run/secrets/external-locations
 
 x-healthy: &healthy
   condition: service_healthy
@@ -162,12 +175,16 @@ services:
       # Where HTTP sends to: the published address, its port of HTTPS included.
       WATERFALL_ADDRESS: *address
       WATERFALL_ACME_EMAIL: ${WATERFALL_ACME_EMAIL:?set WATERFALL_ACME_EMAIL in .env}
+      # "given" when the operator gives the certificate of the domain, which Caddy then serves and
+      # asks no one for (WF-CMP-0030); empty, Caddy obtains it (Caddyfile.prod).
+      WATERFALL_DOOR_CERTIFICATE: ${WATERFALL_DOOR_DIRECTORY:+given}
     volumes:
       - ./Caddyfile.prod:/etc/caddy/Caddyfile.prod:ro
       # The certificates and the account of Let's Encrypt: kept, or every start would ask again.
       - caddy-data:/data
       - caddy-config:/config
       - *trust
+      - *door
     depends_on:
       authority: *done
     ports:
@@ -178,6 +195,33 @@ services:
         aliases:
           - ${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}
     restart: unless-stopped
+
+  # Writes the roots the front checks the door against, then stops: the root of the platform, and
+  # the root of the certificate of the domain when the operator gives it (WF-CMP-0030); under a
+  # local name, compose.prod.local.yaml writes Caddy's own instead.
+  #
+  # The root of the operator becomes an anchor of the front for every name it reaches — Node does
+  # not bound NODE_EXTRA_CA_CERTS to one name: api:8443 and redis too —, so it should be an authority
+  # of its own for the door, or an intermediate one (docs/exploitation/reseau-isole.md). A ca.crt
+  # that holds no certificate stops this service, and the front with it.
+  #
+  # It mounts the whole folder, tls.key too, though it reads ca.crt alone: the folder is the setting
+  # (default ./door), and a bind of one file would need a second setting, or a default that exists
+  # when the operator gives nothing. Read-only, and it runs once, as cat and grep, on no network
+  # but the default.
+  door-authority:
+    image: ${WATERFALL_MIRROR:-}caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+    command:
+      - sh
+      - -c
+      - ${WATERFALL_DOOR_DIRECTORY:+grep -q 'BEGIN CERTIFICATE' /door/ca.crt || (echo 'ca.crt of the door holds no certificate' >&2; exit 1) &&} cat /trust/root.crt ${WATERFALL_DOOR_DIRECTORY:+/door/ca.crt} > /roots/roots.crt.new && chmod 0644 /roots/roots.crt.new && mv /roots/roots.crt.new /roots/roots.crt
+    volumes:
+      - *trust
+      - *door
+      - door-authority:/roots
+    restart: "no"
+    depends_on:
+      authority: *done
 
   # The front in TLS (#4508, Caddyfile.front): its proxy serves it at https://front-proxy:3443, with
   # the certificate the authority issues for that name, and reaches the server of Next on the network
@@ -217,9 +261,10 @@ services:
     environment:
       HOSTNAME: front-next
       # The API and Redis in TLS (TFX-02, TFX-04), their certificates checked against the root of
-      # the platform, which NODE_EXTRA_CA_CERTS adds to the authorities the server of Next knows.
+      # the platform, which NODE_EXTRA_CA_CERTS adds to the authorities the server of Next knows,
+      # first of the roots door-authority writes: the door's follows it.
       WATERFALL_API_ADDRESS: https://api:8443
-      NODE_EXTRA_CA_CERTS: /trust/root.crt
+      NODE_EXTRA_CA_CERTS: /roots/roots.crt
       WATERFALL_FRONT_ADDRESS: *address
       WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
       # The server of Next reaches Keycloak through Caddy, on its name in the network, in HTTPS: its
@@ -233,8 +278,9 @@ services:
       # The key of the server actions, the same for every start and every instance (#825).
       NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${WATERFALL_SERVER_ACTIONS_KEY:?set WATERFALL_SERVER_ACTIONS_KEY in .env}
     volumes:
-      - *trust
+      - door-authority:/roots:ro
     depends_on:
+      door-authority: *done
       api: *healthy
       redis: *healthy
       keycloak-realm: *healthy
@@ -427,7 +473,7 @@ services:
   api:
     image: *waterfall-image
     environment:
-      <<: [*back-environment, *keycloak-client-environment, *storage-environment, *alert-thresholds]
+      <<: [*back-environment, *keycloak-client-environment, *storage-environment, *alert-thresholds, *external-locations]
       WATERFALL_INDICATORS_CACHE_TTL: ${WATERFALL_INDICATORS_CACHE_TTL:-600}
       WATERFALL_API_PROCESSES: *api-processes
       # The capacities of the spaces, of which the metrics say what is left, and without which the
@@ -443,6 +489,8 @@ services:
       # What the status screen presents (WF-ADM-0130, #4636): the retention the purge of the worker
       # applies, and the thresholds the rules of Prometheus are written with (x-alert-thresholds).
       WATERFALL_BACKGROUND_TASK_RETENTION_DAYS: ${WATERFALL_BACKGROUND_TASK_RETENTION_DAYS:-30}
+    secrets:
+      - external-locations
     volumes:
       - certificates-api:/tls:ro
       - *trust
@@ -462,7 +510,7 @@ services:
   worker:
     image: *waterfall-image
     environment:
-      <<: [*back-environment, *keycloak-client-environment, *storage-environment]
+      <<: [*back-environment, *keycloak-client-environment, *storage-environment, *external-locations]
       WATERFALL_BACKUP_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?set WATERFALL_BACKUP_DATABASE_PASSWORD in .env}@postgres:5432/waterfall?sslmode=verify-full&sslrootcert=/trust/root.crt
       WATERFALL_KEYCLOAK_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?set WATERFALL_BACKUP_DATABASE_PASSWORD in .env}@postgres:5432/keycloak?sslmode=verify-full&sslrootcert=/trust/root.crt
       # Its metrics, on every interface of the container, on a port published nowhere, where
@@ -476,7 +524,12 @@ services:
       WATERFALL_UNKNOWN_KIND_WAIT_SECONDS: ${WATERFALL_UNKNOWN_KIND_WAIT_SECONDS:-3600}
       # How many sets of partitions it keeps made for the projects to come (US-2830/L4).
       WATERFALL_PARTITION_RESERVE_SIZE: ${WATERFALL_PARTITION_RESERVE_SIZE:-3}
+      # The longest a copy of a backup to an external location takes, in seconds, then it is refused
+      # as timed out (#4656).
+      WATERFALL_EXTERNAL_COPY_TIMEOUT_SECONDS: ${WATERFALL_EXTERNAL_COPY_TIMEOUT_SECONDS:-3600}
     command: ["waterfall-worker"]
+    secrets:
+      - external-locations
     volumes:
       - *trust
     restart: unless-stopped
@@ -847,6 +900,10 @@ services:
       timeout: 3s
       retries: 30
 
+secrets:
+  external-locations:
+    file: ${WATERFALL_EXTERNAL_LOCATIONS_FILE:-./external-locations.none.json}
+
 networks:
   # Where Garage listens in the clear: its proxy in TLS alone joins it, and nothing leaves it.
   storage:
@@ -867,6 +924,8 @@ volumes:
   authority:
   # The root every client trusts, at /trust/root.crt.
   trust:
+  # The roots the front checks the door against, at /roots/roots.crt.
+  door-authority:
   # The key and the certificate of each server in TLS, each mounted by its server alone.
   certificates-postgres:
   certificates-redis:

@@ -2,14 +2,16 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The chart requires Kubernetes 1.35 and checks the components before its migrations (US-2810).
 
-« Kubernetes dans une version au moins égale à 1.27 » (the oldest maintained version, 1.35, since
-the author's decision of 2026-11-26, #4085; #5069 for the specification) and « Le déploiement échoue
-en le disant si un composant est d'une version antérieure à celle exigée. » (WF-CMP-0020-A). The
-chart declares the version of Kubernetes it requires, the oldest maintained, whose native ``sleep``
-it uses for the drain of its pods; the
-command ``waterfall-check-components`` of the image of Waterfall runs, as a step of the hook of the
-migrations, before them. That a refusal fails the deployment is held by the tests of the command
-(``backend/tests/test_components.py``); that the chart installs on two distributions is held on
+« Kubernetes dans une version au moins égale à 1.27 » (WF-CMP-0020-A) is what the specification
+still says; the
+chart declares 1.35, the oldest maintained version (the author's decision of 2026-11-26, #4085), and
+the specification is to follow (#5069). « Le déploiement échoue en le disant si un composant est
+d'une version antérieure à celle exigée. » The chart declares the version of
+Kubernetes it requires, whose native ``sleep`` it uses for the drain of the pods of the front, of
+Keycloak and of the worker; the command ``waterfall-check-components`` of the image of Waterfall
+runs, as a step of the hook of the migrations, before them. That a refusal fails the deployment is
+held by the tests of the command (``backend/tests/test_components.py``); that the chart installs on
+two distributions, the older on the version it declares (``wftools.kubeversions``), is held on
 clusters, by ``make chart-trial`` and ``make chart-trial-k3s`` in the full tier. Selected by the
 marker ``chart`` (``make test-chart``): they need Helm, which the tools leave out.
 """

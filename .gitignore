@@ -41,6 +41,10 @@ deploy/keycloak/extension/target/
 deploy/compose/.authority/
 # L'autorité que l'exploitant fournit à la plateforme de production, sa clé comprise (US-2840)
 deploy/compose/authority/
+# Le certificat de la porte que l'exploitant fournit, sa clé comprise (US-3010)
+deploy/compose/door/
+# Le fichier des emplacements de copie externe que l'exploitant écrit : il porte les clés d'un S3 (#4655)
+deploy/compose/external-locations.json
 # Ce qu'un agent écrit dans son worktree, le journal de `make check` (US-1100)
 .waterfall/
 # Les réglages de l'éditeur, propres à chaque poste

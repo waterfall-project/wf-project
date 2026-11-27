@@ -69,8 +69,8 @@ jobs:
           if-no-files-found: error
 
   # The production platform on the images the job above published, pulled from the registry by the
-  # digests it wrote, under a local name: bootstrapped, its API's liveness and the sign-in of its
-  # first administrator held (US-0430, WF-ARC-0050).
+  # digests it wrote, under a public name whose certificate the trial gives (US-3010): bootstrapped,
+  # its API's liveness and the sign-in of its first administrator held (US-0430, WF-ARC-0050).
   trial:
     needs: publish
     runs-on: ubuntu-26.04

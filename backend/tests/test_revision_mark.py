@@ -12,13 +12,15 @@ again.
 import re
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlencode
 from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
 from planning_support import main_structure, node_row, task_row
-from projects_support import PROJECTS, READING, Scene, person
+from projects_support import MANAGING, PROJECTS, READING, Scene, contribute, create, person
 from projects_support import scene as make_scene
 from sqlalchemy import event, insert, select, text, update
 from sqlalchemy.exc import OperationalError
@@ -704,3 +706,110 @@ def test_a_marking_is_followed_by_its_requester_alone(
     assert api.get(f"{TASKS}/{task_id}", headers=other.headers).status_code == 404
     listed = api.get(TASKS, headers=stage.manager.headers).json()
     assert [item["task_id"] for item in listed["items"]] == [task_id]
+
+
+def audited(api: ContractClient, headers: dict[str, str], path: str = EVENTS, **query: str) -> Any:
+    """Read the journal, or its facets, as the session ``headers`` does; fail unless it is given."""
+    response = api.get(f"{path}?{urlencode(query)}", headers=headers)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+@pytest.mark.requirement("WF-ADM-0190-A")
+def test_the_journal_filtered_on_the_author_and_the_marking_names_the_project_and_the_revision(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database, realm: TestRealm
+) -> None:
+    # « Après le marquage d'une révision par un utilisateur, le journal filtré sur cet utilisateur
+    # et sur l'action de marquage présente une inscription datée du jour, qui nomme le projet et
+    # la révision. » : the marking is done through the service and the worker, read by a reader of
+    # the journal; another author, or another action, presents nothing.
+    path = f"{PROJECTS}/{stage.project['project_id']}"
+    coded = api.patch(
+        path,
+        headers=stage.manager.headers,
+        json={"code": "PRJ-042", "lock_version": stage.project["lock_version"]},
+    )
+    assert coded.status_code == 200, coded.text
+    revision = open_revision(api, stage)
+    before = utc_now()
+    marked(api, stage, worker, revision, "Offre v1.0")
+    after = utc_now()
+    auditor = person(database, realm, "audit_log.read", name="Ada")
+    author = str(stage.manager.user_id)
+    page = audited(api, auditor.headers, user_id=author, actions="revision_mark")
+    [event] = page["items"]
+    assert before <= datetime.fromisoformat(event["occurred_at"]) <= after
+    assert event["actor"]["user_id"] == author
+    assert event["project"] == {
+        "project_id": stage.project["project_id"],
+        "code": "PRJ-042",
+        "label": stage.project["label"],
+        "can_open": False,
+    }
+    assert event["object"] == {
+        "kind": "revision",
+        "object_id": revision["revision_id"],
+        "label": "Offre v1.0",
+        "revision": None,
+    }
+    for other in (
+        {"user_id": str(auditor.user_id), "actions": "revision_mark"},
+        {"user_id": author, "actions": "revision_abandon"},
+    ):
+        assert audited(api, auditor.headers, **other)["items"] == []
+
+
+@pytest.mark.requirement("WF-ADM-0190-A")
+@pytest.mark.usefixtures("stage")
+def test_an_inscription_leads_to_its_project_for_the_reader_who_opens_it_and_names_it_otherwise(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # « Chaque inscription mène au projet concerné lorsque l'utilisateur peut le consulter […], et
+    # le nomme par son libellé et son code sinon. » « Une inscription sur un projet que le lecteur
+    # ne peut pas consulter nomme ce projet sans l'ouvrir. » : two projects, the creation of each
+    # inscribed. A reader of the journal alone, who is no contributor, has both named by their
+    # code and label, neither opened; a contributor of the first opens that one only if they also
+    # consult the projects (``project_settings.read``); a holder of the reading of every project
+    # opens both, but only with that permission too (``judge_project`` asks for it on every route
+    # of the project). For each reader the expectation is the very answer of ``GET
+    # /projects/{id}`` (200 against 403 or 404), and ``can_open`` says the same, in the
+    # inscriptions and in the facets.
+    managing = person(database, realm, *MANAGING)
+    first = create(api, managing, label="Premier projet", code="PRJ-001")["project_id"]
+    second = create(api, managing, label="Autre projet", code="PRJ-002")["project_id"]
+    named = {first: ("PRJ-001", "Premier projet"), second: ("PRJ-002", "Autre projet")}
+    log, consult = "audit_log.read", "project_settings.read"
+    alone = person(database, realm, log)
+    consulting_alone = person(database, realm, log, consult)
+    blind_contributor = person(database, realm, log)
+    contributor = person(database, realm, log, consult)
+    blind_everything = person(database, realm, log, "all_projects_read")
+    everything = person(database, realm, log, consult, "all_projects_read")
+    contribute(database, first, blind_contributor, "contributor")
+    contribute(database, first, contributor, "contributor")
+    expected = (
+        (alone, set[str]()),
+        (consulting_alone, set[str]()),
+        (blind_contributor, set[str]()),
+        (contributor, {first}),
+        (blind_everything, set[str]()),
+        (everything, {first, second}),
+    )
+    for who, opened in expected:
+        reached = {
+            project_id
+            for project_id in named
+            if api.get(f"/api/v1/projects/{project_id}", headers=who.headers).status_code == 200
+        }
+        assert reached == opened
+        items = audited(api, who.headers, actions="project_create")["items"]
+        seen = {item["project"]["project_id"]: item["project"] for item in items}
+        facets = {
+            each["project_id"]: each
+            for each in audited(api, who.headers, f"{EVENTS}/facets")["projects"]
+        }
+        for found in (seen, facets):
+            assert {first, second} <= set(found)
+            for project_id, (code, label) in named.items():
+                assert (found[project_id]["code"], found[project_id]["label"]) == (code, label)
+                assert found[project_id]["can_open"] is (project_id in reached)

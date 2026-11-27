@@ -52,6 +52,10 @@ values, then holds the first three of these, the installation, the sign-in and t
 chart installs on two distributions without modification (WF-CMP-0020-A, US-2810). The rest holds
 the chart and the platform, not the cluster, and is held once, on kind.
 
+The node of kind runs the oldest version of Kubernetes the chart declares, its ``kubeVersion``, read
+from ``Chart.yaml`` and not copied (``wftools.kubeversions``, WF-CMP-0020-A, US-2810/L3); k3s runs a
+recent one.
+
 The cluster is deleted at the end, whatever the outcome; what the pods said is printed first when it
 fails. The third-party images are read from the mirror when ``WATERFALL_MIRROR`` gives it, with the
 credentials of Docker, as the chain logs in.
@@ -75,15 +79,17 @@ from wftools import (
     REPOSITORY,
     chart,
     chartdata,
+    chartimages,
     chartk3s,
     chartload,
     chartrestoretest,
     chartstateless,
     kubetools,
+    kubeversions,
 )
 from wftools.chartauthority import issue, make_authority
 from wftools.chartrun import Ask, Read, Run, TrialError, must, output
-from wftools.images import DIGEST, REGISTRY
+from wftools.images import REGISTRY
 from wftools.production import (
     HIDDEN,
     LIVENESS,
@@ -122,10 +128,6 @@ DISTRIBUTIONS = (KIND, K3S)
 DOMAIN = "waterfall.localhost"
 NAMESPACE = "waterfall"
 ADMIN = "administrateur@waterfall.test"
-NODE = (
-    "kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"
-)
-"""The node of kind 0.33.0 for Kubernetes 1.37, by the digest its release names."""
 TRAEFIK = (
     "oci://ghcr.io/traefik/helm/traefik@"
     "sha256:50098cedd13beccdaae2bda8f17091b3eebede130ce73a7b2fc97bb72955e59f"
@@ -136,7 +138,6 @@ NODE_PORT = 30443
 """The port of the node HTTPS is served on, which kind publishes on the loopback."""
 CERTIFICATE = "waterfall-tls"
 AUTHORITY = "waterfall-authority"
-IMAGES = ("front", "waterfall", "keycloak")
 INSTALLATION = "20m"
 """How long Helm waits for the hooks: the first start of Keycloak and its realm are the longest."""
 ROLLOUT = "10m"
@@ -324,6 +325,10 @@ class Trial:
                 docker_config,
             )
             return
+        try:
+            node = kubeversions.node()
+        except kubeversions.VersionError as error:
+            raise TrialError(str(error)) from error
         configuration = self.folder / "kind.json"
         configuration.write_text(
             json.dumps(cluster_configuration(self.platform.https_port, docker_config)),
@@ -338,7 +343,7 @@ class Trial:
                 "--name",
                 name,
                 "--image",
-                NODE,
+                node,
                 "--config",
                 str(configuration),
                 "--kubeconfig",
@@ -357,48 +362,9 @@ class Trial:
             self.run([*self.tools.kind, "delete", "cluster", "--name", name])
 
     def load(self, name: str, tag: str) -> dict[str, str]:
-        """Load the images of the tag, built on the workstation, into the cluster.
-
-        Return the digest of each, as the runtime of the node holds it: the chart designates them
-        so (#3726), and the kubelet finds them by it.
-        """
-        references = {image: f"{REGISTRY}/{image}:{tag}" for image in IMAGES}
-        for reference in references.values():
-            if self.run(["docker", "image", "inspect", "--format", "{{.Id}}", reference]):
-                message = f"{reference} is not built here: make images first"
-                raise TrialError(message)
-        if self.distribution == K3S:
-            chartk3s.import_images(self.run, f"{name}-control-plane", list(references.values()))
-        else:
-            must(
-                self.run,
-                [*self.tools.kind, "load", "docker-image", "--name", name, *references.values()],
-                "load the images into the cluster",
-            )
-        return {
-            image: self.digest(f"{name}-control-plane", reference)
-            for image, reference in references.items()
-        }
-
-    def digest(self, node: str, reference: str) -> str:
-        """Make the node hold an image by its digest too, and return it.
-
-        ``kind load`` leaves an image under its tag, and ``crictl`` names no digest of it but the
-        import's: the kubelet would not find ``name@sha256:…``. ``ctr`` lists the digest of the
-        image under the tag, the node is told to name it so, and the runtime to find it.
-        """
-        containerd = ["docker", "exec", node, "ctr", "--namespace=k8s.io", "images"]
-        listing = [*containerd, "ls", f"name=={reference}"]
-        listed = output(self.read, listing, f"read the digest of {reference}")
-        if not (found := DIGEST.search(listed)):
-            message = f"the cluster holds {reference} by no digest"
-            raise TrialError(message)
-        named = f"{reference.rsplit(':', 1)[0]}@{found.group(0)}"
-        tag = [*containerd, "tag", "--force", reference, named]
-        must(self.run, tag, f"name {named} by its digest")
-        find = ["docker", "exec", node, "crictl", "inspecti", named]
-        output(self.read, find, f"find {named} in the cluster")
-        return found.group(0)
+        """Load the images of the tag into the cluster; return the digest of each."""
+        kind = None if self.distribution == K3S else self.tools.kind
+        return chartimages.load((self.run, self.read), kind, name, tag)
 
     def ingress(self) -> str:
         """Install Traefik, serving HTTPS on the port of the node; return its address inside.

@@ -13,11 +13,12 @@ import json
 import threading
 from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 import pytest
 from access_rows import account, role
+from botocore.exceptions import ConnectTimeoutError, ReadTimeoutError
 from external_support import (
     BUCKET,
     SHARE,
@@ -29,27 +30,37 @@ from external_support import (
     unvalidated,
 )
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from realm import KEY, TestRealm
-from support import PLATFORM_SECRETS, ContractClient, bearer, nowhere
+from support import PLATFORM_SECRETS, ContractClient, bearer, captured_logs, nowhere
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.platform import authority
 from waterfall.platform.external_locations import (
+    CONNECT_TIMEOUT,
+    DENIED,
+    READ_TIMEOUT,
     ExternalStore,
     LocationRefusedError,
+    S3Store,
     ShareStore,
+    reached,
     try_location,
 )
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.settings import (
     ExternalLocations,
     MountedShare,
+    S3Location,
     SettingsError,
     load_service_settings,
+    load_worker_settings,
 )
+from waterfall.worker.backup_copy import CopyTask
 
 if TYPE_CHECKING:
+    from mypy_boto3_s3.client import S3Client
     from openapi_core import OpenAPI
 
     from waterfall.platform.database import Database
@@ -447,3 +458,126 @@ def test_a_location_with_an_unusable_region_or_address_stops_the_start_without_i
     said = str(refused.value)
     assert "SECRET-TOKEN" not in said
     assert "us east" not in said
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_a_location_refused_at_its_opening_is_logged_by_its_class_never_its_message() -> None:
+    # #4658: the translation of an opening refused into « unreachable » leaves a trace — a fault of
+    # the program is not silently « injoignable » — but the message of the client may repeat the
+    # address it refused: the class of the error alone is written.
+    address = "https://user-secret@elsewhere.example"
+    location = MountedShare(kind="mounted_share", directory="/mnt/partage")
+
+    def opened(_location: DeclaredLocation) -> ExternalStore:
+        raise ValueError(address)
+
+    with (
+        captured_logs() as logs,
+        pytest.raises(LocationRefusedError) as refused,
+        reached(location, opened),
+    ):
+        pytest.fail("a location refused at its opening is not used")
+    assert refused.value.failure == "location_unreachable"
+    [line] = logs.named("location.open_refused")
+    assert (line["error"], line["level"]) == ("ValueError", "warning")
+    assert address not in logs.text
+    assert "user-secret" not in logs.text
+
+
+class Late:
+    """A client of S3 whose storage does not answer: every call ends on the error it is given."""
+
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+    def get_object(self, **_: object) -> None:
+        raise self.error
+
+
+class Mismatching:
+    """A location that keeps what is written, and reads it back at another size, or not at all."""
+
+    def __init__(self, store: ShareStore, *, raising: bool) -> None:
+        self.store = store
+        self.raising = raising
+
+    def put(self, key: str, path: Path) -> None:
+        self.store.put(key, path)
+
+    def read_back(self, key: str) -> tuple[int, str]:
+        if self.raising:
+            raise LocationRefusedError(DENIED)
+        size, digest = self.store.read_back(key)
+        return size + 1, digest
+
+    def names(self, folder: str) -> list[str]:
+        return self.store.names(folder)
+
+    def remove(self, key: str) -> None:
+        self.store.remove(key)
+
+    def tidy(self) -> None:
+        self.store.tidy()
+
+    def close(self) -> None:
+        self.store.close()
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+@pytest.mark.parametrize(("raising", "failure"), [(False, "write_failed"), (True, "access_denied")])
+def test_a_test_that_does_not_read_back_as_written_still_removes_its_witness(
+    share: Path, raising: bool, failure: str
+) -> None:
+    # #4658, « ne laisse rien » (testExternalBackupLocation): whatever the reading back says — a
+    # file of another size, or a refusal —, the witness is erased and the folders made are removed.
+    def opened(location: DeclaredLocation) -> ExternalStore:
+        assert isinstance(location, MountedShare)
+        return Mismatching(ShareStore.of(location), raising=raising)
+
+    location = MountedShare(kind="mounted_share", directory=str(share))
+    assert try_location(location, "waterfall/a", opened) == failure
+    assert list(share.rglob("*")) == []
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_the_client_of_a_bucket_bounds_its_connections_and_a_late_answer_is_timed_out() -> None:
+    # #4656: an S3 storage that does not answer is let go after a bounded connection and a bounded
+    # read, not waited for; the errors of botocore that say so are ``timed_out``.
+    _, key, secret = storage()
+    location = S3Location(
+        kind="s3",
+        address="https://elsewhere.example",
+        bucket="b",
+        access_key=SecretStr(key),
+        secret_key=SecretStr(secret),
+    )
+    store = S3Store.of(location)
+    try:
+        config = cast("Any", store.client.meta.config)
+        assert (config.connect_timeout, config.read_timeout) == (CONNECT_TIMEOUT, READ_TIMEOUT)
+        assert 0 < CONNECT_TIMEOUT <= READ_TIMEOUT <= 60
+    finally:
+        store.close()
+    for error in (ConnectTimeoutError(endpoint_url="x"), ReadTimeoutError(endpoint_url="x")):
+        late = S3Store(cast("S3Client", Late(error)), "b")
+        with pytest.raises(LocationRefusedError) as refused:
+            late.read_back("k")
+        assert refused.value.failure == "timed_out"
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+@pytest.mark.usefixtures("environment")
+def test_the_bound_of_a_copy_is_an_operating_parameter_of_the_worker_an_hour_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # #4656: the bound is set by WATERFALL_EXTERNAL_COPY_TIMEOUT_SECONDS, at least a second, and the
+    # task of the copy is made with it.
+    monkeypatch.setenv("WATERFALL_BACKUP_DATABASE_URL", "postgresql://backup@db/waterfall")
+    monkeypatch.setenv("WATERFALL_KEYCLOAK_DATABASE_URL", "postgresql://backup@db/keycloak")
+    assert load_worker_settings().external_copy_timeout_seconds == 3600
+    assert CopyTask.of(load_worker_settings()).timeout == 3600
+    monkeypatch.setenv("WATERFALL_EXTERNAL_COPY_TIMEOUT_SECONDS", "90")
+    assert CopyTask.of(load_worker_settings()).timeout == 90
+    monkeypatch.setenv("WATERFALL_EXTERNAL_COPY_TIMEOUT_SECONDS", "0")
+    with pytest.raises(SettingsError):
+        load_worker_settings()
