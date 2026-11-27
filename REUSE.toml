@@ -39,6 +39,9 @@ path = [
     "docs/measures/*.json",
     # The dashboard of the operator, JSON, which carries no comment (US-2880).
     "deploy/compose/grafana-dashboard.json",
+    # The file of the external locations that declares none, JSON, which carries no comment (#4655).
+    "deploy/compose/external-locations.none.json",
+    "deploy/compose/service-external-locations.json",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 waterfall-project"

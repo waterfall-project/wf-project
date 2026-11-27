@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The file of the external locations of the backups, made from backups.externalLocations.locations
+# unless the operator names a Secret of their own (backups.externalLocations.existingSecret), which
+# holds the same key, locations.json (_externallocations.tpl). The API and the worker mount it.
+{{- $given := .Values.backups.externalLocations }}
+{{- if and $given.locations (not $given.existingSecret) }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "waterfall.externalLocationsSecret" . }}
+  labels:
+    {{- include "waterfall.labels" (list . "external-locations") | nindent 4 }}
+type: Opaque
+stringData:
+  locations.json: {{ toPrettyJson $given.locations | quote }}
+{{- end }}

@@ -711,6 +711,24 @@ def test_the_alert_of_a_failed_copy_names_what_the_database_knows_of_it() -> Non
     assert "params" not in (alert(firing) or {})
 
 
+@pytest.mark.requirement("WF-ADM-0170-A")
+@pytest.mark.story("US-2910")
+def test_the_failed_copy_is_not_read_when_the_metrics_gave_no_observation(
+    monkeypatch: pytest.MonkeyPatch,
+    contract: OpenAPI,
+    platform: Services,
+    viewer: dict[str, str],
+) -> None:
+    # #4658: the alert of a failed copy is made from an observation of Prometheus; without one — the
+    # metrics unavailable — the database is not asked what the latest copy ended with.
+    def asked(_session: object) -> None:
+        pytest.fail("the latest failed copy was read without an observation of the metrics")
+
+    monkeypatch.setattr("waterfall.api.status.failed_copy", asked)
+    status = read(screen_on(contract, platform, None), viewer)
+    assert status["alerts"] == []
+
+
 @pytest.mark.story("US-2890")
 def test_a_component_no_collection_has_found_is_not_said_available(
     contract: OpenAPI,

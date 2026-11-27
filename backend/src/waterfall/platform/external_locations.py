@@ -22,6 +22,7 @@ import hashlib
 import os
 import shutil
 import tempfile
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as Late
 from contextlib import contextmanager, suppress
@@ -39,6 +40,7 @@ from botocore.exceptions import (
 )
 
 from waterfall.platform.identifiers import new_id
+from waterfall.platform.logs import get_logger
 from waterfall.platform.settings import MountedShare, S3Location
 
 if TYPE_CHECKING:
@@ -47,6 +49,8 @@ if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
 
     from waterfall.platform.settings import DeclaredLocation
+
+logger = get_logger(__name__)
 
 # Why a location refused, as the contract names it (``ExternalBackupFailure``).
 type Failure = Literal[
@@ -60,6 +64,11 @@ type Failure = Literal[
 # What was being done when the location refused: the reason of a fault that says no other.
 type Doing = Literal["write", "delete"]
 CHUNK = 1 << 20
+# The longest a copy to a location may take, as the operating parameter says it, and the bounds of
+# the connections of an S3 client, in seconds (#4656).
+COPY_TIMEOUT = 3600.0
+CONNECT_TIMEOUT = 10
+READ_TIMEOUT = 30
 # The longest a test of a location waits for it (``testExternalBackupLocation``), and its witness.
 TEST_TIMEOUT = 30.0
 WITNESS = b"Waterfall: a witness of the test of an external location, erased once read back.\n"
@@ -67,6 +76,7 @@ WITNESS = b"Waterfall: a witness of the test of an external location, erased onc
 # read back as written, a folder that leaves its share.
 UNREACHABLE: Failure = "location_unreachable"
 WRITE_FAILED: Failure = "write_failed"
+TIMED_OUT: Failure = "timed_out"
 DENIED: Failure = "access_denied"
 # What an S3 storage says by the code of its refusal: the key refused, the bucket missing, the space
 # spent. Another code is what was being done that failed.
@@ -169,8 +179,8 @@ class S3Store:
         """
         config = Config(
             s3={"addressing_style": "path"},
-            connect_timeout=10,
-            read_timeout=30,
+            connect_timeout=CONNECT_TIMEOUT,
+            read_timeout=READ_TIMEOUT,
             retries={"mode": "standard", "max_attempts": 2},
             request_checksum_calculation="when_required",
             response_checksum_validation="when_required",
@@ -349,8 +359,9 @@ def reached(
     """
     try:
         store = opened(location)
-    except BotoCoreError, ValueError, OSError:
-        # Never its message: the client may repeat the address it refused.
+    except (BotoCoreError, ValueError, OSError) as error:
+        # Its class alone, never its message: the client may repeat the address it refused.
+        logger.warning("location.open_refused", error=type(error).__name__)
         raise LocationRefusedError(UNREACHABLE) from None
     try:
         yield store
@@ -369,11 +380,51 @@ def witness_test(store: ExternalStore, folder: str) -> None:
             witness = Path(work) / "witness.txt"
             witness.write_bytes(WITNESS)
             store.put(key, witness)
-        if store.read_back(key) != (len(WITNESS), hashlib.sha256(WITNESS).hexdigest()):
-            raise LocationRefusedError(WRITE_FAILED)
-        store.remove(key)
+        try:
+            if store.read_back(key) != (len(WITNESS), hashlib.sha256(WITNESS).hexdigest()):
+                raise LocationRefusedError(WRITE_FAILED)
+        finally:
+            # The witness leaves the location whatever the reading says: a test leaves nothing.
+            store.remove(key)
     finally:
         store.tidy()
+
+
+def bounded[T](seconds: float, work: Callable[[threading.Event], T]) -> T:
+    """Run work for ``seconds`` at most; give its result, or raise what it raised.
+
+    A location that does not answer — a share whose mount hangs, a storage that holds a connection —
+    is said ``timed_out`` once the time is spent. The work runs in a thread of its own, a daemon: a
+    call stuck in the file system cannot be interrupted, and is let go of rather than joined, so
+    that it holds neither the task nor the stop of the worker.
+
+    The work is given an event, set once the time is spent: a work let go of must not go on to do
+    what the refusal said was not done — read back, or erase the older copies. A copy it wrote
+    before may remain on the location.
+    """
+    outcome: list[T] = []
+    failed: list[BaseException] = []
+    abandoned = threading.Event()
+
+    def run() -> None:
+        try:
+            outcome.append(work(abandoned))
+        except LocationRefusedError as refused:
+            failed.append(refused)
+        except BaseException as error:
+            # A fault of the program, handed to the caller as it is: the thread has no one to tell.
+            logger.exception("location.copy_failed")
+            failed.append(error)
+
+    thread = threading.Thread(target=run, name="location-copy", daemon=True)
+    thread.start()
+    thread.join(seconds)
+    if thread.is_alive():
+        abandoned.set()
+        raise LocationRefusedError(TIMED_OUT)
+    if failed:
+        raise failed[0]
+    return outcome[0]
 
 
 def try_location(

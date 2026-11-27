@@ -76,7 +76,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-reference service-reference-check service-purge service-logs service-logs-search service-logs-fields service-down measure-core migrate \
+	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-reference service-reference-check service-reference-backup service-reference-restore service-purge service-logs service-logs-search service-logs-fields service-down measure-core migrate \
 	build-keycloak save-keycloak load-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production kube-tools lint-chart test-chart chart-trial chart-trial-k3s chart-upgrade check-chart \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
@@ -86,7 +86,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap check-measures e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror mirror-sync lot-size measure-reference tracking merge-queue merge-queue-check queue-report \
+	coverage-back coverage-front roadmap check-roadmap check-measures e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror mirror-sync lot-size measure-reference tracking merge-queue merge-queue-check queue-cancel queue-report \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -188,7 +188,7 @@ SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPE
 	WATERFALL_POSTGRES_PORT WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT \
 	WATERFALL_MAILPIT_PORT WATERFALL_PROXY_PORT
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT E2E_METRICS_FRONT_PORT E2E_METRICS_PORT
-$(call slot-export,service-up service-install service-witness service-reference service-reference-check service-purge keycloak-authority service-logs service-logs-search service-logs-fields service-down service-api-processes \
+$(call slot-export,service-up service-install service-witness service-reference service-reference-check service-reference-backup service-reference-restore service-purge keycloak-authority service-logs service-logs-search service-logs-fields service-down service-api-processes \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
 # e2e-down is not tolerant of a worktree without a slot, on purpose: its first command, stop-servers,
 # already stops on "run make slot" (US-1300), because without a slot there are no ports to look at and
@@ -412,6 +412,37 @@ service-reference: ## Load the reference set (the witness, then the 300 projects
 service-reference-check: ## Check the reference set the service platform holds: its volumes, its identifiers, the sums of its portfolio (same REFERENCE_* variables); ends 1 on a fault
 	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet witness
 	@$(COMPOSE_SERVICE) run --rm --no-TTY witness waterfall-api check-reference --projects $(REFERENCE_PROJECTS) --revisions $(REFERENCE_REVISIONS) --cost-lines $(REFERENCE_COST_LINES)
+
+# The reference set kept as a backup (US-2950/L2b, #4114), engendered once per version: its archive and
+# its manifest out of the platform, in REFERENCE_ARCHIVES — a folder of the workstation, shared by its
+# worktrees, readable by its user alone —, named after the version, the seed and the volumes
+# (reference-<version>-<seed>-<projects>-<revisions>-<cost lines>.tar and .manifest.json).
+# service-reference-backup checks the set, has the platform back itself up as its schedule does, without
+# an account, and reads the archive out of the bucket: `waterfall-api backup-reference`, in a container
+# of the worker, under the user of the workstation, the description of the witness read-only.
+# service-reference-restore drops the data of the platform of the slot, makes its databases, restores
+# the archive in them before Keycloak, the API and the worker start (`waterfall-api restore-reference`,
+# in a container of the service of the restoration, as their owners), then starts the platform.
+REFERENCE_ARCHIVES ?= $(HOME)/.local/share/waterfall/reference
+REFERENCE_VOLUMES = --projects $(REFERENCE_PROJECTS) --revisions $(REFERENCE_REVISIONS) --cost-lines $(REFERENCE_COST_LINES)
+service-reference-backup: ## Keep the reference set the service platform holds as a backup, its archive and manifest in REFERENCE_ARCHIVES (~/.local/share/waterfall/reference), named after the version and the seed; same REFERENCE_* variables
+	@mkdir -p $(REFERENCE_ARCHIVES) && chmod 700 $(REFERENCE_ARCHIVES)
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet worker
+	@$(COMPOSE_SERVICE) run --rm --no-TTY --no-deps --user "$$(id -u):$$(id -g)" \
+		--env WATERFALL_WITNESS_PATH=/fixtures/api --volume "$(CURDIR)/fixtures/api:/fixtures/api:ro" \
+		--volume "$(CURDIR)/fixtures/witness:/fixtures/witness:ro" --volume "$(REFERENCE_ARCHIVES):/reference" \
+		worker waterfall-api backup-reference $(REFERENCE_VOLUMES) --into /reference
+
+service-reference-restore: ## Drop the data of the service platform, restore on it the reference set kept in REFERENCE_ARCHIVES (make service-reference-backup) before it starts, then start it; same REFERENCE_* variables
+	@echo 'The data of the service platform of this slot are dropped (service-down WATERFALL_RESET_DATA=yes).'
+	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet migrate restore
+	@$(COMPOSE_SERVICE) run --rm --no-TTY keycloak-database > /dev/null
+	@$(COMPOSE_SERVICE) run --rm --no-TTY migrate
+	@$(COMPOSE_SERVICE) run --rm --no-TTY --no-deps --user "$$(id -u):$$(id -g)" \
+		--volume "$(REFERENCE_ARCHIVES):/reference:ro" \
+		restore waterfall-api restore-reference $(REFERENCE_VOLUMES) --from /reference
+	@$(MAKE) --no-print-directory service-up
 
 # The purge of what expired (EP-06, "La purge"), by hand: the schedule the scheduler calls every five
 # minutes, run in its container with a purge interval of one second, so that the purge is due now;
@@ -1154,6 +1185,9 @@ merge-queue: ## Create the merge queue ruleset of an epic's branch from .github/
 
 merge-queue-check: ## Check that an active ruleset with a merge queue targets an epic's branch (EPIC=EP-nn)
 	@$(WFTOOLS).mergequeue check "$(EPIC)"
+
+queue-cancel: ## Cancel the runs of the chain that the merge queue made stale, in the merge queue only (wftools.queuecancel, US-2800/L7)
+	@$(WFTOOLS).queuecancel
 
 # The runs of the merge queue of a branch, read by gh from a workstation, never in the chain: their
 # failures by job and step, the tests and paths that failed, classified against

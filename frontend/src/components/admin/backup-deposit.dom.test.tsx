@@ -343,6 +343,29 @@ describe("the deposit of a backup of another installation", () => {
       ]);
     });
 
+    it("forgets a deposit the server no longer knows (404) at its completion, and opens anew [WF-ADM-0160-A]", async () => {
+      const client = serve({
+        ...DEPOSITED,
+        [COMPLETION]: [
+          { problem: { code: "NOT_FOUND", status: 404 } },
+          { status: 201, example: "chunked_upload_completed" },
+        ],
+      });
+      const region = deposit();
+      await send(region);
+      expect(await within(region).findByRole("alert")).toBeInTheDocument();
+      await userEvent.click(within(region).getByRole("button", { name: "Déposer" }));
+      await within(region).findByRole("button", { name: "Restaurer cette sauvegarde" });
+      expect(paths(client).slice(4)).toEqual([
+        `/chunked-uploads/${DEPOSIT}/completion`,
+        "/chunked-uploads",
+        `/chunked-uploads/${DEPOSIT}/parts/1`,
+        `/chunked-uploads/${DEPOSIT}/parts/2`,
+        `/chunked-uploads/${DEPOSIT}/parts/3`,
+        `/chunked-uploads/${DEPOSIT}/completion`,
+      ]);
+    });
+
     it("opens a deposit anew for another file [WF-ADM-0160-A]", async () => {
       const client = serve({
         ...DEPOSITED,

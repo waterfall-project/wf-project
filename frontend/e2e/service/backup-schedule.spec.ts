@@ -22,23 +22,29 @@
  * API, never recomputed.
  *
  * The external copy: the installation declares its locations in a file its deployment mounts
- * (`external_backup_locations_file`), which neither the Compose of the platform of the paths nor
- * the chart mounts yet (#4655, to settle by the author). The platform of the paths declares none,
- * and this path plays what the service serves then: no location listed, the form of the schedule
- * offering no copy, the test of a location the installation does not declare refused (404), a
- * copy set to such a location refused at its field (422, `UNKNOWN_EXTERNAL_BACKUP_LOCATION`). The
- * copy up to a location — the sentence « fichier témoin écrit puis effacé », the copy kept — is
- * declared unexecuted (`test.fixme`, last of the file) until a location is declared on the
- * platform of the paths.
+ * (`external_backup_locations_file`), and the platform of the paths declares one, `mounted_share`,
+ * a folder (`/srv/external-share`, a volume) the API and the worker see alike (#4655, #4667). The
+ * second path plays what the service serves: that location listed, the form of the schedule
+ * offering it, the test of a location the installation does not declare refused (404), a copy set
+ * to such a location refused at its field (422, `UNKNOWN_EXTERNAL_BACKUP_LOCATION`). The third
+ * plays the copy up to the location (WF-ADM-0170-A): the location chosen in the form and tested
+ * (the sentence « fichier témoin écrit puis effacé »), the copy kept and read anew from the
+ * service, then a scheduled backup — due at the minute the path sets, deposited by the command of
+ * the planners (`waterfall-worker schedule`, which the platform runs every five minutes) — copied
+ * by the worker: the copy is found in the folder of the location, read from the container of the
+ * worker, the volume having no path on the host.
  */
+import { execFileSync } from "node:child_process";
+
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import catalogue from "../../messages/fr.json" with { type: "json" };
 import type { components } from "../../src/api/generated/schema";
-import { WORKING } from "../bounds";
+import { BACKUP_DONE, SCHEDULED_BACKUP_COPIED, WORKING } from "../bounds";
 import { menuButton, openFilters, pick } from "../check-menu";
 import { compileAnswered } from "../compile";
 import { untilHydrated } from "../hydration";
+import { container } from "./components";
 import { heldToTheContract } from "./contract";
 import {
   accountAdministrator,
@@ -57,6 +63,9 @@ const BACKUPS = "/admin/backups";
 const KEEPER = "Sauvegardes (parcours)";
 const SCHEDULE = `${API}/backup-schedule`;
 const LOCATIONS = `${API}/external-backup-locations`;
+const LOCATION = "mounted_share";
+// Where the API and the worker see that location (`service-external-locations.json`).
+const FOLDER = "/srv/external-share";
 const PERMISSIONS: Schemas["PermissionCode"][] = ["backups.read", "backups.write"];
 
 interface Schedule {
@@ -372,12 +381,18 @@ test("a backup taken is listed, marked to keep and released, filtered and sorted
       false,
     );
 
-    // The locations of the copy: none declared on this platform (#4655). The service lists none
-    // and refuses the test of an unknown one (404); the form of the schedule offers no copy; a
-    // copy set to a location it does not declare is refused at its field (422).
+    // The locations of the copy: the one the platform of the paths declares, and no other. The
+    // test of an unknown one is refused (404); a copy set to a location it does not declare is
+    // refused at its field (422); the form of the schedule offers the one declared.
     const listing = await calls.get(LOCATIONS, { headers });
     expect(listing.status(), "GET external-backup-locations").toBe(200);
-    expect(await listing.json()).toEqual([]);
+    expect(await listing.json()).toEqual([
+      {
+        name: LOCATION,
+        kind: "mounted_share",
+        description: "Partage monté du parcours de service, le volume external-share.",
+      },
+    ]);
     const tested = await calls.post(`${LOCATIONS}/ailleurs/test`, { headers, data: {} });
     expect(tested.status(), "POST external-backup-locations/ailleurs/test").toBe(404);
     const schedule = (await (await calls.get(SCHEDULE, { headers })).json()) as Schedule;
@@ -405,18 +420,160 @@ test("a backup taken is listed, marked to keep and released, filtered and sorted
       .click();
     const form = page.getByRole("dialog", { name: "Modifier la planification" });
     await expect(form.getByLabel("Sauvegardes conservées")).toBeVisible();
-    await expect(form.getByLabel("Copie externe vers")).toHaveCount(0);
-    await expect(form.getByRole("button", { name: "Tester l’emplacement" })).toHaveCount(0);
+    await expect(form.getByLabel("Copie externe vers")).toContainText(LOCATION);
   } finally {
     withdrawRoles(holder.email);
     await calls.dispose();
   }
 });
 
-test.fixme("the copy of a schedule to a declared location is chosen, its location tested (« fichier témoin écrit puis effacé »), kept and found on the location [WF-ADM-0170-A] [US-2910]", () => {
-  // Not played: the platform of the paths declares no location (#4655, to settle by the author).
-  // The path to write once it declares one: choose the location in « Copie externe vers » of the
-  // form of the schedule, press « Tester l’emplacement » and read the sentence « fichier témoin
-  // écrit puis effacé »; save the copy, read the schedule anew from the service with its
-  // `external_copy`; take a backup, and find its copy on the location, rotated by its retention.
+/** What the worker sees in a folder of the location: the volume has no path on the host. */
+function onTheLocation(path: string): string[] {
+  const worker = container("worker");
+  try {
+    return execFileSync("docker", ["exec", worker, "ls", `${FOLDER}/${path}`], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    })
+      .split("\n")
+      .filter((name) => name !== "");
+  } catch (error) {
+    // The folder is written with the first copy: none yet. Any other failure is not an empty folder.
+    const said = (error as { stderr?: string }).stderr ?? "";
+    if (said.includes("No such file or directory")) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+/** Deposit what is due, as the planners do every five minutes: the container of the worker has the settings. */
+function planDue(): void {
+  execFileSync("docker", ["exec", container("worker"), "waterfall-worker", "schedule"], {
+    stdio: "ignore",
+  });
+}
+
+/** The name of the copy of a backup: its date, in universal time (`copy_name` of the service). */
+const copyName = (takenAt: string): string =>
+  `waterfall-backup-${new Date(takenAt)
+    .toISOString()
+    .replace(/\.\d+Z$/, "Z")
+    .replaceAll(/[-:]/g, "")}.tar`;
+
+test("the copy of a schedule to a declared location is chosen, its location tested (« fichier témoin écrit puis effacé »), kept and found on the location [WF-ADM-0170-A] [US-2910]", async ({
+  browser,
+  page,
+  playwright,
+}) => {
+  // A scheduled backup by the worker, its verification, its copy: a minute or two, after the
+  // minute the schedule is set to.
+  test.setTimeout(SCHEDULED_BACKUP_COPIED + BACKUP_DONE + 2 * WORKING);
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  const administrator = await accountAdministrator(browser, calls);
+  const holder = await localAccount(browser, administrator);
+  const headers = { Authorization: `Bearer ${await frontToken(browser, holder)}` };
+  const current = async (): Promise<Schedule> => {
+    const answer = await calls.get(SCHEDULE, { headers });
+    expect(answer.status(), "GET backup-schedule").toBe(200);
+    return (await answer.json()) as Schedule;
+  };
+  const scheduled = async (): Promise<(Backup & { taken_at: string })[]> => {
+    const answer = await calls.get(`${API}/backups?origins=scheduled&limit=100`, { headers });
+    expect(answer.status(), "GET backups, scheduled").toBe(200);
+    return ((await answer.json()) as { items: (Backup & { taken_at: string })[] }).items;
+  };
+  const folder = `parcours-${String(Date.now())}`;
+  let shipped: Schedule | undefined;
+  try {
+    await administrator.give(holder.id, KEEPER, PERMISSIONS);
+    shipped = await current();
+    const before = new Set((await scheduled()).map((one) => one.backup_id));
+
+    await signIn(page, holder, BACKUPS);
+    await untilHydrated(page);
+    const section = page.getByRole("region", { name: "Planification", exact: true });
+    await section.getByRole("button", { name: "Modifier la planification" }).click();
+    const form = page.getByRole("dialog", { name: "Modifier la planification" });
+
+    // The location chosen, its folder given, then tested: the service writes a witness file on it
+    // and erases it.
+    await form.getByLabel("Copie externe vers").selectOption(LOCATION);
+    await form.getByLabel("Dossier dans l’emplacement").fill(folder);
+    await form.getByRole("textbox", { name: "Copies gardées" }).fill("7");
+    await form.getByRole("button", { name: "Tester l’emplacement" }).click();
+    await expect(form.getByRole("status")).toContainText(`« ${LOCATION} » éprouvé le`, {
+      timeout: WORKING,
+    });
+    await expect(form.getByRole("status")).toContainText(
+      `dossier ${folder} : le fichier témoin a été écrit puis effacé.`,
+    );
+    expect(onTheLocation(folder), "the witness file is erased").toEqual([]);
+
+    // Due at the next minute, with a margin to save before it: the occurrence must come after the
+    // writing of the schedule (`backup_is_due`).
+    // At least forty seconds of margin: the next minute, or the one after it.
+    const ahead = new Date(Date.now() + (new Date().getUTCSeconds() > 20 ? 120_000 : 60_000));
+    ahead.setUTCSeconds(0, 0);
+    const at = ahead.toISOString().slice(11, 16);
+    await form.getByLabel("Heure (UTC)").fill(at);
+    await form.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(form).toBeHidden({ timeout: WORKING });
+    await expect(section.getByRole("status")).toHaveText("Planification enregistrée.");
+    await expect(section).toContainText(`Vers ${LOCATION}, dossier ${folder}`);
+
+    // Saved before the minute, or the occurrence is tomorrow's and nothing would be deposited.
+    expect(
+      Date.now(),
+      `the schedule was saved after ${at} UTC, the minute it is due: the runner is too slow`,
+    ).toBeLessThan(ahead.getTime());
+
+    // The copy kept by the service: the schedule read anew carries it, and the page too.
+    const written = await current();
+    expect(written).toMatchObject({
+      at_time: at,
+      external_copy: { is_enabled: true, location: LOCATION, path: folder, retained_count: 7 },
+    });
+    await page.reload();
+    await expect(page.getByRole("region", { name: "Planification", exact: true })).toContainText(
+      `Vers ${LOCATION}, dossier ${folder}`,
+    );
+
+    // The minute passed, the planners' command deposits the backup due; the worker takes it,
+    // verifies it, and copies it.
+    let taken: (Backup & { taken_at: string }) | undefined;
+    await expect
+      .poll(
+        async () => {
+          if (taken === undefined && Date.now() > ahead.getTime()) {
+            planDue();
+          }
+          taken = (await scheduled()).find((one) => !before.has(one.backup_id));
+          return taken?.verification;
+        },
+        { timeout: SCHEDULED_BACKUP_COPIED, intervals: [5_000] },
+      )
+      .toBe("passed");
+    const name = copyName(taken?.taken_at ?? "");
+    await expect
+      .poll(() => onTheLocation(folder), { timeout: BACKUP_DONE, intervals: [2_000] })
+      .toEqual([name]);
+  } finally {
+    try {
+      if (shipped !== undefined) {
+        // Put back whole as it was shipped, without the copy, from the version held now.
+        const now = await current();
+        const whole = withoutVersion(shipped);
+        const back = await calls.put(SCHEDULE, {
+          headers,
+          data: { ...whole, lock_version: now.lock_version },
+        });
+        expect(back.status(), "PUT backup-schedule, shipped value put back").toBe(200);
+        expect(withoutVersion(await current())).toEqual(whole);
+      }
+    } finally {
+      withdrawRoles(holder.email);
+      await calls.dispose();
+    }
+  }
 });
