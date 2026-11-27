@@ -86,7 +86,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap check-measures e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror mirror-sync lot-size measure-reference tracking merge-queue merge-queue-check queue-report \
+	coverage-back coverage-front roadmap check-roadmap check-measures e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror mirror-sync lot-size measure-reference tracking merge-queue merge-queue-check queue-cancel queue-report \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -1185,6 +1185,9 @@ merge-queue: ## Create the merge queue ruleset of an epic's branch from .github/
 
 merge-queue-check: ## Check that an active ruleset with a merge queue targets an epic's branch (EPIC=EP-nn)
 	@$(WFTOOLS).mergequeue check "$(EPIC)"
+
+queue-cancel: ## Cancel the runs of the chain that the merge queue made stale, in the merge queue only (wftools.queuecancel, US-2800/L7)
+	@$(WFTOOLS).queuecancel
 
 # The runs of the merge queue of a branch, read by gh from a workstation, never in the chain: their
 # failures by job and step, the tests and paths that failed, classified against

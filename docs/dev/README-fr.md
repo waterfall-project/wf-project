@@ -4010,6 +4010,26 @@ le bouton « Merge when ready », ou par la mutation `enqueuePullRequest` de l'A
 dépôt. Une branche sans file de fusion fait tourner le palier complet à la main sur la
 branche d'un lot, avant de le fusionner : `gh workflow run chain --ref <branche>`.
 
+**Les constructions périmées de la file.** La file construit une pull request sur une ref à elle,
+`gh-readonly-queue/<base>/pr-<N>-<sha>`, et la reconstruit sur un autre sha quand elle retire une
+entrée ou se reforme. Le groupe de concurrence de `chain` ne rattrape pas l'ancien passage (la ref
+change, et `cancel-in-progress` ne vaut que pour `pull_request`) : le 2026-11-27, des constructions
+périmées ont occupé les quelque vingt places du parc, les nouvelles ont attendu, expiré, et la file
+les a reconstruites (#5122). Sur un `merge_group` seulement, le job `cancel-stale` de `ci.yml`
+(`make queue-cancel`, `wftools.queuecancel`) annule les passages de `chain` en attente (`queued`,
+`waiting`, `pending`, `requested`) ou en cours dont la ref est celle d'une construction précédente
+de la même pull request dans la file de la même base (même base, même N, autre sha, et un passage
+plus ancien que le sien : un plus récent est la construction vivante), et ceux d'une
+pull request qui n'est plus dans la file (`mergeQueue(branch:)` de l'API GraphQL ; si la file ne se
+lit pas, ou si elle dépasse les cent entrées lues, seules les constructions précédentes de la même
+pull request sont annulées ; les passages sont lus avant la file). Il n'annule
+jamais un passage d'une autre base, d'un `pull_request`, d'un `workflow_dispatch` ou d'un `push`, ni
+le sien, écrit chaque annulation au journal (passage, pull request, ref), n'échoue jamais (un échec de
+lecture ou d'annulation devient une annotation `::warning::`), et aucun job ne
+l'attend ; il est le seul à porter `actions: write`. **Lire l'état des runners** : compter les jobs
+(`gh run view <passage> --json jobs`, ceux `in_progress` et `queued`), pas les passages, car un
+passage reste `queued` tant qu'un de ses jobs attend ; un palier complet compte environ 45 jobs.
+
 Les images tierces de Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, k6, Node, Python,
 Debian, Maven, Keycloak et son `keycloak-config-cli` — restent nommées, dans les fichiers Compose et
 les `Dockerfile`, comme sur Docker Hub, par leur empreinte : le poste, la production et la démonstration

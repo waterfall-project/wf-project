@@ -39,6 +39,32 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # In the merge queue only: cancels the runs of this chain that the queue made stale, an earlier
+  # build of the same pull request or a pull request that left the queue, which would keep the
+  # runners from the new ones (wftools.queuecancel, US-2800/L7). Nothing waits for it, and it is
+  # the only job that may cancel a run.
+  cancel-stale:
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
+          cache-dependency-glob: tools/uv.lock
+      - run: make queue-cancel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+
   changes:
     runs-on: ubuntu-26.04
     timeout-minutes: 5
