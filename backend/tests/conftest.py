@@ -21,6 +21,7 @@ from openapi_core import Config, OpenAPI
 from project_rows import drop_every_partition, empty_database, unguarded
 from pydantic import SecretStr
 from realm import KEY, TestRealm
+from sharding import in_order, part_of
 from sqlalchemy import Engine, insert, text
 from sqlalchemy.orm import Session
 from support import (
@@ -127,6 +128,11 @@ def pytest_unconfigure(config: pytest.Config) -> None:
         dropped(config.stash[TEMPLATE], os.environ.get(TEST_DATABASE_VARIABLE))
 
 
+def heavy(item: pytest.Item) -> bool:
+    """Tell whether a test is marked ``heavy``: it loads a platform of its own, over a minute."""
+    return item.get_closest_marker("heavy") is not None
+
+
 def on_the_witness(item: pytest.Item) -> bool:
     """Tell whether a test is given a copy of the template of the witness."""
     names = cast("list[str]", getattr(item, "fixturenames", []))
@@ -142,8 +148,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     each keeps the same part. One in N, rather than N runs of files, spreads the files that load the
     witness, the longest, over all the parts.
 
-    The tests given a copy of the template of the witness run after the others, while it loads: the
-    first process to see one starts the loading, unless the run only collects.
+    The tests given a copy of the template of the witness run after the others, while it loads, the
+    heavy ones first (``sharding``): the first process to see one starts the loading, unless the
+    run only collects.
     """
     shard = cast("str | None", config.getoption("shard"))
     if shard is not None:
@@ -151,15 +158,15 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         if not (part.isdigit() and parts.isdigit() and 1 <= int(part) <= int(parts)):
             message = f"--shard must be i/N, 1 <= i <= N, not {shard!r}"
             raise pytest.UsageError(message)
-        kept: list[pytest.Item] = []
-        left: list[pytest.Item] = []
-        for index, item in enumerate(items):
-            (kept if index % int(parts) == int(part) - 1 else left).append(item)
+        kept, left = part_of(items, int(part), int(parts))
         config.hook.pytest_deselected(items=left)
         items[:] = kept
-    witnessed = [item for item in items if on_the_witness(item)]
-    items[:] = [item for item in items if not on_the_witness(item)] + witnessed
-    if witnessed and os.environ.get(TEST_DATABASE_VARIABLE) and not config.option.collectonly:
+    items[:] = in_order(items, on_the_witness, heavy)
+    if (
+        any(on_the_witness(item) for item in items)
+        and os.environ.get(TEST_DATABASE_VARIABLE)
+        and not config.option.collectonly
+    ):
         start(config.stash[TEMPLATE])
 
 

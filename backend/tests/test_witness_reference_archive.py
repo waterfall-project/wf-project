@@ -225,6 +225,7 @@ def restored_once(
     return report.held
 
 
+@pytest.mark.heavy
 @pytest.mark.requirement("WF-QUA-0040-A")
 @pytest.mark.story(STORY)
 def test_the_set_kept_as_a_backup_is_restored_twice_on_a_fresh_platform_and_found_whole(

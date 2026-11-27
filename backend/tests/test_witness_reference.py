@@ -411,6 +411,7 @@ def tranche(held: Base) -> dict[tuple[str, int, int, bool], int]:
     return found
 
 
+@pytest.mark.heavy
 @pytest.mark.story(STORY)
 def test_a_tranche_of_projects_covering_every_combination_of_the_draw_is_written_by_the_rules(
     witness: Database,

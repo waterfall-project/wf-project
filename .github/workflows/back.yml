@@ -56,7 +56,14 @@ jobs:
     # witness is now loaded once by a part, into a template each test on it copies (US-2770/L2b,
     # #4653): the eight parts took 6 to 10 minutes (run 44957647502), then the six 7 to 14 minutes
     # (run 44958967745), each under the delay of 20 minutes, a margin to the slowest runner rather
-    # than a wait.
+    # than a wait. On 2026-11-27, 198 jobs of the last 40 runs took 12.8 minutes on average (median
+    # 12.3, 90th percentile 16.9, 18 of them 17 or more), the six parts alike (11.5 to 13.8 on
+    # average): the spread is the runner's, not a heavy part. Twice (#5155) a part was cancelled at
+    # 98 %: seventeen tests load a platform of their own, one to two minutes each, and played last
+    # of the tests on the witness, the other processes idle (4 minutes 15 after 98 % in a slow run).
+    # They are marked heavy and played first of their group (backend/tests/sharding.py): the
+    # part 2/6 took 6 minutes 23 then 5 minutes 27 locally. The four `lock timeout` of the
+    # journal are tests that hold a lock on purpose, not a wait. The delay is kept.
     timeout-minutes: 20
     services:
       postgres:

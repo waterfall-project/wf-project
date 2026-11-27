@@ -570,6 +570,7 @@ def test_the_comparison_reads_the_overdue_finish_at_the_day_of_the_reading() -> 
     assert difference(other, named, READ_ON) == ["task.calendar_id"]
 
 
+@pytest.mark.heavy
 def test_two_platforms_loaded_with_the_witness_hold_the_same_tasks(
     witness: Database, owner: Engine, service_database_url: str
 ) -> None:

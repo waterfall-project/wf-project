@@ -406,6 +406,7 @@ def identifying(session: Session) -> dict[int, dict[UUID, dict[str, object]]]:
     }
 
 
+@pytest.mark.heavy
 def test_two_platforms_loaded_with_the_witness_hold_the_same_lines_and_amounts(
     witness: Database, owner: Engine, service_database_url: str
 ) -> None:

@@ -323,6 +323,7 @@ def fillers() -> Iterator[list[tuple[UUID, UUID | None]]]:
     withdraw()
 
 
+@pytest.mark.heavy
 def test_the_witness_fills_each_structure_it_opens_before_the_next_event(
     fillers: list[tuple[UUID, UUID | None]], witness_loaded: Database
 ) -> None:

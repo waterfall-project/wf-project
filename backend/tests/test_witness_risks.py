@@ -247,6 +247,7 @@ def identifying(database: Database) -> dict[str, list[tuple[object, ...]]]:
         }
 
 
+@pytest.mark.heavy
 @pytest.mark.requirement("WF-QUA-0040-A")
 def test_two_loadings_give_the_same_identifiers_with_their_natural_keys(
     witness: Database, owner: Engine, service_database_url: str

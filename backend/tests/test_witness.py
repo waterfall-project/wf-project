@@ -120,6 +120,7 @@ def test_the_slices_are_loaded_in_the_order_of_their_dependencies(
     assert loaded == [[name for name in ORDER if name != "hourly_rates"]]
 
 
+@pytest.mark.heavy
 def test_the_slices_of_the_projects_are_loaded_in_their_order_after_the_reference(
     session: Session, owner: Engine, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -349,6 +350,7 @@ def test_an_example_is_read_in_the_form_of_the_contract(tmp_path: Path) -> None:
         Witness(tmp_path, Act(None, utc_now())).read("duration_units.json", DurationUnits)
 
 
+@pytest.mark.heavy
 def test_the_command_loads_the_witness_its_settings_given(
     service_database_url: str,
     database: Database,
@@ -636,6 +638,7 @@ def test_the_lists_of_the_service_loaded_with_the_witness_are_the_examples_the_f
     assert without_audit(read) == without_audit(expected)
 
 
+@pytest.mark.heavy
 def test_two_new_platforms_loaded_with_the_witness_hold_the_same_identifying_data(
     witness: Database, owner: Engine, service_database_url: str
 ) -> None:
@@ -668,6 +671,7 @@ def test_a_second_loading_on_the_same_platform_writes_nothing_and_says_the_witne
     assert identifying(witness) == held
 
 
+@pytest.mark.heavy
 def test_the_loading_dates_and_signs_every_object_as_the_platform_not_as_the_witness(
     database: Database, owner: Engine, service_database_url: str
 ) -> None:

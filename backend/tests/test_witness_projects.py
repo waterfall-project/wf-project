@@ -401,6 +401,7 @@ def test_the_designation_of_the_offer_succeeds_and_is_noted_in_the_output(
         )
 
 
+@pytest.mark.heavy
 @pytest.mark.requirement("WF-QUA-0040-A")
 def test_two_new_platforms_loaded_with_the_witness_hold_the_same_identifying_data(
     witness: Database, owner: Engine, service_database_url: str
@@ -537,6 +538,7 @@ def test_a_designation_that_is_not_refused_stops_the_command(
     assert counts(witness)["project"] == 0
 
 
+@pytest.mark.heavy
 @pytest.mark.requirement("WF-QUA-0040-A")
 def test_a_refusal_elsewhere_than_at_the_designation_stops_the_command(
     monkeypatch: pytest.MonkeyPatch,

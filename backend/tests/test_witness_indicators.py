@@ -721,6 +721,7 @@ def test_the_remaining_of_the_101_is_the_kept_indicators_of_the_project(
     assert D(body["delta_to_previous_revision"]) == total - D(offered["total"])
 
 
+@pytest.mark.heavy
 @QUA
 def test_two_platforms_loaded_with_the_witness_keep_the_same_documents_for_the_101_to_the_cent(
     witness: Database, owner: Engine, service_database_url: str

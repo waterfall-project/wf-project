@@ -146,6 +146,7 @@ def marked_of(database: Database) -> list[str]:
         return [each for each in names if each is not None]
 
 
+@pytest.mark.heavy
 @pytest.mark.requirement("WF-QUA-0040-A")
 @pytest.mark.story("US-2950")
 def test_the_history_marks_each_month_and_opens_the_next_by_the_rules_and_the_check_finds_the_set(
@@ -221,6 +222,7 @@ def test_the_command_checks_the_set_and_ends_one_on_a_fault_two_on_a_setting_tha
     assert main(["check-reference"]) == 2
 
 
+@pytest.mark.heavy
 @pytest.mark.requirement("WF-QUA-0040-A")
 @pytest.mark.story("US-2950")
 def test_a_history_stopped_between_two_months_is_taken_up_at_the_next_and_gives_the_same_set(

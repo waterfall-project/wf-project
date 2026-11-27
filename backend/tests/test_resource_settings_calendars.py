@@ -745,6 +745,7 @@ def without_audit(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{name: each[name] for name in each if name not in unshared} for each in items]
 
 
+@pytest.mark.heavy
 @pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_witness_loads_the_calendars_and_designates_its_default_one(
     api: ContractClient,
