@@ -78,6 +78,14 @@ Issues ouvertes, rattachées à cet EPIC par la ventilation du 2026-11-21 :
   pourrait
 - #3768 — back : inflation_rate et win_probability d'une révision lus par un lecteur de grille
 - #3776 — back : la liste des lecteurs de grille est définie deux fois dans api/
+
+Reçus d'EP-13 le 2026-11-27 (décision de l'auteur, mesure aux volumes d'US-2970/L2) :
+
+- #5158 — performance : l'API sature sous cinquante utilisateurs sur le jeu de référence à trois
+  cents projets (`GET /portfolio/projects` jusqu'à 207 s) ; les étapes non atteintes du rapport de
+  v0.4.0 ;
+- le préchauffage du cache des indicateurs, que la mesure retient : son issue est ouverte par
+  US-2970/L2.
 - #3906 — back : la mesure de la révision en cours juge son seuil sur une union planchée, et son
   ordre alterné n'est ni pair ni testé
 - #3913 — back, front : ouvrir une grille comparée prend 2,847 s pour 2 s

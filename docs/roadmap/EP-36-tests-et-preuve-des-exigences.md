@@ -300,7 +300,9 @@ Reportés par EP-13 le 2026-11-27 (décision de l'auteur), rattachés à #4596, 
 - #5109 — outil : la garde des écrivains du journal ne voit pas une fonction publique qui écrit
   par un privé, ni une écrivante `async` (US-2980/L2) ;
 - #5130 — back : le déclencheur du journal ouvert à la copie anonymisée n'éprouve pas sa condition
-  sur `session_user`, qui ferme le passage par une fonction `SECURITY DEFINER` (US-2960).
+  sur `session_user`, qui ferme le passage par une fonction `SECURITY DEFINER` (US-2960) ;
+- #5110 — back : trois mineurs de lisibilité des tests Keycloak après US-2890/L4 ; le fichier
+  `test_keycloak_authentication.py` est à la limite de 1000 lignes.
 
 ## Conception
 
