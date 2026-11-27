@@ -1060,7 +1060,8 @@ e2e-reference: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-reference: export E2E_BUILT = 1
 # The platform holds the set: its projects counted in its database, a second's reading, before a
 # browser is started; a platform that is new, or loaded with less, says what to run first.
-reference-held = held=$$($(COMPOSE_SERVICE) exec --no-TTY postgres psql --username waterfall --dbname waterfall --tuples-only --no-align --command 'SELECT count(*) FROM project') && \
+reference-held = held=$$($(COMPOSE_SERVICE) exec --no-TTY postgres psql --username waterfall --dbname waterfall --tuples-only --no-align --command 'SELECT count(*) FROM project') \
+		|| { echo "make e2e-reference: the projects of the platform cannot be counted: run make service-up, then make service-reference-restore." >&2; exit 1; } && \
 	if [ "$${held:-0}" -lt $(REFERENCE_PROJECTS) ]; then \
 		echo "make e2e-reference: the platform holds $${held:-0} projects, the reference set $(REFERENCE_PROJECTS): run make service-reference-restore first." >&2; exit 1; fi
 e2e-reference: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `reference` (frontend/e2e/reference/) against the service platform that holds the reference set — make service-reference-restore first —, neither installed nor loaded again, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers); TESTS=<arguments of playwright test>, e.g. a file of frontend/e2e/reference/

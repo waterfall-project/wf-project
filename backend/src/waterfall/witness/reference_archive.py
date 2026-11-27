@@ -92,7 +92,11 @@ def archive_name(wanted: int, history: History) -> str:
 
 @dataclass(frozen=True, slots=True)
 class Waiting:
-    """How long the command waits for the backup: its task's deadline, and the queue before it."""
+    """How long the command waits for the backup: its task's deadline, and the queue before it.
+
+    ``patience`` is the whole wait, for the end of the backup and for the archive together: the
+    deadline is taken once, when the command has deposited the backup (``backup_reference``).
+    """
 
     patience: float = TASK_DEADLINE + 600.0
     pause: float = 2.0
@@ -126,12 +130,13 @@ def backup_reference(
                 logger.error("reference.backup_held_back", missing_condition=deposited[0])
                 return 1
             waiting = waiting or Waiting()
-            result = ended(database, deposited, waiting)
+            until = waiting.clock() + waiting.patience
+            result = ended(database, deposited, waiting, until)
             if result is None:
                 return 1
             backup_id, name = UUID(str(result["backup_id"])), archive_name(wanted, history)
             bucket = Bucket.of_backups(settings)
-            if not kept(database, bucket, backup_id, into / name, waiting):
+            if not kept(database, bucket, backup_id, into / name, waiting, until):
                 return 1
             logger.info("reference.kept", backup_id=str(backup_id), archive=name)
             return 0
@@ -161,12 +166,15 @@ def refused(database: Database, checked: Callable[[Session], reference_check.Rep
     return False
 
 
-def ended(database: Database, task_id: UUID, waiting: Waiting) -> dict[str, Any] | None:
+def ended(
+    database: Database, task_id: UUID, waiting: Waiting, until: float | None = None
+) -> dict[str, Any] | None:
     """Wait for the task of the backup to end; give its result, or ``None`` if it did not succeed.
 
-    A task that failed, or that has not ended once ``waiting`` is spent, is said in the logs.
+    A task that failed, or that has not ended once ``waiting`` is spent (at ``until``, a time of its
+    clock, when given), is said in the logs.
     """
-    deadline = waiting.clock() + waiting.patience
+    deadline = waiting.clock() + waiting.patience if until is None else until
     while True:
         with database.transaction() as session:
             task = session.get(BackgroundTask, task_id)
@@ -189,6 +197,7 @@ def kept(
     backup_id: UUID,
     named: Path,
     waiting: Waiting | None = None,
+    until: float | None = None,
 ) -> bool:
     """Read the archive of a backup into ``named``, its manifest beside it, for their owner alone.
 
@@ -199,7 +208,7 @@ def kept(
     backup and the deposit of a restoration for as long: the file is local, the rotation can no
     longer touch it. A backup deposited between its end and the download (``ended``, then here)
     holds the archive back; it is looked for again every pause of ``waiting`` until its patience is
-    spent, as the end of the backup is (``ended``): a backup takes minutes, not a pause. Said then.
+    spent (the one the end of the backup began, when ``until`` is given), as the end of the backup is (``ended``): a backup takes minutes, not a pause. Said then.
     Then the archive is verified again, as the worker verified it (``verified``): an object cut
     short, or unlike its manifest, keeps nothing. Each is written under a name of its own, then
     renamed, the archive last: an archive present is whole, and its manifest is there. Gives
@@ -213,7 +222,7 @@ def kept(
     before = os.umask(PRIVATE)
     try:
         writing.unlink(missing_ok=True)
-        deadline = waiting.clock() + waiting.patience
+        deadline = waiting.clock() + waiting.patience if until is None else until
         lacking = downloaded(database, bucket, backup_id, writing)
         while lacking and waiting.clock() < deadline:
             logger.info("reference.archive_not_read_yet", missing_condition=lacking[0])
