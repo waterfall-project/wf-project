@@ -296,7 +296,11 @@ Reportés par EP-13 le 2026-11-27 (décision de l'auteur), rattachés à #4596, 
   noyau ;
 - #5066 — front : aucun test ne vérifie que chaque valeur d'`AuditAction` et d'`AuditObjectKind` a
   son libellé dans les deux catalogues ;
-- #5095 — back : le réessai de la seconde étape verrouillée de la migration 0056 n'est pas éprouvé.
+- #5095 — back : le réessai de la seconde étape verrouillée de la migration 0056 n'est pas éprouvé ;
+- #5109 — outil : la garde des écrivains du journal ne voit pas une fonction publique qui écrit
+  par un privé, ni une écrivante `async` (US-2980/L2) ;
+- #5130 — back : le déclencheur du journal ouvert à la copie anonymisée n'éprouve pas sa condition
+  sur `session_user`, qui ferme le passage par une fonction `SECURITY DEFINER` (US-2960).
 
 ## Conception
 
