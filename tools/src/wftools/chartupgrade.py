@@ -61,6 +61,7 @@ from wftools.images import (
     REGISTRY,
     UNRENAMED,
     Holding,
+    declare_unrenamed,
     package_name,
     published_reference,
     registry_answers,
@@ -75,6 +76,7 @@ REQUIREMENTS = ("WF-EXP-0030-A", "WF-DAT-0140-A")
 """What the trial holds, and what it holds nothing of when it is not executed."""
 CLUSTER = "waterfall-upgrade"
 CHART_FILE = "deploy/helm/waterfall/Chart.yaml"
+VALUES_FILE = "deploy/helm/waterfall/values.yaml"
 ADMIN = charttrial.ADMIN
 EXTRACTED = ("deploy/helm", "deploy/compose")
 """What the chart of a commit is read from: its folder, and the files of the Compose it links to."""
@@ -169,13 +171,28 @@ def published_version(read: Read, base: str) -> Version | None:
     return None
 
 
+def renamed_tree(read: Read, commit: str) -> bool:
+    """Tell whether the chart of a commit names its images as renamed (#5123).
+
+    The chart of a commit designates the images its publication wrote: ``images.names`` is there
+    from the lot that renamed them. A tree that cannot be read is taken for a renamed one.
+    """
+    code, values = _git(read, "show", f"{commit}:{VALUES_FILE}")
+    return code != 0 or any(image.package in values for image in IMAGES)
+
+
 def images_held(read: Read, tag: str) -> Holding:
     """Tell whether the three images of a tag are here or published.
+
+    The names they are asked under are those their commit was published with: a commit of before
+    the renaming was published under the former ones, which the registry still holds.
 
     The workstation first, which holds the images it built; then the registry, which says which it
     lacks. A registry that says neither — it refuses the credentials, it does not answer — is
     unclear, never taken for an absence.
     """
+    if not renamed_tree(read, tag):
+        declare_unrenamed(tag)
     if all(
         read(
             ["docker", "image", "inspect", "--format", "{{.Id}}", published_reference(image, tag)]

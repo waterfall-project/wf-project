@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from wftools import chartload, charttrial, chartupgrade
+from wftools import chartload, charttrial, chartupgrade, images
 from wftools.chartload import Tally
 from wftools.charttrial import Tools, Trial
 from wftools.chartupgrade import (
@@ -177,7 +177,9 @@ def test_images_the_workstation_holds_are_not_asked_of_the_registry() -> None:
         return (0, "sha256:x") if command[:3] == ["docker", "image", "inspect"] else (1, "")
 
     assert chartupgrade.images_held(read, BASE) is Holding.HELD
-    assert all(command[:3] == ["docker", "image", "inspect"] for command in asked)
+    assert all(
+        command[:3] == ["docker", "image", "inspect"] for command in asked if command[0] != "git"
+    )
 
 
 @pytest.mark.parametrize(
@@ -196,6 +198,54 @@ def test_images_the_workstation_lacks_are_asked_of_the_registry(
         return (1, "no such image") if command[:2] == ["docker", "image"] else answer
 
     assert chartupgrade.images_held(read, BASE) is holding
+
+
+@pytest.fixture(autouse=True)
+def _commits_published_as_they_were() -> Generator[None]:
+    images._UNRENAMED_COMMITS.clear()  # noqa: SLF001
+    yield
+    images._UNRENAMED_COMMITS.clear()  # noqa: SLF001
+
+
+def history(values: str, held: set[str]) -> tuple[chartupgrade.Read, list[str]]:
+    """Return a read that gives the values of a chart, and holds the references of ``held``."""
+    asked: list[str] = []
+
+    def read(command: list[str]) -> tuple[int, str]:
+        if command[:2] == ["git", "show"]:
+            return 0, values
+        if command[:3] == ["docker", "image", "inspect"]:
+            return 1, "no such image"
+        asked.append(command[-1])
+        return (0, "") if command[-1] in held else (1, "manifest unknown")
+
+    return read, asked
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+def test_a_base_published_before_the_renaming_is_looked_for_under_the_former_names() -> None:
+    # The base of the queue of the lot itself was published by the code of its own tree, as front,
+    # waterfall and keycloak: asked under the new names, no image of it is found.
+    former = [f"{REGISTRY}/{name}:{BASE}" for name in images.UNRENAMED.values()]
+    read, asked = history("images:\n  digests: {}\n", set(former))
+    assert chartupgrade.images_held(read, BASE) is Holding.HELD
+    assert asked == former
+    # What follows names them so too: the pull, the load into the cluster, the pods' designations.
+    assert [images.published_reference(image, BASE) for image in images.IMAGES] == former
+    digests = {image.name: f"sha256:{'a' * 64}" for image in images.IMAGES}
+    assert chartupgrade.designations(digests, BASE) == {
+        f"{name}@sha256:{'a' * 64}" for name in images.UNRENAMED.values()
+    }
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+def test_a_base_published_after_the_renaming_is_looked_for_under_the_new_names() -> None:
+    new = [f"{REGISTRY}/{image.package}:{BASE}" for image in images.IMAGES]
+    read, asked = history("images:\n  names:\n    front: wf-project-frontend\n", set(new))
+    assert chartupgrade.images_held(read, BASE) is Holding.HELD
+    assert asked == new
 
 
 def tree(*members: tuple[str, bytes | str]) -> bytes:

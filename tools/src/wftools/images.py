@@ -118,6 +118,14 @@ The one place that says them: the registry does not rename a package, and the ve
 published stay where they are. Every tool that reads a published version asks ``package_name``."""
 VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 
+_UNRENAMED_COMMITS: set[str] = set()
+"""The commits whose images were published before the renaming, under the former names.
+
+A commit of the history is published at its merge, by the code of its own tree: those before the
+lot of #5123 carry the former names, those after the new ones, and nothing in the hash says which.
+A tool that reads one from its tree (``wftools.chartupgrade``) says it here
+(``declare_unrenamed``)."""
+
 
 MIRROR = ["--build-arg", "WATERFALL_MIRROR"]
 """Gives the Dockerfiles the registry of the mirror the chain poses, if it does (US-1900)."""
@@ -194,10 +202,17 @@ def check_branch(branch: str) -> None:
 def package_name(image: Image, tag: str) -> str:
     """Return the name in the registry of an image under a tag.
 
-    A tag that is a published version up to ``LAST_UNRENAMED`` names its image as it was published;
-    any other — a later version, a commit, a branch — names it by its ``package``.
+    A tag that is a published version up to ``LAST_UNRENAMED``, or a commit declared as published
+    before the renaming, names its image as it was published; any other — a later version, a
+    commit, a branch — names it by its ``package``.
     """
-    return UNRENAMED[image.name] if published_unrenamed(tag) else image.package
+    former = published_unrenamed(tag) or tag in _UNRENAMED_COMMITS
+    return UNRENAMED[image.name] if former else image.package
+
+
+def declare_unrenamed(commit: str) -> None:
+    """Say that the images of a commit were published under the names before the renaming."""
+    _UNRENAMED_COMMITS.add(commit)
 
 
 def published_unrenamed(tag: str) -> bool:
