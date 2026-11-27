@@ -311,6 +311,7 @@ def count(database: Database, model: Any) -> int:
 
 
 @pytest.mark.story(STORY)
+@pytest.mark.requirement("WF-EXP-0010-A")
 def test_the_set_starts_from_the_witness_and_reaches_the_volumes_of_its_reference(
     witness: Database, service_database_url: str, logs: Logs
 ) -> None:
@@ -344,6 +345,9 @@ def test_the_set_starts_from_the_witness_and_reaches_the_volumes_of_its_referenc
     assert len(years) == RATE_YEARS
     # The two hundred of the witness, and the provision the bootstrap writes beside them.
     assert categories == CATEGORIES + 1
+    # WF-EXP-0010-A, « Le jeu de données des environnements de développement et d'intégration est
+    # engendré par un outil du dépôt, sans copie de production. » : the witness and the reference
+    # set, each loaded by its command of the repository, hold no address but in waterfall.test.
     assert all(each is not None and each.endswith(DOMAIN) for each in emails)
     assert [record["projects"] for record in logs.named("reference.loaded")] == [len(TRIED_NUMBERS)]
 

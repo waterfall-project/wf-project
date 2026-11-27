@@ -49,6 +49,8 @@ class SettingsError(Exception):
 
 
 MIN_DECODED_LENGTH = 4
+# The realm of the administration of Keycloak, which no installation is (US-2960).
+ADMINISTRATION_REALM = "master"
 
 
 def _url_secrets(value: str) -> list[str]:
@@ -768,6 +770,32 @@ class RestoreTestSettings(StorageSettings, RealmSettings):
         ]
 
 
+def _not_the_administration_realm(realm: str) -> str:
+    """Keep a realm of an installation; refuse ``master``, the administration's of Keycloak."""
+    if realm == ADMINISTRATION_REALM:
+        message = f"{realm} is the realm of the administration of Keycloak, not of an installation"
+        raise ValueError(message)
+    return realm
+
+
+class AnonymizationSettings(PlatformSettings):
+    """What the anonymisation of a copy of the production reads, ``waterfall-restore anonymize``.
+
+    (WF-EXP-0010, US-2960.) ``database_url`` designates the owner of the tables of Waterfall, who
+    applies the migrations and alone may delete the reports of the readings of the accounts;
+    ``keycloak_database_url`` the owner of the database of the identity provider, whose tables it
+    changes, Keycloak stopped; ``keycloak_realm`` the realm of the installation, whose accounts it
+    anonymises — never ``master``, the realm of the administration of Keycloak, whose accounts
+    administer it. The service of the restoration holds the three. It reaches neither Redis nor
+    Keycloak.
+    """
+
+    keycloak_database_url: SecretStr = Field(min_length=1)
+    keycloak_realm: Annotated[
+        str, Field(pattern="^[A-Za-z0-9_-]+$"), AfterValidator(_not_the_administration_realm)
+    ] = "waterfall"
+
+
 class ComponentsSettings(Settings, KeycloakSettings):
     """What the check of the components reads, ``waterfall-check-components`` (WF-CMP-0020-A).
 
@@ -788,6 +816,26 @@ class WitnessSettings(PlatformSettings):
     """
 
     witness_path: str = Field(min_length=1)
+
+
+class ReferenceBackupSettings(WitnessSettings, Settings, StorageSettings):
+    """What ``waterfall-api backup-reference`` reads (US-2950, #4114).
+
+    The role of the service, as the loader of the witness, to check the set and deposit its backup
+    as the schedule does; Redis, to put it in the queue; the bucket of the backups, to read its
+    archive back once the worker has taken it.
+    """
+
+
+class ReferenceRestoreSettings(PlatformSettings):
+    """What ``waterfall-api restore-reference`` reads (US-2950, #4114).
+
+    The owners of the two databases of a fresh platform, as the service of the restoration reaches
+    them (``RestoreSettings``): ``database_url`` Waterfall's, ``keycloak_database_url`` the identity
+    provider's. Nothing else: it reads an archive from a file, and starts nothing.
+    """
+
+    keycloak_database_url: SecretStr = Field(min_length=1)
 
 
 def load_settings() -> Settings:
@@ -833,6 +881,11 @@ def load_restore_test_settings() -> RestoreTestSettings:
     return _load(RestoreTestSettings)
 
 
+def load_anonymization_settings() -> AnonymizationSettings:
+    """Read the settings of the anonymisation of a copy, as ``load_settings`` does."""
+    return _load(AnonymizationSettings)
+
+
 def load_installation_settings() -> InstallationSettings:
     """Read the settings of the bootstrap, as ``load_settings`` does."""
     return _load(InstallationSettings)
@@ -846,6 +899,16 @@ def load_components_settings() -> ComponentsSettings:
 def load_witness_settings() -> WitnessSettings:
     """Read the settings of the loader of the witness, as ``load_settings`` does."""
     return _load(WitnessSettings)
+
+
+def load_reference_backup_settings() -> ReferenceBackupSettings:
+    """Read the settings of the backup of the reference set, as ``load_settings`` does."""
+    return _load(ReferenceBackupSettings)
+
+
+def load_reference_restore_settings() -> ReferenceRestoreSettings:
+    """Read the settings of the restoration of the reference set, as ``load_settings`` does."""
+    return _load(ReferenceRestoreSettings)
 
 
 def _named(location: tuple[int | str, ...]) -> str:
