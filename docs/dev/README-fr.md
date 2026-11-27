@@ -138,27 +138,37 @@ service `witness` du Compose de service sous une autre commande.
 en sauvegarde, et ce qui s'en sert — parcours, mesure, exercice de reprise — le restaure au lieu de
 le réengendrer, sans acteur, sans route et sans jeton d'administrateur.
 `waterfall-api backup-reference --into <dossier>` (mêmes `--projects`, `--revisions`,
-`--cost-lines`) vérifie d'abord que la plateforme porte le jeu entier, comme `check-reference` : une
-installation réelle, qui ne porte pas le témoin, est refusée. Il dépose ensuite une sauvegarde comme
-la planification la dépose, sans demandeur (`deposit_backup` de `waterfall.worker.schedule`, sous ses
-verrous et ses conditions) : le worker la prend, la vérifie et écrit son manifeste comme toute
-sauvegarde que la plateforme prend d'elle-même — d'origine `scheduled`, inscrite au nom de la
-plateforme, elle fait tourner la liste et dépose la copie externe si la planification en règle une.
-Vérifiée, son archive est relue du compartiment des sauvegardes dans le dossier, son manifeste à côté
-(`.manifest.json`), sous le nom `reference-<version>-<graine>-<projets>-<révisions>-<lignes>`, lisibles
-de leur seul propriétaire : l'archive porte la base du fournisseur d'identité, secrets des clients
+`--cost-lines`) refuse d'abord une plateforme dont la planification règle une copie externe non
+suspendue — la copie porterait l'archive, secrets du domaine compris, sur son emplacement —, puis une
+plateforme qui ne porte pas le jeu entier, comme `check-reference` le lit : une installation réelle,
+qui ne porte pas le témoin, est refusée. Il dépose ensuite une sauvegarde comme la planification la
+dépose, sans demandeur (`deposit_backup` de `waterfall.worker.schedule`, sous ses verrous et ses
+conditions) : le worker la prend, la vérifie et écrit son manifeste comme toute sauvegarde que la
+plateforme prend d'elle-même. C'est voulu : d'origine `scheduled`, inscrite au nom de la plateforme,
+elle fait tourner la liste sous la rétention de la planification — une rétention d'une sauvegarde
+supprime la sauvegarde planifiée qui la précède —, elle est celle que le test de restauration élit
+ensuite, et elle sert l'occurrence de la planification qu'elle suit (`backup_is_due`) ; sur une
+plateforme qui porte le jeu de référence, aucune installation réelle, ces sauvegardes sont du jeu
+aussi. Vérifiée, son archive est relue du compartiment des sauvegardes sous les verrous d'un dépôt —
+aucune sauvegarde en cours ni déposée entre-temps, dont la rotation la supprimerait —, vérifiée de
+nouveau comme le worker l'a vérifiée — un objet tronqué ne laisse rien —, et écrite dans le dossier,
+son manifeste à côté (`.manifest.json`), sous le nom
+`reference-<version>-<graine>-<projets>-<révisions>-<lignes>`, lisibles de leur seul propriétaire : l'archive porte la base du fournisseur d'identité, secrets des clients
 compris, en clair comme toute sauvegarde. `waterfall-api restore-reference --from <dossier>` (mêmes
 volumes) la restaure sur une plateforme neuve avant son démarrage (`waterfall.restore.fresh`), comme
 le test de restauration d'US-2930 restaure sur sa plateforme éphémère : l'archive relue, chaque vidage
 contre son empreinte, les deux bases remplacées par leurs propriétaires puis celle de Waterfall
 migrée ; et, parce que la plateforme vit ensuite, ce qu'une restauration réécrit est réécrit — les
 droits du rôle du service, la planification livrée, aucune sauvegarde ni aucun dépôt de la source, les
-tâches que le vidage a prises en cours en échec (la sauvegarde qui l'a pris comprise : la dernière
-sauvegarde planifiée de la plateforme restaurée est donc en échec, `TASK_INTERRUPTED_BY_RESTORE`).
-Rien n'est inscrit au journal, et aucune ligne de sauvegarde n'est créée. Une plateforme dont le
-fournisseur d'identité a déjà démarré (une table dans sa base) n'est pas neuve, et est refusée avant
-tout changement. `make service-reference-backup` lance la première commande sur la plateforme de
-service, dans un conteneur du worker, sous l'utilisateur du poste ; `make service-reference-restore`
+autres tâches que le vidage a prises en cours en échec (#892). Les tâches de sauvegarde qu'il a
+prises en cours — celle qui l'a pris comprise — sont oubliées au contraire, avec celles qui étaient
+terminées : la plateforme restaurée n'a planifié aucune sauvegarde, et ne dit pas sa dernière en échec
+(`last_scheduled_outcome`, que son alerte lit) ; une restauration par un compte les fait toujours
+échouer. Rien n'est inscrit au journal, et aucune ligne de sauvegarde n'est créée. Une plateforme
+dont le fournisseur d'identité a déjà démarré (une table dans sa base), ou dont la base de Waterfall
+porte ce que ses migrations n'écrivent pas (une inscription, une sauvegarde, un dépôt, une tâche),
+n'est pas neuve, et est refusée avant tout changement. `make service-reference-backup` lance la
+première commande sur la plateforme de service, dans un conteneur du worker, sous l'utilisateur du poste ; `make service-reference-restore`
 retire les données de la plateforme du créneau, fait ses bases, y restaure l'archive dans un conteneur
 du service de restauration, puis démarre la plateforme. L'archive et son manifeste sont dans
 `REFERENCE_ARCHIVES`, `~/.local/share/waterfall/reference` par défaut : un dossier du poste, hors de

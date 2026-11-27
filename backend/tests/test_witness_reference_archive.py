@@ -12,8 +12,10 @@ service platform, out of the fast tier (``make service-reference-backup``,
 ``make service-reference-restore``).
 """
 
+import io
 import json
 import os
+import tarfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -21,20 +23,29 @@ from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 import pytest
+from backup_rows import Row, days, recorded
 from backup_support import stand_in_realm
 from installations import created, dropped
 from pydantic import SecretStr
-from sqlalchemy import func, select, text
+from sqlalchemy import delete, func, select, text
 from support import WITNESS, as_backup
+from test_backup_rotation import set_retention
+from test_backup_schedule_restoration import LYON, set_schedule
 from test_witness_reference import identifying, settings
 from test_witness_reference_history import described, short
 
 from waterfall import __version__
-from waterfall.core.backups.interface import NO_BACKUP_RUNNING
+from waterfall.core.backups.interface import (
+    NO_BACKUP_RUNNING,
+    ExternalCopy,
+    backup_to_test,
+    last_scheduled_outcome,
+)
 from waterfall.core.backups.tables import Backup
 from waterfall.core.projects.tables import Project
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.database import Database, create_database_engine, engine_url
+from waterfall.platform.identifiers import new_id
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import ReferenceBackupSettings, ReferenceRestoreSettings
 from waterfall.platform.tasks import BackgroundTask
@@ -48,6 +59,7 @@ from waterfall.witness.reference_archive import (
     archive_name,
     backup_reference,
     ended,
+    kept,
     restore_reference,
 )
 from waterfall.witness.reference_draw import SEED
@@ -189,6 +201,30 @@ def stepping(worker: Worker) -> Waiting:
     return Waiting(sleep=step)
 
 
+def restored_once(
+    source: Source, archive: Path, history: History, task_id: UUID
+) -> reference_check.Volumes:
+    """Restore ``archive`` on a fresh platform, check what it holds; give the volumes of the set.
+
+    The source's backups are not listed, and the backup the dump caught running — ``task_id`` — is
+    forgotten, rather than be run again by the worker of the restored platform (#892), or said
+    failed: the restored platform has scheduled no backup yet.
+    """
+    with fresh_platform(source.server) as (restoring, restored):
+        assert restore_reference(restoring, archive) == 0
+        with restored.transaction() as session:
+            report = reference_check.check(session, described(), WANTED, history)
+            listed = session.scalars(select(Backup)).all()
+            caught = session.get(BackgroundTask, task_id)
+            outcome = last_scheduled_outcome(session)
+        assert report.faults == []
+        assert identifying(restored) == identifying(source.witness)
+    assert listed == []
+    assert caught is None
+    assert outcome is None
+    return report.held
+
+
 @pytest.mark.requirement("WF-QUA-0040-A")
 @pytest.mark.story(STORY)
 def test_the_set_kept_as_a_backup_is_restored_twice_on_a_fresh_platform_and_found_whole(
@@ -214,6 +250,10 @@ def test_the_set_kept_as_a_backup_is_restored_twice_on_a_fresh_platform_and_foun
     assert held["missing_condition"] == NO_BACKUP_RUNNING
     with witness.transaction() as session:
         end(session, pending, problem=failure("INTERNAL_ERROR", 500, CORRELATION))
+    # A scheduled backup older than the set, under a retention of one: the backup of the set is a
+    # scheduled one, and turns the list as any (EP-13, "Le jeu de données de référence").
+    older = recorded(witness, days(1), Row(origin="scheduled"))
+    set_retention(witness, 1)
     with provider_of(source.server) as provider:
         waiting = stepping(source.worker(provider))
         assert backup_reference(source.settings(), WANTED, history, tmp_path, waiting) == 0
@@ -232,30 +272,20 @@ def test_the_set_kept_as_a_backup_is_restored_twice_on_a_fresh_platform_and_foun
         loaded.held.cost_lines,
     )
     assert inventory.identity_accounts == PEOPLE
-    # The backup is the platform's own, as a scheduled one: no requester, verified.
+    # The backup is the platform's own, as a scheduled one: no requester, verified. It has turned
+    # the older one out of the list, and is the one the test of a restoration elects.
     with witness.transaction() as session:
         (backup,) = session.scalars(select(Backup)).all()
         task = session.get_one(BackgroundTask, backup.task_id)
+        elected = backup_to_test(session)
+    assert backup.id != older
     assert (backup.origin, backup.verification, task.requested_by) == ("scheduled", "passed", None)
+    assert elected is not None
+    assert elected.backup_id == backup.id
     (kept,) = logs.named("reference.kept")
     assert kept["archive"] == name
-    counted: list[reference_check.Volumes] = []
-    for _ in range(2):
-        with fresh_platform(source.server) as (restoring, restored):
-            assert restore_reference(restoring, archive) == 0
-            with restored.transaction() as session:
-                report = reference_check.check(session, described(), WANTED, history)
-                listed = session.scalars(select(Backup)).all()
-                caught = session.get_one(BackgroundTask, backup.task_id)
-            assert report.faults == []
-            assert report.held == loaded.held
-            counted.append(report.held)
-            assert identifying(restored) == identifying(witness)
-            # The source's backups are not listed, and the backup the dump caught running fails,
-            # rather than be run again by the worker of the restored platform (#892).
-            assert listed == []
-            assert caught.status == "failed"
-    assert counted[0] == counted[1]
+    counted = [restored_once(source, archive, history, backup.task_id) for _ in range(2)]
+    assert counted == [loaded.held, loaded.held]
 
 
 @pytest.mark.story(STORY)
@@ -290,6 +320,75 @@ def test_a_platform_without_the_set_whole_is_not_backed_up(
 
 
 @pytest.mark.story(STORY)
+def test_a_platform_whose_schedule_copies_its_backups_out_is_not_backed_up(
+    source: Source, tmp_path: Path, logs: Logs
+) -> None:
+    # The copy of a scheduled backup would carry the archive, the secrets of the realm in it, to its
+    # location: refused before the set is read, nothing deposited nor written. Suspended, the copy
+    # holds nothing back.
+    copy = ExternalCopy(is_enabled=True, location=LYON, path="reference", retained_count=30)
+    set_schedule(source.witness, 7, copy, None)
+    assert backup_reference(source.settings(), WANTED, History(0, 0), tmp_path) == 1
+    (said,) = logs.named("reference.external_copy_set")
+    assert said["location"] == LYON
+    assert logs.named("reference.not_whole") == []
+    suspended = ExternalCopy(is_enabled=False, location=LYON, path="reference", retained_count=30)
+    set_schedule(source.witness, 7, suspended, None)
+    assert backup_reference(source.settings(), WANTED, History(0, 0), tmp_path) == 1
+    assert len(logs.named("reference.not_whole")) == 1
+    with source.witness.transaction() as session:
+        backups = select(BackgroundTask).where(BackgroundTask.kind == "backup")
+        assert session.scalars(backups).all() == []
+    assert list(tmp_path.iterdir()) == []
+
+
+def cut_short(bucket: Bucket, key: str, folder: Path) -> None:
+    """Store under ``key`` an archive cut in its middle: its manifest whole, its dump not."""
+    said = {"databases": [{"name": "waterfall", "file": "waterfall.dump", "sha256": "0"}]}
+    whole = io.BytesIO()
+    with tarfile.open(fileobj=whole, mode="w") as tar:
+        members = (
+            ("manifest.json", json.dumps(said).encode()),
+            ("waterfall.dump", os.urandom(1 << 16)),
+        )
+        for name, data in members:
+            member = tarfile.TarInfo(name)
+            member.size = len(data)
+            tar.addfile(member, io.BytesIO(data))
+    stored = folder / "cut.tar"
+    stored.write_bytes(whole.getvalue()[: len(whole.getvalue()) // 2])
+    bucket.upload(key, stored)
+
+
+@pytest.mark.story(STORY)
+def test_an_archive_cut_short_gone_or_read_while_a_backup_is_pending_keeps_nothing(
+    database: Database, queue: TaskQueue, backups_bucket: Bucket, tmp_path: Path, logs: Logs
+) -> None:
+    # The archive is read under the locks of a deposit, then verified again: an object cut short,
+    # a backup the rotation has deleted, or a backup pending — whose rotation could delete it —
+    # keep neither archive nor manifest.
+    into, work = tmp_path / "into", tmp_path / "work"
+    into.mkdir()
+    work.mkdir()
+    key = f"backup-{uuid4()}.tar"
+    cut_short(backups_bucket, key, work)
+    backup_id = recorded(database, days(2), Row(origin="scheduled", key=key))
+    assert not kept(database, backups_bucket, backup_id, into / "cut")
+    (unverified,) = logs.named("reference.archive_unverified")
+    assert unverified["backup_id"] == str(backup_id)
+    gone = new_id()
+    assert not kept(database, backups_bucket, gone, into / "gone")
+    (said,) = logs.named("reference.backup_gone")
+    assert said["backup_id"] == str(gone)
+    with logging_context(correlation_id=CORRELATION):
+        assert isinstance(deposit_backup(database, queue), UUID)
+    assert not kept(database, backups_bucket, backup_id, into / "pending")
+    (held,) = logs.named("reference.archive_not_read")
+    assert held["missing_condition"] == NO_BACKUP_RUNNING
+    assert list(into.iterdir()) == []
+
+
+@pytest.mark.story(STORY)
 def test_a_backup_that_fails_or_does_not_end_in_time_keeps_nothing(
     database: Database, queue: TaskQueue, logs: Logs
 ) -> None:
@@ -314,7 +413,9 @@ def test_a_backup_that_fails_or_does_not_end_in_time_keeps_nothing(
 def test_an_archive_missing_unreadable_or_a_platform_not_fresh_is_refused_unchanged(
     process_database_url: str, tmp_path: Path, logs: Logs
 ) -> None:
-    # Each refused before a database is touched: the fresh platform stays as migrated.
+    # Each refused before a database is touched: the fresh platform stays as migrated. Not fresh,
+    # a platform whose Waterfall holds what its migrations do not write, or whose identity provider
+    # has started.
     with fresh_platform(process_database_url) as (restoring, restored):
         assert restore_reference(restoring, tmp_path / "absent.tar") == 1
         (missing,) = logs.named("reference.archive_missing")
@@ -324,12 +425,24 @@ def test_an_archive_missing_unreadable_or_a_platform_not_fresh_is_refused_unchan
         assert restore_reference(restoring, unreadable) == 1
         (refused,) = logs.named("reference.archive_refused")
         assert refused["code"] == "FILE_FORMAT_UNREADABLE"
+        # Waterfall holds what its migrations do not write — a task, here —: not fresh.
+        owner = Database(create_database_engine(restoring.database_url.get_secret_value()))
+        recorded(owner, days(3))
+        assert restore_reference(restoring, unreadable) == 1
+        with owner.transaction() as session:
+            session.execute(delete(Backup))
+            session.execute(delete(BackgroundTask))
+        owner.dispose()
         provider = create_database_engine(restoring.keycloak_database_url.get_secret_value())
         with provider.begin() as connection:
             stand_in_realm(connection)
         provider.dispose()
         assert restore_reference(restoring, unreadable) == 1
-        assert len(logs.named("reference.platform_not_fresh")) == 1
+        reasons = [said["reason"] for said in logs.named("reference.platform_not_fresh")]
+        assert reasons == [
+            "the database of Waterfall holds more than its migrations",
+            "the identity provider has started on this platform",
+        ]
         with restored.transaction() as session:
             assert session.scalar(select(func.count()).select_from(Project)) == 0
 

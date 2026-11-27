@@ -6,14 +6,18 @@ Engendered in most of an hour, the set is engendered once per version, then kept
 paths, the measure and the exercise of recovery restore it instead (EP-13, "Le jeu de données de
 référence"). Neither actor, nor route, nor token of an administrator:
 
-- ``waterfall-api backup-reference [--projects N --revisions R --cost-lines C] --into DIR`` checks
-  that the platform holds the set whole, as ``check-reference`` does — a real installation holds no
-  witness, and is refused —, then deposits a backup as the schedule does, without a requester
-  (``deposit_backup``): the worker takes it, verifies it and writes its manifest, as any backup the
-  platform takes of itself. Once it is verified, its archive is read from the bucket of the backups
-  into ``DIR``, its manifest beside it, under the name of the version and the seed
-  (``archive_name``), readable by their owner alone: the archive holds the database of the identity
-  provider, the secrets of its clients included.
+- ``waterfall-api backup-reference [--projects N --revisions R --cost-lines C] --into DIR`` refuses
+  a platform whose schedule sets an external copy not suspended — the copy of a scheduled backup
+  would carry the archive, the secrets of the realm in it, out to its location — and one that does
+  not hold the set whole, as ``check-reference`` reads it: a real installation holds no witness. It
+  then deposits a backup as the schedule does, without a requester (``deposit_backup``): the worker
+  takes it, verifies it and writes its manifest, as any backup the platform takes of itself, and is
+  one of them: ``scheduled``, it turns the list under the retention of the schedule, is the one the
+  test of a restoration elects next, and serves the occurrence of the schedule it follows
+  (``backup_is_due``). Once it is verified, its archive is read from the bucket of the backups,
+  under the locks of a deposit, verified again, and kept in ``DIR``, its manifest beside it, under
+  the name of the version and the seed (``archive_name``), readable by their owner alone: the
+  archive holds the database of the identity provider, the secrets of its clients included.
 - ``waterfall-api restore-reference [the same volumes] --from DIR`` restores that archive on a fresh
   platform, before it starts, as the test of a restoration restores a backup on its ephemeral
   platform (``waterfall.restore.fresh``).
@@ -26,6 +30,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -33,12 +38,16 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from waterfall import __version__, schema
-from waterfall.core.backups.interface import read_backup
+from waterfall.core.backups.interface import (
+    lock_backup_deposit,
+    read_backup,
+    read_backup_schedule,
+)
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.audit import Act
 from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine, utc_now
-from waterfall.platform.errors import UnprocessableError
+from waterfall.platform.errors import NotFoundError, UnprocessableError
 from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
@@ -55,11 +64,13 @@ from waterfall.witness import reference_check
 from waterfall.witness.description import Witness
 from waterfall.witness.reference_draw import PROJECTS, SEED
 from waterfall.witness.reference_history import COST_LINES, MARKED, History, HistoryError
-from waterfall.worker.backup import TASK_DEADLINE
+from waterfall.worker.backup import TASK_DEADLINE, verified
 from waterfall.worker.schedule import deposit_backup
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+
+    from sqlalchemy.orm import Session
 
     from waterfall.platform.settings import ReferenceBackupSettings, ReferenceRestoreSettings
 
@@ -105,10 +116,9 @@ def backup_reference(
             TIME_ZONE.reading_from(stored_in(database)),
             logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM),
         ):
-            with database.transaction() as session:
-                faults = reference_check.check(session, witness, wanted, history).faults
-            if faults:
-                logger.error("reference.not_whole", faults=len(faults), first=faults[0])
+            if refused(
+                database, lambda session: reference_check.check(session, witness, wanted, history)
+            ):
                 return 1
             deposited = deposit_backup(database, queue)
             if isinstance(deposited, list):
@@ -117,15 +127,35 @@ def backup_reference(
             result = ended(database, deposited, waiting or Waiting())
             if result is None:
                 return 1
-            with database.transaction() as session:
-                backup = read_backup(session, UUID(str(result["backup_id"])))
-            name = archive_name(wanted, history)
-            kept(Bucket.of_backups(settings), backup.object_key, into, name)
-            logger.info("reference.kept", backup_id=str(backup.backup_id), archive=name)
+            backup_id, name = UUID(str(result["backup_id"])), archive_name(wanted, history)
+            if not kept(database, Bucket.of_backups(settings), backup_id, into / name):
+                return 1
+            logger.info("reference.kept", backup_id=str(backup_id), archive=name)
             return 0
     finally:
         queue.close()
         database.dispose()
+
+
+def refused(database: Database, checked: Callable[[Session], reference_check.Report]) -> bool:
+    """Tell whether the platform is refused, before anything is deposited, and say why in the logs.
+
+    Refused, a platform whose schedule sets an external copy not suspended: the worker would
+    deposit the copy of the backup (``deposit_copy``), the secrets of the realm in its archive. A
+    copy set or resumed while the backup runs is not seen: the platform holds the reference set, no
+    real installation does. Refused, then, a platform that does not hold the set whole
+    (``checked``).
+    """
+    with database.transaction() as session:
+        copy = read_backup_schedule(session).schedule.external_copy
+        if copy is not None and copy.is_enabled:
+            logger.error("reference.external_copy_set", location=copy.location)
+            return True
+        faults = checked(session).faults
+    if faults:
+        logger.error("reference.not_whole", faults=len(faults), first=faults[0])
+        return True
+    return False
 
 
 def ended(database: Database, task_id: UUID, waiting: Waiting) -> dict[str, Any] | None:
@@ -150,21 +180,43 @@ def ended(database: Database, task_id: UUID, waiting: Waiting) -> dict[str, Any]
         waiting.sleep(waiting.pause)
 
 
-def kept(bucket: Bucket, key: str, into: Path, name: str) -> None:
-    """Read an archive from the bucket into ``into``, its manifest beside it, for their owner alone.
+def kept(database: Database, bucket: Bucket, backup_id: UUID, named: Path) -> bool:
+    """Read the archive of a backup into ``named``, its manifest beside it, for their owner alone.
 
-    Each is written under a name of its own, then renamed, the archive last: an archive present is
-    whole, and its manifest is there.
+    It is read under the locks of a deposit (``lock_backup_deposit``), none pending: no backup runs
+    nor is deposited meanwhile, whose rotation would delete it — with a retention of one, the next
+    scheduled backup would. Then it is verified again, as the worker verified it (``verified``): an
+    object cut short, or unlike its manifest, keeps nothing. Each is written under a name of its
+    own, then renamed, the archive last: an archive present is whole, and its manifest is there.
+    Gives whether they are kept; why not is said in the logs.
     """
+    into, name = named.parent, named.name
     archive, manifest = into / f"{name}{ARCHIVE}", into / f"{name}{MANIFEST}"
     writing = into / f".{name}{ARCHIVE}.writing"
     described = into / f".{name}{MANIFEST}.writing"
     before = os.umask(PRIVATE)
     try:
-        bucket.download(key, writing)
+        with database.transaction() as session:
+            lacking = lock_backup_deposit(session)
+            if lacking:
+                logger.error("reference.archive_not_read", missing_condition=lacking[0])
+                return False
+            try:
+                key: str | None = read_backup(session, backup_id).object_key
+            except NotFoundError:
+                key = None
+            if key is None:
+                logger.error("reference.backup_gone", backup_id=str(backup_id))
+                return False
+            bucket.download(key, writing)
+        with tempfile.TemporaryDirectory(prefix=".reference-", dir=into) as work:
+            if not verified(writing, Path(work)):
+                logger.error("reference.archive_unverified", backup_id=str(backup_id))
+                return False
         described.write_text(json.dumps(manifest_of(writing), indent=2), encoding="utf-8")
         described.replace(manifest)
         writing.replace(archive)
+        return True
     finally:
         os.umask(before)
         writing.unlink(missing_ok=True)
@@ -183,16 +235,16 @@ def restore_reference(settings: ReferenceRestoreSettings, archive: Path) -> int:
             return 1
         try:
             restore_fresh(archive, databases, upgrade)
-        except NotFreshError:
-            logger.exception("reference.platform_not_fresh")
-            return 1
+        # A platform not fresh, an archive refused, each before anything changed: a state to say,
+        # not a trace.
+        except NotFreshError as error:
+            event, said = "reference.platform_not_fresh", {"reason": str(error)}
         except UnprocessableError as error:
-            # An archive refused before anything changed: a state to say, not a trace.
-            refused = error.code
+            event, said = "reference.archive_refused", {"archive": archive.name, "code": error.code}
         else:
             logger.info("reference.restored", archive=archive.name)
             return 0
-    logger.error("reference.archive_refused", archive=archive.name, code=refused)
+        logger.error(event, **said)
     return 1
 
 

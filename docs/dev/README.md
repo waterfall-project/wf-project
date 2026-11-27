@@ -131,13 +131,20 @@ Compose under another command.
 backup, and what uses it — paths, measure, exercise of recovery — restores it instead of engendering
 it again, without an actor, a route or a token of an administrator.
 `waterfall-api backup-reference --into <folder>` (same `--projects`, `--revisions`, `--cost-lines`)
-first checks that the platform holds the whole set, as `check-reference` does: a real installation,
-which does not hold the witness, is refused. It then deposits a backup as the schedule deposits it,
-without a requester (`deposit_backup` of `waterfall.worker.schedule`, under its locks and its
-conditions): the worker takes it, verifies it and writes its manifest as any backup the platform
-takes of itself — of origin `scheduled`, inscribed in the name of the platform, it turns the list and
-deposits the external copy if the schedule sets one. Once verified, its archive is read back
-from the bucket of the backups into the folder, its manifest beside it (`.manifest.json`), under the
+first refuses a platform whose schedule sets an external copy not suspended — the copy would carry
+the archive, the secrets of the realm in it, to its location — then one that does not hold the whole
+set, as `check-reference` reads it: a real installation, which does not hold the witness, is refused.
+It then deposits a backup as the schedule deposits it, without a requester (`deposit_backup` of
+`waterfall.worker.schedule`, under its locks and its conditions): the worker takes it, verifies it and
+writes its manifest as any backup the platform takes of itself. That is what is meant: of origin
+`scheduled`, inscribed in the name of the platform, it turns the list under the retention of the
+schedule — a retention of one deletes the scheduled backup before it —, it is the one the test of a
+restoration elects next, and it serves the occurrence of the schedule it follows (`backup_is_due`);
+on a platform that holds the reference set, no real installation, those backups are of the set too.
+Once verified, its archive is read back from the bucket of the backups under the locks of a deposit —
+no backup running nor deposited meanwhile, whose rotation would delete it —, verified again as the
+worker verified it — an object cut short keeps nothing —, and written into the folder, its manifest
+beside it (`.manifest.json`), under the
 name `reference-<version>-<seed>-<projects>-<revisions>-<lines>`, readable by their owner alone: the
 archive holds the database of the identity provider, the secrets of the clients included, in the
 clear as every backup. `waterfall-api restore-reference --from <folder>` (same volumes) restores it
@@ -145,11 +152,14 @@ on a fresh platform before it starts (`waterfall.restore.fresh`), as the test of
 US-2930 restores on its ephemeral platform: the archive read back, each dump against its digest, the
 two databases replaced by their owners then Waterfall's migrated; and, because the platform lives on
 afterwards, what a restoration writes back is written back — the rights of the role of the service,
-the schedule as shipped, no backup and no deposit of the source, the tasks the dump caught running
-failed (the backup that took it included: the latest scheduled backup of the restored platform is
-therefore failed, `TASK_INTERRUPTED_BY_RESTORE`). Nothing is inscribed in the journal, and no row of
-a backup is created. A platform whose identity provider has already started (a table in its
-database) is not fresh, and is refused before anything changes. `make service-reference-backup` runs
+the schedule as shipped, no backup and no deposit of the source, the other tasks the dump caught
+running failed (#892). The tasks of a backup it caught pending — the backup that took it included —
+are forgotten instead, with those that ended: the restored platform has scheduled no backup, and does
+not say its latest one failed (`last_scheduled_outcome`, which its alert reads); a restoration by an
+account still fails them. Nothing is inscribed in the journal, and no row of a backup is created. A
+platform whose identity provider has already started (a table in its database), or whose Waterfall
+database holds what its migrations do not write (an inscription, a backup, a deposit, a task), is not
+fresh, and is refused before anything changes. `make service-reference-backup` runs
 the first command on the service platform, in a container of the worker, under the user of the
 workstation; `make service-reference-restore` drops the data of the platform of the slot, makes its
 databases, restores the archive in them in a container of the service of the restoration, then starts
