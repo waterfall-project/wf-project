@@ -19,7 +19,7 @@ MAKEFILE = (REPOSITORY / "Makefile").read_text(encoding="utf-8")
 
 
 def recipe() -> str:
-    """The shell of the macro ``reference-held``, its variables left as the Makefile writes them."""
+    """Return the shell of the macro ``reference-held``, variables left as written."""
     macro = re.search(r"^reference-held = (.*?)(?=^\S)", MAKEFILE, re.MULTILINE | re.DOTALL)
     assert macro
     return macro[1].replace("\\\n", " ").replace("$$", "$")
@@ -42,12 +42,12 @@ def played(tmp_path: Path, answer: str, threshold: int = 300) -> subprocess.Comp
     )
 
 
-@pytest.mark.requirement("WF-QUA-0040")
+@pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_threshold_is_the_size_of_the_reference_set() -> None:
     assert re.search(r"^REFERENCE_PROJECTS \?= 300$", MAKEFILE, re.MULTILINE)
 
 
-@pytest.mark.requirement("WF-QUA-0040")
+@pytest.mark.requirement("WF-QUA-0040-A")
 def test_a_platform_that_holds_less_than_the_set_is_refused_and_told_what_to_run(
     tmp_path: Path,
 ) -> None:
@@ -58,7 +58,7 @@ def test_a_platform_that_holds_less_than_the_set_is_refused_and_told_what_to_run
     assert played(tmp_path, "300").returncode == 0
 
 
-@pytest.mark.requirement("WF-QUA-0040")
+@pytest.mark.requirement("WF-QUA-0040-A")
 def test_a_platform_whose_projects_cannot_be_counted_is_refused_and_told_what_to_run(
     tmp_path: Path,
 ) -> None:

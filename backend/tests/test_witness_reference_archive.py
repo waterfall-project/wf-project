@@ -17,7 +17,7 @@ import json
 import os
 import tarfile
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
@@ -489,11 +489,9 @@ def test_the_command_gives_its_waiting_to_the_download_of_the_archive(
     # The waiting of the command is the one of the download as well: a default one would sleep for
     # real, and for its own patience.
     given: list[Waiting | None] = []
-    ends: list[object] = []
 
     def spy(*arguments: object) -> bool:
-        given.append(arguments[-2] if isinstance(arguments[-2], Waiting) else None)
-        ends.append(arguments[-1])
+        given.append(arguments[-1] if isinstance(arguments[-1], Waiting) else None)
         return False
 
     monkeypatch.setattr(reference_archive, "kept", spy)
@@ -504,18 +502,18 @@ def test_the_command_gives_its_waiting_to_the_download_of_the_archive(
     def deposited(*_arguments: object) -> UUID:
         return new_id()
 
-    def ended_well(*arguments: object) -> dict[str, str]:
-        ends.append(arguments[-1])
+    def ended_well(*_arguments: object) -> dict[str, str]:
         return {"backup_id": str(new_id())}
 
     monkeypatch.setattr(reference_archive, "refused", not_refused)
     monkeypatch.setattr(reference_archive, "deposit_backup", deposited)
     monkeypatch.setattr(reference_archive, "ended", ended_well)
-    waiting = Waiting(patience=50.0, clock=lambda: 7.0, sleep=lambda _: None)
+    instants = iter([7.0, 10.0])
+    waiting = Waiting(patience=50.0, clock=lambda: next(instants), sleep=lambda _: None)
     assert backup_reference(source.settings(), WANTED, History(0, 0), tmp_path, waiting) == 1
-    assert given == [waiting]
-    # One deadline, taken once, for the end of the backup and the download together.
-    assert ends == [57.0, 57.0]
+    # One deadline, taken once (57), for the end of the backup and the download together: the
+    # download is given what is left of it at the instant the backup ended (10).
+    assert given == [replace(waiting, patience=47.0)]
 
 
 @pytest.mark.story(STORY)
