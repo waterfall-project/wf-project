@@ -12,7 +12,8 @@ This module writes the file of Compose that gives each service of a project that
 forgotten when one is added.
 """
 
-from typing import TYPE_CHECKING
+import re
+from typing import TYPE_CHECKING, Any, cast
 
 import yaml
 
@@ -23,17 +24,31 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
-PRODUCTION = (COMPOSE / "compose.prod.yaml", COMPOSE / "compose.prod.local.yaml")
+PRODUCTION = (
+    COMPOSE / "compose.prod.yaml",
+    COMPOSE / "compose.prod.local.yaml",
+    COMPOSE / "compose.isolated.yaml",
+)
 RESTORE_TEST = (COMPOSE / "compose.restore-test.yaml",)
 RESTORE_TEST_OVERRIDE = "WATERFALL_RESTORE_TEST_OVERRIDE"
 """Where ``restore-test.sh`` reads the file that bounds its ephemeral platform, when it is given."""
+
+
+TAGS = re.compile(r"(?<=\s)!(?:reset|override)\s+")
+"""The tags of Compose that merge files (`!reset`, `!override`), which a plain reader refuses."""
+
+
+def _load(text: str) -> dict[str, Any]:
+    """Read a file of Compose, without the tags that say how another file merges with it."""
+    document: Any = yaml.safe_load(TAGS.sub("", text))
+    return cast("dict[str, Any]", document) if isinstance(document, dict) else {}
 
 
 def services(files: Sequence[Path]) -> list[str]:
     """Return the names of the services the files of Compose declare, in every profile."""
     names: set[str] = set()
     for path in files:
-        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+        document = _load(path.read_text(encoding="utf-8"))
         names.update(document.get("services", {}))
     return sorted(names)
 
