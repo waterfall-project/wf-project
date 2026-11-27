@@ -201,10 +201,9 @@ def test_images_the_workstation_lacks_are_asked_of_the_registry(
 
 
 @pytest.fixture(autouse=True)
-def _commits_published_as_they_were() -> Generator[None]:
-    images._UNRENAMED_COMMITS.clear()  # noqa: SLF001
-    yield
-    images._UNRENAMED_COMMITS.clear()  # noqa: SLF001
+def _commits_published_as_they_were(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each test starts with no commit declared as published under the former names."""
+    monkeypatch.setattr(images, "_UNRENAMED_COMMITS", set[str]())
 
 
 def history(values: str, held: set[str]) -> tuple[chartupgrade.Read, list[str]]:
