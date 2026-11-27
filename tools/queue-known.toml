@@ -502,8 +502,8 @@ family = "délai de back / tests"
 issue = "#5155"
 job = "^back / tests"
 message = 'The operation was canceled\.'
-runs = [42739027879, 43046175348, 46012877699]
-frequency = "3 passages : 2 du 2026-11-05 au 2026-11-12 (#2950), 1 le 2026-11-27 (`back / tests (3/6)`, annulé à 98 % après 20 minutes)"
+runs = [42739027879, 43046175348, 46012877699, 46016622523]
+frequency = "4 passages : 2 du 2026-11-05 au 2026-11-12 (#2950), 2 le 2026-11-27 (`back / tests (3/6)` puis `(2/6)`, annulés à 98 % après 20 minutes)"
 cause = "hypothèse : le morceau dépasse son délai de 20 minutes, les tests passant ; US-1910/L2 (#2950) avait coupé `back / tests` en morceaux, l'écart revient (#5155)"
 
 # Famille A, à défaut des entrées ci-dessus : tout autre parcours de ces 17 passages qui crée son
