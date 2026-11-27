@@ -97,6 +97,14 @@ Issues ouvertes, rattachées à cet EPIC par la ventilation du 2026-11-21 :
   86, et deux lignes trop longues
 - #3640 — front : des lignes de code de frontend/e2e/measure dépassent cent colonnes
 
+Reçus d'EP-13 le 2026-11-27 (décision de l'auteur, mesure aux volumes d'US-2970/L2) :
+
+- #5158 — performance : l'API sature sous cinquante utilisateurs sur le jeu de référence à trois
+  cents projets (`GET /portfolio/projects` jusqu'à 207 s) ; les étapes non atteintes du rapport de
+  v0.4.0 ;
+- le préchauffage du cache des indicateurs, que la mesure retient : son issue est ouverte par
+  US-2970/L2.
+
 Constats de la revue du 2026-11-14 (`docs/reviews/2026-11-14-revue-complete/`), vérifiés le
 2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité, sans issue
 jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
