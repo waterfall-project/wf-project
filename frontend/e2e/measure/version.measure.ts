@@ -103,7 +103,7 @@ async function screen(
   player: Player,
   step: string,
   open: (page: Player["page"]) => Promise<Interval>,
-): Promise<{ step: string; span: Interval | undefined }> {
+): Promise<{ step: string; span: Interval | undefined; after?: undefined }> {
   try {
     const span = await open(player.page);
     await settle(player.requests, LOADED);
@@ -206,7 +206,7 @@ async function screens(
       await screen(player, INDICATORS_STEP, indicatorsFromSpending),
       await screen(player, PORTFOLIO_STEP, openPortfolio),
     ];
-    for (const { step, span } of pass < 0 ? [] : steps) {
+    for (const { step, span, after } of pass < 0 ? [] : steps) {
       const operation = OPERATION_OF_STEP[step];
       if (operation === undefined) {
         continue;
@@ -215,7 +215,13 @@ async function screens(
       // measure reports it and fails on nothing (US-2970).
       samples.push(
         span === undefined
-          ? { operation, pass, seconds: STEP_BOUND / 1000, unreached: step }
+          ? {
+              operation,
+              pass,
+              seconds: STEP_BOUND / 1000,
+              unreached: step,
+              ...(after === undefined ? {} : { after }),
+            }
           : { operation, pass, seconds: (span.end - span.start) / 1000 },
       );
     }

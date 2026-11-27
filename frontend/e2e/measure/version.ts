@@ -84,6 +84,8 @@ export interface Measured {
    * its seconds are the bound of the step, and the report marks it `unreached` (US-2970).
    */
   readonly unreached?: string;
+  /** The step that ended the journey before this one was played, when it was not played. */
+  readonly after?: string;
 }
 
 /** The steps of an operation the browser did not reach the end of, and in how many passes. */
@@ -92,6 +94,8 @@ export interface Unreached {
   readonly passes: number;
   /** The bound the step is counted at, in seconds. */
   readonly bound_s: number;
+  /** The step whose miss ended the journey before this one was played, if it was not played. */
+  readonly after?: string;
 }
 
 /** An operation of a report: served, with its durations, or named for the epic to serve it. */
@@ -307,16 +311,24 @@ function inSeconds(value: number): string {
  * missed in, in the order the samples name them; none when every sample is a duration measured.
  */
 function unreachedOf(id: string, samples: readonly Measured[]): Unreached[] {
-  const missed = new Map<string, { passes: Set<number>; bound_s: number }>();
+  const missed = new Map<string, { passes: Set<number>; bound_s: number; after?: string }>();
   for (const sample of samples) {
     if (sample.operation === id && sample.unreached !== undefined) {
       const own = missed.get(sample.unreached) ?? { passes: new Set<number>(), bound_s: 0 };
       own.passes.add(sample.pass);
       own.bound_s = Math.max(own.bound_s, second(sample.seconds));
+      if (sample.after !== undefined) {
+        own.after = sample.after;
+      }
       missed.set(sample.unreached, own);
     }
   }
-  return [...missed].map(([step, { passes, bound_s }]) => ({ step, passes: passes.size, bound_s }));
+  return [...missed].map(([step, { passes, bound_s, after }]) => ({
+    step,
+    passes: passes.size,
+    bound_s,
+    ...(after === undefined ? {} : { after }),
+  }));
 }
 
 /**
@@ -341,7 +353,11 @@ function noted(
       ? ""
       : "Not reached, counted at their bound: " +
         unreached
-          .map(({ step, passes, bound_s }) => `${step} in ${String(passes)} pass(es), ${String(bound_s)} s`)
+          .map(
+            ({ step, passes, bound_s, after }) =>
+              `${step} in ${String(passes)} pass(es), ${String(bound_s)} s` +
+              (after === undefined ? "" : ` (not played: the journey ended at ${after})`),
+          )
           .join("; ") +
         ".";
   const note = [exceeded, missed].filter((text) => text !== "").join(" ");

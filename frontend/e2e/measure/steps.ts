@@ -508,6 +508,8 @@ export interface Timed {
   readonly step: Step;
   readonly span: Interval | undefined;
   readonly destination: string;
+  /** The step that ended the journey of the pass, when this one was not played for it. */
+  readonly after?: Step;
 }
 
 /**
@@ -617,10 +619,10 @@ export async function journey(player: Player, target: Target, tag: string): Prom
     ],
   ];
   const timed: Timed[] = [];
-  let reached = true;
+  let missed: Step | undefined;
   for (const [step, play] of plays) {
-    if (!reached) {
-      timed.push({ step, span: undefined, destination: "" });
+    if (missed !== undefined) {
+      timed.push({ step, span: undefined, destination: "", after: missed });
       continue;
     }
     try {
@@ -633,7 +635,7 @@ export async function journey(player: Player, target: Target, tag: string): Prom
     } catch (error) {
       const [why = ""] = (error instanceof Error ? error.message : String(error)).split("\n");
       console.log(`${step}: not reached at ${page.url()}, ${await gridsShown(page)} (${why})`);
-      reached = false;
+      missed = step;
       timed.push({ step, span: undefined, destination: "" });
     }
   }

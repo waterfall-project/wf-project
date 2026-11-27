@@ -276,6 +276,38 @@ describe("versionReport", () => {
     expect(note).toMatch(/spending\.from-workload in 2 pass\(es\), 180 s/);
   });
 
+  it("says which steps were not played because the journey ended before them [US-2970]", () => {
+    const quick = TABLE.filter((line) => line.unserved === undefined).flatMap(({ id }) => [
+      measured(id, 0, 0.4),
+      measured(id, 1, 0.6),
+    ]);
+    const samples = [
+      ...quick,
+      ...[0, 1].map((pass) => ({
+        operation: "open-grid",
+        pass,
+        seconds: 180,
+        unreached: "remaining.from-estimate",
+        after: "estimate.from-planning",
+      })),
+    ];
+    const report = versionReport("0.4.0", new Date(), CONDITIONS, samples, CACHE);
+    const own = report.operations.find(({ id }) => id === "open-grid");
+    expect(own).toMatchObject({
+      unreached: [
+        {
+          step: "remaining.from-estimate",
+          passes: 2,
+          bound_s: 180,
+          after: "estimate.from-planning",
+        },
+      ],
+    });
+    expect(own !== undefined && "note" in own ? own.note : "").toMatch(
+      /remaining\.from-estimate in 2 pass\(es\), 180 s \(not played: the journey ended at estimate\.from-planning\)/,
+    );
+  });
+
   it("refuses an operation measured in a single pass, which has no dispersion to give", () => {
     const short = SAMPLES.filter(
       ({ operation, pass }) => operation !== "mark-revision" || pass === 0,

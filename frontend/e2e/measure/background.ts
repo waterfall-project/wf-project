@@ -44,6 +44,14 @@ const TASK_BOUND = 20 * 60_000;
  */
 export const PREPARATION_CALL = 120_000;
 
+/**
+ * How many times a read of the preparation is sent again when the connection is reset: under that
+ * load the API's supervisor kills and restarts workers that do not answer its pings (six times in
+ * the measure of 2026-11-27, #5158), and every connection of a worker killed is cut. A read can be
+ * sent again; a write cannot (an import would be opened twice).
+ */
+const READ_RETRIES = 5;
+
 /** How often a task is asked how it stands, in milliseconds. */
 const ASKED_EVERY = 1_000;
 
@@ -64,6 +72,7 @@ export function caller(request: APIRequestContext, token: () => Promise<string>)
       const answer = await request.get(`${API}${path}`, {
         headers: await headers(),
         timeout: PREPARATION_CALL,
+        maxRetries: READ_RETRIES,
       });
       expect(answer.status(), `GET ${path}: ${await answer.text()}`).toBe(200);
       return (await answer.json()) as T;
