@@ -430,7 +430,9 @@ test("a backup taken is listed, marked to keep and released, filtered and sorted
 function onTheLocation(path: string): string[] {
   const worker = process.env.E2E_SERVICE_WORKER;
   if (worker === undefined || worker === "") {
-    throw new Error("E2E_SERVICE_WORKER must name the container of the worker: run make e2e-service");
+    throw new Error(
+      "E2E_SERVICE_WORKER must name the container of the worker: run make e2e-service",
+    );
   }
   try {
     return execFileSync("docker", ["exec", worker, "ls", `${FOLDER}/${path}`], {
@@ -480,7 +482,7 @@ test("the copy of a schedule to a declared location is chosen, its location test
     expect(answer.status(), "GET backups, scheduled").toBe(200);
     return ((await answer.json()) as { items: (Backup & { taken_at: string })[] }).items;
   };
-  const folder = `parcours-${Date.now()}`;
+  const folder = `parcours-${String(Date.now())}`;
   let shipped: Schedule | undefined;
   try {
     await administrator.give(holder.id, KEEPER, PERMISSIONS);
@@ -499,10 +501,9 @@ test("the copy of a schedule to a declared location is chosen, its location test
     await form.getByLabel("Dossier dans l’emplacement").fill(folder);
     await form.getByRole("textbox", { name: "Copies gardées" }).fill("7");
     await form.getByRole("button", { name: "Tester l’emplacement" }).click();
-    await expect(form.getByRole("status")).toContainText(
-      `« ${LOCATION} » éprouvé le`,
-      { timeout: WORKING },
-    );
+    await expect(form.getByRole("status")).toContainText(`« ${LOCATION} » éprouvé le`, {
+      timeout: WORKING,
+    });
     await expect(form.getByRole("status")).toContainText(
       `dossier ${folder} : le fichier témoin a été écrit puis effacé.`,
     );
@@ -526,9 +527,9 @@ test("the copy of a schedule to a declared location is chosen, its location test
       external_copy: { is_enabled: true, location: LOCATION, path: folder, retained_count: 7 },
     });
     await page.reload();
-    await expect(
-      page.getByRole("region", { name: "Planification", exact: true }),
-    ).toContainText(`Vers ${LOCATION}, dossier ${folder}`);
+    await expect(page.getByRole("region", { name: "Planification", exact: true })).toContainText(
+      `Vers ${LOCATION}, dossier ${folder}`,
+    );
 
     // The minute passed, the planners' command deposits the backup due; the worker takes it,
     // verifies it, and copies it.
