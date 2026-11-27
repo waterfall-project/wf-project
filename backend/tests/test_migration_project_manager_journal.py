@@ -339,3 +339,26 @@ def test_a_refused_lock_of_the_upgrade_is_written_to_the_log_with_its_table_and_
     assert refused[0].levelname == "WARNING"
     assert "audit_entry" in refused[0].getMessage()
     assert "widen the checks" in refused[0].getMessage()
+
+
+@pytest.mark.story("US-2850")
+@pytest.mark.requirement("WF-DAT-0140-A")
+def test_a_journal_held_two_seconds_gives_at_most_two_warnings_of_the_step_that_waits(
+    empty_engine: Engine, caplog: pytest.LogCaptureFixture
+) -> None:
+    # #5151: a WARNING at the first refusal, then one every ten seconds, not one per refusal.
+    upgrade(empty_engine, "0055")
+    caplog.set_level("WARNING")
+    with ThreadPoolExecutor(1) as pool:
+        with empty_engine.connect() as reading, reading.begin():
+            reading.execute(select(AuditEntry.id)).all()
+            migrating = pool.submit(upgrade, empty_engine, "0056")
+            until(
+                empty_engine,
+                lambda _watching: any("lock refused" in each for each in caplog.messages),
+                "a refused lock written to the log",
+            )
+            time.sleep(2)
+        migrating.result(timeout=60)
+    refused = [each for each in caplog.messages if "lock refused" in each]
+    assert 1 <= len(refused) <= 2

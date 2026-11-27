@@ -183,6 +183,7 @@ NEXT = "_next"
 # writings of the journal queued behind it all the while; and the pause before it tries again.
 LOCK_WAIT = "500ms"
 LOCK_RETRY_SECONDS = 1.0
+LOG_EVERY_SECONDS = 10.0
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -231,13 +232,16 @@ def _locking_briefly(step: Callable[[], None], name: str) -> None:
     """Run a step that takes an exclusive lock, waiting ``LOCK_WAIT`` at most, until it goes.
 
     Refused, the step is rolled back to its savepoint, which gives back every lock it took, and
-    tried again after a pause, a WARNING naming the table and the step (``name``) written at each
-    refusal, so that a run that waits reads in its log why; the ``lock_timeout`` of the transaction
+    tried again after a pause, a WARNING naming the table and the step (``name``) written at the
+    first refusal, then every ``LOG_EVERY_SECONDS`` at most with the count since the last, so that a
+    run that waits reads in its log why; the ``lock_timeout`` of the transaction
     is given back after it.
     """
     bind = op.get_bind()
     before = bind.scalar(sa.text("SELECT current_setting('lock_timeout')"))
     bind.execute(sa.select(sa.func.set_config("lock_timeout", LOCK_WAIT, sa.true())))
+    refused = 0
+    last_logged: float | None = None
     while True:
         try:
             with bind.begin_nested():
@@ -245,12 +249,18 @@ def _locking_briefly(step: Callable[[], None], name: str) -> None:
         except OperationalError as error:
             if not isinstance(error.orig, LockNotAvailable):
                 raise
-            logger.warning(
-                "lock refused: table %s, step %s, trying again in %ss",
-                TABLE,
-                name,
-                LOCK_RETRY_SECONDS,
-            )
+            refused += 1
+            now = time.monotonic()
+            if last_logged is None or now - last_logged >= LOG_EVERY_SECONDS:
+                logger.warning(
+                    "lock refused %s time(s) since the last warning: table %s, step %s, "
+                    "trying again in %ss",
+                    refused,
+                    TABLE,
+                    name,
+                    LOCK_RETRY_SECONDS,
+                )
+                refused, last_logged = 0, now
             time.sleep(LOCK_RETRY_SECONDS)
         else:
             break
