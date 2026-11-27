@@ -371,22 +371,36 @@ def test_the_full_tier_plays_the_browsers_of_the_specification_in_a_job_of_its_o
     # US-0290: the part `browsers` installs every browser, then plays the tagged paths on them;
     # it lives in e2e.yml, which ci.yml calls in the full tier alone, beside the parts of the paths.
     workflow = yaml.safe_load((REPOSITORY / ".github" / "workflows" / "e2e.yml").read_text())
-    runs = [step["run"] for step in workflow["jobs"]["browsers"]["steps"] if "run" in step]
-    assert runs == ["make e2e-browsers", "make e2e-compat"]
     chain = yaml.safe_load((REPOSITORY / ".github" / "workflows" / "ci.yml").read_text())
     assert chain["jobs"]["e2e"]["uses"] == "./.github/workflows/e2e.yml"
-    assert "full" in str(chain["jobs"]["e2e"]["if"])
+    # The condition of ci.yml: the paths play in the full tier alone, and no negation passes.
+    assert chain["jobs"]["e2e"]["if"] == (
+        "needs.changes.outputs.front == 'true' && needs.changes.outputs.tier == 'full'"
+    )
+    assert "browsers" in workflow["jobs"]
+    # The commands of the job (make e2e-browsers, make e2e-compat) are held by test_e2eimage.py.
 
 
 @pytest.mark.story("US-0290")
 def test_one_target_installs_every_browser_and_the_paths_of_the_chain_need_chromium_alone() -> None:
     every = " ".join(dry_run("e2e-browsers", "full"))
-    assert all(name in every for name in ("chromium", "chrome", "msedge", "firefox", "webkit"))
+    for name in ("chromium", "chrome", "msedge", "firefox", "webkit"):
+        assert re.search(rf"(?<![\w-]){name}(?![\w-])", every), name
     commands = " ".join(dry_run("check-front", "full"))
     assert "playwright install" in commands
     assert "firefox" not in commands
     assert "msedge" not in commands
     assert [c for c in dry_run("e2e-compat", "full", "E2E_BUILT=1") if "playwright test" in c]
+    # The part of the config the target plays: the dry run does not print an exported variable.
+    database = subprocess.run(
+        ["make", "--print-data-base", "--dry-run", "--no-print-directory", "e2e-compat"],
+        cwd=REPOSITORY,
+        env=os.environ | slots.variables(0),
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert "e2e-compat: E2E_PART = browsers" in database
 
 
 def downloaded(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:

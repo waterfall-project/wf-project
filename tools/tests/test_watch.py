@@ -165,23 +165,23 @@ def test_front_cache_runs_when_a_lockfile_of_uv_changes_alone() -> None:
 @pytest.mark.story("US-2490")
 @pytest.mark.parametrize("name", ["service.yml", "e2e.yml"])
 def test_a_path_that_fails_leaves_its_traces_for_seven_days(name: str) -> None:
-    uploads = [
-        step
-        for job in workflow(name)["jobs"].values()
-        for step in job["steps"]
-        if str(step.get("uses", "")).startswith("actions/upload-artifact@")
-    ]
-    # One for each job: the matrix of the paths names it by its index, the job `browsers` (US-0290)
-    # by its own name.
-    assert len(uploads) == len(workflow(name)["jobs"])
-    for upload in uploads:
+    for job_name, job in workflow(name)["jobs"].items():
+        uploads = [
+            step
+            for step in job["steps"]
+            if str(step.get("uses", "")).startswith("actions/upload-artifact@")
+        ]
+        # Exactly one for each job: the matrix of the paths names it by its index, the job
+        # `browsers` of e2e.yml (US-0290) by its own name, which no other job may take.
+        assert len(uploads) == 1, job_name
+        (upload,) = uploads
         assert upload["if"] == "failure()"
         assert upload["with"]["path"] == "frontend/test-results/"
         assert upload["with"]["retention-days"] == 7
-        assert (
-            "strategy.job-index" in upload["with"]["name"]
-            or upload["with"]["name"] == "test-results-e2e-browsers"
-        )
+        if name == "e2e.yml" and job_name == "browsers":
+            assert upload["with"]["name"] == "test-results-e2e-browsers"
+        else:
+            assert "strategy.job-index" in upload["with"]["name"], job_name
     # The same commit as the other uploads of the chain.
     assert len(commits(pins()["actions/upload-artifact"])) == 1
 

@@ -116,17 +116,18 @@ def test_no_job_of_the_paths_installs_a_package_of_ubuntu() -> None:
     # What the workflows do, without their comments, which may name what they no longer do.
     # One exception, named: the job `browsers` of e2e.yml installs Chrome and Edge, which Playwright
     # takes from the vendors' packages and the image does not carry (US-0290, EP-14, « Les
-    # navigateurs »): it alone runs `make e2e-browsers`, and names no apt, no dpkg and no
-    # `--with-deps` itself, which the loop below holds it to as the others.
+    # navigateurs »; putting them in the image is #5165). It alone runs `make e2e-browsers`, and
+    # that command runs apt inside `playwright install`, out of what a workflow can show: the
+    # test holds the job to the other interdictions, `--with-deps` included, and no more.
     for name in ("ci.yml", "e2e.yml", "service.yml"):
         content = workflow(name)
-        if name == "e2e.yml":
-            content = {**content, "jobs": dict(content["jobs"])}
-            browsers = content["jobs"].pop("browsers")
-            runs = [step["run"] for step in browsers["steps"] if "run" in step]
-            assert runs == ["make e2e-browsers", "make e2e-compat"]
-            assert "--with-deps" not in json.dumps(browsers)
         text = json.dumps(content)
+        if name == "e2e.yml":
+            runs = [step["run"] for step in content["jobs"]["browsers"]["steps"] if "run" in step]
+            assert runs == ["make e2e-browsers", "make e2e-compat"]
+            assert text.count("make e2e-browsers") == 1
+            # The command, and the name of the artifact of the traces of the same job.
+            text = text.replace("make e2e-browsers", "").replace("test-results-e2e-browsers", "")
         for forbidden in ("archive.ubuntu.com", "apt-get", "dpkg", "e2e-browsers", "--with-deps"):
             assert forbidden not in text, f"{name} names {forbidden}"
 
