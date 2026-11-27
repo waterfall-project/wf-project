@@ -667,3 +667,15 @@ message = 'wftools\.charttrial: find ghcr\.io/waterfall-project/keycloak@sha256:
 runs = [45868657554]
 frequency = "1 passage, le 2026-11-26 (45868657554, file d'`epic/EP-13`, pr-5064)"
 cause = "hypothèse : la recherche de l'image par son empreinte dans le nœud de kind suit de trop près son chargement, ou l'empreinte cherchée n'est pas celle que containerd garde"
+
+# L'essai du chart sur k3s, qui attend le nœud avant que le serveur d'API réponde (#5103).
+[[known]]
+class = "known flakiness"
+family = "chart-trial-k3s, l'attente du nœud avant le serveur d'API de k3s"
+issue = "#5103"
+job = '^chart / check \(k3s\)$'
+step = 'chart-trial-k3s'
+message = 'wftools\.charttrial: wait for the node failed'
+runs = [45913572822]
+frequency = "1 passage, le 2026-11-26 (45913572822, file d'`epic/EP-13`, pr-5082)"
+cause = "hypothèse : l'essai attend le nœud avant que le serveur d'API de k3s soit prêt (`informer-sync failed`, `no matching resources found`)"

@@ -20,7 +20,7 @@ import pytest
 import yaml
 from test_supervision import services
 
-from wftools import REPOSITORY, chart, production
+from wftools import REPOSITORY, bounded, chart, production
 from wftools.production import ProductionError
 
 if TYPE_CHECKING:
@@ -96,6 +96,14 @@ def compose(*files: Path, given: dict[str, str] | None = None, images: bool = Fa
 @pytest.fixture(scope="module")
 def isolated() -> dict[str, Any]:
     return compose(PRODUCTION, LOCAL, ISOLATED)
+
+
+def test_every_service_of_the_isolated_trial_runs_under_the_slice_the_chain_bounds() -> None:
+    """The door and the sink, which only the isolated file declares, are bounded too (US-2810)."""
+    written = yaml.safe_load(bounded.override(bounded.PRODUCTION, "waterfall-bounded.slice"))
+    declared = set(bounded.services(production.FILES))
+    assert {"door", "egress-sink"} <= set(written["services"])
+    assert set(written["services"]) == declared
 
 
 @NO_DOCKER
