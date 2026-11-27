@@ -346,10 +346,14 @@ test("measures each operation of table 15 the service serves under the load of f
     // The marking, last of the background tasks, froze the revision
     // from the asking of its first pass.
     const frozenSeconds = frozenAt === undefined ? 0 : (stopped - frozenAt) / 1000;
+    // The refusals over the tolerance that the saturation of the API explains are the report's to
+    // say (`conditions.load.saturation`, #5158), not the measure's to fail on.
+    const saturation: string[] = [];
     const failures = loadFailures(
       summary,
       { users, duration_s: durationSeconds, frozen_s: frozenSeconds },
       refusals,
+      saturation,
     );
     if (summary === undefined || failures.length > 0) {
       throw new Error(`The load did not run as asked: ${failures.join("; ")}`);
@@ -367,6 +371,7 @@ test("measures each operation of table 15 the service serves under the load of f
         duration_s: Math.round(durationSeconds),
         gestures_expected: Math.round(gesturesExpected(users, durationSeconds)),
         refusals,
+        ...(saturation.length > 0 ? { saturation } : {}),
       },
     };
     written(

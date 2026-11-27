@@ -64,6 +64,12 @@ export const REFUSALS_REPORTED = 50;
  * stood frozen, that may be refused as frozen: the gestures of a user fall at random in time.
  */
 export const FROZEN_SLACK = 0.1;
+/**
+ * The share of the readings, or of the entries, beyond which a load that refused them has failed
+ * as a whole even when the saturation of the API is documented (US-2970, #5158): under it, the
+ * refusals over the tolerance are the report's to say (`conditions.load.saturation`).
+ */
+export const SATURATED_SHARE = 0.1;
 /** The mean pause between two gestures of a user, in seconds (`bench/draw.ts`). */
 export const PAUSE_MEAN_S = 10;
 /** The share of the gestures its pauses promise below which the load did not run as asked. */
@@ -108,11 +114,17 @@ export function refusedTolerated(gestures: number, unnamed = 0): number {
   return unnamed > 0 ? share : Math.max(share, REFUSED_LEAST);
 }
 
-/** The reasons the load did not run as asked; none when it did. */
+/**
+ * The reasons the load did not run as asked; none when it did. With `saturated`, the readings or
+ * the entries refused beyond the tolerance but under `SATURATED_SHARE` of their gestures are not
+ * reasons: they are pushed there, to be said in the report, the API being saturated by the load
+ * itself (US-2970, #5158) — a connection cut, a worker restarted — and the measure's to document.
+ */
 export function loadFailures(
   summary: LoadSummary | undefined,
   run: LoadRun,
   refusals: readonly Refusal[],
+  saturated?: string[],
 ): string[] {
   if (summary === undefined) {
     return ["the load wrote no summary"];
@@ -129,16 +141,17 @@ export function loadFailures(
   if (summary.unauthorised !== 0) {
     failures.push(`${String(summary.unauthorised)} gestures refused for want of a valid token`);
   }
-  if (summary.reads === 0 || summary.reads_refused > allowed(summary.reads)) {
-    failures.push(
-      `${String(summary.reads_refused)} of ${String(summary.reads)} readings refused, ${tolerated(summary.reads)}`,
-    );
+  const refused = (count: number, of: number, gestures: string) => {
+    if (of > 0 && count > allowed(of)) {
+      const text = `${String(count)} of ${String(of)} ${gestures} refused, ${tolerated(of)}`;
+      (saturated !== undefined && count <= of * SATURATED_SHARE ? saturated : failures).push(text);
+    }
+  };
+  if (summary.reads === 0) {
+    failures.push(`${String(summary.reads_refused)} of 0 readings refused, ${tolerated(0)}`);
   }
-  if (summary.writes_refused > allowed(summary.writes)) {
-    failures.push(
-      `${String(summary.writes_refused)} of ${String(summary.writes)} entries refused, ${tolerated(summary.writes)}`,
-    );
-  }
+  refused(summary.reads_refused, summary.reads, "readings");
+  refused(summary.writes_refused, summary.writes, "entries");
   const frozenShare = run.duration_s > 0 ? Math.min(1, run.frozen_s / run.duration_s) : 0;
   const shares = [
     { gestures: "entries", frozen: summary.writes_frozen, of: summary.writes },

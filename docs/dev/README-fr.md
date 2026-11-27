@@ -3513,7 +3513,7 @@ versionne le lot de la version, avec les `note` de ses dépassements. La mesure 
 durée : seulement sur un compte qu'elle ne peut créer, des volumes inférieurs à ceux du §4.6.2 (mille
 tâches, cinq lignes de devis par tâche en moyenne, à l'arrondi près du témoin : 4,9 au moins), une tâche
 de fond qui échoue, ou une charge qui n'a pas tourné comme demandé (`load-check.ts`) : sans résumé,
-un utilisateur refusé faute de jeton, plus d'un pour cent de lectures ou de saisies refusées (un refus isolé par catégorie est toléré s'il est nommé au rapport, lu dans le journal de k6 avant l'arrêt ; un refus que le résumé compte et que le journal ne nomme pas, survenu pendant l'arrêt, n'est pas toléré), hors
+un utilisateur refusé faute de jeton, plus d'un dixième de lectures ou de saisies refusées — de un à dix pour cent, au-delà de ce que tolère la mesure, c'est la saturation de l'API (#5158) : la mesure ne s'en arrête pas et le rapport la dit, `conditions.load.saturation` — (un refus isolé par catégorie est toléré s'il est nommé au rapport, lu dans le journal de k6 avant l'arrêt ; un refus que le résumé compte et que le journal ne nomme pas, survenu pendant l'arrêt, n'est pas toléré), hors
 les gestes que le marquage refuse — le `409` `STATE_FORBIDS_OPERATION`, seul attendu, et non tout
 `409` : une saisie sur la révision marquée, la lecture du plan de charge sur la révision en cours
 d'un projet qui n'en a plus —, comptés à part (`reads_frozen`, `writes_frozen`) : ceux-là ne

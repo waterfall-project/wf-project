@@ -239,9 +239,10 @@ export interface Conditions {
   readonly task_passes: number;
   /**
    * The summary of the load, as k6 wrote it (`bench/load.ts`), with its duration, the gestures
-   * expected of it, and the refusals it names (`refusals`, the one tolerated among them).
+   * expected of it, the refusals it names (`refusals`, the one tolerated among them) and, when the
+   * saturation of the API made it refuse more than tolerated, what it says of them (`saturation`).
    */
-  readonly load: Readonly<Record<string, number | readonly Refusal[]>>;
+  readonly load: Readonly<Record<string, number | readonly Refusal[] | readonly string[]>>;
 }
 
 /** The report of a version, as `measures.py` reads it, with what the measure was taken under. */

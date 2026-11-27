@@ -3490,8 +3490,8 @@ median and the worst duration are those of every measure, the dispersion the sta
 it, with the `note` of its overruns. The measure fails on no duration: only on an account it cannot
 make, volumes below those of §4.6.2 (a thousand tasks, five estimate lines a task on average, less the
 witness's rounding: 4.9 at least), a background task that fails, or a load that did not run as asked
-(`load-check.ts`): without a summary, a user refused for want of a token, more than one percent of
-readings or entries refused (one refusal isolated per category is tolerated if it is named in the
+(`load-check.ts`): without a summary, a user refused for want of a token, more than a tenth of
+readings or entries refused — from one to ten percent, beyond what the measure tolerates, is the saturation of the API (#5158): the measure does not stop for it and the report says it, `conditions.load.saturation` — (one refusal isolated per category is tolerated if it is named in the
 report, read in the k6 log before the stop; a refusal the summary counts and the log does not name,
 occurring during the stop, is not tolerated) — the gestures the marking refuses, apart: the `409`
 `STATE_FORBIDS_OPERATION`, the only one expected, not any `409` — an entry on the marked

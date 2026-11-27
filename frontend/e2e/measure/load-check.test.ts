@@ -76,6 +76,23 @@ describe("loadFailures", () => {
     ]);
   });
 
+  it("says, without failing, the entries refused over the tolerance when the saturation explains them, up to a tenth [US-2970]", () => {
+    // 5 of 433 entries on the measure of 2026-11-27: over the tolerance of 4, far under a tenth.
+    const seen = { ...NOMINAL, writes: 433, writes_refused: 5 };
+    const saturation: string[] = [];
+    expect(loadFailures(seen, RUN, named(5), saturation)).toEqual([]);
+    expect(saturation).toEqual(["5 of 433 entries refused, 4 tolerated"]);
+    // Asked without the list, it fails as it did.
+    expect(loadFailures(seen, RUN, named(5))).toEqual(["5 of 433 entries refused, 4 tolerated"]);
+    // Over a tenth, the load has failed as a whole, saturation or not.
+    const failed = { ...NOMINAL, reads_refused: 300 };
+    const none: string[] = [];
+    expect(loadFailures(failed, RUN, named(50), none)).toEqual([
+      "300 of 2610 readings refused, 26 tolerated",
+    ]);
+    expect(none).toEqual([]);
+  });
+
   it("rounds the tolerated readings down, one at least [WF-QUA-0060-A]", () => {
     expect(refusedTolerated(70)).toBe(1);
     expect(refusedTolerated(577)).toBe(5);
