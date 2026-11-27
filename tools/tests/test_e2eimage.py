@@ -114,8 +114,19 @@ def test_no_job_of_the_paths_installs_a_package_of_ubuntu() -> None:
     # Dockerfile, downloaded only when the image changes. back.yml and spec.yml, which install
     # packages of their own, are other networks of US-1900, outside the paths.
     # What the workflows do, without their comments, which may name what they no longer do.
+    # One exception, named: the job `browsers` of e2e.yml installs Chrome and Edge, which Playwright
+    # takes from the vendors' packages and the image does not carry (US-0290, EP-14, « Les
+    # navigateurs »): it alone runs `make e2e-browsers`, and names no apt, no dpkg and no
+    # `--with-deps` itself, which the loop below holds it to as the others.
     for name in ("ci.yml", "e2e.yml", "service.yml"):
-        text = json.dumps(workflow(name))
+        content = workflow(name)
+        if name == "e2e.yml":
+            content = {**content, "jobs": dict(content["jobs"])}
+            browsers = content["jobs"].pop("browsers")
+            runs = [step["run"] for step in browsers["steps"] if "run" in step]
+            assert runs == ["make e2e-browsers", "make e2e-compat"]
+            assert "--with-deps" not in json.dumps(browsers)
+        text = json.dumps(content)
         for forbidden in ("archive.ubuntu.com", "apt-get", "dpkg", "e2e-browsers", "--with-deps"):
             assert forbidden not in text, f"{name} names {forbidden}"
 

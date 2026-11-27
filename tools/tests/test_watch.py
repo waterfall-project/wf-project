@@ -171,12 +171,17 @@ def test_a_path_that_fails_leaves_its_traces_for_seven_days(name: str) -> None:
         for step in job["steps"]
         if str(step.get("uses", "")).startswith("actions/upload-artifact@")
     ]
-    assert len(uploads) == 1
-    (upload,) = uploads
-    assert upload["if"] == "failure()"
-    assert upload["with"]["path"] == "frontend/test-results/"
-    assert upload["with"]["retention-days"] == 7
-    assert "strategy.job-index" in upload["with"]["name"]
+    # One for each job: the matrix of the paths names it by its index, the job `browsers` (US-0290)
+    # by its own name.
+    assert len(uploads) == len(workflow(name)["jobs"])
+    for upload in uploads:
+        assert upload["if"] == "failure()"
+        assert upload["with"]["path"] == "frontend/test-results/"
+        assert upload["with"]["retention-days"] == 7
+        assert (
+            "strategy.job-index" in upload["with"]["name"]
+            or upload["with"]["name"] == "test-results-e2e-browsers"
+        )
     # The same commit as the other uploads of the chain.
     assert len(commits(pins()["actions/upload-artifact"])) == 1
 

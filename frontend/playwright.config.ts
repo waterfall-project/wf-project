@@ -38,6 +38,11 @@
  * measure, depending on all of them, would otherwise drag every one into each part —; `measure`,
  * the measure alone, a runner to itself. Unset, the whole harness: the paths, then the measure.
  *
+ * `browsers` plays the paths tagged `@browsers` — the grids, the Gantt, the curves — on `chrome`,
+ * `msedge`, `firefox` and `webkit`, at 1366 points, and those tagged `@mobile` — the indicators, read
+ * and never written — at 360 points in `mobile` (`make e2e-compat`, US-0290, WF-CMP-0010-A): the
+ * other parts leave these projects out, and need Chromium alone to be installed.
+ *
  * `service` plays the paths of `e2e/service/` alone (US-0340), which the others leave out:
  * against the real service, through the proxy of the contract that `WATERFALL_API_ADDRESS` names
  * (`make e2e-service`), with the real authentication — no fixed token —, and the front listening
@@ -191,7 +196,14 @@ const FRONT_ENV = {
 // What the front of the measure against the service is told: the users' front, whose connections
 // to the API are kept alive, as in production — no proxy closes them there (US-2210).
 const USERS_FRONT_ENV = { WATERFALL_API_ADDRESS: API, ...AUTHENTICATION };
-const PARTS = ["paths", "measure", "service", "measure-service", "measure-version"] as const;
+const PARTS = [
+  "paths",
+  "measure",
+  "service",
+  "measure-service",
+  "measure-version",
+  "browsers",
+] as const;
 type Part = (typeof PARTS)[number];
 
 /** The part of the harness the environment names, or the whole of it; anything else refused. */
@@ -217,6 +229,9 @@ if (MEASURES_SERVICE && NAMED_API === undefined) {
   throw new Error(`E2E_PART=${PART} measures against the API WATERFALL_API_ADDRESS names`);
 }
 const PLAYS_PATHS = PART === undefined || PART === "paths";
+// The paths tagged for the browsers of the specification, and the indicators at 360 points (`make
+// e2e-compat`, US-0290): the fake back and the front built for production, as the paths have them.
+const PLAYS_BROWSERS = PART === "browsers";
 // The measure never plays against the development server: the whole harness asked of it leaves the
 // measure out, and the measure asked alone plays against the built front.
 const DEVELOPMENT = DEVELOPMENT_ASKED && PART !== "measure" && !MEASURES_SERVICE;
@@ -240,7 +255,7 @@ if (SERIAL_ALONE && !PLAYS_SERVICE) {
 // development server, of which two would share `.next/dev`. As many as the workers even for one file
 // or a part: how many workers a run takes is not known as this file is read, and a file played test
 // by test (`mode: "parallel"`) takes them all; each answers in about a second.
-const FRONTS = PLAYS_PATHS && !PLAYS_SERVICE && !DEVELOPMENT ? WORKERS : 1;
+const FRONTS = (PLAYS_PATHS || PLAYS_BROWSERS) && !PLAYS_SERVICE && !DEVELOPMENT ? WORKERS : 1;
 const frontAt = (index: number) => `http://127.0.0.1:${String(FRONT_PORT + index)}`;
 const FRONT = frontAt(Number(process.env.TEST_PARALLEL_INDEX ?? "0") % FRONTS);
 // From the root of the repository, where `make -C ..` runs; ignored by git.
@@ -264,6 +279,11 @@ const SERIAL = /@serial/;
 // stop a component of it — Redis, the directory — for the time they run (degraded mode,
 // US-2860): tagged, played alone, after all the others.
 const PLATFORM_WIDE = /@platform-wide/;
+// The paths of the grids, the Gantt and the curves that the part `browsers` plays on the four
+// browsers of the specification, at 1366 points; and those of the indicators at 360 points, in the
+// project `mobile`, which `chromium` leaves out, for it plays at the width of its own (US-0290).
+const BROWSERS = /@browsers/;
+const MOBILE = /@mobile/;
 // The moment the run started, which the workers inherit: the guard of the run reads the log of the
 // proxy from it (`e2e/service/contract.ts`). The last line the proxy wrote before the run, on the
 // clock of Docker that stamps its log, never the workstation's (`e2e/service/proxy-log.ts`). Kept
@@ -304,7 +324,44 @@ function pathProjects(): Project[] {
     {
       name: "chromium",
       testIgnore: [MEASURES, SERVICE_PATHS, SERVICE_MEASURE],
+      grepInvert: MOBILE,
       use: { ...devices["Desktop Chrome"], locale: "fr-FR" },
+    },
+  ];
+}
+
+/**
+ * The paths tagged `@browsers` on Chrome and Edge — the channels of Chromium —, Firefox and WebKit,
+ * which stands for Safari, in the 1366 × 768 window of the specification (WF-CMP-0010-A); and the
+ * paths tagged `@mobile` at 360 points, in Chromium's engine as a phone's. Only when the part
+ * `browsers` is played: the other parts install and need Chromium alone.
+ */
+function browserProjects(): Project[] {
+  if (!PLAYS_BROWSERS) {
+    return [];
+  }
+  const viewport = { width: 1366, height: 768 };
+  const desktop = (name: string, device: keyof typeof devices, channel?: string): Project => ({
+    name,
+    testIgnore: [MEASURES, SERVICE_PATHS, SERVICE_MEASURE],
+    grep: BROWSERS,
+    use: {
+      ...devices[device],
+      ...(channel === undefined ? {} : { channel }),
+      viewport,
+      locale: "fr-FR",
+    },
+  });
+  return [
+    desktop("chrome", "Desktop Chrome", "chrome"),
+    desktop("msedge", "Desktop Edge", "msedge"),
+    desktop("firefox", "Desktop Firefox"),
+    desktop("webkit", "Desktop Safari"),
+    {
+      name: "mobile",
+      testIgnore: [MEASURES, SERVICE_PATHS, SERVICE_MEASURE],
+      grep: MOBILE,
+      use: { ...devices["Pixel 5"], viewport: { width: 360, height: 740 }, locale: "fr-FR" },
     },
   ];
 }
@@ -499,6 +556,7 @@ export default defineConfig({
   // another language sets its own (`test.use({ locale })`).
   projects: [
     ...pathProjects(),
+    ...browserProjects(),
     ...serviceProjects(),
     ...measureProjects(),
     ...serviceMeasureProjects(),

@@ -3522,7 +3522,7 @@ une interruption, `make e2e-down` ou `make service-down` l'arrête. `E2E_LOAD_US
 réservé aux essais — `make measure-version exclusive= E2E_LOAD_USERS=3 MEASURE_PASSES=2
 MEASURE_TASK_PASSES=2` —, et un rapport de version se prend à cinquante : le rapport consigne
 `users`. Mêmes secrets que `make
-service-up`, et le navigateur de `make e2e-browsers` ; le projet Playwright `measure-version`, que
+service-up`, et le navigateur de `make e2e-chromium` ; le projet Playwright `measure-version`, que
 pose `E2E_PART=measure-version`, n'est joué par aucune cible de la chaîne. L'entrée du cache des indicateurs ne se mesure pas ici :
 `make measure-core ONLY=indicators JSON=frontend/.e2e/measure-core-indicators.json` la mesure à part,
 sur son propre témoin, et `make measure-version` en lit le JSON (`MEASURE_CACHE`, sa valeur par défaut
@@ -3898,7 +3898,7 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   jamais par `download.path()`, que Playwright refuse à un navigateur distant. `wftools.e2eimage
   run` est fait pour la chaîne : root dans l'image, la socket de Docker à son chemin d'un runner,
   `DOCKER_HOST` non lu. Sur un poste, sans `E2E_IMAGE`, les parcours se jouent sur le poste, avec
-  le navigateur de `make e2e-browsers`. `front-image.yml` construit et démarre l'image de
+  le navigateur de `make e2e-chromium`. `front-image.yml` construit et démarre l'image de
   production du front, que `images.yml` ne publie qu'après la fusion, aux deux paliers
   (`make check-front-image`) : la famille `front-image` se réveille sur ce qui la fait —
   `frontend/Dockerfile` et son `.dockerignore`, `next.config.ts`, `package.json`, `pnpm-lock.yaml`,
@@ -4803,8 +4803,12 @@ disant. Deux worktrees à deux créneaux jouent donc leurs parcours en même tem
 `WATERFALL_SLOTS` d'au moins 2, sans quoi le second attend que le premier ait fini. `E2E_API_PORT`
 et `E2E_FRONT_PORT`, posés dans l'environnement, l'emportent sur ceux du créneau — le front des
 parcours en prend autant qu'il a de workers, à partir de lui (ci-dessous), quarante au plus dans
-un bloc ; un port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
-navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, répartis par durée
+un bloc ; un port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-chromium` installe
+Chromium, le navigateur des parcours ; `make e2e-browsers` installe tous ceux de la spécification
+(Chromium, Chrome, Edge, Firefox, WebKit) et `make e2e-compat`, la part `browsers` de la chaîne
+(`E2E_PART=browsers`), joue sur eux les parcours étiquetés `@browsers` — grilles, Gantt, courbes — à
+1366 points, et dans le projet `mobile`, à 360 points, ceux étiquetés `@mobile` : les vues
+d'indicateurs, lisibles et sans saisie (WF-CMP-0010-A, US-0290). `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, répartis par durée
 mesurée (`tools/e2e-durations.json`, que rafraîchit `make e2e-durations`) — `SHARD` ne se combine pas
 avec `TESTS=<fichier>`, que la recette refuse : le fichier peut être dans un autre morceau ;
 `SHARD=lint` ne vaut que pour `make check-front-tests` et `make test-front`, et `check`,

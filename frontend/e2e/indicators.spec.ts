@@ -36,7 +36,7 @@ test.use({ colorScheme: "light" });
 // A chart is drawn by ECharts from an effect, once the page is hydrated: each visit opens the
 // screen hydrated (`openHydrated`), and its drawings are awaited from there.
 
-test("draws the evolution of an index in SVG, an image described in a sentence, its values in a table @shared [WF-IHM-0100-A]", async ({
+test("draws the evolution of an index in SVG, an image described in a sentence, its values in a table @browsers @shared [WF-IHM-0100-A] [WF-CMP-0010-A]", async ({
   page,
 }) => {
   await openHydrated(page, SCREEN);
@@ -69,7 +69,7 @@ test("paints its series with the tokens of the charter, drawn again when the acc
   await expect(cost.locator(`path[stroke="${SERIES_LIGHT}"]`)).toHaveCount(0);
 });
 
-test("names each curve at its end, two names ending close together drawn apart, their letters never overlapping @shared", async ({
+test("names each curve at its end, two names ending close together drawn apart, their letters never overlapping @browsers @shared [WF-CMP-0010-A]", async ({
   page,
 }) => {
   await openHydrated(page, SCREEN);
@@ -116,7 +116,7 @@ test("exports a curve, at the keyboard, as a PNG image drawn on a canvas, named 
   await expect(page.locator("canvas")).toHaveCount(0);
 });
 
-test("draws the cumulative costs, and shifts them by the payment delays at the server's @shared", async ({
+test("draws the cumulative costs, and shifts them by the payment delays at the server's @browsers @shared [WF-CMP-0010-A]", async ({
   page,
 }) => {
   await openHydrated(page, SCREEN);

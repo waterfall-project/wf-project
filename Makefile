@@ -87,7 +87,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap check-measures e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror mirror-sync lot-size measure-reference tracking merge-queue merge-queue-check queue-cancel queue-report \
+	coverage-back coverage-front roadmap check-roadmap check-measures e2e e2e-durations e2e-measure e2e-compat e2e-browsers e2e-chromium e2e-image mirror mirror-sync lot-size measure-reference tracking merge-queue merge-queue-check queue-cancel queue-report \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -199,7 +199,7 @@ $(call slot-export,e2e-down,WATERFALL_SERVICE_PROJECT)
 $(call slot-export,build-keycloak save-keycloak load-keycloak,WATERFALL_KEYCLOAK_IMAGE)
 $(call slot-export,test-services test-services-down,WATERFALL_TEST_PROJECT \
 	WATERFALL_TEST_POSTGRES_PORT WATERFALL_TEST_REDIS_PORT WATERFALL_TEST_STORAGE_PORT)
-$(call slot-export,e2e e2e-measure e2e-service,$(SLOT_PATHS))
+$(call slot-export,e2e e2e-measure e2e-compat e2e-service,$(SLOT_PATHS))
 $(call slot-export,check-front-image,WATERFALL_FRONT_CHECK_IMAGE)
 
 full-only = $(if $(filter full,$(TIER)),$(1))
@@ -748,7 +748,7 @@ check-front-static: client-up-to-date lint-front typecheck-front catalogs $(call
 check-front-tests: $(call full-else,coverage-front,test-front) ## The tests of the front, SHARD=lint or i/N one part of them; in the full tier, measured
 
 # The paths build the front for production, whose manifest prerendered-front then reads.
-check-front-e2e: $(call full-only,e2e-browsers e2e prerendered-front) ## The end-to-end paths of the front, which build it for production, and what that build prerendered, in the full tier only
+check-front-e2e: $(call full-only,e2e-chromium e2e prerendered-front) ## The end-to-end paths of the front, which build it for production, and what that build prerendered, in the full tier only
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent
@@ -890,8 +890,15 @@ migrations-backup: ## A backup taken by the production platform of the last publ
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap
 
-e2e-browsers: install-front ## Install the browser the end-to-end tests run in
+# The paths of the chain play in Chromium alone (e2e-chromium); the browsers of the specification
+# (WF-CMP-0010-A, US-0290) are Chrome and Edge, the channels of Chromium that Playwright installs
+# from the vendors' packages — which a workstation may refuse without its administrator —, Firefox
+# and WebKit, which stands for Safari. Only the part `browsers` of the chain plays them (e2e-compat).
+e2e-chromium: install-front ## Install Chromium, the browser the end-to-end paths run in
 	@$(PNPM) exec playwright install $(PLAYWRIGHT_INSTALL) chromium
+
+e2e-browsers: install-front ## Install every browser of the specification: Chromium, Chrome, Edge, Firefox and WebKit
+	@$(PNPM) exec playwright install $(PLAYWRIGHT_INSTALL) chromium chrome msedge firefox webkit
 
 # The work image of the end-to-end paths (deploy/e2e, US-1900): Playwright's, with make, the Python
 # of the tools, pnpm and Docker's client, so that no job of the paths downloads a package of Ubuntu
@@ -963,6 +970,16 @@ e2e-measure: export E2E_PART = measure
 e2e-measure: export E2E_BUILT = 1
 e2e-measure: install-front $(call e2e-build) ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)
 	@$(PNPM_HEAVY) exec playwright test
+
+# The paths tagged @browsers — the grids, the Gantt and the curves — on Chrome, Edge, Firefox and WebKit
+# at 1366 points, and those tagged @mobile — the indicators, read and never written — at 360 points
+# (E2E_PART=browsers, frontend/playwright.config.ts, US-0290): the part `browsers` of the chain, which
+# installs the browsers first (make e2e-browsers). Against the front built for production, as the paths.
+e2e-compat: export E2E_PART = browsers
+e2e-compat: export E2E_BUILT = 1
+e2e-compat: export E2E_WORKERS = $(WORKERS)
+e2e-compat: install-front $(call e2e-build) ## The paths tagged @browsers on Chrome, Edge, Firefox and WebKit at 1366 points, and those tagged @mobile at 360 points (needs make e2e-browsers); TESTS=<arguments of playwright test>
+	@$(PNPM_HEAVY) exec playwright test $(TESTS)
 
 # The paths of the Playwright project `service` (frontend/e2e/service/), against the real service:
 # the platform started — its realm applied with the address of the front of the harness, and the

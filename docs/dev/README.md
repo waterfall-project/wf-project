@@ -3501,7 +3501,7 @@ successful or not; after an interruption, `make e2e-down` or `make service-down`
 `E2E_LOAD_USERS` (fifty) is reserved for trials — `make measure-version exclusive=
 E2E_LOAD_USERS=3 MEASURE_PASSES=2 MEASURE_TASK_PASSES=2` —, and a report of a version is taken at
 fifty: the report records `users`. The same secrets as `make service-up`, and the browser of `make
-e2e-browsers`; the Playwright project `measure-version`, which `E2E_PART=measure-version` sets, is
+e2e-chromium`; the Playwright project `measure-version`, which `E2E_PART=measure-version` sets, is
 played by no goal of the chain. The entry of the cache of the indicators is not measured here:
 `make measure-core ONLY=indicators JSON=frontend/.e2e/measure-core-indicators.json` measures it apart, on its
 own witness, and `make measure-version` reads its JSON (`MEASURE_CACHE`, that file by default, which the target
@@ -3869,7 +3869,7 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   `download.createReadStream()`, never `download.path()`, which Playwright refuses to a remote
   browser. `wftools.e2eimage run` is made for the chain: root in the image, Docker's socket at its
   path on a runner, `DOCKER_HOST` unread. On a workstation, without `E2E_IMAGE`, the paths play on
-  the workstation, with the browser of `make e2e-browsers`. `front-image.yml` builds and starts the
+  the workstation, with the browser of `make e2e-chromium`. `front-image.yml` builds and starts the
   production image of the front, which `images.yml` publishes only after the merge, at both tiers
   (`make check-front-image`): the `front-image` family wakes on what makes it —
   `frontend/Dockerfile` and its `.dockerignore`, `next.config.ts`, `package.json`, `pnpm-lock.yaml`,
@@ -4762,8 +4762,12 @@ port already taken makes the launch fail saying so. Two worktrees at two slots t
 at the same time, with `WATERFALL_SLOTS` of at least 2, without which the second waits for the first
 to end. `E2E_API_PORT` and `E2E_FRONT_PORT`, set in the environment, prevail over those of the slot
 — the front of the paths takes as many as it has workers, starting from it (below), forty at most in
-a block; a port that is not an integer from 1 to 65535 is refused. `make e2e-browsers` installs the
-browser. `make e2e SHARD=i/N` plays only the i-th of N shards of the paths, spread by measured
+a block; a port that is not an integer from 1 to 65535 is refused. `make e2e-chromium` installs
+Chromium, the browser of the paths; `make e2e-browsers` installs every one of the specification
+(Chromium, Chrome, Edge, Firefox, WebKit) and `make e2e-compat`, the part `browsers` of the chain
+(`E2E_PART=browsers`), plays on them the paths tagged `@browsers` — grids, Gantt, curves — at 1366
+points, and in the project `mobile`, at 360 points, those tagged `@mobile`: the views of the
+indicators, readable and with no input (WF-CMP-0010-A, US-0290). `make e2e SHARD=i/N` plays only the i-th of N shards of the paths, spread by measured
 duration (`tools/e2e-durations.json`, which `make e2e-durations` refreshes), like each of the
 chain's runners (« The chain »; `SHARD` does not combine with `TESTS=<file>`, which the recipe
 refuses: the file may lie in another shard; `SHARD=lint` is for `make check-front-tests` and

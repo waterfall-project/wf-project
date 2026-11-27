@@ -108,7 +108,7 @@ test("the indicators of the estimate break the total down by lot, « Lot 1 » na
   await expect(indicators.getByText("Par poste")).toHaveCount(0);
 });
 
-test("filters the estimate by the lot « Lot 1 » chosen among the work breakdown, said in the banner to restrict the grid alone @shared [WF-IHM-0020-A]", async ({
+test("filters the estimate by the lot « Lot 1 » chosen among the work breakdown, said in the banner to restrict the grid alone @browsers @shared [WF-IHM-0020-A] [WF-CMP-0010-A]", async ({
   page,
 }) => {
   // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres.
@@ -136,7 +136,7 @@ test("filters the estimate by the lot « Lot 1 » chosen among the work breakdow
   await expect(filter).toContainText("Lot : Lot 1");
 });
 
-test("opens the estimate of a thousand tasks and five thousand lines, and scrolls down to its last row [WF-IHM-0060-A]", async ({
+test("opens the estimate of a thousand tasks and five thousand lines, and scrolls down to its last row @browsers [WF-IHM-0060-A] [WF-CMP-0010-A]", async ({
   page,
 }) => {
   await openHydrated(page, GRID);

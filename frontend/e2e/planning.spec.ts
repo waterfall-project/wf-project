@@ -499,7 +499,7 @@ test("changes the planning start date, the server answering the week before [WF-
   await expect(start.getByText("La date de début de planning est le 23/02/2026.")).toBeVisible();
 });
 
-test("draws the Gantt beside the grid, row for row, the critical path told in words, and modifies no task @shared [WF-PLA-0090-A]", async ({
+test("draws the Gantt beside the grid, row for row, the critical path told in words, and modifies no task @browsers @shared [WF-PLA-0090-A] [WF-CMP-0010-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);
@@ -550,7 +550,7 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
   expect(sent).toEqual([]);
 });
 
-test("tints the days off of each task in the Gantt, hatched, with a legend @shared [WF-PLA-0090-A]", async ({
+test("tints the days off of each task in the Gantt, hatched, with a legend @browsers @shared [WF-PLA-0090-A] [WF-CMP-0010-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);
@@ -566,7 +566,7 @@ test("tints the days off of each task in the Gantt, hatched, with a legend @shar
   await expect(page.getByRole("group", { name: "Légende du Gantt" })).toContainText("Jour chômé");
 });
 
-test("folds a summary in the grid and the Gantt follows, unfolds it from the Gantt and the grid follows, and keeps the fold for the session @shared [WF-PLA-0090-A]", async ({
+test("folds a summary in the grid and the Gantt follows, unfolds it from the Gantt and the grid follows, and keeps the fold for the session @browsers @shared [WF-PLA-0090-A] [WF-CMP-0010-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);

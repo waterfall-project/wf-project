@@ -366,6 +366,29 @@ def test_the_chain_holds_what_the_build_of_the_paths_prerendered() -> None:
     assert measured == ["make e2e-measure", "make prerendered-front"]
 
 
+@pytest.mark.story("US-0290")
+def test_the_full_tier_plays_the_browsers_of_the_specification_in_a_job_of_its_own() -> None:
+    # US-0290: the part `browsers` installs every browser, then plays the tagged paths on them;
+    # it lives in e2e.yml, which ci.yml calls in the full tier alone, beside the parts of the paths.
+    workflow = yaml.safe_load((REPOSITORY / ".github" / "workflows" / "e2e.yml").read_text())
+    runs = [step["run"] for step in workflow["jobs"]["browsers"]["steps"] if "run" in step]
+    assert runs == ["make e2e-browsers", "make e2e-compat"]
+    chain = yaml.safe_load((REPOSITORY / ".github" / "workflows" / "ci.yml").read_text())
+    assert chain["jobs"]["e2e"]["uses"] == "./.github/workflows/e2e.yml"
+    assert "full" in str(chain["jobs"]["e2e"]["if"])
+
+
+@pytest.mark.story("US-0290")
+def test_one_target_installs_every_browser_and_the_paths_of_the_chain_need_chromium_alone() -> None:
+    every = " ".join(dry_run("e2e-browsers", "full"))
+    assert all(name in every for name in ("chromium", "chrome", "msedge", "firefox", "webkit"))
+    commands = " ".join(dry_run("check-front", "full"))
+    assert "playwright install" in commands
+    assert "firefox" not in commands
+    assert "msedge" not in commands
+    assert [c for c in dry_run("e2e-compat", "full", "E2E_BUILT=1") if "playwright test" in c]
+
+
 def downloaded(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return what the steps of a job download."""
     return [step["with"] for step in steps if "download-artifact" in step.get("uses", "")]
@@ -400,7 +423,11 @@ def test_the_chain_builds_the_front_once_and_every_part_plays_that_build() -> No
         assert "front-build" in chain[job]["needs"]
 
     jobs = yaml.safe_load((workflows / "e2e.yml").read_text())["jobs"]
-    assert set(jobs) == {"paths"}
+    assert set(jobs) == {"paths", "browsers"}
+    browsers_job = jobs["browsers"]
+    assert browsers_job["env"] == {"E2E_BUILT": "1"}
+    assert downloaded(browsers_job["steps"]) == [{"name": "front-build", "path": "frontend/.next/"}]
+    assert not [s for s in browsers_job["steps"] if "build" in s.get("run", "")]
     paths_job = jobs["paths"]
     assert paths_job["env"] == {"E2E_BUILT": "1"}
     assert paths_job["strategy"]["matrix"]["part"] == ["1/5", "2/5", "3/5", "4/5", "5/5", "measure"]
