@@ -28,6 +28,7 @@
 import type { Refusal } from "./load-check";
 import { median } from "./report";
 import type { PortfolioReading, ReadingSummary } from "./scale";
+import type { ScaleWritten } from "./scale-read";
 
 /** An operation of table 15: its identifier in the reports, its objective in seconds. */
 interface Line {
@@ -231,12 +232,15 @@ export interface VersionReport {
   readonly portfolio?: PortfolioReading;
   /** The readings kept at a past date, on the platform measured (WF-DAT-0040, US-2970). */
   readonly kept?: readonly ReadingSummary[];
+  /** The reading of the same revisions on a small platform and a large one (WF-DAT-0050-A). */
+  readonly scale?: ScaleWritten;
 }
 
 /** What a report of a version holds beside its operations, taken on a platform at volumes. */
 export interface Beside {
   readonly portfolio?: PortfolioReading;
   readonly kept?: readonly ReadingSummary[];
+  readonly scale?: ScaleWritten | undefined;
 }
 
 /** A duration in seconds, to the millisecond. */
@@ -347,6 +351,7 @@ export function versionReport(
     operations,
     ...(beside.portfolio ? { portfolio: beside.portfolio } : {}),
     ...(beside.kept ? { kept: beside.kept } : {}),
+    ...(beside.scale ? { scale: beside.scale } : {}),
   };
 }
 

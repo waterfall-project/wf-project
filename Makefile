@@ -1119,6 +1119,7 @@ measure-version: export E2E_MEASURE_TASK_PASSES = $(MEASURE_TASK_PASSES)
 measure-version: export E2E_MEASURE_VERSION = $(MEASURE_VERSION)
 measure-version: export E2E_MEASURE_VERSION_REPORT = $(abspath $(MEASURE_VERSION_REPORT))
 measure-version: export E2E_MEASURE_CACHE = $(abspath $(MEASURE_CACHE))
+measure-version: export E2E_MEASURE_SCALE = $(abspath $(SCALE_REPORT))
 measure-version: export PRISM_VERSION := $(PRISM_VERSION)
 measure-version: measure-cache-present measure-secrets install-front $(call e2e-build) ## The report of the measures of a version (US-2300, US-2970): on the reference set of 300 projects restored from its archive (make service-reference-backup; MEASURE_FROM=witness for the witness loaded afresh, a trial), each operation of table 15 the service serves, measured by a browser under the load of fifty users played by k6, then the portfolio view read cold and hot, the indicators kept at past dates, the export, the import of 18,000 lines of actual costs and the marking, read at their tasks; takes the workstation alone; MEASURE_VERSION (that of frontend/package.json), MEASURE_PASSES=5, MEASURE_TASK_PASSES=3, MEASURE_VERSION_REPORT=<file> (frontend/.e2e/measures/<version>.json); the cost of the entry of the cache of the indicators is read in MEASURE_CACHE (frontend/.e2e/measure-core-indicators.json), which make measure-core ONLY=indicators JSON=<that file> writes first; needs the secrets of service-up and a browser
 	@$(MAKE) --no-print-directory $(MEASURE_PLATFORM)

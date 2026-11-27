@@ -71,7 +71,7 @@ export function summary(name: string, first: number, others: readonly number[]):
   };
 }
 
-/** One platform of the comparison: how many projects it holds, and what it read. */
+/** One platform of the comparison: how many projects it lists (`listProjects`), and what it read. */
 export interface ScalePlatform {
   readonly projects: number;
   readonly reads: readonly ReadingSummary[];
@@ -128,8 +128,8 @@ export function compareScale(small: ScalePlatform, large: ScalePlatform): ScaleC
   const finding = Math.abs(gap) > GAP_FINDING || over.length > 0;
   const percent = (value: number) => `${value >= 0 ? "+" : ""}${(value * 100).toFixed(0)} %`;
   const note =
-    `The same ${String(reads.length)} revisions read on ${String(small.projects)} project(s) and on ` +
-    `${String(large.projects)}: ${String(second(smallSum))} s against ${String(second(largeSum))} s (${percent(gap)}).` +
+    `The same ${String(reads.length)} revisions read on a platform listing ${String(small.projects)} ` +
+    `project(s) and on one listing ${String(large.projects)}: ${String(second(smallSum))} s against ${String(second(largeSum))} s (${percent(gap)}).` +
     (finding
       ? ` A finding: a gap of more than a quarter ` +
         `${over.length > 0 ? `on ${over.map((read) => `${read.name} (${percent(read.gap)})`).join(", ")}` : "on the sum"}.`

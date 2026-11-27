@@ -51,6 +51,7 @@ import {
 import { placeAndTasks, prepareLoad, startLoad, stopLoad } from "./load-users";
 import type { Interval } from "./report";
 import { openPortfolio, PORTFOLIO_STEP } from "./portfolio-screen";
+import { scaleRead } from "./scale-read";
 import { portfolioReading, type PortfolioReading, type ReadingSummary } from "./scale";
 import {
   journey,
@@ -361,6 +362,7 @@ test("measures each operation of table 15 the service serves under the load of f
       versionReport(version, new Date(), conditions, [...measured.samples, ...tasks], cache, {
         portfolio,
         kept,
+        scale: scaleRead(process.env.E2E_MEASURE_SCALE ?? ""),
       }),
     );
   } finally {

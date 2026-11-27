@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { momentOf } from "./report";
-import { portfolioReading, summary } from "./scale";
+import { compareScale, portfolioReading, summary } from "./scale";
 import { STEPS } from "./steps";
 import {
   type Cache,
@@ -155,6 +155,15 @@ describe("versionReport", () => {
     });
     expect(beside.portfolio).toEqual(portfolio);
     expect(beside.kept).toEqual(kept);
+    expect(beside).not.toHaveProperty("scale");
+    const platform = { projects: 5, reads: [summary("read", 0.5, [0.02, 0.03])] };
+    const scale = {
+      taken_at: "2026-11-27T14:16:32.913Z",
+      passes: 2,
+      ...compareScale(platform, { ...platform, projects: 393 }),
+    };
+    const compared = versionReport("0.4.0", new Date(), CONDITIONS, SAMPLES, CACHE, { scale });
+    expect(compared.scale).toEqual(scale);
   });
 
   it("carries the cost of the cache on the indicators, which the service serves, and on no other [WF-QUA-0060-A]", () => {
