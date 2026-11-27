@@ -41,6 +41,11 @@ def test_an_earlier_build_of_the_same_pull_request_is_cancelled() -> None:
     assert chosen([older], {5112}) == [1]
 
 
+def test_a_newer_build_of_the_same_pull_request_is_kept() -> None:
+    newer = run(MY_ID + 100, f"gh-readonly-queue/{BASE}/pr-5112-bbb222")
+    assert chosen([newer], {5112}) == []
+
+
 def test_the_same_pull_request_on_the_same_sha_and_its_own_run_are_kept() -> None:
     same = run(2, MINE)
     own = run(MY_ID, MINE, "in_progress")
@@ -115,6 +120,84 @@ def test_each_cancellation_is_written_to_the_log(
     assert "pr-5112-bbb222" in printed
 
 
+def _environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_REF_NAME", MINE)
+    monkeypatch.setenv("GITHUB_RUN_ID", str(MY_ID))
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/name")
+
+
+def test_the_runs_are_read_before_the_queue(monkeypatch: pytest.MonkeyPatch) -> None:
+    order: list[str] = []
+
+    def runs() -> list[dict[str, object]]:
+        order.append("runs")
+        return []
+
+    def queue(_repository: str, _base: str) -> set[int]:
+        order.append("queue")
+        return set()
+
+    monkeypatch.setattr(queuecancel, "list_runs", runs)
+    monkeypatch.setattr(queuecancel, "queued_numbers", queue)
+    _environment(monkeypatch)
+    assert queuecancel.main() == 0
+    assert order == ["runs", "queue"]
+
+
+def test_a_pull_request_that_left_the_queue_is_cancelled_even_if_newer() -> None:
+    gone = run(MY_ID + 50, f"gh-readonly-queue/{BASE}/pr-4000-ddd444")
+    assert chosen([gone], {5112}) == [MY_ID + 50]
+
+
+def test_a_truncated_queue_is_unread(monkeypatch: pytest.MonkeyPatch) -> None:
+    nodes = ",".join(f'{{"pullRequest":{{"number":{n}}}}}' for n in range(100))
+    answer = (
+        '{"data":{"repository":{"mergeQueue":{"entries":{"totalCount":150,"nodes":['
+        + nodes
+        + "]}}}}}"
+    )
+
+    def read(_arguments: list[str]) -> str:
+        return answer
+
+    monkeypatch.setattr(queuecancel, "gh", read)
+    assert queuecancel.queued_numbers("owner/name", BASE) is None
+
+
+def test_unreadable_runs_are_a_warning_not_a_failure(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def refuse() -> list[dict[str, object]]:
+        message = "boom"
+        raise TrackingError(message)
+
+    monkeypatch.setattr(queuecancel, "list_runs", refuse)
+    _environment(monkeypatch)
+    assert queuecancel.main() == 0
+    assert "::warning::" in capsys.readouterr().out
+
+
+def test_a_run_that_has_just_finished_is_a_warning_not_a_failure(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    older = run(1, f"gh-readonly-queue/{BASE}/pr-5112-bbb222")
+
+    def conflict(_arguments: list[str]) -> str:
+        message = "409"
+        raise TrackingError(message)
+
+    monkeypatch.setattr(queuecancel, "list_runs", lambda: [older])
+
+    def queued(_repository: str, _base: str) -> set[int]:
+        return {5112}
+
+    monkeypatch.setattr(queuecancel, "queued_numbers", queued)
+    monkeypatch.setattr(queuecancel, "gh", conflict)
+    _environment(monkeypatch)
+    assert queuecancel.main() == 0
+    assert "::warning::" in capsys.readouterr().out
+
+
 def test_an_error_of_the_graphql_api_leaves_the_queue_unread(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -130,7 +213,7 @@ def test_the_queue_is_read_from_the_entries_of_the_graphql_answer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     answer = (
-        '{"data":{"repository":{"mergeQueue":{"entries":{"nodes":'
+        '{"data":{"repository":{"mergeQueue":{"entries":{"totalCount":2,"nodes":'
         '[{"pullRequest":{"number":5112}},{"pullRequest":{"number":5082}}]}}}}}'
     )
 

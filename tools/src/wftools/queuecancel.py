@@ -8,8 +8,8 @@ rebuilt. The concurrency group of the chain cannot catch the old run, whose ref 
 kept the runners while the new ones waited and timed out. On a ``merge_group`` event, the first
 job of the chain runs this module: it cancels the runs of ``chain`` that are queued or in progress
 and whose ref is an earlier build of the same pull request in the same queue (same base, same
-number, another sha), and those of a pull request that has left the queue. It never touches
-another base, another event, or its own run.
+number, another sha, an older run than its own: a newer one is the live build), and those of a
+pull request that has left the queue. It never touches another base, another event, or its own run.
 
 Usage: ``python -m wftools.queuecancel`` with ``GH_TOKEN``, ``GITHUB_REPOSITORY``,
 ``GITHUB_RUN_ID`` and ``GITHUB_REF_NAME`` set, as the chain sets them. When the list of the pull
@@ -31,7 +31,7 @@ PENDING = frozenset({"queued", "waiting", "pending", "requested", "in_progress"}
 WORKFLOW = "chain"
 ENTRIES = (
     "query($owner: String!, $name: String!, $branch: String!) { repository(owner: $owner,"
-    " name: $name) { mergeQueue(branch: $branch) { entries(first: 100) { nodes {"
+    " name: $name) { mergeQueue(branch: $branch) { entries(first: 100) { totalCount nodes {"
     " pullRequest { number } } } } } }"
 )
 
@@ -75,7 +75,13 @@ def stale(
             or run.get("databaseId") == current_id
         ):
             continue
-        earlier = build.number == mine.number and build.sha != mine.sha
+        identifier = run.get("databaseId")
+        earlier = (
+            build.number == mine.number
+            and build.sha != mine.sha
+            and isinstance(identifier, int)
+            and identifier < current_id
+        )
         left = in_queue is not None and build.number not in in_queue
         if earlier or left:
             chosen.append((run, build.number))
@@ -104,6 +110,10 @@ def queued_numbers(repository: str, base: str) -> set[int] | None:
             ]
         )
         queue = json.loads(text)["data"]["repository"]["mergeQueue"]
+        nodes = queue["entries"]["nodes"]
+        if queue["entries"]["totalCount"] > len(nodes):
+            print(f"queue truncated ({len(nodes)} of {queue['entries']['totalCount']}): not used")
+            return None
         return {node["pullRequest"]["number"] for node in queue["entries"]["nodes"]}
     except (TrackingError, KeyError, TypeError, ValueError) as error:
         print(f"queue unreadable, only the earlier builds of the pull request: {error}")
@@ -111,23 +121,29 @@ def queued_numbers(repository: str, base: str) -> set[int] | None:
 
 
 def main() -> int:
-    """Cancel the stale runs, writing each to the log; return 1 when a cancellation fails."""
+    """Cancel the stale runs, writing each to the log; never fail the chain."""
     environment = os.environ
     ref = environment["GITHUB_REF_NAME"]
     mine = parse_ref(ref)
     if mine is None:
         print(f"{ref} is not a ref of the merge queue: nothing to cancel")
         return 0
+    try:
+        runs = list_runs()
+    except (TrackingError, ValueError) as error:
+        print(f"::warning::runs of the chain unreadable, nothing cancelled: {error}")
+        return 0
+    # The runs first, then the queue: a pull request that enters the queue between the two reads
+    # has its run missing from the list, not wrongly classed as having left the queue.
     in_queue = queued_numbers(environment["GITHUB_REPOSITORY"], mine.base)
-    failed = 0
-    for run, number in stale(list_runs(), ref, int(environment["GITHUB_RUN_ID"]), in_queue):
+    for run, number in stale(runs, ref, int(environment["GITHUB_RUN_ID"]), in_queue):
         print(f"cancel run {run['databaseId']} {run['url']}: #{number}, {run['headBranch']}")
         try:
             gh(["run", "cancel", str(run["databaseId"])])
         except TrackingError as error:
-            print(f"not cancelled: {error}", file=sys.stderr)
-            failed += 1
-    return 1 if failed else 0
+            # A run that has just finished answers 409: housekeeping, not a failure of the chain.
+            print(f"::warning::run {run['databaseId']} not cancelled: {error}")
+    return 0
 
 
 if __name__ == "__main__":

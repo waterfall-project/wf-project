@@ -63,6 +63,7 @@ jobs:
       - run: make queue-cancel
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
 
   changes:
     runs-on: ubuntu-26.04

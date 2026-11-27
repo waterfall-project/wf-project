@@ -3973,11 +3973,14 @@ périmées ont occupé les quelque vingt places du parc, les nouvelles ont atten
 les a reconstruites (#5122). Sur un `merge_group` seulement, le job `cancel-stale` de `ci.yml`
 (`make queue-cancel`, `wftools.queuecancel`) annule les passages de `chain` en attente (`queued`,
 `waiting`, `pending`, `requested`) ou en cours dont la ref est celle d'une construction précédente
-de la même pull request dans la file de la même base (même base, même N, autre sha), et ceux d'une
+de la même pull request dans la file de la même base (même base, même N, autre sha, et un passage
+plus ancien que le sien : un plus récent est la construction vivante), et ceux d'une
 pull request qui n'est plus dans la file (`mergeQueue(branch:)` de l'API GraphQL ; si la file ne se
-lit pas, seules les constructions précédentes de la même pull request sont annulées). Il n'annule
+lit pas, ou si elle dépasse les cent entrées lues, seules les constructions précédentes de la même
+pull request sont annulées ; les passages sont lus avant la file). Il n'annule
 jamais un passage d'une autre base, d'un `pull_request`, d'un `workflow_dispatch` ou d'un `push`, ni
-le sien, écrit chaque annulation au journal (passage, pull request, ref), et aucun job ne
+le sien, écrit chaque annulation au journal (passage, pull request, ref), n'échoue jamais (un échec de
+lecture ou d'annulation devient une annotation `::warning::`), et aucun job ne
 l'attend ; il est le seul à porter `actions: write`. **Lire l'état des runners** : compter les jobs
 (`gh run view <passage> --json jobs`, ceux `in_progress` et `queued`), pas les passages, car un
 passage reste `queued` tant qu'un de ses jobs attend ; un palier complet compte environ 45 jobs.
