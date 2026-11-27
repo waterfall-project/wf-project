@@ -399,6 +399,7 @@ def test_the_front_trusts_the_authority_it_is_given() -> None:
     assert of_kind(objects, "Secret").keys() == {"secrets"}
 
 
+@pytest.mark.requirement("WF-ARC-0050-A")
 @pytest.mark.story("US-2800")
 def test_the_chart_pulls_the_three_images_by_their_new_names(objects: Objects) -> None:
     # « Les images publiées s'appellent wf-project-backend, wf-project-frontend et
@@ -414,8 +415,20 @@ def test_the_chart_pulls_the_three_images_by_their_new_names(objects: Objects) -
     assert set(chart.CHAIN_DIGESTS) == {"front", "waterfall", "keycloak"}
 
 
+@pytest.mark.requirement("WF-ARC-0050-A")
 @pytest.mark.story("US-2800")
 def test_the_values_of_the_chart_name_each_image_of_the_chain_by_its_new_name() -> None:
     values = yaml.safe_load((chart.CHART / "values.yaml").read_text(encoding="utf-8"))["images"]
     assert values["names"] == {image.name: image.package for image in IMAGES}
     assert set(values["digests"]) == set(values["names"])
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+@pytest.mark.parametrize("names", [{"front": ""}, {"keycloak": ""}])
+def test_an_image_without_a_name_in_the_registry_stops_the_rendering(
+    names: dict[str, str],
+) -> None:
+    component = next(iter(names))
+    with pytest.raises(ChartError, match=rf"images\.names\.{component}"):
+        rendered({"images": {"names": names}})

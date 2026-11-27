@@ -137,6 +137,7 @@ def test_an_image_the_runtime_never_finds_stops_the_trial_after_the_bound() -> N
     assert clock.now == chartimages.FIND_WAIT
 
 
+@pytest.mark.requirement("WF-ARC-0050-A")
 def test_the_images_of_a_version_published_before_the_renaming_load_under_their_old_names() -> None:
     # « Les versions déjà publiées gardent leurs anciens noms » (#5123).
     asked: list[str] = []

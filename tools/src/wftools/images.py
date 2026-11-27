@@ -8,7 +8,8 @@ Three images, each the stage ``production`` of its Dockerfile: ``wf-project-fron
 ``wf-project-backend`` — the API, the worker, its schedule and the migrations, commands of one
 distribution — and ``wf-project-keycloak``, with the extension and the realm. Their components are
 ``front``, ``waterfall`` and ``keycloak``, which key the digests; the versions published up to 0.3.0
-keep the names ``front``, ``waterfall`` and ``keycloak`` (``package_name``, #5123). Each is tagged
+keep the names ``front``, ``waterfall`` and ``keycloak`` (``package_name``, #5123), and a
+publication never poses one of those versions again, under the new names either. Each is tagged
 by the full hash of the commit it is built from and by its branch, made a valid tag (``epic/EP-03``
 gives ``epic-EP-03``); on ``main``, by the version of the distribution of the back besides, which
 the API and the worker report and a backup will carry. The tag of a version is immutable: once in
@@ -196,11 +197,18 @@ def package_name(image: Image, tag: str) -> str:
     A tag that is a published version up to ``LAST_UNRENAMED`` names its image as it was published;
     any other — a later version, a commit, a branch — names it by its ``package``.
     """
-    if (found := VERSION.fullmatch(tag)) and (
-        tuple(int(part) for part in found.groups()) <= LAST_UNRENAMED
-    ):
-        return UNRENAMED[image.name]
-    return image.package
+    return UNRENAMED[image.name] if published_unrenamed(tag) else image.package
+
+
+def published_unrenamed(tag: str) -> bool:
+    """Tell whether a tag is a version published under the old names: up to ``LAST_UNRENAMED``."""
+    found = VERSION.fullmatch(tag)
+    return found is not None and tuple(int(part) for part in found.groups()) <= LAST_UNRENAMED
+
+
+def image_of(component: str) -> Image:
+    """Return the image of a component (``front``, ``waterfall``, ``keycloak``)."""
+    return next(image for image in IMAGES if image.name == component)
 
 
 def reference(image: Image, tag: str) -> str:
@@ -482,7 +490,13 @@ def main(
         if options.push:
             check_branch(branch)
             check_checkout(commit)
-            if branch == RELEASE_BRANCH:
+            if branch == RELEASE_BRANCH and published_unrenamed(release):
+                posed = False
+                print(
+                    f"wftools.images: {release} is published already, under the names the images "
+                    "had before they were renamed: it is not posed again, nor under the new names"
+                )
+            elif branch == RELEASE_BRANCH:
                 posed, failed = version_decision(release, registry_answers(release, read))
         if code := _execute(builds(branch, commit, release, posed=posed), run):
             return code

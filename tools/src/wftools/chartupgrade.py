@@ -243,8 +243,8 @@ def extract_chart(archive: Archive, commit: str, folder: Path) -> Path:
 
 
 PLATFORM = frozenset(image.package for image in IMAGES) | frozenset(UNRENAMED.values())
-"""The names of the images of the platform, under both generations of names: those of the mirror,
-below the registry too, are not."""
+"""The names of the images of the platform, as renamed and as the versions up to 0.3.0 were
+published: those of the mirror, below the registry too, are not."""
 
 
 def designations(digests: Mapping[str, str], tag: str = "") -> frozenset[str]:

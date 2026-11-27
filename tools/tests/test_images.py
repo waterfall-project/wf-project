@@ -26,7 +26,8 @@ if TYPE_CHECKING:
 
 WORKFLOW = REPOSITORY / ".github" / "workflows" / "images.yml"
 COMMIT = "0123456789abcdef0123456789abcdef01234567"
-VERSION = images.version()
+VERSION = "0.4.0"
+"""A version later than the last published under the old names, which main may pose."""
 # A name that says it holds a secret, in a build argument or a variable an image sets.
 SECRET_NAME = re.compile(r"PASSWORD|SECRET|TOKEN|CREDENTIAL|KEY", re.IGNORECASE)
 # The keys of the realm that hold a secret, whose value must come from the environment.
@@ -312,7 +313,7 @@ def test_a_secret_written_in_the_realm_is_found() -> None:
 def test_the_front_carries_the_version_that_tags_a_release() -> None:
     package = json.loads((REPOSITORY / "frontend" / "package.json").read_text(encoding="utf-8"))
     with (REPOSITORY / "backend" / "pyproject.toml").open("rb") as file:
-        assert package["version"] == tomllib.load(file)["project"]["version"] == VERSION
+        assert package["version"] == tomllib.load(file)["project"]["version"]
 
 
 @pytest.mark.parametrize(
@@ -437,8 +438,12 @@ class Docker:
 
 @pytest.fixture(autouse=True)
 def digests(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Write the digests of a publication in the folder of the test, never in the repository."""
+    """Write the digests of a publication in the folder of the test, never in the repository.
+
+    The version of the distribution is VERSION, whatever the repository says.
+    """
     monkeypatch.setattr(images, "DIGESTS", tmp_path / "digests")
+    monkeypatch.setattr(images, "version", lambda: VERSION)
 
 
 @pytest.fixture
@@ -777,16 +782,44 @@ def test_a_later_version_a_branch_and_a_commit_are_pulled_under_the_new_names(ta
 
 @pytest.mark.requirement("WF-ARC-0050-A")
 @pytest.mark.story("US-2800")
-def test_a_publication_never_writes_a_name_of_the_versions_published_before_the_renaming() -> None:
-    # Even under the tag of the last of them, which a main that does not raise the version carries.
-    assert [images.reference(image, "0.3.0") for image in images.IMAGES] == [
-        f"ghcr.io/waterfall-project/{package}:0.3.0" for package in PACKAGES.values()
-    ]
+@pytest.mark.usefixtures("checkout")
+def test_main_at_a_version_published_before_the_renaming_does_not_pose_it_again(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The tag of a version is immutable: 0.3.0 exists under the old names, so main, which does not
+    # raise the version, poses no second 0.3.0 under the new ones, and does not even ask.
+    monkeypatch.setattr(images, "version", lambda: "0.3.0")
+    docker = Docker()
+    assert docker.main("main", "--push") == 0
+    assert docker.version_reads() == []
+    references = [word for command in docker.ran for word in command if word.startswith("ghcr.io")]
+    assert not [reference for reference in references if reference.endswith(":0.3.0")]
+    assert [reference.rsplit(":", 1)[1] for reference in docker.pushed()] == [COMMIT] * 3 + [
+        "main"
+    ] * 3
+    assert "0.3.0 is published already, under the names" in capsys.readouterr().out
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+@pytest.mark.usefixtures("checkout")
+def test_main_at_the_version_after_the_renaming_poses_it_under_the_new_names(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(images, "version", lambda: "0.3.1")
+    docker = Docker()
+    assert docker.main("main", "--push") == 0
+    expected = [f"ghcr.io/waterfall-project/{PACKAGES[name]}:0.3.1" for name in NAMES]
+    assert docker.version_reads() == expected
+    assert docker.pushed()[-3:] == expected
 
 
 OLD_NAME = re.compile(
     r"waterfall-project/(?:front|waterfall|keycloak)\b|for image in front waterfall keycloak"
 )
+REGISTRY_PATH = re.compile(r"/(?:front|waterfall|keycloak)[:@]")
+"""An image of the registry of the operator under its old name; in the documents alone, where a
+path of a container or a service of Compose never has this shape."""
 ROOTS = (".github", "deploy", "Makefile", "docs/dev", "docs/exploitation", "tools/src")
 
 
@@ -806,6 +839,8 @@ def test_no_file_but_the_correspondence_of_the_old_versions_names_an_image_by_it
     for name in filter(None, listed.split("\0")):
         text = (REPOSITORY / name).read_text(encoding="utf-8", errors="ignore")
         found += [f"{name}: {match.group(0)}" for match in OLD_NAME.finditer(text)]
+        if name.startswith("docs/exploitation/"):
+            found += [f"{name}: {match.group(0)}" for match in REGISTRY_PATH.finditer(text)]
     assert found == []
     # The one place that says them: the versions published before the renaming, up to 0.3.0.
     assert {name: name for name in NAMES} == images.UNRENAMED

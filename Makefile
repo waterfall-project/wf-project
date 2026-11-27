@@ -609,7 +609,7 @@ load-keycloak: ## Load the image of Keycloak from KEYCLOAK_ARCHIVE, without buil
 build-cache-from = --cache-from type=gha,scope=$(1)
 build-cache-to = --output type=cacheonly --cache-to type=gha,mode=max,scope=$(1) $(call build-cache-from,$(1))
 
-build-cache: ## Write the builds of the images front, waterfall and keycloak (the components) into the cache of GitHub Actions (images.yml)
+build-cache: ## Write the builds of the three images (components front, waterfall, keycloak) into the cache of GitHub Actions (images.yml)
 	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,front) frontend
 	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,waterfall) backend
 	@$(RETRIED) docker build --build-arg WATERFALL_MIRROR --target production $(call build-cache-to,keycloak) deploy/keycloak
