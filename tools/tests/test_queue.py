@@ -373,6 +373,31 @@ def test_the_versioned_list_classifies_the_failures_of_its_inventory() -> None:
     assert catalogue.classify(cycle) == (queue.TO_CLASSIFY, None)
 
 
+@pytest.mark.parametrize(
+    ("run", "job", "image"),
+    [
+        (45868657554, "chart / check", "keycloak"),
+        (45923534175, "chart / check (k3s)", "waterfall"),
+    ],
+)
+def test_an_image_the_cluster_of_the_chart_trial_does_not_find_is_the_known_5065(
+    run: int, job: str, image: str
+) -> None:
+    # On kind or on k3s, whichever image of Waterfall its digest designates.
+    found = queue.Failure(
+        run=run,
+        job=job,
+        step="Run make check-chart",
+        target="chart-trial-k3s" if "k3s" in job else "chart-trial",
+        message=f"wftools.charttrial: find ghcr.io/waterfall-project/{image}@sha256:{'0' * 64}"
+        " in the cluster failed (1)",
+    )
+    kind, entry = queue.read_catalogue().classify(found)
+    assert kind == queue.FLAKY
+    assert entry is not None
+    assert entry.issue == "#5065"
+
+
 def test_the_versioned_list_holds_its_inventory_and_the_reference() -> None:
     catalogue = queue.read_catalogue()
     assert catalogue.entries

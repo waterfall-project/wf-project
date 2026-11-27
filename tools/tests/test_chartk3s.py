@@ -94,6 +94,52 @@ def test_a_cluster_that_answers_late_is_waited_for() -> None:
     assert chartk3s.wait_for(lambda _: next(answers), ["cat"], "x", lambda _: None) == "ready"
 
 
+def test_a_node_not_yet_registered_is_waited_for_not_taken_for_a_failure() -> None:
+    answers = iter([(0, ""), (1, "No resources found"), (0, "\n"), (0, "node/n\n")])
+    asked: list[list[str]] = []
+    slept: list[float] = []
+
+    def read(command: list[str]) -> tuple[int, str]:
+        asked.append(command)
+        return next(answers)
+
+    chartk3s.wait_for_node(read, ["kubectl"], slept.append)
+    assert len(asked) == 4
+    assert asked[0] == ["kubectl", "get", "nodes", "--output", "name"]
+    assert slept == [chartk3s.STEP] * 3
+
+
+def test_a_node_that_never_registers_stops_the_trial_with_a_readable_message() -> None:
+    slept: list[float] = []
+    expected = r"wait for the node to register failed \(0\) in 60 s"
+    with pytest.raises(chartk3s.K3sError, match=expected):
+        chartk3s.wait_for_node(lambda _: (0, ""), ["kubectl"], slept.append)
+    assert sum(slept) == chartk3s.NODE_WAIT
+
+
+def test_the_node_is_waited_for_only_once_registered_after_the_access_and_the_api(
+    tmp_path: Path,
+) -> None:
+    events: list[str] = []
+
+    def run(command: list[str]) -> int:
+        events.append("wait" if "wait" in command else command[1])
+        return 0
+
+    def read(command: list[str]) -> tuple[int, str]:
+        if "cat" in command:
+            events.append("access")
+            return 0, "server: https://127.0.0.1:6443\n"
+        if "/readyz" in command:
+            events.append("readyz")
+            return 0, "ok"
+        events.append("nodes")
+        return 0, "node/n\n"
+
+    chartk3s.create((run, read), (["kubectl"], tmp_path / "kubeconfig"), "c", (1, 2), None)
+    assert events == ["run", "access", "readyz", "nodes", "wait"]
+
+
 def trial_of(tmp_path: Path, ran: list[list[str]], *, fails: str = "") -> Trial:
     def run(command: list[str]) -> int:
         ran.append(command)

@@ -293,8 +293,9 @@ def test_every_secret_comes_from_the_file_of_settings_and_none_has_a_default() -
 def test_the_model_of_the_file_of_settings_names_every_variable_and_holds_no_secret() -> None:
     named = template()
     read = set(VARIABLE.findall(PRODUCTION.read_text(encoding="utf-8")))
-    # The prefix of the mirror is the chain's, not a setting of the operator (US-1900).
-    assert set(named) == read - {"WATERFALL_MIRROR"}
+    # The prefix of the mirror is the chain's (US-1900), and the internal registry of an isolated
+    # installation's (US-3010).
+    assert set(named) == read
     for name, value in named.items():
         if SECRET.search(name) and name != "WATERFALL_STORAGE_ACCESS_KEY":
             assert value == "", name
@@ -872,7 +873,8 @@ def test_the_trial_starts_bootstraps_holds_and_removes_the_platform(
     docker = Docker()
     fake = FakePlatform(realm_routes())
     assert production.main(GIVEN, docker.run, docker.read, platform_sender(fake)) == 0
-    assert docker.verbs() == ["up", "run", "exec", "exec", "exec", "cp", "down"]
+    assert docker.verbs() == ["up", "run", "exec", "exec", "exec", "cp", "logs", "down"]
+    assert docker.ran[-2][-2:] == ["--no-log-prefix", production.SINK]
     assert docker.ran[4][-4:] == transport.COMPOSE.command()
     assert docker.ran[0][:5] == ["docker", "compose", "--project-name", "trial-a3", "--file"]
     assert docker.ran[0][-4:] == ["up", "--detach", "--wait", "--quiet-pull"]
