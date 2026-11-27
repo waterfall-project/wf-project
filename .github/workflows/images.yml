@@ -1,9 +1,10 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# The images of Waterfall (US-0430): front, waterfall — the API, the worker, its schedule and the
-# migrations — and keycloak, built at each push to main or to an epic branch, that is at each merge,
-# which the merge queue has already held to the chain, and published on ghcr.io/waterfall-project,
+# The images of Waterfall (US-0430): wf-project-frontend, wf-project-backend — the API, the
+# worker, its schedule and the migrations — and wf-project-keycloak, built at each push to main or
+# to an epic branch, that is at each merge, which the merge queue has already held to the chain,
+# and published on ghcr.io/waterfall-project,
 # tagged by commit, by branch, and on main by version, once: the tag of a version is immutable
 # (make images). Nothing is published from a pull request: none triggers this workflow. No secret
 # enters a build (WF-SEC-0010); the token that publishes is given to the login alone. The production

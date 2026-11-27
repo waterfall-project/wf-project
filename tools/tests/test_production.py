@@ -31,7 +31,7 @@ SERVICE = COMPOSE / "compose.service.yaml"
 TEMPLATE = COMPOSE / "production.env.example"
 CADDYFILE = COMPOSE / "Caddyfile.prod"
 WORKFLOWS = REPOSITORY / ".github" / "workflows"
-PUBLISHED = re.compile(r"\$\{WATERFALL_REGISTRY:-[^}]+\}/(\w+)@\$\{WATERFALL_DIGEST_\w+:\?[^}]*\}")
+PUBLISHED = re.compile(r"\$\{WATERFALL_REGISTRY:-.+\}/([\w-]+)@\$\{WATERFALL_DIGEST_\w+:\?[^}]*\}")
 PINNED = re.compile(r"(?:\$\{WATERFALL_MIRROR:-\})?[\w./-]+:[\w.-]+@sha256:[0-9a-f]{64}")
 VARIABLE = re.compile(r"\$\{(WATERFALL_[A-Z0-9_]+)")
 DEFAULTED = re.compile(r"\$\{(WATERFALL_[A-Z0-9_]+)(:?-)")
@@ -75,7 +75,7 @@ def test_the_platform_runs_the_three_images_the_chain_publishes_and_builds_nothi
     # mêmes images que le chart » : those of ghcr.io/waterfall-project, under the digests the
     # operator gives (#3726), every other image pinned by its digest.
     text = PRODUCTION.read_text(encoding="utf-8")
-    assert set(PUBLISHED.findall(text)) == {image.name for image in images.IMAGES}
+    assert set(PUBLISHED.findall(text)) == {image.package for image in images.IMAGES}
     for name, service in services().items():
         assert "build" not in service, name
         image = str(service["image"])

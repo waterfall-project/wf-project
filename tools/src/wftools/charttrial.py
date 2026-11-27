@@ -89,7 +89,7 @@ from wftools import (
 )
 from wftools.chartauthority import issue, make_authority
 from wftools.chartrun import Ask, Read, Run, TrialError, must, output
-from wftools.images import REGISTRY
+from wftools.images import image_of, reference
 from wftools.production import (
     HIDDEN,
     LIVENESS,
@@ -721,7 +721,7 @@ class Trial:
 
         The probe of its ports runs the image of the tag, which the cluster holds.
         """
-        image = f"{REGISTRY}/waterfall:{tag}"
+        image = reference(image_of("waterfall"), tag)
         chartrestoretest.RestoreTestTrial(self.kubectl, self.read, image).hold()
 
     def hold_provided(self) -> None:

@@ -8,9 +8,10 @@ WF-DAT-0140-A: after a suite of migrations, the amounts and the indicators a mar
 earlier version kept are unchanged, and an installation of the version N passes to N+1 without
 losing anything. N is the last published version (``wftools.migrationtests``): its Compose of
 production, ``deploy/compose/compose.prod.yaml`` of its tag, is started from its published images
-(``ghcr.io/waterfall-project/<image>:X.Y.Z``) under a project of its own, with values drawn for the
-run for each setting it requires; its database and its identity provider are bootstrapped by its
-own command (``install``), then its witness is loaded by its own (``load-witness``, the
+(``ghcr.io/waterfall-project/<image>:X.Y.Z``, named as that version published them, which its own
+Compose says) under a project of its own, with values drawn for the run for each setting it
+requires; its database and its identity provider are bootstrapped by its own command
+(``install``), then its witness is loaded by its own (``load-witness``, the
 ``fixtures/api`` of its tag) — projects, and revisions marked with their lines and their amounts.
 Then its worker takes a backup, as a task of the kind ``backup`` deposited by its own code, in its
 container, and the archive it stored is copied out to ``<archive>``. The platform is removed, its

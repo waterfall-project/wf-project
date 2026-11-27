@@ -11,13 +11,20 @@ platform:
   domain: ""
   httpsPort: ""
 
-# The images the chain publishes, front, waterfall and keycloak, each designated by its digest, never
+# The images the chain publishes, wf-project-frontend, wf-project-backend and wf-project-keycloak, each designated by its digest, never
 # by a tag, which a writer of the registry may move (#3726): the publication writes them, at each
 # merge, in digests.values.yaml, an artifact of its run (images.yml) to give to the installation as
 # it is (--values). An image designated otherwise — a tag, an empty digest — stops the rendering, as
 # does an image of a third party below without its digest.
 images:
   registry: ghcr.io/waterfall-project
+  # The name of each image in the registry, by component (the keys of digests): the chain publishes
+  # them under these names from the version after 0.3.0, which carries the former ones, front,
+  # waterfall and keycloak.
+  names:
+    front: wf-project-frontend
+    waterfall: wf-project-backend
+    keycloak: wf-project-keycloak
   digests:
     front: ""
     waterfall: ""

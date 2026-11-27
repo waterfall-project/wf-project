@@ -30,6 +30,7 @@ README = REPOSITORY / "deploy" / "compose" / "README.md"
 EXPLOITATION = REPOSITORY / "docs" / "exploitation" / "postgresql-fourni.md"
 IMAGES_WORKFLOW = REPOSITORY / ".github" / "workflows" / "images.yml"
 RESTORE_TEST = REPOSITORY / "deploy" / "compose" / "compose.restore-test.yaml"
+COMPONENTS = {image.package: image.name for image in IMAGES}
 BUILT = {**GIVEN, **dict.fromkeys(GIVEN_DIGESTS, "")}
 
 
@@ -47,7 +48,7 @@ class Registry(Docker):
             return (1, "No such image") if self.refusing == "tag" else (0, "")
         if command[:2] == ["docker", "push"]:
             self.ran.append(command)
-            name = command[-1].rsplit("/", 1)[1].split(":", 1)[0]
+            name = COMPONENTS[command[-1].rsplit("/", 1)[1].split(":", 1)[0]]
             if self.refusing == "push":
                 return 1, "denied: requested access to the resource is denied\n"
             if self.refusing == "silence":
@@ -108,10 +109,10 @@ def test_each_image_of_the_tag_is_pushed_and_named_by_the_digest_its_push_says()
             [
                 "docker",
                 "tag",
-                f"ghcr.io/waterfall-project/{image.name}:{TAG}",
-                f"{LOCATION}/{image.name}:{TAG}",
+                f"ghcr.io/waterfall-project/{image.package}:{TAG}",
+                f"{LOCATION}/{image.package}:{TAG}",
             ],
-            ["docker", "push", f"{LOCATION}/{image.name}:{TAG}"],
+            ["docker", "push", f"{LOCATION}/{image.package}:{TAG}"],
         )
     ]
 
@@ -124,13 +125,15 @@ def test_an_image_not_built_here_says_to_build_it_or_to_give_the_digests() -> No
 
 def test_a_push_the_registry_refuses_is_said_with_its_reason() -> None:
     docker = Registry(refusing="push")
-    with pytest.raises(trialregistry.RegistryError, match=r"does not take .*/front:.*: denied"):
+    with pytest.raises(
+        trialregistry.RegistryError, match=r"does not take .*/wf-project-frontend:.*: denied"
+    ):
         trialregistry.publish(TAG, ADDRESS, docker.read)
 
 
 def test_a_push_that_says_no_digest_is_said() -> None:
     docker = Registry(refusing="silence")
-    with pytest.raises(trialregistry.RegistryError, match=r"does not take .*/front:"):
+    with pytest.raises(trialregistry.RegistryError, match=r"does not take .*/wf-project-frontend:"):
         trialregistry.publish(TAG, ADDRESS, docker.read)
 
 
@@ -169,7 +172,8 @@ def test_the_compose_reads_the_images_from_the_registry_the_trial_names_by_their
     assert config.returncode == 0, config.stderr
     named = set(config.stdout.split())
     for name in ("waterfall", "keycloak"):
-        assert f"{LOCATION}/{name}@{PUSHED[name]}" in named
+        package = next(image.package for image in IMAGES if image.name == name)
+        assert f"{LOCATION}/{package}@{PUSHED[name]}" in named
     assert not [line for line in named if line.startswith("ghcr.io/waterfall")]
 
 
@@ -228,7 +232,9 @@ def test_the_documentation_says_where_an_operator_finds_the_digests_of_a_version
         assert "90 jours" in text, document
         assert command in text, document
         assert "--format '{{.Manifest.Digest}}'" in text, document
-        assert "for image in front waterfall keycloak" in text, document
+        assert "for image in wf-project-frontend wf-project-backend wf-project-keycloak" in text, (
+            document
+        )
         assert "par l'étiquette" in text, document
     assert [image.name for image in IMAGES] == ["front", "waterfall", "keycloak"]
 

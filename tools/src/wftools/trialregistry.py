@@ -61,7 +61,7 @@ def stop(run: Run, project: str = PROJECT) -> None:
 
 def pushed(image: Image, tag: str, address: str, read: Read) -> str:
     """Push an image built here to the registry of the trial; return the digest it says."""
-    source, target = reference(image, tag), f"{address}/{NAMESPACE}/{image.name}:{tag}"
+    source, target = reference(image, tag), f"{address}/{NAMESPACE}/{image.package}:{tag}"
     if read(["docker", "tag", source, target])[0] != 0:
         message = f"{source} is not built here: make images first, or give the digests"
         raise RegistryError(message)

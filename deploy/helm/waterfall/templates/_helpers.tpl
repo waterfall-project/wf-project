@@ -50,7 +50,11 @@ helm.sh/chart: {{ printf "%s-%s" (index . 0).Chart.Name (index . 0).Chart.Versio
 {{- if not (regexMatch "^sha256:[0-9a-f]{64}$" $digest) -}}
 {{- fail (printf "images.digests.%s: the digest of the image %s the chain published (sha256:…, digests.values.yaml of its publication), not %q" $name $name $digest) -}}
 {{- end -}}
-{{- printf "%s/%s@%s" $images.registry $name $digest -}}
+{{- $package := index ($images.names | default dict) $name | default "" -}}
+{{- if not $package -}}
+{{- fail (printf "images.names.%s: the name in the registry of the image %s, not %q" $name $name $package) -}}
+{{- end -}}
+{{- printf "%s/%s@%s" $images.registry $package $digest -}}
 {{- end -}}
 
 {{/* An image of a third party, read from the mirror when one is given, pinned by its digest:

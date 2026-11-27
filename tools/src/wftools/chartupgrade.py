@@ -56,7 +56,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from wftools import REPOSITORY, chart, chartauthority, chartload, chartrun, charttrial, kubetools
-from wftools.images import IMAGES, REGISTRY, Holding, reference, registry_answers
+from wftools.images import (
+    IMAGES,
+    REGISTRY,
+    UNRENAMED,
+    Holding,
+    declare_unrenamed,
+    package_name,
+    published_reference,
+    registry_answers,
+)
 from wftools.production import Browser, Platform, ProductionError
 
 if TYPE_CHECKING:
@@ -67,6 +76,7 @@ REQUIREMENTS = ("WF-EXP-0030-A", "WF-DAT-0140-A")
 """What the trial holds, and what it holds nothing of when it is not executed."""
 CLUSTER = "waterfall-upgrade"
 CHART_FILE = "deploy/helm/waterfall/Chart.yaml"
+VALUES_FILE = "deploy/helm/waterfall/values.yaml"
 ADMIN = charttrial.ADMIN
 EXTRACTED = ("deploy/helm", "deploy/compose")
 """What the chart of a commit is read from: its folder, and the files of the Compose it links to."""
@@ -161,19 +171,37 @@ def published_version(read: Read, base: str) -> Version | None:
     return None
 
 
+def renamed_tree(read: Read, commit: str) -> bool:
+    """Tell whether the chart of a commit names its images as renamed (#5123).
+
+    The chart of a commit designates the images its publication wrote: ``images.names`` is there
+    from the lot that renamed them. A tree that cannot be read is taken for a renamed one.
+    """
+    code, values = _git(read, "show", f"{commit}:{VALUES_FILE}")
+    return code != 0 or any(image.package in values for image in IMAGES)
+
+
 def images_held(read: Read, tag: str) -> Holding:
     """Tell whether the three images of a tag are here or published.
+
+    The names they are asked under are those their commit was published with: a commit of before
+    the renaming was published under the former ones, which the registry still holds.
 
     The workstation first, which holds the images it built; then the registry, which says which it
     lacks. A registry that says neither — it refuses the credentials, it does not answer — is
     unclear, never taken for an absence.
     """
+    if not renamed_tree(read, tag):
+        declare_unrenamed(tag)
     if all(
-        read(["docker", "image", "inspect", "--format", "{{.Id}}", reference(image, tag)])[0] == 0
+        read(
+            ["docker", "image", "inspect", "--format", "{{.Id}}", published_reference(image, tag)]
+        )[0]
+        == 0
         for image in IMAGES
     ):
         return Holding.HELD
-    answers = set(registry_answers(tag, read).values())
+    answers = set(registry_answers(tag, read, published_reference).values())
     if Holding.UNCLEAR in answers:
         return Holding.UNCLEAR
     return Holding.HELD if answers == {Holding.HELD} else Holding.LACKING
@@ -231,13 +259,19 @@ def extract_chart(archive: Archive, commit: str, folder: Path) -> Path:
     return found
 
 
-PLATFORM = frozenset(image.name for image in IMAGES)
-"""The names of the images of the platform: those of the mirror, below the registry too, are not."""
+PLATFORM = frozenset(image.package for image in IMAGES) | frozenset(UNRENAMED.values())
+"""The names of the images of the platform, as renamed and as the versions up to 0.3.0 were
+published: those of the mirror, below the registry too, are not."""
 
 
-def designations(digests: Mapping[str, str]) -> frozenset[str]:
-    """Return how the pods of a version name its images below the registry: ``<image>@<digest>``."""
-    return frozenset(f"{image}@{digest}" for image, digest in digests.items())
+def designations(digests: Mapping[str, str], tag: str = "") -> frozenset[str]:
+    """Return how the pods of a version name its images below the registry: ``<image>@<digest>``.
+
+    ``digests`` is keyed by component; the name of each image is the one the version of ``tag`` was
+    published under (``package_name``), the branch's by default.
+    """
+    packages = {image.name: package_name(image, tag) for image in IMAGES}
+    return frozenset(f"{packages[image]}@{digest}" for image, digest in digests.items())
 
 
 def serving(listing: Mapping[str, Any]) -> dict[str, tuple[str, frozenset[str]]]:
@@ -270,16 +304,19 @@ def check_serving(
     version: Mapping[str, str],
     what: str,
     migrated: str | None = None,
+    *,
+    tag: str = "",
 ) -> None:
     """Hold that every pod of the platform runs images of a version, made after ``migrated``.
 
-    ``version`` gives the digest of each image of it, ``what`` its name. Times are those of kubectl,
-    in UTC, in ISO form, which compare as text.
+    ``version`` gives the digest of each image of it, ``what`` its name,
+    ``tag`` the tag of its images. Times are those of kubectl, in UTC, in ISO form, which compare
+    as text.
     """
     if not pods:
         message = "no pod of the platform's images runs"
         raise UpgradeError(message)
-    expected = designations(version)
+    expected = designations(version, tag)
     for name, (made, images) in sorted(pods.items()):
         if other := images - expected:
             message = f"the pod {name} runs {', '.join(sorted(other))}, not an image of {what}"
@@ -509,7 +546,7 @@ class Upgrade:
         self.helm(["install", chart.RELEASE, str(self.chart_n)], n_values, "install the version N")
         print(f"  {self.version.name} is installed, its hooks done", flush=True)
         browser = self.trial.hold(ADMIN)
-        check_serving(self.pods(), self.images_n, self.version.name)
+        check_serving(self.pods(), self.images_n, self.version.name, tag=self.version.tag)
         if not (data := self.data()):
             message = f"no pod of {', '.join(DATA)} runs"
             raise UpgradeError(message)
@@ -541,7 +578,7 @@ class Upgrade:
             self.helm(["rollback", chart.RELEASE, str(INSTALLED)], None, "roll back to N")
 
         self.under_load(browser, rollback, f"the rollback to {self.version.name}")
-        check_serving(self.pods(), self.images_n, self.version.name)
+        check_serving(self.pods(), self.images_n, self.version.name, tag=self.version.tag)
         self.check_data_untouched(data, "the rollback")
         check_none_stamped(self.stamps(), "the rollback")
         check_schema(self.sql(SCHEMA, "read the schema"), head, "the rollback")
@@ -574,7 +611,7 @@ def values_of(values: Mapping[str, Any], digests: Mapping[str, str]) -> dict[str
 def pull(run: Callable[[list[str]], int], tag: str) -> None:
     """Pull the images of a tag the workstation does not hold."""
     for image in IMAGES:
-        tagged = reference(image, tag)
+        tagged = published_reference(image, tag)
         if run(["docker", "image", "inspect", "--format", "{{.Id}}", tagged]) == 0:
             continue
         if code := run(["docker", "pull", "--quiet", tagged]):

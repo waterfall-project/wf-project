@@ -18,6 +18,7 @@ import yaml
 
 from wftools import REPOSITORY, chart
 from wftools.chart import ChartError
+from wftools.images import IMAGES
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -30,7 +31,7 @@ MIRRORED = re.compile(r"^\$\{WATERFALL_MIRROR:-\}")
 # An image the chain publishes, in the Compose: by the digest .env gives it (#3726).
 PUBLISHED = re.compile(
     r"^\$\{WATERFALL_REGISTRY:-ghcr\.io/waterfall-project\}/"
-    r"(\w+)@\$\{WATERFALL_DIGEST_(\w+):\?[^}]*\}$"
+    r"([\w-]+)@\$\{WATERFALL_DIGEST_(\w+):\?[^}]*\}$"
 )
 
 Objects = list[dict[str, Any]]
@@ -81,9 +82,13 @@ def services() -> dict[str, Any]:
     return yaml.safe_load(PRODUCTION.read_text(encoding="utf-8"))["services"]
 
 
-def published(name: str) -> str:
-    """Return an image the chain publishes, as the chart designates it with the chain's values."""
-    return f"ghcr.io/waterfall-project/{name}@{chart.CHAIN_DIGESTS[name]}"
+def published(component: str) -> str:
+    """Return an image the chain publishes, as the chart designates it with the chain's values.
+
+    ``component`` is its key in ``images.digests``; the registry knows it by its package (#5123).
+    """
+    (image,) = (each for each in IMAGES if each.name == component)
+    return f"ghcr.io/waterfall-project/{image.package}@{chart.CHAIN_DIGESTS[component]}"
 
 
 @pytest.mark.story("US-2830")
@@ -326,7 +331,7 @@ def test_the_tasks_planned_are_one_cronjob_that_runs_the_one_command_of_the_sche
 
 def test_the_chart_reads_the_images_of_the_compose(objects: Objects) -> None:
     ours = {
-        published(match.group(1))
+        published(match.group(2).lower())
         for service in services().values()
         if (match := PUBLISHED.match(service["image"]))
     }
@@ -392,3 +397,38 @@ def test_the_front_trusts_the_authority_it_is_given() -> None:
         {"secret": {"name": "local-root", "items": [{"key": "ca.crt", "path": "platform.crt"}]}}
     ]
     assert of_kind(objects, "Secret").keys() == {"secrets"}
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+def test_the_chart_pulls_the_three_images_by_their_new_names(objects: Objects) -> None:
+    # « Les images publiées s'appellent wf-project-backend, wf-project-frontend et
+    # wf-project-keycloak » (#5123); the keys of images.digests stay the names of the components.
+    pulled = {
+        container["image"].split("@")[0]
+        for item in objects
+        if item["kind"] in {"Deployment", "StatefulSet", "Job", "CronJob"}
+        for container in containers(item)
+        if container["image"].startswith("ghcr.io/waterfall-project/")
+    }
+    assert pulled == {f"ghcr.io/waterfall-project/{image.package}" for image in IMAGES}
+    assert set(chart.CHAIN_DIGESTS) == {"front", "waterfall", "keycloak"}
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+def test_the_values_of_the_chart_name_each_image_of_the_chain_by_its_new_name() -> None:
+    values = yaml.safe_load((chart.CHART / "values.yaml").read_text(encoding="utf-8"))["images"]
+    assert values["names"] == {image.name: image.package for image in IMAGES}
+    assert set(values["digests"]) == set(values["names"])
+
+
+@pytest.mark.requirement("WF-ARC-0050-A")
+@pytest.mark.story("US-2800")
+@pytest.mark.parametrize("names", [{"front": ""}, {"keycloak": ""}])
+def test_an_image_without_a_name_in_the_registry_stops_the_rendering(
+    names: dict[str, str],
+) -> None:
+    component = next(iter(names))
+    with pytest.raises(ChartError, match=rf"images\.names\.{component}"):
+        rendered({"images": {"names": names}})

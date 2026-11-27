@@ -22,8 +22,8 @@
 # own, made at each test.
 name: waterfall-restore-test
 
-x-waterfall-image: &waterfall-image ${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/waterfall@${WATERFALL_DIGEST_WATERFALL:?set WATERFALL_DIGEST_WATERFALL in .env}
-x-keycloak-image: &keycloak-image ${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/keycloak@${WATERFALL_DIGEST_KEYCLOAK:?set WATERFALL_DIGEST_KEYCLOAK in .env}
+x-waterfall-image: &waterfall-image ${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/wf-project-backend@${WATERFALL_DIGEST_WATERFALL:?set WATERFALL_DIGEST_WATERFALL in .env}
+x-keycloak-image: &keycloak-image ${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/wf-project-keycloak@${WATERFALL_DIGEST_KEYCLOAK:?set WATERFALL_DIGEST_KEYCLOAK in .env}
 x-postgres-image: &postgres-image ${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
 x-password: &password ${WATERFALL_RESTORE_TEST_PASSWORD:?restore-test.sh draws WATERFALL_RESTORE_TEST_PASSWORD}
 # The issuer of the realm restored: the address the browser knows the production's Keycloak by.

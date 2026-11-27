@@ -21,6 +21,7 @@ import yaml
 from test_supervision import services
 
 from wftools import REPOSITORY, bounded, chart, production
+from wftools.images import IMAGES
 from wftools.production import ProductionError
 
 if TYPE_CHECKING:
@@ -254,7 +255,7 @@ def test_every_image_of_the_compose_is_read_from_the_registry_its_settings_name(
     images = compose(*files, given=SETTINGS, images=True)
     assert images
     assert [image for image in images if not image.startswith(f"{INSIDE}/")] == []
-    assert {image.split("@")[0] for image in images} >= {f"{INSIDE}/waterfall/waterfall"}
+    assert {image.split("@")[0] for image in images} >= {f"{INSIDE}/waterfall/wf-project-backend"}
 
 
 def pod_images(document: dict[str, Any]) -> list[str]:
@@ -277,7 +278,7 @@ def test_every_image_of_the_chart_is_read_from_the_registry_its_values_name() ->
     assert images
     assert [image for image in images if not image.startswith(f"{INSIDE}/")] == []
     named = {image.split("@")[0] for image in images}
-    assert {f"{INSIDE}/waterfall/{name}" for name in ("front", "waterfall", "keycloak")} <= named
+    assert {f"{INSIDE}/waterfall/{image.package}" for image in IMAGES} <= named
 
 
 def third_parties() -> set[str]:

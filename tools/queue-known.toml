@@ -657,3 +657,16 @@ message = 'e2e/exchanges\.spec\.ts:614'
 runs = [45981157990]
 frequency = "1 passage, le 2026-11-27 (45981157990, file d'`epic/EP-13`, pr-5114)"
 cause = "hypothèse : le détail de l'import, relu après « Abandonner l'import », n'est plus lisible (404) et `toPass` répète le 404 jusqu'au délai"
+
+# Le parcours du risque d'un service, au-delà de son délai de 90 s, la base injoignable (#5177).
+[[known]]
+class = "known flakiness"
+family = "risques du service, le parcours dépasse son délai quand la base ne répond pas"
+issue = "#5177"
+job = '^service / paths(?: \(\d+/\d+\))?$'
+test = 'e2e/risks-service\.spec\.ts:'
+lines = [16, 16]
+message = 'Test timeout of 90000ms exceeded'
+runs = [46060334276]
+frequency = "1 passage, le 2026-11-27 (46060334276, file d'`epic/EP-13`, pr-5171)"
+cause = "hypothèse : la base du service ne répond pas dans le délai de connexion (`psycopg.errors.ConnectionTimeout` dans le journal de l'API), et le parcours attend jusqu'à son délai de 90 s"

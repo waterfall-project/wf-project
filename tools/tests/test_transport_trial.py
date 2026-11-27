@@ -43,7 +43,7 @@ SERVERS = {
 # A variable that gives a service the address of another: Waterfall's, and their equivalents in the
 # services of Keycloak's image and of the buckets of the storage.
 ADDRESS = re.compile(r"^(WATERFALL_\w+_(URL|ADDRESS|BACKCHANNEL)|STORAGE_ADDRESS|KEYCLOAK_URL)$")
-WATERFALL_IMAGE = "${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/waterfall@"
+WATERFALL_IMAGE = "${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/wf-project-backend@"
 # Where a client outside the back reads the root from: the server of Next, the curl of the buckets.
 TRUSTING = {"front": "NODE_EXTRA_CA_CERTS", "storage-buckets": "STORAGE_AUTHORITY"}
 # The front reads the roots door-authority writes, the root of the platform first, then the door's.

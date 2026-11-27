@@ -235,12 +235,16 @@ L'ordre des migrations et des instances d'une montée, et ce que le journal dit 
    - à défaut, en les lisant au registre, une image après l'autre :
 
      ```sh
-     for image in front waterfall keycloak; do
-       docker buildx imagetools inspect ghcr.io/waterfall-project/$image:0.3.0 --format '{{.Manifest.Digest}}'
+     for image in wf-project-frontend wf-project-backend wf-project-keycloak; do
+       docker buildx imagetools inspect ghcr.io/waterfall-project/$image:<version> --format '{{.Manifest.Digest}}'
      done
      ```
 
-     Cette lecture se fait **par l'étiquette** de la version (`0.3.0` ici), que quelqu'un qui peut
+     Les versions publiées jusqu'à la 0.3.0 comprise portent les anciens noms des paquets : `front`,
+     `waterfall` et `keycloak` au lieu de `wf-project-frontend`, `wf-project-backend` et
+     `wf-project-keycloak`.
+
+     Cette lecture se fait **par l'étiquette** de la version, que quelqu'un qui peut
      écrire les paquets aurait pu déplacer : on la fait **une fois**, on vérifie que la version et
      les trois empreintes sont bien celles de la publication annoncée (étiquette de commit de
      l'image, ou passage d'`images.yml`), et on garde les empreintes lues.
