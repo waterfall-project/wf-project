@@ -19,7 +19,7 @@ import pytest
 from project_rows import insert_project
 from sqlalchemy import func, insert, select, text, update
 from sqlalchemy.exc import DBAPIError
-from support import raw_account
+from support import RefusalClock, raw_account
 
 from waterfall.core.users.tables import UserAccount
 from waterfall.migrations.runner import downgrade, upgrade
@@ -339,3 +339,32 @@ def test_a_refused_lock_of_the_upgrade_is_written_to_the_log_with_its_table_and_
     assert refused[0].levelname == "WARNING"
     assert "audit_entry" in refused[0].getMessage()
     assert "widen the checks" in refused[0].getMessage()
+
+
+@pytest.mark.story("US-2850")
+@pytest.mark.requirement("WF-DAT-0140-A")
+def test_a_journal_refused_thirteen_times_over_a_clock_of_a_second_a_try_gives_two_warnings(
+    empty_engine: Engine, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Give the first refusal, then the one past ten seconds with the count of those between.
+
+    #5151. The clock is the test's, one second a try, so that the limit is proved whatever the
+    speed of the machine: thirteen refusals cover thirteen seconds, which is more than the two
+    seconds of the criterion (a journal held two seconds gives at most two lines) and crosses the
+    ten-second limit once. Over the real time, the former code, a line per refusal, passed that
+    criterion too: a refusal took a second and a half, too long for the test to tell them apart.
+    """
+    clock = RefusalClock(monkeypatch, ("0056_audit_project_managers.py",), stop_after=13)
+    upgrade(empty_engine, "0055")
+    caplog.set_level("WARNING")
+    with ThreadPoolExecutor(1) as pool:
+        with empty_engine.connect() as reading, reading.begin():
+            reading.execute(select(AuditEntry.id)).all()
+            migrating = pool.submit(upgrade, empty_engine, "0056")
+            assert clock.reached.wait(60)
+        clock.gate.set()
+        migrating.result(timeout=60)
+    refused = [each for each in caplog.messages if "lock refused" in each]
+    assert len(refused) == 2
+    assert "refused 1 time(s)" in refused[0]
+    assert "refused 10 time(s)" in refused[1]
