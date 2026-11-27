@@ -4018,8 +4018,11 @@ la partie échoue sur un échec qu'aucune entrée ne reconnaît, et sur une entr
 — un test nommé qui passe, ou une entrée sans tests qui n'a rien reconnu —, comme un
 `xfail(strict=True)` : la liste se vide à mesure que les constats se règlent, et aucune entrée ne
 reste masquer la régression du test qu'elle nomme. Le lot qui règle un constat retire ses
-entrées ; un test qu'un morceau ne joue pas n'est pas jugé, et les entrées d'une autre version ne
-le sont pas non plus, ce que l'outil dit quand N passe à la suivante. Les issues des tests
+entrées ; un test qu'un morceau ne joue pas n'est pas jugé, une entrée sans tests ne l'est que sur
+la suite entière (sans `SHARD`), une partie où aucun test n'a passé ni échoué — tous sautés — échoue,
+et les entrées d'une autre version ne sont pas jugées, ce que l'outil dit quand N passe à la
+suivante. Le motif est cherché dans tout le texte de l'échec, journaux capturés compris, et une
+entrée sans `message` reconnaît tout échec de ses tests : l'en-tête du fichier dit ces limites. Les issues des tests
 restent dans `.waterfall/migrations-tests.jsonl` et `.waterfall/migrations-backup.jsonl`, et la
 chaîne les garde en artefact d'un job en échec : c'est d'elles qu'une entrée s'écrit.
 

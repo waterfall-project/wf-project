@@ -21,9 +21,11 @@ An entry recognises a failure by the tests it names — a node of pytest, or a w
 pattern of its message, or by both. An entry without tests holds a cause shared by many tests, a
 same error of their setting up: it recognises every failure whose message the pattern finds. An
 entry is stale when, among the outcomes of the run, a test it names passed, or, without tests, when
-it recognised nothing; a test it names that this part did not run (``SHARD``) is not judged, and an
-entry ``intermittent`` — the collateral of another failure, which lands on whichever test runs
-then — is never stale.
+it recognised nothing in a run of the whole suite; a test it names that this part did not run
+(``SHARD``) is not judged, nor is an entry without tests, whose failures may all lie in another
+part, and an entry ``intermittent`` — the collateral of another failure, which lands on whichever
+test runs then — is never stale. A part where no test passed nor failed — all skipped, or none —
+holds nothing: it fails.
 """
 
 import json
@@ -195,13 +197,13 @@ def outcomes(report: str) -> list[Outcome]:
     return found
 
 
-def judge(run: Sequence[Outcome], known: Sequence[Known]) -> Verdict:
+def judge(run: Sequence[Outcome], known: Sequence[Known], *, whole: bool = True) -> Verdict:
     """Judge the outcomes of a run against the entries of its version and part.
 
     A failure belongs to the first entry that recognises it. An entry that names its tests is
     stale by each name whose tests ran, one of them at least passed, and none failed as the entry
-    says; an entry without tests, when the run holds tests and it recognised none of them; an
-    intermittent entry, never.
+    says; an entry without tests, when the run is of the whole suite (``whole``, no ``SHARD``) and
+    it recognised none of its failures; an intermittent entry, never.
     """
     verdict = Verdict(recognised=dict.fromkeys(range(len(known)), 0))
     for outcome in run:
@@ -216,7 +218,7 @@ def judge(run: Sequence[Outcome], known: Sequence[Known]) -> Verdict:
         if entry.intermittent:
             continue
         if not entry.tests:
-            if run and not verdict.recognised[index]:
+            if whole and run and not verdict.recognised[index]:
                 verdict.stale.append((entry, "it recognised no failure"))
             continue
         for name in entry.tests:
@@ -248,11 +250,13 @@ def report_of(verdict: Verdict, known: Sequence[Known], version: str, part: str)
     return lines
 
 
-def judged(version: str, part: str, report: Path, code: int, known: Path = KNOWN) -> bool:
+def judged(version: str, part: str, report: Path, code: int, *, whole: bool = True) -> bool:
     """Judge the outcomes a run of a part wrote against the known failures of N, and say it.
 
     pytest that did not run its tests to their end — interrupted, a usage refused, nothing
-    collected — fails whatever its report holds, which may miss the tests it did not run.
+    collected — fails whatever its report holds, which may miss the tests it did not run. So does a
+    run where no test passed nor failed: its tests skipped, it proved nothing. ``whole`` says the
+    run is of the whole suite, not of a part of it (``SHARD``).
     """
     if code not in JUDGED:
         print(
@@ -260,15 +264,19 @@ def judged(version: str, part: str, report: Path, code: int, known: Path = KNOWN
         )
         return False
     try:
-        entries = load(known.read_text(encoding="utf-8"))
+        entries = load(KNOWN.read_text(encoding="utf-8"))
         run = outcomes(report.read_text(encoding="utf-8"))
     except (KnownError, OSError) as error:
         print(f"{TOOL}: {error}", file=sys.stderr)
         return False
+    if not any(each.status in (PASSED, FAILED) for each in run):
+        said = f"{TOOL}: no test of {part} passed or failed: all skipped, or none run"
+        print(said, file=sys.stderr)
+        return False
     held = [each for each in entries if each.version == version and each.part == part]
     if others := sorted({each.version for each in entries if each.version != version}):
         print(f"  the known failures of {', '.join(others)} are not judged: N is {version}")
-    verdict = judge(run, held)
+    verdict = judge(run, held, whole=whole)
     print("\n".join(report_of(verdict, held, version, part)), flush=True)
     if not verdict.passed:
         print(

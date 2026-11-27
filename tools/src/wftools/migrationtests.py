@@ -178,7 +178,8 @@ def main(arguments: list[str] | None = None, environment: Mapping[str, str] | No
             print(f"{TOOL}: the back of {version.name} does not install", file=sys.stderr)
             return 1
         ran = subprocess.run(pytest_command(given, taken), cwd=back, env=child, check=False)
-        return 0 if judged(version.name, "tests", report, ran.returncode) else 1
+        whole = not given.get("SHARD")
+        return 0 if judged(version.name, "tests", report, ran.returncode, whole=whole) else 1
 
 
 def _archive(name: str) -> bytes:

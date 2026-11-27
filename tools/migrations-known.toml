@@ -34,7 +34,22 @@
 # nommé qui passe, ou une entrée sans tests qui n'a rien reconnu. La liste se vide ainsi à mesure
 # que les constats se règlent — le lot qui règle un constat retire ses entrées —, et aucune entrée
 # ne reste masquer la régression du test qu'elle nomme. Un test qu'un morceau de la chaîne
-# (`SHARD=i/N`) ne joue pas n'est pas jugé.
+# (`SHARD=i/N`) ne joue pas n'est pas jugé, et une entrée sans tests ne l'est que sur la suite
+# entière, sans `SHARD` : ses échecs peuvent tous tomber dans un autre morceau. Une partie où aucun
+# test n'a passé ni échoué (tous sautés, ou aucun) échoue : elle n'a rien prouvé.
+#
+# Limites connues de la reconnaissance :
+#   - le motif est cherché dans tout le texte de l'échec, journaux capturés compris : un échec nouveau
+#     dont le texte capturerait ce motif serait absorbé par l'entrée ;
+#   - une entrée sans `message` reconnaît tout échec des tests qu'elle nomme, ce qui contredit en
+#     partie le propos ci-dessus : c'est le cas de l'entrée #5091 des tests du témoin et des entrées
+#     `frozen schema`, dont les tests échouent de façons trop diverses (contrainte qui ne refuse plus,
+#     catalogue, plan d'index) pour un seul motif ; une régression de l'un de ces tests, autre que
+#     celle que l'entrée décrit, y est masquée tant que l'entrée dure ;
+#   - #5090, première entrée par motif, réclame tous les échecs de mise en place, y compris ceux des
+#     tests que les entrées plus bas nomment : aujourd'hui, aucune entrée `frozen schema` ne
+#     reconnaît donc rien, ni n'est jugée périmée par là. US-2850/L5 retire #5090 et réajustera
+#     alors ces entrées.
 #
 # Les issues de chaque test restent dans `.waterfall/migrations-tests.jsonl` et
 # `.waterfall/migrations-backup.jsonl` (la chaîne les garde en artefact d'un job en échec) : une
@@ -107,6 +122,64 @@ tests = [
   "tests/test_partitions.py::test_the_revised_tables_the_catalogue_partitions_by_project_are_the_nine_expected",
 ]
 cause = "établie : ces tests affirment le nom ou l'effet d'une contrainte, d'une clé ou d'un index de v0.3.0, ou ses tables partitionnées, que les migrations de la branche ont fait évoluer"
+
+# #5141 : 0048 crée le schéma `platform`. La sauvegarde de v0.3.0 vide toute la base (pg_dump sans
+# --schema), le schéma `platform` compris ; sa restauration ne supprime que `public`, puis pg_restore
+# --single-transaction --exit-on-error échoue sur `CREATE SCHEMA platform` (« schema "platform" already
+# exists », masqué en `schema "..."` par errors_of) : RestoreError: waterfall, et `public` laissé vide.
+[[known]]
+version = "v0.3.0"
+part = "tests"
+issue = "#5141"
+tests = [
+  "tests/test_restoration.py::test_a_backup_row_the_restored_database_holds_and_the_installation_does_not_is_not_listed",
+  "tests/test_restoration.py::test_a_keeping_another_restoration_left_is_taken_over_and_its_task_fails",
+  "tests/test_restoration.py::test_a_keeping_cut_short_before_the_replacement_is_made_again_whole",
+  "tests/test_restoration.py::test_a_restoration_taken_up_after_an_interruption_writes_back_what_it_kept_the_first_time",
+  "tests/test_restoration.py::test_a_task_restored_pending_fails_and_the_backup_kept_keeps_its_state_and_its_archive",
+  "tests/test_restoration.py::test_an_account_anonymised_after_the_backup_is_anonymised_again_once_it_is_restored",
+  "tests/test_restoration.py::test_an_inscription_made_while_the_backup_ran_is_written_back_once_and_the_backup_is_inscribed",
+  "tests/test_restoration.py::test_both_databases_are_replaced_and_hold_what_they_held_at_the_backup_and_nothing_after",
+  "tests/test_restoration.py::test_two_backups_stay_listed_and_downloadable_once_the_first_is_restored",
+  "tests/test_restore_service.py::test_a_restoration_asked_of_the_api_is_run_by_its_service_alone_and_inscribed_last",
+  "tests/test_restore_service.py::test_a_restoration_closes_the_sessions_of_the_front_before_it_keeps_and_once_done",
+  "tests/test_restore_service.py::test_a_restoration_ended_whose_maintenance_was_not_lifted_lifts_it_and_runs_no_more",
+  "tests/test_restore_service.py::test_a_restoration_interrupted_in_maintenance_starts_again_and_lifts_it_at_its_end",
+  "tests/test_restore_service.py::test_a_restoration_interrupted_once_the_caches_are_cleared_gives_the_realm_back_first",
+  "tests/test_restore_service.py::test_a_restoration_whose_attempts_are_spent_leaves_the_platform_in_maintenance",
+  "tests/test_restore_service.py::test_a_restoration_whose_caches_were_cleared_their_answer_lost_gives_the_realm_back_first",
+  "tests/test_restore_service.py::test_no_partial_restoration_is_offered_both_databases_are_replaced_whole",
+  "tests/test_uploads.py::test_a_backup_copied_deposited_and_restored_on_another_installation_makes_it_a_copy",
+]
+cause = "établie : 0048 crée le schéma platform, que la sauvegarde de v0.3.0 vide avec la base et que sa restauration, qui ne supprime que public, ne recrée pas"
+
+# Le contrecoup des restaurations échouées : une connexion de psycopg laissée ouverte, ramassée plus
+# tard dans un autre test du même processus (PytestUnraisableExceptionWarning). Il tombe sur le test qui
+# tourne alors : 4 le 2026-11-27 dans une suite (test_restore_service, test_uploads, test_users), 1 dans
+# l'autre. Intermittent : jamais tenu pour réglé.
+[[known]]
+version = "v0.3.0"
+part = "tests"
+issue = "#5141"
+message = 'Exception ignored while calling deallocator <function BaseConnection\.__del__|<psycopg\.Connection object at 0x[0-9a-f]+> was deleted while still open'
+intermittent = true
+cause = "hypothèse : une connexion qu'une restauration échouée de v0.3.0 laisse ouverte, ramassée dans un test suivant"
+
+# #5142 : 0030 et 0043 ajoutent au catalogue des permissions des codes que v0.3.0 ne connaît pas ;
+# son GET /permissions valide chaque code contre l'énumération de son contrat (Permission.model_validate)
+# et répond 500 ; le test du catalogue compare aussi les lignes à sa liste.
+[[known]]
+version = "v0.3.0"
+part = "tests"
+issue = "#5142"
+tests = [
+  "tests/test_access_evaluation.py::test_an_account_without_any_role_reads_its_own_account_and_the_catalogue",
+  "tests/test_access_evaluation.py::test_whether_each_permission_of_the_catalogue_consults_is_declared_in_its_order",
+  "tests/test_access_roles.py::test_each_function_of_the_second_level_has_its_two_permissions_or_the_one_to_consult",
+  "tests/test_access_roles.py::test_the_catalogue_is_the_enumeration_of_the_contract_in_its_order",
+  "tests/test_access_roles.py::test_the_journal_of_audit_has_the_permission_to_read_alone",
+]
+cause = "établie : 0030 et 0043 ajoutent au catalogue des permissions des codes hors de l'énumération du contrat de v0.3.0, dont GET /permissions répond 500"
 
 # --- backup : une sauvegarde de v0.3.0 restaurée puis migrée par la branche --------------------
 

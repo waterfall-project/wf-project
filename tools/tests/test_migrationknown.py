@@ -134,6 +134,17 @@ def test_an_entry_by_its_message_that_recognises_nothing_any_more_is_stale() -> 
     ]
 
 
+@pytest.mark.requirement("WF-DAT-0140-A")
+def test_a_part_of_the_suite_without_a_failure_of_an_entry_by_its_message_holds() -> None:
+    # SHARD=i/N: the failures of #5090 may all lie in another part; only the whole suite judges it.
+    run = [
+        Outcome("tests/test_projects.py::test_create", "passed"),
+        Outcome("tests/test_roles.py::test_a", "failed", COLUMN),
+    ]
+    assert judge(run, held(), whole=False).passed
+    assert not judge(run, held()).passed
+
+
 def test_a_test_named_that_this_part_did_not_run_or_skipped_is_not_judged() -> None:
     # SHARD=i/N runs a part of the tests: those of the other parts are absent from the outcomes.
     run = [
@@ -254,10 +265,11 @@ def write(path: Path, rows: list[Outcome]) -> Path:
 
 @pytest.mark.requirement("WF-DAT-0140-A")
 def test_a_run_judged_says_each_entry_and_names_each_new_failure_with_its_message(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     known = tmp_path / "known.toml"
     known.write_text(ENTRIES, encoding="utf-8")
+    monkeypatch.setattr(migrationknown, "KNOWN", known)
     report = write(
         tmp_path / "outcomes.jsonl",
         [
@@ -267,7 +279,7 @@ def test_a_run_judged_says_each_entry_and_names_each_new_failure_with_its_messag
             Outcome("tests/test_index.py::test_plan", "failed", "E"),
         ],
     )
-    assert not judged("v0.3.0", "tests", report, 1, known)
+    assert not judged("v0.3.0", "tests", report, 1)
     said = capsys.readouterr()
     assert "known, #5090: 1 failure(s) of v0.3.0 (tests)" in said.out
     assert "new failure: tests/test_new.py::test_x\n    E   assert 500 == 200" in said.out
@@ -279,7 +291,7 @@ def test_pytest_that_did_not_run_its_tests_to_their_end_fails_whatever_its_repor
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     report = write(tmp_path / "outcomes.jsonl", [])
-    assert not judged("v0.3.0", "backup", report, 2, tmp_path / "absent.toml")
+    assert not judged("v0.3.0", "backup", report, 2)
     assert "did not run the tests of backup to their end (2)" in capsys.readouterr().err
 
 
@@ -290,9 +302,12 @@ def test_a_report_that_is_missing_fails_the_part(
     assert "absent.jsonl" in capsys.readouterr().err
 
 
-def test_a_run_without_new_failure_nor_stale_entry_holds(tmp_path: Path) -> None:
+def test_a_run_without_new_failure_nor_stale_entry_holds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     known = tmp_path / "known.toml"
     known.write_text(ENTRIES, encoding="utf-8")
+    monkeypatch.setattr(migrationknown, "KNOWN", known)
     report = write(
         tmp_path / "outcomes.jsonl",
         [
@@ -300,4 +315,21 @@ def test_a_run_without_new_failure_nor_stale_entry_holds(tmp_path: Path) -> None
             Outcome("tests/test_projects.py::test_rename", "passed"),
         ],
     )
-    assert judged("v0.3.0", "tests", report, 1, known)
+    assert judged("v0.3.0", "tests", report, 1)
+
+
+@pytest.mark.requirement("WF-DAT-0140-A")
+@pytest.mark.parametrize("statuses", [[], ["skipped", "skipped"]])
+def test_a_part_where_no_test_passed_or_failed_fails_though_nothing_is_new(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    statuses: list[str],
+) -> None:
+    known = tmp_path / "known.toml"
+    known.write_text(ENTRIES, encoding="utf-8")
+    monkeypatch.setattr(migrationknown, "KNOWN", known)
+    rows = [Outcome(f"tests/test_x.py::test_{n}", status) for n, status in enumerate(statuses)]
+    report = write(tmp_path / "outcomes.jsonl", rows)
+    assert not judged("v0.3.0", "backup", report, 0)
+    assert "no test of backup passed or failed" in capsys.readouterr().err

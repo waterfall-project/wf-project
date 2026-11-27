@@ -3986,7 +3986,11 @@ it: the part fails on a failure no entry recognises, and on an entry that no lon
 named that passes, or an entry without tests that recognised nothing —, as an `xfail(strict=True)`:
 the list empties as the findings are settled, and no entry stays to hide a regression of the test
 it names. The lot that settles a finding removes its entries; a test a part does not run is not
-judged, nor are the entries of another version, which the tool says when N moves to the next one.
+judged, an entry without tests is judged only on the whole suite (without `SHARD`), a part where no
+test passed nor failed — all skipped — fails, and the entries of another version are not judged,
+which the tool says when N moves to the next one. The pattern is searched in the whole text of the
+failure, captured logs included, and an entry without a `message` recognises any failure of its
+tests: the header of the file says these limits.
 The outcomes of the tests stay in `.waterfall/migrations-tests.jsonl` and
 `.waterfall/migrations-backup.jsonl`, and the chain keeps them as an artifact of a failed job: an
 entry is written from them.
