@@ -666,17 +666,17 @@ runs = [45835940068]
 frequency = "1 passage, le 2026-11-26 (45835940068, file d'`epic/EP-13`, pr-5026)"
 cause = "hypothèse : sous la charge de la file, Entrée sur l'en-tête arrive avant que la grille du devis ait branché le tri au clavier, et l'URL ne change jamais"
 
-# L'image keycloak chargée dans le cluster de kind de l'essai du chart, que la recherche par
-# empreinte ne trouve pas (#5065).
+# Une image de Waterfall chargée dans le cluster de l'essai du chart, de kind ou de k3s, que la
+# recherche par empreinte ne trouve pas (#5065) : keycloak sur kind, waterfall sur k3s.
 [[known]]
 class = "known flakiness"
-family = "chart-trial, l'image keycloak absente du cluster de kind"
+family = "chart-trial, une image de Waterfall absente du cluster de kind ou de k3s"
 issue = "#5065"
-job = '^chart / check$'
+job = '^chart / check( \(k3s\))?$'
 step = 'chart-trial'
-message = 'wftools\.charttrial: find ghcr\.io/waterfall-project/keycloak@sha256:[0-9a-f]+ in the cluster failed'
-runs = [45868657554]
-frequency = "1 passage, le 2026-11-26 (45868657554, file d'`epic/EP-13`, pr-5064)"
+message = 'wftools\.charttrial: find ghcr\.io/waterfall-project/[a-z]+@sha256:[0-9a-f]+ in the cluster failed'
+runs = [45868657554, 45923534175]
+frequency = "2 passages, file d'`epic/EP-13` : le 2026-11-26 (45868657554, pr-5064, keycloak sur kind), le 2026-11-27 (45923534175, pr-5082, waterfall sur k3s)"
 cause = "hypothèse : la recherche de l'image par son empreinte dans le nœud de kind suit de trop près son chargement, ou l'empreinte cherchée n'est pas celle que containerd garde"
 
 # L'essai du chart sur k3s, qui attend le nœud avant que le serveur d'API réponde (#5103).

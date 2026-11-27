@@ -7,11 +7,13 @@ asked; the trial reads its lines and keeps the names outside the platform. The d
 byte for byte. Both are held here in process; then, where a docker daemon answers, on an internal
 network as the trial makes it: a client that asks for a server outside fails at once and the sink
 names it, and Grafana started as the production starts it asks for nothing — when a Grafana with its
-defaults, the same image, is caught asking for grafana.com. The images are pulled behind
-``WATERFALL_MIRROR``, as the Compose pulls them (#4321).
+defaults, the same image, is caught asking for grafana.com; Keycloak, with the variables its image
+sets, asks for nothing either, when without them it asks Liquibase's config.liquibase.com. The
+images are pulled behind ``WATERFALL_MIRROR``, as the Compose and the Dockerfiles pull them (#4321).
 """
 
 import asyncio
+import os
 import shutil
 import socket
 import struct
@@ -384,3 +386,75 @@ def test_grafana_left_to_its_defaults_is_caught_asking_for_grafana_com(
     assert {attempt.client for attempt in found} == {network.address_of(grafana)}
     names = [attempt.name for attempt in found]
     assert all(name == "grafana.com" or name.endswith(".grafana.com") for name in names), names
+
+
+KEYCLOAK = REPOSITORY / "deploy" / "keycloak" / "Dockerfile"
+# Keycloak builds itself first in development mode, then migrates its schema.
+KEYCLOAK_STARTED_WITHIN = 300.0
+
+
+def keycloak_stage() -> tuple[str, dict[str, str]]:
+    """Give the image Keycloak's image is built from, and the variables the build sets in it.
+
+    The image of the repository adds Waterfall's extension and themes to it, nothing that migrates
+    the schema: what Liquibase asks at the start of the one, it asks at the start of the other.
+    """
+    base, inside = "", False
+    variables: dict[str, str] = {}
+    for line in KEYCLOAK.read_text(encoding="utf-8").splitlines():
+        if line.startswith("FROM "):
+            inside = line.endswith(" AS production")
+            if inside:
+                base = line.split()[1]
+        elif inside and line.startswith("ENV "):
+            name, value = line.removeprefix("ENV ").split("=", 1)
+            variables[name] = value
+    return base.replace("${WATERFALL_MIRROR}", os.environ.get("WATERFALL_MIRROR", "")), variables
+
+
+def start_keycloak(network: Network, *, image_settings: bool) -> str:
+    """Start Keycloak on the network, with the variables of its image or without; give its name.
+
+    In development mode, on a database of its own: Liquibase creates the schema all the same.
+    """
+    image, variables = keycloak_stage()
+    given = variables if image_settings else {}
+    name = network.run(
+        "keycloak",
+        *(argument for key, value in given.items() for argument in ("--env", f"{key}={value}")),
+        *(image, "start-dev"),
+    )
+    deadline = time.monotonic() + KEYCLOAK_STARTED_WITHIN
+    while "started in" not in docker("logs", name).stdout + docker("logs", name).stderr:
+        assert time.monotonic() < deadline, "Keycloak did not start"
+        time.sleep(1)
+    return name
+
+
+def test_the_image_of_keycloak_turns_the_analytics_of_liquibase_off() -> None:
+    # Read by Liquibase from the environment (WF-CMP-0030): config.liquibase.com is never asked.
+    image, variables = keycloak_stage()
+    assert image.split("@")[0].endswith("keycloak/keycloak:26.8.2-2")
+    assert variables == {"LIQUIBASE_ANALYTICS_ENABLED": "false"}
+
+
+@NO_DAEMON
+@UNEXECUTED
+def test_keycloak_as_its_image_sets_it_asks_for_no_server_outside(network: Network) -> None:
+    start_keycloak(network, image_settings=True)
+    assert network.asked() == []
+
+
+@NO_DAEMON
+@UNEXECUTED
+def test_keycloak_left_to_its_defaults_is_caught_asking_for_config_liquibase_com(
+    network: Network,
+) -> None:
+    # What makes the test above worth something: the same Keycloak, without the variable of its
+    # image, asks for the settings of the analytics of Liquibase as its schema migrates, before it
+    # says it started (queue run 45923534175).
+    keycloak = start_keycloak(network, image_settings=False)
+    found = network.asked()
+    assert found
+    assert {attempt.client for attempt in found} == {network.address_of(keycloak)}
+    assert {attempt.name for attempt in found} == {"config.liquibase.com"}

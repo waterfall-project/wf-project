@@ -60,6 +60,11 @@ FROM ${WATERFALL_MIRROR}adorsys/keycloak-config-cli:6.5.1-26.5.5@sha256:0955d98c
 FROM ${WATERFALL_MIRROR}keycloak/keycloak:26.8.2-2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0 AS production
 COPY --from=extension /build/target/waterfall-keycloak-extension.jar /opt/keycloak/providers/
 COPY themes/ /opt/keycloak/themes/
+# Liquibase, which migrates the schema of Keycloak at its start, otherwise asks config.liquibase.com
+# for the settings of its analytics, and would send them there: a component of the platform asks for
+# no server outside its network (WF-CMP-0030, US-3010). Set in the image, it holds wherever the image
+# runs — Keycloak of the Compose, of the chart, of both tests of restoration — whatever their variables.
+ENV LIQUIBASE_ANALYTICS_ENABLED=false
 # The options Keycloak fixes at build time: started with --optimized, it does not rebuild. Under
 # /auth, where the front end of the platform serves it (EP-03, "Déploiement de démonstration").
 RUN /opt/keycloak/bin/kc.sh build --db=postgres --health-enabled=true --http-relative-path=/auth
