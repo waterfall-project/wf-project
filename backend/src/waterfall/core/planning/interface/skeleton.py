@@ -282,12 +282,17 @@ def opening_main_with_tasks(session: Session, project_ids: Collection[UUID]) -> 
     revisions, one for the structures, one for the tasks.
     """
     sources = last_marked_revisions(session, project_ids)
-    mains = main_structures_of(session, sources.values()) if sources else {}
+    mains = main_structures_of(session, sources, sources.values()) if sources else {}
     if not mains:
         return frozenset()
     bearing = session.scalars(
         select(Node.structure_id)
-        .where(Node.structure_id.in_(mains.values()), Node.kind == TASK, Node.parent_id.is_(None))
+        .where(
+            Node.project_id.in_(list(sources)),
+            Node.structure_id.in_(mains.values()),
+            Node.kind == TASK,
+            Node.parent_id.is_(None),
+        )
         .distinct()
     )
     held = set(bearing)

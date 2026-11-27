@@ -363,7 +363,8 @@ def test_a_revision_whose_tasks_only_a_base_holds_bears_no_task_nor_line(
             .select_from(Node)
             .where(Node.structure_id == base_id(project, structure_id))
         )
-        assert revision_has_tasks_and_lines(session, project.revision_id) is False
+        bearing = revision_has_tasks_and_lines(session, project.project_id, project.revision_id)
+        assert bearing is False
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
