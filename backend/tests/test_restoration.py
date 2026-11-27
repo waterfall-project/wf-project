@@ -341,8 +341,9 @@ def test_after_a_restoration_a_project_made_after_the_backup_is_named_by_its_ins
     # s'affiche avec le libellé et le code de ce projet, sans mener à lui. » : a project made
     # through the service after the backup, the journal read by an account that holds the reading
     # of every project and the consultation of the projects (``can_open`` follows ``GET
-    # /projects/{id}``, which asks for both); the restoration writes the inscription back, the project is gone, and the
-    # inscription names it by what it was — and still leads to the one the backup holds.
+    # /projects/{id}``, which asks for both); the restoration writes the inscription back, the
+    # project is gone, and the inscription names it by what it was — and still leads to the one
+    # the backup holds.
     api, stage, database = carrying.api, carrying.stage, installation.database
     reading = ("audit_log.read", "project_settings.read", "all_projects_read")
     reader = person(database, realm, *reading)
