@@ -59,6 +59,7 @@ beside its other platforms.
 """
 
 import http.client
+import ipaddress
 import json
 import os
 import re
@@ -139,8 +140,13 @@ extendedKeyUsage = serverAuth
 subjectAltName = DNS:{domain}
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid
+authorityInfoAccess = OCSP;URI:http://ocsp.authority.example.net/
 """
-"""What openssl writes in the root of the authority of test, and in the certificate of the door."""
+"""What openssl writes in the root of the authority of test, and in the certificate of the door.
+
+The certificate of the door names an OCSP responder outside the platform, as an authority of the
+operator's may: Caddy staples OCSP by default, and would ask it (see ``Caddyfile.prod``).
+"""
 PROJECT = "waterfall-production-trial"
 ADMIN = "administrateur@waterfall.test"
 # The currency and the name of the company a local trial installs, unless the environment says
@@ -245,7 +251,8 @@ class Platform:
     @property
     def local(self) -> bool:
         """Tell whether Caddy certifies the domain from its own authority (compose.prod.local)."""
-        return self.domain == "localhost" or self.domain.endswith(LOCAL_NAMES)
+        named = self.domain == "localhost" or self.domain.endswith(LOCAL_NAMES)
+        return named or is_address(self.domain)
 
 
 @dataclass(slots=True)
@@ -671,6 +678,15 @@ def platform_of(environment: Mapping[str, str]) -> Platform:
     return Platform(domain, https_port, http_port)
 
 
+def is_address(domain: str) -> bool:
+    """Tell whether ``domain`` is an IP address, which Caddyfile.prod ranges with local names."""
+    try:
+        ipaddress.ip_address(domain)
+    except ValueError:
+        return False
+    return True
+
+
 def given_door(platform: Platform, folder: Path) -> tuple[Platform, dict[str, str]]:
     """Give the door of a platform under a public name its certificate, in ``folder``.
 
@@ -690,7 +706,7 @@ def door_certificate(folder: Path, domain: str) -> Path:
     certificate its root holds. Return the folder of ``WATERFALL_DOOR_DIRECTORY``: ``tls.crt``,
     ``tls.key`` and ``ca.crt``, the root, readable by Caddy and by ``door-authority``.
     """
-    if not NAME.fullmatch(domain):
+    if not NAME.fullmatch(domain) or is_address(domain):
         message = f"{domain!r} is no name a certificate is issued for"
         raise ProductionError(message)
     door = folder / "door"

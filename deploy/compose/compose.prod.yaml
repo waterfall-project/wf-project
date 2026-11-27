@@ -191,12 +191,22 @@ services:
   # Writes the roots the front checks the door against, then stops: the root of the platform, and
   # the root of the certificate of the domain when the operator gives it (WF-CMP-0030); under a
   # local name, compose.prod.local.yaml writes Caddy's own instead.
+  #
+  # The root of the operator becomes an anchor of the front for every name it reaches — Node does
+  # not bound NODE_EXTRA_CA_CERTS to one name: api:8443 and redis too —, so it should be an authority
+  # of its own for the door, or an intermediate one (docs/exploitation/reseau-isole.md). A ca.crt
+  # that holds no certificate stops this service, and the front with it.
+  #
+  # It mounts the whole folder, tls.key too, though it reads ca.crt alone: the folder is the setting
+  # (default ./door), and a bind of one file would need a second setting, or a default that exists
+  # when the operator gives nothing. Read-only, and it runs once, as cat and grep, on no network
+  # but the default.
   door-authority:
     image: ${WATERFALL_MIRROR:-}caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
     command:
       - sh
       - -c
-      - cat /trust/root.crt ${WATERFALL_DOOR_DIRECTORY:+/door/ca.crt} > /roots/roots.crt.new && chmod 0644 /roots/roots.crt.new && mv /roots/roots.crt.new /roots/roots.crt
+      - ${WATERFALL_DOOR_DIRECTORY:+grep -q 'BEGIN CERTIFICATE' /door/ca.crt || (echo 'ca.crt of the door holds no certificate' >&2; exit 1) &&} cat /trust/root.crt ${WATERFALL_DOOR_DIRECTORY:+/door/ca.crt} > /roots/roots.crt.new && chmod 0644 /roots/roots.crt.new && mv /roots/roots.crt.new /roots/roots.crt
     volumes:
       - *trust
       - *door

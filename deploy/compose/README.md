@@ -155,8 +155,10 @@ non chiffrée, lisible de root seul, et `ca.crt`, la racine qui les signe, dans 
 voisin de ce fichier — git l'ignore —, que nomme `WATERFALL_DOOR_DIRECTORY=./door` dans `.env`.
 Caddy le sert tel quel et ne demande alors de certificat à personne ; le service `door-authority`
 écrit cette racine après celle de la plateforme, et le front, qui joint Keycloak par la porte, se
-fie aux deux. Rien ne le renouvelle : déposer le suivant avant son expiration, puis arrêter la
-plateforme et la redémarrer (`down`, sans `--volumes`, puis `up --detach --wait`).
+fie aux deux — pour tous les noms qu'il joint, l'API et Redis compris : mieux vaut déposer la racine
+d'une autorité dédiée à la porte, ou d'un intermédiaire dédié, non celle de toute l'entreprise
+(`docs/exploitation/reseau-isole.md`). Rien ne le renouvelle : déposer le suivant avant son
+expiration, puis arrêter la plateforme et la redémarrer (`down`, sans `--volumes`, puis `up --detach --wait`).
 [`docs/exploitation/reseau-isole.md`](../../docs/exploitation/reseau-isole.md) dit comment le
 déposer. Sans ce réglage, rien ne change.
 

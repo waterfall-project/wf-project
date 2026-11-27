@@ -370,7 +370,7 @@ def test_every_client_reaches_its_server_encrypted_and_checks_it_against_the_roo
     front = environment("front")
     assert front["WATERFALL_API_ADDRESS"] == "https://api:8443"
     assert front["NODE_EXTRA_CA_CERTS"] == ROOTS
-    assert " ".join(services()["door-authority"]["command"]).startswith(f"sh -c cat {ROOT} ")
+    assert f" cat {ROOT} " in " ".join(services()["door-authority"]["command"])
     assert environment("keycloak-realm")["KEYCLOAK_URL"] == "https://keycloak:8443/auth"
     door = (COMPOSE / "Caddyfile.prod").read_text(encoding="utf-8")
     # The door reaches Keycloak, the front and Grafana in TLS, each checked against the root.

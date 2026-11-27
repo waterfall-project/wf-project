@@ -14,6 +14,17 @@
 # address — gets its certificate from Caddy's own authority instead, whose root is kept in its
 # volume (compose.prod.local.yaml). A certificate the operator gives, issued by their authority, is
 # served as it is, under any name, and Caddy then asks no one for one (WF-CMP-0030, below).
+# (Defined here, before the global options that import it: a snippet imported there is not found
+# when defined after.)
+(ocsp-given) {
+	# Caddy staples an OCSP answer to a certificate it loads when the certificate names a responder
+	# (AIA) and its chain holds the issuer: a connection out, to the responder of the operator's
+	# authority, which the network may not reach. None here. With no certificate given, Caddy is left
+	# as it was: Let's Encrypt no longer issues certificates that name a responder.
+	ocsp_stapling off
+}
+(ocsp-) {
+}
 {
 	# The account Let's Encrypt writes to before a certificate expires.
 	email {$WATERFALL_ACME_EMAIL}
@@ -26,6 +37,8 @@
 	servers {
 		protocols h1 h2
 	}
+	# What the certificate given says about its revocation, as the setting says (below).
+	import ocsp-{$WATERFALL_DOOR_CERTIFICATE}
 }
 
 # A server behind the door, in TLS: the host as the browser gave it, the certificate checked against

@@ -120,6 +120,17 @@ def test_a_local_name_gives_the_door_nothing(tmp_path: Path) -> None:
     assert list(tmp_path.iterdir()) == []
 
 
+def test_an_address_is_a_local_name_as_the_caddyfile_ranges_it(tmp_path: Path) -> None:
+    for address in ("127.0.0.1", "10.1.2.3", "::1"):
+        platform = Platform(address, 443, 80)
+        assert platform.local, address
+        assert production.given_door(platform, tmp_path) == (platform, {})
+    assert not Platform("waterfall.example.org", 443, 80).local
+    with pytest.raises(ProductionError, match="is no name a certificate is issued for"):
+        production.door_certificate(tmp_path, "127.0.0.1")
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_a_domain_that_is_no_name_is_refused_before_openssl(tmp_path: Path) -> None:
     with pytest.raises(ProductionError, match="is no name a certificate is issued for"):
         production.door_certificate(tmp_path, "waterfall.example.org\nsubjectAltName = DNS:x")
@@ -136,7 +147,10 @@ def test_the_setting_gives_caddy_the_certificate_and_the_front_its_root() -> Non
         mounts = service["volumes"]
         mounted = {(each["source"], each["target"], each.get("read_only")) for each in mounts}
         assert (GIVEN["WATERFALL_DOOR_DIRECTORY"], "/door", True) in mounted
-    assert "cat /trust/root.crt /door/ca.crt > /roots/" in " ".join(roots["command"])
+    command = " ".join(roots["command"])
+    assert "cat /trust/root.crt /door/ca.crt > /roots/" in command
+    # The root given must hold a certificate: else the front would start trusting nothing more.
+    assert command.index("grep -q 'BEGIN CERTIFICATE' /door/ca.crt") < command.index("cat /trust")
     assert front["environment"]["NODE_EXTRA_CA_CERTS"] == "/roots/roots.crt"
     assert front["depends_on"]["door-authority"]["condition"] == "service_completed_successfully"
 
@@ -148,7 +162,9 @@ def test_without_the_setting_caddy_obtains_the_certificate_and_the_front_trusts_
 ):
     found = compose(PRODUCTION)["services"]
     assert found["caddy"]["environment"]["WATERFALL_DOOR_CERTIFICATE"] == ""
-    assert "sh -c cat /trust/root.crt  > /roots/" in " ".join(found["door-authority"]["command"])
+    command = " ".join(found["door-authority"]["command"])
+    assert "cat /trust/root.crt  > /roots/" in command
+    assert "grep" not in command
 
 
 def test_the_documentation_says_how_to_give_the_certificate_of_the_door() -> None:
@@ -162,6 +178,13 @@ def test_the_documentation_says_how_to_give_the_certificate_of_the_door() -> Non
     assert "# WATERFALL_DOOR_DIRECTORY=./door\n" in settings
     assert "### Le certificat de la porte" in compose_readme
     assert "#5055" not in operation
+    # The root given is an anchor of the front for every name it reaches: the text says so, and
+    # advises an authority, or an intermediate one, made for the door.
+    for named in ("NODE_EXTRA_CA_CERTS", "api:8443", "dédiée à la porte"):
+        assert named in operation, named
+    for text in (compose_readme, settings):
+        assert "dedicated" in text or "dédiée" in text
+    assert "OCSP" in operation
 
 
 def adapted(certificate: str) -> dict[str, Any]:
@@ -200,6 +223,33 @@ def test_caddy_loads_the_certificate_given_and_nothing_without_it() -> None:
     assert "certificates" not in obtained["apps"]["tls"]
     assert "tls_connection_policies" not in obtained["apps"]["http"]["servers"]["srv0"]
     assert obtained["apps"]["tls"]["automation"]["policies"][0]["subjects"] == [DOMAIN]
+    # A certificate given may name an OCSP responder the network does not reach: no stapling then.
+    assert given["apps"]["tls"]["disable_ocsp_stapling"] is True
+    assert "disable_ocsp_stapling" not in obtained["apps"]["tls"]
+
+
+@NO_DOCKER
+@UNEXECUTED
+def test_the_service_of_the_roots_stops_on_a_root_that_is_no_certificate(tmp_path: Path) -> None:
+    found = compose(PRODUCTION, ISOLATED, given=GIVEN)["services"]["door-authority"]
+    trusted, door, roots = tmp_path / "trust", tmp_path / "door", tmp_path / "roots"
+    for folder in (trusted, door, roots):
+        folder.mkdir()
+    (trusted / "root.crt").write_text("-----BEGIN CERTIFICATE-----\nplatform\n", encoding="utf-8")
+    command = found["command"]
+    volumes = {trusted: "/trust", door: "/door", roots: "/roots"}
+    outcomes = {}
+    for content in ("", "not a certificate\n", "-----BEGIN CERTIFICATE-----\nroot\n"):
+        (door / "ca.crt").write_text(content, encoding="utf-8")
+        done = docker(
+            *("run", "--rm", "--network", "none"),
+            *(word for path, to in volumes.items() for word in ("--volume", f"{path}:{to}")),
+            mirrored(str(found["image"])),
+            *command,
+        )
+        outcomes[content] = done.returncode
+    assert outcomes == {"": 1, "not a certificate\n": 1, "-----BEGIN CERTIFICATE-----\nroot\n": 0}
+    assert (roots / "roots.crt").read_text(encoding="utf-8").endswith("root\n")
 
 
 @pytest.fixture
@@ -272,6 +322,10 @@ def test_caddy_presents_the_certificate_given_under_a_public_name_and_asks_for_n
     network: Network, tmp_path: Path
 ) -> None:
     door = production.door_certificate(tmp_path, DOMAIN)
+    # As an operator's chain is: the issuer follows the certificate, so that Caddy could staple
+    # OCSP, and ask the responder the certificate names, outside the network.
+    with (door / "tls.crt").open("a", encoding="utf-8") as chain:
+        chain.write((door / production.DOOR_ROOT).read_text(encoding="utf-8"))
     caddy = start_caddy(network, tmp_path, door)
     expected = hashlib.sha256(first_certificate(door / "tls.crt")).hexdigest()
     assert presented(network, caddy, door) == expected
