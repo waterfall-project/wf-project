@@ -41,18 +41,22 @@ async function retained(page: Page): Promise<number> {
 }
 
 /**
- * The rows the grid holds for its page, as it says them (`aria-rowcount`, the header and the totals
+ * Waits for the grid to hold the rows `expected` for its page, as it says them (`aria-rowcount`, the header and the totals
  * row apart): the grid renders only the rows in view, so the rows read are fewer than the page.
  */
-async function pageRows(page: Page): Promise<number> {
-  const count = await gridOf(page).getAttribute("aria-rowcount");
-  return Number(count) - 2;
+async function pageRows(page: Page, expected: number): Promise<void> {
+  const grid = gridOf(page);
+  // While the page loads the grid says three rows (the header, the totals row and a placeholder):
+  // the count is awaited, not read once.
+  await expect(grid).toHaveAttribute("aria-rowcount", String(expected + 2), { timeout: WORKING });
 }
 
 /** The codes of the rows the grid shows, in the order it shows them. */
 async function codes(page: Page): Promise<string[]> {
   const grid = gridOf(page);
-  await expect(grid.getByRole("row").nth(2)).toBeVisible({ timeout: WORKING });
+  await expect(grid.getByRole("gridcell", { name: /^[A-Z]+-\d+$/ }).first()).toBeVisible({
+    timeout: WORKING,
+  });
   const cells = await grid.getByRole("gridcell", { name: /^[A-Z]+-\d+$/ }).allInnerTexts();
   return cells.map((text) => text.trim());
 }
@@ -67,8 +71,8 @@ async function codes(page: Page): Promise<string[]> {
 function collationSafe(read: string[]): boolean {
   const widths = new Map<string, Set<number>>();
   for (const code of read) {
+    if (!/^[A-Z]{3}-\d+$/.test(code)) return false;
     const [prefix = "", digits = ""] = code.split("-");
-    if (!/^[A-Z]{3}$/.test(prefix) || !/^\d+$/.test(digits)) return false;
     widths.set(prefix, (widths.get(prefix) ?? new Set<number>()).add(digits.length));
   }
   return [...widths.values()].every((set) => set.size === 1);
@@ -92,6 +96,8 @@ async function range(page: Page): Promise<{ from: number; to: number; of: number
 test("reads the three hundred projects of the set: the count its header, its totals row and its pages agree on [US-2950]", async ({
   page,
 }) => {
+  // Worst case: two `goto`, each followed by waits of up to WORKING for the totals row and the
+  // range, then a `toContainText` of WORKING: together beyond the 30 s default of a test.
   test.slow();
   await page.goto(ALL_STATES);
   const total = await retained(page);
@@ -107,6 +113,7 @@ test("reads the three hundred projects of the set: the count its header, its tot
   // and its totals row both say.
   await page.goto(PROJECTS);
   const perimeter = await retained(page);
+  expect(perimeter).toBeGreaterThan(0);
   expect(perimeter).toBeLessThan(total);
   await expect(page.getByRole("main")).toContainText(`· ${String(perimeter)} projets ·`, {
     timeout: WORKING,
@@ -127,7 +134,7 @@ test("turns the pages of the three hundred projects, each page the next rows of 
   // The page is as long as the server cut it, and shorter than the list: there are pages to turn.
   // The codes read are those in view (the grid renders no more), the rows the grid holds are counted.
   expect(size).toBeLessThan(total);
-  expect(await pageRows(page)).toBe(size);
+  await pageRows(page, size);
   await expect(pages.getByRole("link", { name: /^Précédent/ })).toHaveAttribute(
     "aria-disabled",
     "true",
@@ -139,8 +146,10 @@ test("turns the pages of the three hundred projects, each page the next rows of 
   await expect(
     page.getByText(`${String(size + 1)}–${String(2 * size)} sur ${String(total)}`),
   ).toBeVisible();
-  expect(await pageRows(page)).toBe(size);
+  await pageRows(page, size);
   const second = await codes(page);
+  expect(first.length).toBeGreaterThan(0);
+  expect(second.length).toBeGreaterThan(0);
   expect(second.filter((code) => first.includes(code))).toEqual([]);
   // The last page, asked by its address: the rows left, and « Suivant » inert.
   await page.goto(`${sorted}&offset=${String((last - 1) * size)}`);
@@ -154,7 +163,7 @@ test("turns the pages of the three hundred projects, each page the next rows of 
   await expect(
     page.getByText(`${String((last - 1) * size + 1)}–${String(total)} sur ${String(total)}`),
   ).toBeVisible();
-  expect(await pageRows(page)).toBe(total - (last - 1) * size);
+  await pageRows(page, total - (last - 1) * size);
 });
 
 test("sorts the three hundred projects by the server: a list the order of which follows the sort, and the other way round [US-2950]", async ({
