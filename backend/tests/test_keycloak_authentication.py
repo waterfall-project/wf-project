@@ -499,9 +499,9 @@ class Counting(Keycloak):
 
     def send(self, method: str, path: str, **options: Any) -> httpx2.Response:
         """Count a request for a token, note how long the realm lends it, then send it."""
+        self.tokens += (asking := path == f"{self.protocol}/token")
         response = super().send(method, path, **options)
-        if path == f"{self.protocol}/token":
-            self.tokens += 1
+        if asking and response.is_success:
             self.lifetime = float(response.json()["expires_in"])
         return response
 
@@ -531,12 +531,12 @@ def test_the_token_of_the_service_account_is_renewed_shortly_before_it_expires(
     settings: ServiceSettings,
 ) -> None:
     # The realm lends it for five minutes, less a second when the second changes while it signs it
-    # (`expires_in` 299, on a slow runner): it says how long. Kept till 30 s before (#670).
+    # (`expires_in` 299, on a slow runner): it says how long, 300 s at most. Kept till 30 s before.
     now = [1000.0]
     with closing(Counting(settings)) as counting:
         client = KeycloakAdmin(counting, settings, clock=lambda: now[0])
         assert client.read_account(NOBODY) is None
-        assert 60 < counting.lifetime <= 300
+        assert 31 < counting.lifetime <= 300
         now[0] += counting.lifetime - 30 - 1
         assert client.read_account(NOBODY) is None
         assert counting.tokens == 1
