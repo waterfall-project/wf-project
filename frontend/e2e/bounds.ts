@@ -144,3 +144,13 @@ export const BACKUP_DONE = 180_000;
  * the screens of a runner under load.
  */
 export const PROJECT_MANAGER_PATH = 360_000;
+
+/**
+ * How long a backup the planners deposit is given to be taken, verified and copied to the external
+ * location, in milliseconds (`service/backup-schedule.spec.ts`): the minute the schedule is set to
+ * (a margin of forty seconds at least, then the command of the planners), then a task taken from
+ * the queue, a dump and a copy of the files, its verification and its copy. Not measured on its
+ * own: `BACKUP_DONE` and the minute, which is two minutes and a half in all, doubled for a runner
+ * under load.
+ */
+export const SCHEDULED_BACKUP_COPIED = 2 * (BACKUP_DONE + 60_000) + 60_000;

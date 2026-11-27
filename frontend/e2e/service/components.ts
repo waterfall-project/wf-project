@@ -23,7 +23,7 @@ const CONTAINERS = {
 export type Stoppable = keyof typeof CONTAINERS;
 
 /** The identifier of the container of a component, as `make e2e-service` gave it. */
-function container(component: Stoppable): string {
+export function container(component: Stoppable): string {
   const name = process.env[CONTAINERS[component]];
   if (name === undefined || name === "") {
     throw new Error(

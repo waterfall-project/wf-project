@@ -34,6 +34,14 @@ x-back: &back
 # API serves on them, and PostgreSQL counts fifteen connections for each.
 x-api-processes: &api-processes ${WATERFALL_API_PROCESSES:-4}
 
+# The external locations of the backups (US-2910, WF-ADM-0170): one location, mounted_share, a share
+# mounted on the server — the folder /srv/external-share of the volume external-share, which the API
+# and the worker both mount — declared by the file service-external-locations.json, mounted in both
+# as a secret as production mounts its own (#4655, #4667). The paths of the front choose it, test it
+# and find the copy on it: the volume is theirs to read, from the container of the worker.
+x-external-locations: &external-locations
+  WATERFALL_EXTERNAL_BACKUP_LOCATIONS_FILE: /run/secrets/external-locations
+
 # Where the browser and the server of Next reach Keycloak, through its front end: the issuer of
 # every token, whoever asks for it; the port the front end is published on, which alone moves —
 # the front end serves localhost and 127.0.0.1 only (#735).
@@ -201,9 +209,13 @@ services:
   api:
     <<: *back
     environment:
-      <<: [*back-environment, *keycloak-client-environment, *storage-environment]
+      <<: [*back-environment, *keycloak-client-environment, *storage-environment, *external-locations]
       WATERFALL_INDICATORS_CACHE_TTL: ${WATERFALL_INDICATORS_CACHE_TTL:-600}
       WATERFALL_API_PROCESSES: *api-processes
+    secrets:
+      - external-locations
+    volumes:
+      - external-share:/srv/external-share
     depends_on:
       service-database-role:
         condition: service_completed_successfully
@@ -225,8 +237,12 @@ services:
   # off (#895), into the bucket of the backups.
   worker:
     <<: *back
+    secrets:
+      - external-locations
+    volumes:
+      - external-share:/srv/external-share
     environment:
-      <<: [*back-environment, *keycloak-client-environment, *storage-environment]
+      <<: [*back-environment, *keycloak-client-environment, *storage-environment, *external-locations]
       WATERFALL_BACKUP_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?export WATERFALL_BACKUP_DATABASE_PASSWORD}@postgres:5432/waterfall
       WATERFALL_KEYCLOAK_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?export WATERFALL_BACKUP_DATABASE_PASSWORD}@postgres:5432/keycloak
       # What its purge keeps: the undo history of a session, the result of a task ended (US-2830).
@@ -727,9 +743,21 @@ services:
       supervision-authority:
         condition: service_completed_successfully
 
+secrets:
+  external-locations:
+    file: ./service-external-locations.json
+
 volumes:
   postgres-data:
   storage-data:
+  # The share the location mounted_share stands for, in memory, written by the user of the image
+  # (1000) in the API and in the worker, which both mount it (#4667).
+  external-share:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: uid=1000,gid=1000,mode=0700,size=64m
   # Where the service of the restoration asks keycloak-realm to apply the realm again: in memory,
   # theirs alone, written by the user of both images.
   realm-requests:

@@ -1,0 +1,7 @@
+{
+  "mounted_share": {
+    "kind": "mounted_share",
+    "description": "Partage monté du parcours de service, le volume external-share.",
+    "directory": "/srv/external-share"
+  }
+}
