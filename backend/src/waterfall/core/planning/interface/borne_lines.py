@@ -73,7 +73,7 @@ def first_task(session: Session, project_id: UUID, structure_id: UUID) -> TaskNa
     return found[0] if found else None
 
 
-def structures_have_task(session: Session, structures: Select[UUID]) -> bool:
+def structures_have_task(session: Session, project_id: UUID, structures: Select[UUID]) -> bool:
     """Tell whether one of the structures selected has a task at its first level.
 
     What the declaration of a risk asks of the main structure of a revision (WF-RIS-0010,
@@ -84,7 +84,10 @@ def structures_have_task(session: Session, structures: Select[UUID]) -> bool:
         session.scalar(
             select(
                 exists().where(
-                    Node.structure_id.in_(structures), Node.kind == TASK, Node.parent_id.is_(None)
+                    Node.project_id == project_id,
+                    Node.structure_id.in_(structures),
+                    Node.kind == TASK,
+                    Node.parent_id.is_(None),
                 )
             )
         )

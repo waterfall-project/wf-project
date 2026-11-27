@@ -9,8 +9,15 @@ AuditAction:
     reference revision, the merge of a differential (`structure_merge`, WF-REV-0050), the
     abandonment of a differential that is not merged (`structure_abandon`,
     `deleteCostStructure`, WF-REV-0100; conception of EP-08), the declaration of an occurred
-    risk, the exit of a project from the life cycle, the exclusion and the reinstatement of a
-    cost line, the application of an import, the creation and the
+    risk, the exit of a project from the life cycle, the registration, the removal and the change
+    of capacity of a project manager in the list of contributors of a project, by
+    `setContributors` (WF-PRJ-0060; #3988, #4127) — an account registered as project manager
+    (`project_manager_add`), a project manager removed from the list
+    (`project_manager_remove`), a contributor already registered whose capacity changes to or
+    from project manager (`project_manager_change`); the registration and the removal of a
+    participant are not recorded, nor the creator registered by the creation of the project,
+    which `project_create` records —, the exclusion and the reinstatement of a cost line, the
+    application of an import, the creation and the
     modification of accounts — including their deactivation and their reactivation, their
     anonymisation (`user_anonymize`, WF-ADM-0060), and the link that sets a password, obtained
     or resent by email, without its token (`password_link_create`, `createPasswordSetupLink`
@@ -26,6 +33,9 @@ AuditAction:
     - structure_abandon
     - risk_occurrence
     - project_exit
+    - project_manager_add
+    - project_manager_remove
+    - project_manager_change
     - cost_line_exclude
     - cost_line_reinstate
     - import_apply
@@ -54,8 +64,10 @@ AuditObjectKind:
   description: >-
     The kind of the object an entry concerns: the project created or exited from the life
     cycle, the revision marked, abandoned or designated, the differential structure merged or
-    abandoned, the occurred risk, the cost line excluded or reinstated, the import applied, the
-    account, the role, the backup taken or restored, and the upload of a backup copied outside
+    abandoned, the occurred risk, the contributor of a project registered, removed or changed in
+    capacity as project manager (`contributor`, by the identifier of its account, `object_id`, and
+    the display name of that account, `label`; #4127), the cost line excluded or reinstated, the
+    import applied, the account, the role, the backup taken or restored, and the upload of a backup copied outside
     the platform that a restore puts back in place (`external_backup_upload`, the identifier of
     the upload, `RestoreRequest.external_backup_upload_id`; WF-SEC-0030, WF-ADM-0160).
   enum:
@@ -63,6 +75,7 @@ AuditObjectKind:
     - revision
     - cost_structure
     - risk
+    - contributor
     - cost_line
     - import
     - user
@@ -87,12 +100,14 @@ AuditObject:
       description: >-
         The label of the object at the time of the action — the version name of a revision,
         the document number of a cost line, the file name of an import, the display name of
-        an account, the file name of an upload —; null for a backup, which has none: for the
+        an account, that of the account of a contributor, the file name of an upload —; null
+        for a backup, which has none: for the
         action `backup`, its date is that of the entry; for `restore`, it is in
         `params.backup_taken_at`, the entry dating the end of the restore; null for an
         abandoned revision in progress, which does not yet have a version name (WF-REV-0010);
         null for an anonymised account, whose anonymisation erases its name from all the
-        entries that designate it, the only modification an entry admits (WF-SEC-0030,
+        entries that designate it, as an account or as a contributor, the only modification an
+        entry admits (WF-SEC-0030,
         WF-ADM-0060): the front presents it under the neutral label of its catalogue.
     revision:
       anyOf: [{ $ref: '#/AuditRevision' }, { type: 'null' }]
@@ -102,7 +117,8 @@ AuditObject:
         it merges its own estimate (WF-RIS-0060) —, that of the differential structure
         (`CostStructure.revision_id`, WF-REV-0050), the one to which the import of a planning,
         an estimate or a remaining to commit applies (WF-INTF-0090). Null for an object that
-        does not live in a revision: the project, a revision itself, an actual cost line,
+        does not live in a revision: the project, a revision itself, a contributor, an actual
+        cost line,
         charged to the project (WF-CRE-0010), and the import of actual costs, since only the
         imports of a planning, an estimate or a remaining to commit apply to a revision
         (WF-INTF-0090), an account, a role, a backup, an upload.
@@ -217,7 +233,9 @@ AuditParams:
     abandonment of a differential (`structure_abandon`), which the entry designates by its
     identifier, its label of the moment and its revision, its nodes deleted with it; for the
     marking, the designation, the merge, the occurrence, the exclusion and the reinstatement
-    of a cost line, which their object says in full; for a backup, whose origin is read from
+    of a cost line, which their object says in full; for the registration, the removal and the
+    change of capacity of a project manager, which the entry designates by the account of the
+    contributor and by its project (#4127); for a backup, whose origin is read from
     the author — the platform for a scheduled one. The exit from the life cycle gives the
     state reached and its reason, the restore the date of the backup put back in place, the
     application of an import its kind. A new parameter is a change to the contract.

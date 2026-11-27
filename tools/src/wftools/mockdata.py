@@ -96,6 +96,7 @@ from wftools import (
     mockanonymized,
     mockaudit,
     mockauditadmin,
+    mockauditmanagers,
     mockchronology,
     mockcomparisons,
     mockcore,
@@ -192,9 +193,10 @@ def named() -> dict[str, JsonObject]:
 
     Its readings, its writes, its history — its revisions compared and its risks —, its indicators
     today, its actual costs with the journal of their imports; the views of the portfolio over time
-    (``mockportfoliotime``); the audit (``mockaudit``) and its variants of the administration and of
-    a restore (``mockauditadmin``); the lists of the reference (``mockreference``), of the projects,
-    the subprojects and the contributors (``mocklists``), the contributors once an account is
+    (``mockportfoliotime``); the audit (``mockaudit``), its variants of the administration and of
+    a restore (``mockauditadmin``) and its project managers (``mockauditmanagers``); the lists of
+    the reference (``mockreference``), of the projects, the subprojects and the contributors
+    (``mocklists``), the contributors once an account is
     anonymised (``mockanonymized``); the exit of the witness (``mockproject``); the refusals of one
     form each (``mockrefusals``), those the contract declared without a code, a condition nor an
     example (``mockdeclared``), of the administration (``mockadminrefusals``), served undeclared
@@ -224,6 +226,7 @@ def named() -> dict[str, JsonObject]:
         **mockportfolio.refusals(),
         **mockaudit.examples(),
         **mockauditadmin.examples(),
+        **mockauditmanagers.examples(),
         **mockreference.named(),
         **mocklists.examples(),
         **mockanonymized.examples(),

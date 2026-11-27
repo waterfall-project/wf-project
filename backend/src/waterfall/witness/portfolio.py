@@ -247,7 +247,7 @@ class _Writing:
         created = ProjectDraft(draft.label, draft.description, client, project.code)
         load_project(self.session, ProjectLoad(project.project_id, created), act)
         entries = (ContributorEntry(self.manager.user_id, MANAGER),)
-        load_contributors(self.session, ContributorsLoad(project.project_id, entries, 1))
+        load_contributors(self.session, ContributorsLoad(project.project_id, entries, 1), act)
         values = {
             "inflation_rate": project.inflation_rate.root,
             "win_probability": project.win_probability.root,

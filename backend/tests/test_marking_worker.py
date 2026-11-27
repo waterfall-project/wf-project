@@ -165,6 +165,7 @@ def test_a_chief_demoted_before_the_worker_runs_fails_the_exit_that_marks_and_wr
             UUID(stage.project["project_id"]),
             demotion,
             Viewer(stage.manager.user_id, ()),
+            Act(stage.manager.user_id, utc_now()),
         )
     before = journal(database)
     assert worker.step()
