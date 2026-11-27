@@ -20,7 +20,7 @@ import subprocess
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -879,18 +879,17 @@ class Answering(Keycloak):
     ids=["no address", "no moment", "a moment without a zone", "no object"],
 )
 def test_an_answer_of_the_extension_without_a_link_is_a_defect(answer: object) -> None:
-    keycloak = Answering(answer)
-    with pytest.raises(IdentityProviderError, match="answered no link"):
+    with (
+        closing(Answering(answer)) as keycloak,
+        pytest.raises(IdentityProviderError, match="answered no link"),
+    ):
         KeycloakAdmin(keycloak, served_settings()).make_password_link(NOBODY)
-    keycloak.close()
 
 
 def test_a_link_read_from_the_extension_never_shows_itself() -> None:
-    keycloak = Answering(
-        {"url": "https://example.org/x?key=secret", "expires_at": "2026-10-11T12:00:00Z"}
-    )
-    link = KeycloakAdmin(keycloak, served_settings()).make_password_link(NOBODY)
-    keycloak.close()
+    answer = {"url": "https://example.org/x?key=secret", "expires_at": "2026-10-11T12:00:00Z"}
+    with closing(Answering(answer)) as keycloak:
+        link = KeycloakAdmin(keycloak, served_settings()).make_password_link(NOBODY)
     assert link is not None
     assert (link.url, link.expires_at) == (
         "https://example.org/x?key=secret",

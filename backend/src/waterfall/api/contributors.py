@@ -43,6 +43,8 @@ from waterfall.core.projects.interface import (
     list_contributors,
     set_contributors,
 )
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
 from waterfall.platform.errors import ForbiddenError
 
 router = APIRouter(tags=["projects"])
@@ -159,7 +161,8 @@ def put_contributors(
         tuple(ContributorEntry(line.user_id.root, line.kind.value) for line in body.contributors),
         body.lock_version.root,
     )
-    return listed_contributors(set_contributors(session, project_id, write, viewer_of(actor)))
+    act = Act(actor.user_id, utc_now())
+    return listed_contributors(set_contributors(session, project_id, write, viewer_of(actor), act))
 
 
 @router.get(

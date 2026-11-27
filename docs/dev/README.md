@@ -86,6 +86,90 @@ and the lists of the service compared with the examples of the contract, the aud
 `fixtures/api/` and Prism remain the examples of the contract and the fake back of the screens the
 service does not serve.
 
+**The reference set (EP-13, US-2950).** `waterfall-api load-reference` loads the reference data set of
+WF-QUA-0040: the witness first, as `load-witness` loads it (or nothing, on a platform that holds
+it), then what the seed (`waterfall.witness.reference_draw`, SHA-256, never `random`) draws beside
+it — the reference of table 13: forty nodes, a hundred and fifty roles, five hundred accounts, in one
+transaction; the projects, one per transaction, up to three hundred in the portfolio
+(`--projects N`), narrow ones (three to eight tasks, their project manager as only contributor, no
+subproject), written as those of the slice of the portfolio; last the history of PRJ-001, the
+witness's project of a thousand tasks (`waterfall.witness.reference_history`): one month per
+transaction, the first Monday of each month from July 2026, which applies the month's import of
+actual costs, marks the revision in progress under the name of the month ("Revue de juillet 2026") by
+the very transaction of the worker (`load_marking`) and opens the next by the copy of the one it has
+just marked — a hundred and eighty revisions marked in all (`--revisions N`, the witness counting its
+own) and eighteen thousand lines of cost (`--cost-lines N`), which the months share, a hundred a month
+give or take a line. Everything goes through the interfaces of the modules, never by an `INSERT`; the
+identifiers a module draws are drawn in order (`drawn_in_order`), under an instant of each
+transaction's own. Stopped, the command is taken up where it stopped: a project the platform holds is
+passed over, and the marked revisions of PRJ-001 say which month the history is at — never a
+transaction half written. The full set takes close to an hour (a month: about fifteen seconds, the
+marking of a revision of a thousand tasks being most of it): it is engendered once per version, and
+the tests play only its shape, one project drawn per combination of life and three months of history
+(`backend/tests/test_witness_reference.py`, `backend/tests/test_witness_reference_history.py`).
+
+`waterfall-api check-reference` verifies its volumes on the platform that holds it, never comparing
+it with the examples of the contract at three hundred projects (`fixtures/api/volume/`), which stay
+those of the fake back: the witness stays the oracle of the values, the set the oracle of the
+volumes. It counts what the product counts of a backup (projects, marked revisions, lines of cost,
+as the inventory of the manifest) against what the seed and the witness announce; it looks for each
+identifier and each label the seed derives — nodes, roles, accounts, projects, revisions of the
+history of PRJ-001 —, which is the reproducibility: a set engendered twice, or restored, is the same;
+and it holds the sums of the portfolio: its count equal to the projects it lists, the reference
+budget of each row of a project in progress equal to the one the estimate (`portfolio_totals`) reads
+of the project, and its order book equal to the sum of those budgets. It writes the volumes counted
+then each fault (`fault: …`), and ends 0, 1 at the first fault, or 2 on a setting that lacks or a
+history whose lines would have no month; a history that asks fewer revisions or lines than the
+witness holds writes nothing, and says so on the error output (`warning: …`), as `load-reference`
+does. A resumption on a PRJ-001 whose revisions marked beyond the witness's do not bear the names of
+the first months of the history is refused. `make service-reference` loads the set on the started and bootstrapped service platform
+(`REFERENCE_PROJECTS`, `REFERENCE_REVISIONS`, `REFERENCE_COST_LINES` for less, for a trial for
+instance), `make service-reference-check` verifies it; both run the service `witness` of the service
+Compose under another command.
+
+**The set kept as a backup (US-2950/L2b, #4114).** Engendered once per version, the set is kept as a
+backup, and what uses it — paths, measure, exercise of recovery — restores it instead of engendering
+it again, without an actor, a route or a token of an administrator.
+`waterfall-api backup-reference --into <folder>` (same `--projects`, `--revisions`, `--cost-lines`)
+first refuses a platform whose schedule sets an external copy not suspended — the copy would carry
+the archive, the secrets of the realm in it, to its location — then one that does not hold the whole
+set, as `check-reference` reads it: a real installation, which does not hold the witness, is refused.
+It then deposits a backup as the schedule deposits it, without a requester (`deposit_backup` of
+`waterfall.worker.schedule`, under its locks and its conditions): the worker takes it, verifies it and
+writes its manifest as any backup the platform takes of itself. That is what is meant: of origin
+`scheduled`, inscribed in the name of the platform, it turns the list under the retention of the
+schedule — a retention of one deletes the scheduled backup before it —, it is the one the test of a
+restoration elects next, and it serves the occurrence of the schedule it follows (`backup_is_due`);
+on a platform that holds the reference set, no real installation, those backups are of the set too.
+Once verified, its archive is read back from the bucket of the backups under the locks of a deposit —
+no backup running nor deposited meanwhile, whose rotation would delete it —, verified again as the
+worker verified it — an object cut short keeps nothing —, and written into the folder, its manifest
+beside it (`.manifest.json`), under the
+name `reference-<version>-<seed>-<projects>-<revisions>-<lines>`, readable by their owner alone: the
+archive holds the database of the identity provider, the secrets of the clients included, in the
+clear as every backup. `waterfall-api restore-reference --from <folder>` (same volumes) restores it
+on a fresh platform before it starts (`waterfall.restore.fresh`), as the test of a restoration of
+US-2930 restores on its ephemeral platform: the archive read back, each dump against its digest, the
+two databases replaced by their owners then Waterfall's migrated; and, because the platform lives on
+afterwards, what a restoration writes back is written back — the rights of the role of the service,
+the schedule as shipped, no backup and no deposit of the source, the other tasks the dump caught
+running failed (#892). The tasks of a backup it caught pending — the backup that took it included —
+are forgotten instead, with those that ended: the restored platform has scheduled no backup, and does
+not say its latest one failed (`last_scheduled_outcome`, which its alert reads); a restoration by an
+account still fails them. Nothing is inscribed in the journal, and no row of a backup is created. A
+platform whose identity provider has already started (a table in its database), or whose Waterfall
+database holds what its migrations do not write (an inscription, a backup, a deposit, a task), is not
+fresh, and is refused before anything changes. `make service-reference-backup` runs
+the first command on the service platform, in a container of the worker, under the user of the
+workstation; `make service-reference-restore` drops the data of the platform of the slot, makes its
+databases, restores the archive in them in a container of the service of the restoration, then starts
+the platform. The archive and its manifest are in `REFERENCE_ARCHIVES`,
+`~/.local/share/waterfall/reference` by default: a folder of the workstation, out of any platform and
+any worktree, which the worktrees share; a consumer finds it by the version of its branch and the
+volumes it asks for. An archive of a later version is refused, and an archive taken on a schema more
+recent than the branch's does not migrate: the set is then engendered again
+(`backend/tests/test_witness_reference_archive.py` plays its shape on one month).
+
 **The slice of the projects (EP-04, US-0990).** Loaded after that of the reference, through the
 interfaces of the modules, it writes PRJ-001 and PRJ-002 with their attributes and their client
 (each created by the rules of the creation, the minimal reference included), the local accounts of
@@ -3078,7 +3162,8 @@ of what it describes, and two generations write the same bytes:
   readings and the other projects by simple formulas (`wftools.mockportfoliotime`); and the audit
   log of the installation, drawn from the chronology of the witness and from the examples that date
   its accounts, its roles and its backups (`wftools.mockaudit`, held by
-  `tools/tests/test_mockaudit.py`); and the readings of the lists written by hand — the projects of
+  `tools/tests/test_mockaudit.py`), with the project managers a list of contributors registers,
+  changes or removes (`wftools.mockauditmanagers`, US-2980); and the readings of the lists written by hand — the projects of
   the home page, the subprojects and the contributors of the witness, the accounts and the access
   roles, the backups — and of the work breakdown of the witness, sorted, searched and filtered as
   their screens ask for them, with the entry of the work breakdown, its response and its refusals
@@ -3222,6 +3307,10 @@ its side; a failure of the chain is therefore reproduced by the same command.
 | `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | one single test file, during development; without `TESTS`, all of them, as in the chain                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `make service-install`                                                  | bootstraps the started service platform, its realm applied (`waterfall-api install`, US-0420): applies the migrations under the owner of the tables, creates the installation, its three predefined roles and its local administrator, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` by default), in the language `WATERFALL_DEFAULT_LANGUAGE` (`fr` by default), and its minimal reference (EP-05): the shared settings, with the currency `WATERFALL_CURRENCY` (`EUR` by default) and the name of the company `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` by default, those of the witness), and the time zone `WATERFALL_TIME_ZONE` (`UTC` if the variable is empty, at the first writing only, a name of the IANA database, refused if unknown, in which the current day is taken, US-2200), the units of duration, the mapping of the actual costs, empty, the default calendar, the nature and the category of provision for risks; writes on its output only the link that sets its password, valid until it is used; run again, it creates nothing, says another currency, another name or another time zone ignored — run again without a time zone, nothing is said —, and writes a new link, which replaces the previous one, as long as the administrator has no password, none afterwards                                                                                                                                                                                                   |
 | `make service-witness`                                                  | loads the witness on the service platform, started and bootstrapped (`waterfall-api load-witness`, service `witness`, EP-05): the examples of the contract, `fixtures/api/`, mounted read-only, written by the role of the service; run again, it writes nothing; one slice per object, in the order of the dependencies, in one transaction ("The back and the boundaries of the core")                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `make service-reference`                                                | loads the reference set (`waterfall-api load-reference`, EP-13, US-2950) on the started and bootstrapped service platform: the witness, three hundred projects, the history of PRJ-001 at a hundred and eighty marked revisions and eighteen thousand lines of cost; taken up where it stopped; close to an hour; `REFERENCE_PROJECTS`, `REFERENCE_REVISIONS`, `REFERENCE_COST_LINES` ask for less |
+| `make service-reference-check`                                          | verifies the reference set the service platform holds (`waterfall-api check-reference`): volumes, identifiers, sums of the portfolio equal to those of its projects (budgets read by the estimate); fails (1) on a fault; same `REFERENCE_*` |
+| `make service-reference-backup`                                         | keeps as a backup the reference set the service platform holds (`waterfall-api backup-reference`, US-2950/L2b): checked whole, backed up by the platform as its schedule does, its archive and its manifest read into `REFERENCE_ARCHIVES` (`~/.local/share/waterfall/reference`), named after the version, the seed and the volumes; same `REFERENCE_*` |
+| `make service-reference-restore`                                        | drops the data of the service platform of the slot, restores on it before it starts the set kept in `REFERENCE_ARCHIVES` (`waterfall-api restore-reference`), then starts it; `make service-reference-check` then verifies it; same `REFERENCE_*` |
 | `make service-purge`                                                    | deposits by hand the purge of what expired on the service platform, started (`waterfall-worker schedule`, in the container of the `scheduler` service, with a purge interval of one second, which sets the purge alone: a reading of the accounts whose last is older than a day is deposited too): the worker runs it — reports of imports past their term, deposits past their term, exports of more than twenty-four hours, the history of the sessions older than `WATERFALL_UNDO_RETENTION_HOURS` hours (12 by default), tasks ended for more than `WATERFALL_BACKGROUND_TASK_RETENTION_DAYS` days (30 by default), and the objects that no row designates any more under `uploads/` and `exports/`; no purge is deposited while another is queued or running |
 | `make measure-core`                                                     | measures the core in process (`backend/measure/`, US-2210, EP-26), without HTTP or Keycloak, on the database of the service platform of the slot, which it first resets — stopped, its data dropped (`service-down WATERFALL_RESET_DATA=yes`), then started, bootstrapped and the witness loaded (`service-up`, `service-install`, `service-witness`), the secrets of `service-up` expected in the environment —: a whole read of PRJ-001 alone, then with `kinds=task`; the same under a profile, by stage (read, body, serialisation), with PostgreSQL's share; by several threads and by several processes; the ratio of an entry — a label, a duration that redates — to a read; the opening of a revision; the last marked revision read whole from its rows, then kept and read from what is kept, whole and projected, the size kept and the volume a platform of the volumes of §4.6.2 would keep, and the marking of the current revision followed by the keeping of its main structure (US-2270); the comparison of the current revision with the marked one it copies — which it checks —, whole from the rows of both structures (before option 1 of #3168, the quantity its threshold is read on), whole from the reading kept of the base (after option 1, as the grid of the estimate asks it) and on its tasks from the rows (`kinds=task`, as the grid of the planning asks it), split into the part of its two readings, of the union — by subtraction, the two timed in an alternating order, their spreads given and a union under nought said — and of the body, and the count of the nodes that differ, by kind and by mark, out of those of the union (US-2390, option 3 of #3168); what the entries of the cache of the indicators of the day cost, one by scope, in the Redis of the slot (`WATERFALL_REDIS_PASSWORD`, `WATERFALL_REDIS_PORT`) — their size, the reading of the scope of the project against that of every scope, cold and hot, that of every scope extrapolated linearly to 10, 50 and 100 subprojects (US-2420, #3628); the merge of a differential the measure opens itself, a duration entered in it, into the current revision, then the occurrence of an identified risk of the project, read without an objective (US-2650/L2, EP-08). The identifiers of the structures are read from the database; every write is rolled back, so the next measure starts from the same witness. The report is written readable, and as JSON with `JSON=<file>`; `RUNS=<n>` sets the identical runs of the whole read, of the cell entered and of the revision opened (five: their spread says what a difference must exceed to be a gain), each after one run that warms and is not counted; the profile and the waves of reads by threads and processes make one pass, which the report says, and the waves warm each worker and give each one read; `ONLY="read profile parallel write revision kept current indicators merge occurrence"` plays one part only. The entries rolled back leave dead tuples in the witness's tables, which a long series can show: the next measure starts again from a reloaded witness. It takes the workstation for itself alone (`$(exclusive)`, "The workstation for a measure alone"): every heavy run of the other deliverers waits for it to end. It never fails on a duration and the chain does not run it. The package is typed and linted like `src/waterfall` (Ruff, Pyright), and absent from the back's image and from its coverage |
 | `make measure-reference`                                                | assembles `docs/measures/reference.json` from the JSON of `make measure-core` (`CORE=<file>`) and that of `make measure` (`JOURNEY=<file>`), no duration touched, with the target of the API for opening a grid, the commit measured and the date taken ("The reference, and the gain of a lot"); refuses a missing `CORE` or `JOURNEY` |
@@ -3903,6 +3992,26 @@ the « Merge when ready » button, or through the `enqueuePullRequest` mutation 
 `gh pr merge` cannot do it as long as auto-merge is disabled on the
 repository. A branch without a merge queue runs the full tier by hand on the
 branch of a lot, before merging it: `gh workflow run chain --ref <branche>`.
+
+**The stale builds of the queue.** The queue builds a pull request on a ref of its own,
+`gh-readonly-queue/<base>/pr-<N>-<sha>`, and builds it again on another sha when it removes an
+entry or reforms. The concurrency group of `chain` does not catch the old run (the ref changes, and
+`cancel-in-progress` only holds for `pull_request`): on 2026-11-27, stale builds held the twenty or
+so places of the runner pool, the new ones waited, timed out, and the queue rebuilt them (#5122). On
+a `merge_group` only, the job `cancel-stale` of `ci.yml` (`make queue-cancel`,
+`wftools.queuecancel`) cancels the runs of `chain` that are waiting (`queued`, `waiting`,
+`pending`, `requested`) or in progress and whose ref is an earlier build of the same pull request in
+the queue of the same base (same base, same N, another sha, and a run older than its own: a newer
+one is the live build), and those of a pull request that is no longer in the queue
+(`mergeQueue(branch:)` of the GraphQL API; when the queue cannot be read, or when it exceeds the
+hundred entries read, only the earlier builds of the same pull request are cancelled; the runs are
+read before the queue). It never cancels a run of another base, of a `pull_request`, of a
+`workflow_dispatch` or of a `push`, nor its own, writes each cancellation to the log (run, pull
+request, ref), never fails (a failure to read or to cancel becomes a `::warning::` annotation),
+and no job waits for it; it alone carries `actions: write`.
+**Reading the state of the runners**: count the jobs (`gh run view <run> --json jobs`, those
+`in_progress` and `queued`), not the runs, as a run stays `queued` while one of its jobs waits; a
+full tier counts about 45 jobs.
 
 The third-party images of Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, k6, Node,
 Python, Debian, Maven, Keycloak and its `keycloak-config-cli` — stay named, in the Compose files and

@@ -151,3 +151,22 @@ def deposit_due(database: Database, queue: TaskQueue, plan: tuple[Planned, ...])
                     continue
                 deposited.append(each.kind)
     return deposited
+
+
+def deposit_backup(database: Database, queue: TaskQueue) -> UUID | list[str]:
+    """Deposit now a backup the platform takes of itself, as the schedule does once one is due.
+
+    Under the lock of the schedule, then the locks of ``lock_backup_deposit``, in that order, which
+    reads what holds a backup back: one queued or running, a restoration. Without a requester: the
+    backup is the platform's, ``scheduled`` (``add_backup``), as the reference set is kept (US-2950,
+    #4114). Gives its task, or the conditions it lacks, none deposited.
+    """
+    with database.transaction() as session:
+        session.execute(select(func.pg_advisory_xact_lock(SCHEDULE_LOCK)))
+        lacking = backups_interface.lock_backup_deposit(session)
+        if lacking:
+            logger.info("task.held_back", kind="backup", missing_condition=lacking[0])
+            return lacking
+        task_id = submit(session, queue, "backup", None)
+        logger.info("task.enqueued", kind="backup", task_id=str(task_id))
+        return task_id

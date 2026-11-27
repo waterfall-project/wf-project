@@ -8,6 +8,9 @@ command, on a copy of the witness: it starts from the witness, writes through th
 rule of a module refuses what it would refuse from the API —, and two engenderings, one of them
 stopped and taken up, give the same identifying data.
 
+The history of PRJ-001 is left out here (``UNEXTENDED``): see
+``test_witness_reference_history``.
+
 The full set — three hundred projects — takes minutes: the command is tried here on the witness and
 three projects drawn, and on one project of each life, which the draw of the full set reaches; the
 volumes of the reference are the full ones.
@@ -56,6 +59,7 @@ from waterfall.witness.reference_draw import (
     Draw,
     draw_reference,
 )
+from waterfall.witness.reference_history import History
 from waterfall.witness.reference_projects import (
     CLOSED,
     LIVES,
@@ -85,6 +89,8 @@ DOMAIN = "@waterfall.test"
 TRIED = 12
 WITNESS_PORTFOLIO = 8
 TRIED_NUMBERS = numbers_of(TRIED - WITNESS_PORTFOLIO)
+# PRJ-001 left as the witness leaves it: its history is tried in ``test_witness_reference_history``.
+UNEXTENDED = History(0, 0)
 
 
 def described() -> Witness:
@@ -220,6 +226,11 @@ def _assert_tasks_follow_the_reviews(project: Described) -> None:
         if task.completed_on is not None:
             assert task.started_on is not None
             assert task.completed_on <= reviewed.date()
+        # Begun exactly when it starts by the last review: a task that starts after it is not.
+        facet = task.node.task
+        assert facet is not None
+        assert facet.start is not None
+        assert (task.started_on is not None) == (facet.start.date.root <= reviewed.date())
 
 
 def _assert_names_of_the_closed_lists(
@@ -300,12 +311,13 @@ def count(database: Database, model: Any) -> int:
 
 
 @pytest.mark.story(STORY)
+@pytest.mark.requirement("WF-EXP-0010-A")
 def test_the_set_starts_from_the_witness_and_reaches_the_volumes_of_its_reference(
     witness: Database, service_database_url: str, logs: Logs
 ) -> None:
     # The witness held, the command writes nothing of it, then the reference and three projects.
     before = identifying(witness)
-    assert reference_load.load_reference(settings(service_database_url), TRIED) == 0
+    assert reference_load.load_reference(settings(service_database_url), TRIED, UNEXTENDED) == 0
     after = identifying(witness)
     for name, rows in before.items():
         assert set(rows) <= set(after[name]), name
@@ -333,6 +345,9 @@ def test_the_set_starts_from_the_witness_and_reaches_the_volumes_of_its_referenc
     assert len(years) == RATE_YEARS
     # The two hundred of the witness, and the provision the bootstrap writes beside them.
     assert categories == CATEGORIES + 1
+    # WF-EXP-0010-A, « Le jeu de données des environnements de développement et d'intégration est
+    # engendré par un outil du dépôt, sans copie de production. » : the witness and the reference
+    # set, each loaded by its command of the repository, hold no address but in waterfall.test.
     assert all(each is not None and each.endswith(DOMAIN) for each in emails)
     assert [record["projects"] for record in logs.named("reference.loaded")] == [len(TRIED_NUMBERS)]
 
@@ -348,7 +363,7 @@ def test_two_engenderings_one_stopped_and_taken_up_give_the_same_identifying_dat
     # « Deux engendrements successifs donnent des données identifiantes identiques. »: on two copies
     # of the witness, the set loaded at once on one; on the other, stopped at its second project —
     # the first kept, its own transaction — then taken up where it stopped.
-    assert reference_load.load_reference(settings(service_database_url), TRIED) == 0
+    assert reference_load.load_reference(settings(service_database_url), TRIED, UNEXTENDED) == 0
     first = identifying(witness)
     template = request.config.stash[TEMPLATE]
     written = reference_load.write_project
@@ -362,14 +377,14 @@ def test_two_engenderings_one_stopped_and_taken_up_give_the_same_identifying_dat
     with cloned(template, request.getfixturevalue("process_database_url")) as url:
         other = template.as_service(url)
         monkeypatch.setattr(reference_load, "write_project", failing)
-        assert reference_load.load_reference(settings(other), TRIED) == 1
+        assert reference_load.load_reference(settings(other), TRIED, UNEXTENDED) == 1
         assert [record["project"] for record in logs.named("reference.failed")] == ["REF-0002"]
         second = Database(create_database_engine(other))
         try:
             assert count(second, Project) == 13  # the witness's twelve and REF-0001
             monkeypatch.setattr(reference_load, "write_project", written)
             logs.clear()
-            assert reference_load.load_reference(settings(other), TRIED) == 0
+            assert reference_load.load_reference(settings(other), TRIED, UNEXTENDED) == 0
             loaded = logs.named("reference.loaded")
             assert [(each["reference"], each["projects"], each["held"]) for each in loaded] == [
                 (False, len(TRIED_NUMBERS) - 1, 1)
@@ -450,7 +465,7 @@ def test_a_rule_of_a_module_refuses_a_role_drawn_and_the_reference_is_not_writte
         return changed
 
     monkeypatch.setattr(reference_load, "draw_reference", drawn)
-    assert reference_load.load_reference(settings(service_database_url), TRIED) == 1
+    assert reference_load.load_reference(settings(service_database_url), TRIED, UNEXTENDED) == 1
     refused = logs.named("reference.refused")
     assert [(each["code"], each["project"]) for each in refused] == [("ALREADY_EXISTS", None)]
     assert count(witness, OrgNode) == 6
@@ -492,5 +507,5 @@ def test_a_description_the_witness_lacks_ends_the_command_with_a_log_not_a_trace
     # The description read before the platform is touched: a file absent, a provision lacking, and
     # the command ends (1) with ``reference.failed``, as any failure of the set does.
     unreadable = settings_at("postgresql://nowhere/waterfall", tmp_path / "absent")
-    assert reference_load.load_reference(unreadable, PROJECTS) == 1
+    assert reference_load.load_reference(unreadable, PROJECTS, UNEXTENDED) == 1
     assert [each["project"] for each in logs.named("reference.failed")] == [None]

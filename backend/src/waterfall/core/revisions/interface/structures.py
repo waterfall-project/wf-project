@@ -607,11 +607,18 @@ def aimed_structure(
     return session.scalar(select(CostStructure.id).where(*criteria))
 
 
-def main_structures_of(session: Session, revision_ids: Collection[UUID]) -> dict[UUID, UUID]:
-    """Give the main structure of each of the revisions that has one, in one statement."""
+def main_structures_of(
+    session: Session, project_ids: Collection[UUID], revision_ids: Collection[UUID]
+) -> dict[UUID, UUID]:
+    """Give the main structure of each of the revisions that has one, in one statement.
+
+    The revisions are those of the projects named, whose partitions alone are read (WF-DAT-0050).
+    """
     rows = session.execute(
         select(CostStructure.revision_id, CostStructure.id).where(
-            CostStructure.revision_id.in_(revision_ids), CostStructure.kind == MAIN
+            CostStructure.project_id.in_(project_ids),
+            CostStructure.revision_id.in_(revision_ids),
+            CostStructure.kind == MAIN,
         )
     )
     return {row[0]: row[1] for row in rows}

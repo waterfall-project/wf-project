@@ -450,7 +450,7 @@ message = '''Failed to fetch https?://(?:deb\.debian\.org|apt\.postgresql\.org)/
 frequency = "aucun passage relevé du 2026-11-05 au 2026-11-12 ; source nommée par #3015"
 cause = "hypothèse : la construction d'une image tire apt faute de cache de couches, et la source ne répond pas ; dépendance absente de l'inventaire d'US-1900"
 
-# Maven Central, à la résolution du greffon `dependency` de `make build-keycloak` (#4790). Depuis la
+# Maven Central, à la résolution des dépendances de `make build-keycloak` (#4790). Depuis la
 # construction unique, le job `keycloak-image` de ci.yml la porte ; `service / paths` est gardé pour
 # classer les passages d'avant. Pas de `runs` : il limiterait l'entrée aux passages nommés, et elle
 # doit classer aussi les suivants.
@@ -461,8 +461,8 @@ issue = "#4790"
 job = '^(?:keycloak-image|service / paths(?: \(\d+/\d+\))?)$'
 step = 'build-keycloak'
 message = "mvn --batch-mode --quiet dependency:go-offline|No plugin found for prefix 'dependency'|repo\\.maven\\.apache\\.org/maven2\\): HTTP Status: 429"
-frequency = "5 passages du 2026-11-19 au 2026-11-25 : `make build-keycloak` de `service / paths` (45111181156, 44990506194, 44965076909, 44955878820) ; le 2026-11-25 (45722567147), à `mvn package`, Maven Central répondant 429"
-cause = "hypothèse : Maven Central ne répond pas, ou trop lentement, pendant la résolution du greffon `dependency` (≈ 300 s avant l'échec), ou limite le débit (429) pendant celle des greffons de `mvn package` ; le dépôt local de Maven n'est pas gardé en cache dans la chaîne. Depuis le 2026-11-26, l'image est construite une fois par passage (job `keycloak-image`, quatre séries de téléchargements en moins) et chargée par les quatre parts"
+frequency = "6 passages du 2026-11-19 au 2026-11-26 : `make build-keycloak` de `service / paths` (45111181156, 44990506194, 44965076909, 44955878820) ; le 2026-11-25 (45722567147), puis le 2026-11-26 (45876627630, job `keycloak-image`), à `mvn package`, Maven Central répondant 429"
+cause = "établie : le dépôt local de Maven vivait dans un montage de cache (`--mount=type=cache,target=/root/.m2`) que le cache gha n'exporte pas ; sur un runner neuf, la couche `dependency:go-offline` revenait CACHED et sa boucle de reprise ne jouait pas, `mvn package` retéléchargeait tout de Maven Central sans reprise et prenait un 429 (`maven-resources-plugin:pom:3.5.0`, 61 s). Depuis US-2800/L5, le dépôt est une couche de l'image et `package` se joue hors ligne. Reste exposé : le premier passage après un changement de `extension/pom.xml`, après la fusion de ce lot, ou après l'éviction de la couche du cache gha, qui téléchargent encore de Maven Central"
 
 # ghcr.io, au pull du miroir (`ghcr.io/waterfall-project/mirror/…`) comme au push des images du
 # projet (job `publish` d'`images.yml`, #4916) : une panne de connexion au registre, la même des
@@ -597,29 +597,6 @@ message = "getByRole\\('grid', \\{ name: 'Comptes utilisateurs' \\}\\)"
 frequency = "1 passage, avant la référence : le 2026-11-01 (41319278707, #1807) ; aucun du 2026-11-05 au 2026-11-12"
 cause = "établie : `GET /reference/org-nodes` (#1807), lu par `readOrFail`, répond 404 — le service ne le servait pas encore — et `notFound()` remplace la page ; corrigé dans la pull request avant sa fusion (db6a135e). Le parcours attend depuis le titre de l'écran des comptes, qui dit « Introuvable » à sa place"
 
-# Les tests de Keycloak qui échouent ensemble dans la file, sans que le lot touche Keycloak (#4779).
-[[known]]
-class = "known flakiness"
-family = "jeton du compte de service de Keycloak"
-issue = "#4779"
-job = '^keycloak / check$'
-test = 'tests/test_keycloak_authentication\.py:538\b'
-message = 'assert 2 == 1'
-runs = [45100723995]
-frequency = "1 passage, le 2026-11-23 (45100723995, #4776)"
-cause = "hypothèse : le jeton du compte de service, en cache d'un test à l'autre ou renouvelé sous un runner lent, est demandé deux fois"
-
-[[known]]
-class = "known flakiness"
-family = "jeton du compte de service de Keycloak"
-issue = "#4779"
-job = '^keycloak / check$'
-test = 'test_an_account_withdrawn_all_its_roles_is_refused_its_next_request_and_its_sessions_closed'
-message = 'Exception ignored while finalizing socket <ssl\.SSLSocket'
-runs = [45100723995]
-frequency = "1 passage, le 2026-11-23 (45100723995, #4776)"
-cause = "hypothèse : une connexion TLS vers Keycloak laissée ouverte par un test précédent est finalisée pendant celui-ci"
-
 [[known]]
 class = "known flakiness"
 family = "la sonde de la base encore en échec après sa reprise"
@@ -654,3 +631,28 @@ message = 'expect\(page\)\.toHaveURL\(expected\) failed'
 runs = [45835940068]
 frequency = "1 passage, le 2026-11-26 (45835940068, file d'`epic/EP-13`, pr-5026)"
 cause = "hypothèse : sous la charge de la file, Entrée sur l'en-tête arrive avant que la grille du devis ait branché le tri au clavier, et l'URL ne change jamais"
+
+# Une image de Waterfall chargée dans le cluster de l'essai du chart, de kind ou de k3s, que la
+# recherche par empreinte ne trouve pas (#5065) : keycloak sur kind, waterfall sur k3s.
+[[known]]
+class = "known flakiness"
+family = "chart-trial, une image de Waterfall absente du cluster de kind ou de k3s"
+issue = "#5065"
+job = '^chart / check( \(k3s\))?$'
+step = 'chart-trial'
+message = 'wftools\.charttrial: find ghcr\.io/waterfall-project/[a-z]+@sha256:[0-9a-f]+ in the cluster failed'
+runs = [45868657554, 45923534175]
+frequency = "2 passages, file d'`epic/EP-13` : le 2026-11-26 (45868657554, pr-5064, keycloak sur kind), le 2026-11-27 (45923534175, pr-5082, waterfall sur k3s)"
+cause = "hypothèse : la recherche de l'image par son empreinte dans le nœud de kind suit de trop près son chargement, ou l'empreinte cherchée n'est pas celle que containerd garde"
+
+# L'essai du chart sur k3s, qui attend le nœud avant que le serveur d'API réponde (#5103).
+[[known]]
+class = "known flakiness"
+family = "chart-trial-k3s, l'attente du nœud avant le serveur d'API de k3s"
+issue = "#5103"
+job = '^chart / check \(k3s\)$'
+step = 'chart-trial-k3s'
+message = 'wftools\.charttrial: wait for the node failed'
+runs = [45913572822, 45933825076]
+frequency = "2 passages, le 2026-11-26 (45913572822) et le 2026-11-27 (45933825076), file d'`epic/EP-13`, pr-5082"
+cause = "hypothèse : l'essai attend le nœud avant que le serveur d'API de k3s soit prêt (`informer-sync failed`, `no matching resources found`)"

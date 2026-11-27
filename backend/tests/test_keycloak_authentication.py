@@ -13,7 +13,7 @@ import base64
 import hashlib
 import secrets
 import time
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import parse_qs, urlencode, urlsplit
 from uuid import UUID
@@ -495,13 +495,15 @@ class Counting(Keycloak):
     def __init__(self, settings: ServiceSettings) -> None:
         """Count nothing yet."""
         super().__init__(settings)
-        self.tokens = 0
+        self.tokens, self.lifetime = 0, 0.0
 
     def send(self, method: str, path: str, **options: Any) -> httpx2.Response:
-        """Count a request for a token, then send it."""
-        if path == f"{self.protocol}/token":
-            self.tokens += 1
-        return super().send(method, path, **options)
+        """Count a request for a token, note how long the realm lends it, then send it."""
+        self.tokens += (asking := path == f"{self.protocol}/token")
+        response = super().send(method, path, **options)
+        if asking and response.is_success:
+            self.lifetime = float(response.json()["expires_in"])
+        return response
 
 
 def test_a_token_of_the_service_account_refused_before_its_time_is_renewed(
@@ -528,18 +530,19 @@ def test_a_token_of_the_service_account_refused_before_its_time_is_renewed(
 def test_the_token_of_the_service_account_is_renewed_shortly_before_it_expires(
     settings: ServiceSettings,
 ) -> None:
-    # The realm lends it for five minutes: it is kept until thirty seconds before (#670).
+    # The realm lends it for five minutes, less a second when the second changes while it signs it
+    # (`expires_in` 299, on a slow runner): it says how long, 300 s at most. Kept till 30 s before.
     now = [1000.0]
-    counting = Counting(settings)
-    client = KeycloakAdmin(counting, settings, clock=lambda: now[0])
-    assert client.read_account(NOBODY) is None
-    now[0] += 300 - 30 - 1
-    assert client.read_account(NOBODY) is None
-    assert counting.tokens == 1
-    now[0] += 1
-    assert client.read_account(NOBODY) is None
-    assert counting.tokens == 2
-    counting.close()
+    with closing(Counting(settings)) as counting:
+        client = KeycloakAdmin(counting, settings, clock=lambda: now[0])
+        assert client.read_account(NOBODY) is None
+        assert 31 < counting.lifetime <= 300
+        now[0] += counting.lifetime - 30 - 1
+        assert client.read_account(NOBODY) is None
+        assert counting.tokens == 1
+        now[0] += 1
+        assert client.read_account(NOBODY) is None
+        assert counting.tokens == 2
 
 
 # --- A local account created from Waterfall (US-0360) ------------------------------------------
@@ -722,9 +725,8 @@ def test_a_proxy_that_answers_the_invitation_by_a_502_is_said_as_keycloak_failin
 ) -> None:
     # The extension says by a 502 that the mail server failed, with its own error; a proxy before
     # Keycloak says by one that Keycloak did, which is logged with its status (#822).
-    proxied = Proxied(settings)
-    assert KeycloakAdmin(proxied, settings).send_invitation(NOBODY) == "provider_unavailable"
-    proxied.close()
+    with closing(Proxied(settings)) as proxied:
+        assert KeycloakAdmin(proxied, settings).send_invitation(NOBODY) == "provider_unavailable"
     (record,) = logs.named("identity_provider.failed")
     assert (record["status"], record["level"]) == (502, "warning")
 

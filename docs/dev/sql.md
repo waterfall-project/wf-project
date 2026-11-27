@@ -138,7 +138,10 @@ sur le journal, qui lit `user_account` : la fonction du journal ne lit la table 
 (`0011_account_anonymization`, #702, #865). PostgreSQL déclenche les déclencheurs d'un même
 événement dans l'ordre de leur nom : celui du journal, `audit_entry_refuse_row_change`, refuse
 d'abord tout autre changement, puis celui des comptes, `user_account_forget_anonymized`, vérifie
-que le libellé effacé désigne un compte anonymisé. Renommer ou ajouter un déclencheur
+que le libellé effacé désigne un compte anonymisé — sauf dans l'anonymisation d'une copie de la
+production, où la transaction pose `waterfall.anonymizing_copy` et où le rôle connecté est le
+propriétaire du journal : les administrateurs gardés y sont oubliés sans être anonymisés
+(`0057`, #4068). Renommer ou ajouter un déclencheur
 `BEFORE UPDATE` sur `audit_entry` change cet ordre, qu'un test de `test_audit_journal.py` épingle
 (#876). Les références du journal — auteur, objet, projet — ne sont pas des clés étrangères :
 une inscription survit à ce qu'elle nomme (WF-DAT-0090).
@@ -196,6 +199,10 @@ d'une mise à jour. Donc :
    que le code.
 6. **Un verrou long se prévoit** : un index sur une grande table se crée `CONCURRENTLY`, hors
    de la transaction d'une migration ; une contrainte se pose `NOT VALID` puis se valide à part.
+   Un verrou exclusif court s'attend lui aussi borné : derrière une lecture longue de la table
+   — une sauvegarde, un export —, sa demande en file bloquerait toute lecture et écriture
+   arrivée après elle. La migration le demande sous un `lock_timeout` court, dans un point de
+   sauvegarde qu'un refus annule avec tous ses verrous, et réessaie après une pause (`0056`).
 7. **Une migration écrite à la main**, relue comme le code ; l'autogénération d'Alembic
    produit un brouillon qu'on relit ligne à ligne, jamais une migration validée telle quelle.
 
@@ -281,7 +288,10 @@ séparerait plus.
   nouvel essai est réduite sous les cinq secondes du vacuum (essayé à 0 et à 2 s).
 - Les migrations d'une même base s'appliquent l'une après l'autre : l'environnement d'Alembic
   prend un verrou consultatif de session, pour que deux instances qui démarrent ensemble
-  n'appliquent pas la même migration deux fois.
+  n'appliquent pas la même migration deux fois. Elle l'essaie (`pg_try_advisory_lock`) hors
+  de toute transaction, sans l'attendre dans une requête : l'instance qui attendrait ainsi
+  tiendrait son instantané, qu'un index créé `CONCURRENTLY` par celle qui migre attend —
+  un interblocage (0056, US-2980/L1).
 
 *Contrôle* : la revue, qui vérifie aussi les routes sœurs de celle modifiée ; un test de
 concurrence pour chaque règle d'ensemble.

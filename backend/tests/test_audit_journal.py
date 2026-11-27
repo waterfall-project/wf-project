@@ -327,6 +327,42 @@ def test_the_name_of_an_account_that_is_not_anonymized_stays_in_the_journal(
 
 
 @pytest.mark.requirement("WF-SEC-0030-A")
+@pytest.mark.story("US-2960")
+def test_only_the_owner_anonymising_a_copy_forgets_the_name_of_an_account_not_anonymized(
+    database: Database, owner: Engine
+) -> None:
+    # The anonymisation of a copy keeps its administrators active, not anonymised, and forgets their
+    # names (#4068): the transaction tells it the database, by ``waterfall.anonymizing_copy``, which
+    # the trigger admits of the owner of the tables alone, the role the command signs in as
+    # (migration 0057). The role of the service, the API's, may pose the setting as any role may:
+    # the trigger still refuses it to forget the name of an account that is not anonymised.
+    hold_account(database, CLAIRE.user_id, is_anonymized=False)
+    claire = AuditObject("user", CLAIRE.user_id, "Claire Martin")
+    inscribe(database, role_created(action="user_update", audited=claire))
+    copy = "SELECT set_config('waterfall.anonymizing_copy', 'on', true)"
+    forget = "UPDATE audit_entry SET actor_display_name = NULL, object_label = NULL"
+    with database.engine.connect() as connection:
+        connection.execute(text(copy))
+        with pytest.raises(IntegrityError) as raised:
+            connection.execute(text(forget))
+        connection.rollback()
+    assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
+    assert "forgets the name of an anonymised account alone: UPDATE refused" in str(raised.value)
+    (row,) = rows(database)
+    assert (row["actor_display_name"], row["object_label"]) == ("Claire Martin", "Claire Martin")
+    with owner.begin() as connection:
+        connection.execute(text(copy))
+        connection.execute(text(forget))
+    (row,) = rows(database)
+    assert (row["actor_display_name"], row["object_label"]) == (None, None)
+    # The setting is local to its transaction: the next one, the owner's too, is refused again.
+    inscribe(database, role_created(action="user_update", audited=claire))
+    with pytest.raises(IntegrityError) as raised, owner.begin() as connection:
+        connection.execute(text(f"{forget} WHERE actor_display_name IS NOT NULL"))
+    assert "forgets the name of an anonymised account alone: UPDATE refused" in str(raised.value)
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
 def test_the_name_of_another_account_stays_when_an_account_is_anonymized(
     database: Database,
 ) -> None:
@@ -404,6 +440,34 @@ def test_an_anonymized_account_is_named_by_no_inscription_whose_number_dates_and
     ]
     assert after == forgotten
     assert [row["actor_display_name"] for row in after] == [None, "Paul Durand", "Paul Durand"]
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_an_anonymized_account_is_forgotten_as_the_contributor_it_was_and_no_other_is(
+    database: Database,
+) -> None:
+    # A project manager inscribed is named by its account (#4127): once that account anonymised,
+    # the inscription no longer bears its name, as the database lets the service forget it; the
+    # contributor of an account that is not anonymised keeps its own.
+    paul = AuditActor(uuid4(), "Paul Durand")
+    hold_account(database, CLAIRE.user_id, is_anonymized=True)
+    hold_account(database, paul.user_id, is_anonymized=False)
+    project = AuditProject(uuid4(), "PRJ-001", "Modernisation du poste de commande")
+    for named in (CLAIRE, paul):
+        contributor = AuditObject("contributor", named.user_id, named.display_name)
+        inscribe(
+            database,
+            role_created(
+                action="project_manager_add", actor=paul, audited=contributor, project=project
+            ),
+        )
+    with logging_context(correlation_id=CORRELATION), database.transaction() as session:
+        forget_account(session, CLAIRE.user_id)
+    after = {row["object_id"]: row["object_label"] for row in rows(database)}
+    assert after == {str(CLAIRE.user_id): None, str(paul.user_id): "Paul Durand"}
+    with pytest.raises(IntegrityError) as raised, database.engine.begin() as connection:
+        connection.execute(text("UPDATE audit_entry SET object_label = NULL"))
+    assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
 
 
 def test_an_account_forgotten_twice_is_forgotten_once(database: Database) -> None:

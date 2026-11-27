@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The machine of WF-CMP-0020-A (US-2810): four cores and eight gigabytes of memory for the whole
+# platform, its data components and its supervision — Prometheus, Alertmanager, Grafana — included.
+# A slice of systemd is bounded so, without swap; the trial of the production platform
+# (wftools.production, WATERFALL_PRODUCTION_CGROUP_PARENT=waterfall-bounded.slice) runs every
+# container of the platform, and of the test of a restoration, under it (wftools.bounded). A platform
+# that wants more is killed by the kernel, the trial fails, and its log says which container. The
+# limits are read back: a runner that did not bound the slice fails here, not by a trial that held
+# nothing.
+name: bound-platform
+description: Bound a slice of the cgroups of the runner to four cores and eight gigabytes, no swap
+runs:
+  using: composite
+  steps:
+    - name: Bound the platform to four cores and eight gigabytes
+      shell: bash
+      run: |
+        set -euo pipefail
+        printf '[Slice]\nMemoryAccounting=yes\nCPUAccounting=yes\nMemoryMax=8G\nMemorySwapMax=0\nCPUQuota=400%%\n' \
+          | sudo tee /etc/systemd/system/waterfall-bounded.slice
+        sudo systemctl daemon-reload
+        sudo systemctl start waterfall-bounded.slice
+        systemctl show waterfall-bounded.slice --property=MemoryMax,MemorySwapMax,CPUQuotaPerSecUSec
+        test "$(systemctl show waterfall-bounded.slice --property=MemoryMax --value)" = 8589934592
+        test "$(systemctl show waterfall-bounded.slice --property=MemorySwapMax --value)" = 0
+        # Four cores of CPU time a second, whatever the cores a runner has: a set of cores (a cpuset)
+        # would bound nothing on four, and fail on two.
+        test "$(systemctl show waterfall-bounded.slice --property=CPUQuotaPerSecUSec --value)" = 4s

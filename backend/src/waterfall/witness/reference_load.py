@@ -22,6 +22,7 @@ before kept.
 
 import argparse
 import sys
+import time
 from datetime import UTC, datetime, timedelta
 from functools import partial
 from pathlib import Path
@@ -64,6 +65,16 @@ from waterfall.witness import (
 from waterfall.witness.description import Witness, is_loaded
 from waterfall.witness.portfolio import default_week, write_project
 from waterfall.witness.reference_draw import PROJECTS, Base, Reference, draw_reference
+from waterfall.witness.reference_history import (
+    CODE,
+    COST_LINES,
+    MARKED,
+    History,
+    HistoryError,
+    Plan,
+    steps_done,
+    write_step,
+)
 from waterfall.witness.reference_projects import (
     code_of,
     draw_project,
@@ -80,6 +91,8 @@ if TYPE_CHECKING:
     from waterfall.witness.portfolio import Week
 
 COMMAND = "load-reference"
+# The volumes of table 13 for PRJ-001: the history the command writes unless it is asked less.
+FULL = History()
 # The states of a project in the portfolio: in pricing, or in progress.
 PORTFOLIO = frozenset({ProjectState.pricing.value, ProjectState.in_progress.value})
 # The key of the advisory lock each transaction of the reference set holds.
@@ -87,6 +100,9 @@ REFERENCE_SET_LOCK = 4_202_950
 # The instant the identifiers the set draws bear, a millisecond more for each transaction: the
 # reference at nought, the n-th project at n. A day after the witness's, whose they never meet.
 DRAWN_AT = datetime(2025, 9, 2, 9, 0, tzinfo=UTC)
+# The rank of the transaction of the first step of the history of PRJ-001: beyond the numbers of the
+# projects, so that no project and no step draw under the same instant.
+HISTORY_RANK = 1_000_000
 
 logger = get_logger(__name__)
 
@@ -106,15 +122,32 @@ def main(arguments: Sequence[str], load_witness: Callable[[], int]) -> int:
         default=PROJECTS,
         help=f"the projects of the set in the portfolio, the witness's too (default {PROJECTS})",
     )
-    wanted: int = parser.parse_args(arguments).projects
+    parser.add_argument(
+        "--revisions",
+        type=int,
+        default=MARKED,
+        help=f"the revisions of {CODE} marked, the witness's too (default {MARKED}); a smaller "
+        "history is for a trial",
+    )
+    parser.add_argument(
+        "--cost-lines",
+        type=int,
+        default=COST_LINES,
+        help=f"the lines of actual cost of {CODE}, the witness's too (default {COST_LINES})",
+    )
+    parsed = parser.parse_args(arguments)
     status = load_witness()
     if status != 0:
         return status
-    return load_reference(load_witness_settings(), wanted)
+    return load_reference(
+        load_witness_settings(), parsed.projects, History(parsed.revisions, parsed.cost_lines)
+    )
 
 
-def load_reference(settings: WitnessSettings, wanted: int) -> int:
+def load_reference(settings: WitnessSettings, wanted: int, history: History = FULL) -> int:
     """Load the set, ``wanted`` projects in all, on a platform that holds the witness.
+
+    The history of PRJ-001 is written to ``history``'s volumes, after the projects.
 
     Under a correlation of its own, as the platform; give the status of the command.
     """
@@ -133,10 +166,17 @@ def load_reference(settings: WitnessSettings, wanted: int) -> int:
                 f"{base.portfolio} projects of the witness in the portfolio\n"
             )
             return 2
+        try:
+            plan = Plan.read(witness, history)
+        except HistoryError as refused:
+            sys.stderr.write(f"waterfall-api {COMMAND}: {refused}\n")
+            return 2
+        for warning in plan.short:
+            sys.stderr.write(f"waterfall-api {COMMAND}: warning: {warning}\n")
         database = Database(create_database_engine(settings.database_url.get_secret_value()))
         try:
-            TIME_ZONE.read_from(stored_in(database))
-            return _load(database, witness, base, wanted)
+            with TIME_ZONE.reading_from(stored_in(database)):
+                return _load(database, witness, (base, plan), wanted)
         finally:
             database.dispose()
 
@@ -183,7 +223,8 @@ def read_base(witness: Witness) -> Base:
     )
 
 
-def _load(database: Database, witness: Witness, base: Base, wanted: int) -> int:
+def _load(database: Database, witness: Witness, volumes: tuple[Base, Plan], wanted: int) -> int:
+    base, plan = volumes
     reference = draw_reference(base)
     week = default_week(witness)
     written: list[str] = []
@@ -202,6 +243,8 @@ def _load(database: Database, witness: Witness, base: Base, wanted: int) -> int:
             ):
                 written.append(code)
                 logger.info("reference.project_loaded", project=code)
+        code = CODE
+        steps = _write_history(database, witness, plan)
     except ServiceError as refused:
         # A rule of a module refused an object of the set: a state to correct, not a trace.
         refusal = (refused.code, dict(refused.params))
@@ -210,10 +253,45 @@ def _load(database: Database, witness: Witness, base: Base, wanted: int) -> int:
         return 1
     else:
         held = max(0, len(numbers) - len(written))
-        logger.info("reference.loaded", reference=wrote, projects=len(written), held=held)
+        logger.info(
+            "reference.loaded",
+            reference=wrote,
+            projects=len(written),
+            held=held,
+            history=steps,
+        )
         return 0
     logger.error("reference.refused", project=code, code=refusal[0], params=refusal[1])
     return 1
+
+
+def _write_history(database: Database, witness: Witness, plan: Plan) -> int:
+    """Write the months of the history of PRJ-001 the platform lacks, one transaction each.
+
+    Take up at the step after the last the platform holds; give the steps written. A failure says
+    its step in the logs (``reference.failed``, ``project`` ``PRJ-001``): the steps committed stay.
+    """
+    with database.transaction() as session:
+        done = steps_done(session, plan)
+    written = 0
+    for step in range(done + 1, plan.steps + 1):
+        began = time.monotonic()
+        _in_transaction(
+            database,
+            HISTORY_RANK + step,
+            lambda session, step=step: _step(session, witness, plan, step),
+        )
+        written += 1
+        seconds = round(time.monotonic() - began, 1)
+        logger.info(
+            "reference.history_step", project=CODE, step=step, of=plan.steps, seconds=seconds
+        )
+    return written
+
+
+def _step(session: Session, witness: Witness, plan: Plan, step: int) -> bool:
+    write_step(session, plan, step, witness.act)
+    return True
 
 
 def _in_transaction(database: Database, rank: int, write: Callable[[Session], bool]) -> bool:

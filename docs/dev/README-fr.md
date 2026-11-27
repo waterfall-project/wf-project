@@ -92,6 +92,91 @@ plateforme, l'arrêt en le disant sur un témoin que les règles refusent, et le
 comparées aux exemples du contrat, aux colonnes d'audit près. `fixtures/api/` et Prism restent les
 exemples du contrat et le faux back des écrans que le service ne sert pas.
 
+**Le jeu de référence (EP-13, US-2950).** `waterfall-api load-reference` charge le jeu de données de
+référence de WF-QUA-0040 : le témoin d'abord, comme `load-witness` le charge (ou rien, sur une
+plateforme qui le porte), puis ce que la graine (`waterfall.witness.reference_draw`, SHA-256, jamais
+`random`) tire à côté de lui — le référentiel du tableau 13 : quarante nœuds, cent cinquante rôles,
+cinq cents comptes, en une transaction ; les projets, un par transaction, jusqu'à trois cents dans le
+portefeuille (`--projects N`), étroits (trois à huit tâches, leur chef de projet pour seul
+contributeur, aucun sous-projet), écrits comme ceux de la tranche du portefeuille ; enfin l'histoire
+de PRJ-001, le projet de mille tâches du témoin (`waterfall.witness.reference_history`) : un mois
+par transaction, le premier lundi de chaque mois à compter de juillet 2026, qui applique l'import des
+coûts réels du mois, marque la révision en cours sous le nom du mois (« Revue de juillet 2026 ») par
+la transaction même du worker (`load_marking`) et ouvre la suivante par la copie de celle qu'il vient
+de marquer — cent quatre-vingts révisions marquées en tout (`--revisions N`, le témoin comptant
+les siennes) et dix-huit mille lignes de coût (`--cost-lines N`), que les mois se partagent, cent par
+mois à une ligne près. Tout passe par les interfaces des modules, jamais par un `INSERT` ; les
+identifiants qu'un module tire le sont dans l'ordre (`drawn_in_order`), sous un instant propre à chaque
+transaction. Arrêtée, la commande se reprend là où elle s'est arrêtée : un projet que la plateforme
+porte est passé, et les révisions marquées de PRJ-001 disent le mois où l'histoire en est — jamais
+une transaction à moitié écrite. Le jeu complet prend près d'une heure (un mois : une quinzaine de
+secondes, le marquage d'une révision de mille tâches en étant l'essentiel) : il s'engendre une fois
+par version, et les tests n'en jouent que la forme, sur un projet tiré par combinaison de vie et
+trois mois d'histoire (`backend/tests/test_witness_reference.py`,
+`backend/tests/test_witness_reference_history.py`).
+
+`waterfall-api check-reference` en vérifie les volumes sur la plateforme qui le porte, sans
+jamais le comparer aux exemples du contrat à trois cents projets (`fixtures/api/volume/`), qui restent
+ceux du faux back : le témoin reste l'oracle des valeurs, le jeu celui des volumes. Il compte ce que
+le produit compte d'une sauvegarde (projets, révisions marquées, lignes de coût, comme l'inventaire du
+manifeste) contre ce que la graine et le témoin annoncent ; il cherche chaque identifiant et chaque
+libellé que la graine dérive — nœuds, rôles, comptes, projets, révisions de l'histoire de PRJ-001 —,
+ce qui est la reproductibilité : un jeu engendré deux fois, ou restauré, est le même ; et il tient les
+sommes du portefeuille : son décompte égal aux projets qu'il liste, le budget de référence de chaque
+ligne de projet en cours égal à celui que l'estimation (`portfolio_totals`) lit du projet, et son
+carnet de commandes égal à la somme de ces budgets. Il écrit les volumes comptés puis chaque défaut
+(`fault: …`), et se termine par 0, par 1 au premier défaut, par 2 sur un réglage qui manque ou une
+histoire dont les lignes n'auraient aucun mois ; une histoire qui demande moins de révisions ou de
+lignes que le témoin n'en porte n'écrit rien, et le dit sur la sortie d'erreur (`warning: …`), comme
+`load-reference`. Une reprise sur un PRJ-001 dont les révisions marquées au-delà du témoin ne portent
+pas les noms des premiers mois de l'histoire est refusée. `make service-reference` charge le jeu sur la plateforme de service
+démarrée et amorcée (`REFERENCE_PROJECTS`, `REFERENCE_REVISIONS`, `REFERENCE_COST_LINES` pour moins,
+par exemple pour un essai), `make service-reference-check` le vérifie ; l'un et l'autre lancent le
+service `witness` du Compose de service sous une autre commande.
+
+**Le jeu gardé en sauvegarde (US-2950/L2b, #4114).** Engendré une fois par version, le jeu se garde
+en sauvegarde, et ce qui s'en sert — parcours, mesure, exercice de reprise — le restaure au lieu de
+le réengendrer, sans acteur, sans route et sans jeton d'administrateur.
+`waterfall-api backup-reference --into <dossier>` (mêmes `--projects`, `--revisions`,
+`--cost-lines`) refuse d'abord une plateforme dont la planification règle une copie externe non
+suspendue — la copie porterait l'archive, secrets du domaine compris, sur son emplacement —, puis une
+plateforme qui ne porte pas le jeu entier, comme `check-reference` le lit : une installation réelle,
+qui ne porte pas le témoin, est refusée. Il dépose ensuite une sauvegarde comme la planification la
+dépose, sans demandeur (`deposit_backup` de `waterfall.worker.schedule`, sous ses verrous et ses
+conditions) : le worker la prend, la vérifie et écrit son manifeste comme toute sauvegarde que la
+plateforme prend d'elle-même. C'est voulu : d'origine `scheduled`, inscrite au nom de la plateforme,
+elle fait tourner la liste sous la rétention de la planification — une rétention d'une sauvegarde
+supprime la sauvegarde planifiée qui la précède —, elle est celle que le test de restauration élit
+ensuite, et elle sert l'occurrence de la planification qu'elle suit (`backup_is_due`) ; sur une
+plateforme qui porte le jeu de référence, aucune installation réelle, ces sauvegardes sont du jeu
+aussi. Vérifiée, son archive est relue du compartiment des sauvegardes sous les verrous d'un dépôt —
+aucune sauvegarde en cours ni déposée entre-temps, dont la rotation la supprimerait —, vérifiée de
+nouveau comme le worker l'a vérifiée — un objet tronqué ne laisse rien —, et écrite dans le dossier,
+son manifeste à côté (`.manifest.json`), sous le nom
+`reference-<version>-<graine>-<projets>-<révisions>-<lignes>`, lisibles de leur seul propriétaire : l'archive porte la base du fournisseur d'identité, secrets des clients
+compris, en clair comme toute sauvegarde. `waterfall-api restore-reference --from <dossier>` (mêmes
+volumes) la restaure sur une plateforme neuve avant son démarrage (`waterfall.restore.fresh`), comme
+le test de restauration d'US-2930 restaure sur sa plateforme éphémère : l'archive relue, chaque vidage
+contre son empreinte, les deux bases remplacées par leurs propriétaires puis celle de Waterfall
+migrée ; et, parce que la plateforme vit ensuite, ce qu'une restauration réécrit est réécrit — les
+droits du rôle du service, la planification livrée, aucune sauvegarde ni aucun dépôt de la source, les
+autres tâches que le vidage a prises en cours en échec (#892). Les tâches de sauvegarde qu'il a
+prises en cours — celle qui l'a pris comprise — sont oubliées au contraire, avec celles qui étaient
+terminées : la plateforme restaurée n'a planifié aucune sauvegarde, et ne dit pas sa dernière en échec
+(`last_scheduled_outcome`, que son alerte lit) ; une restauration par un compte les fait toujours
+échouer. Rien n'est inscrit au journal, et aucune ligne de sauvegarde n'est créée. Une plateforme
+dont le fournisseur d'identité a déjà démarré (une table dans sa base), ou dont la base de Waterfall
+porte ce que ses migrations n'écrivent pas (une inscription, une sauvegarde, un dépôt, une tâche),
+n'est pas neuve, et est refusée avant tout changement. `make service-reference-backup` lance la
+première commande sur la plateforme de service, dans un conteneur du worker, sous l'utilisateur du poste ; `make service-reference-restore`
+retire les données de la plateforme du créneau, fait ses bases, y restaure l'archive dans un conteneur
+du service de restauration, puis démarre la plateforme. L'archive et son manifeste sont dans
+`REFERENCE_ARCHIVES`, `~/.local/share/waterfall/reference` par défaut : un dossier du poste, hors de
+toute plateforme et de tout worktree, que les worktrees se partagent ; un consommateur le retrouve par
+la version de sa branche et les volumes qu'il demande. Une archive d'une version suivante est refusée,
+et une archive prise sur un schéma plus récent que celui de la branche ne se migre pas : le jeu se
+réengendre alors (`backend/tests/test_witness_reference_archive.py` en joue la forme sur un mois).
+
 **La tranche des projets (EP-04, US-0990).** Chargée après celle du référentiel, par les interfaces
 des modules, elle écrit PRJ-001 et PRJ-002 avec leurs attributs et leur client (chacun créé par les
 règles de la création, référentiel minimal compris), les comptes locaux de leurs contributeurs —
@@ -3095,7 +3180,8 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   à ses propres lectures et les autres projets par des formules simples
   (`wftools.mockportfoliotime`) ; et le journal d'audit de l'installation, tiré de la chronologie du
   témoin et des exemples qui datent ses comptes, ses rôles et ses sauvegardes (`wftools.mockaudit`,
-  tenu par `tools/tests/test_mockaudit.py`) ; et les
+  tenu par `tools/tests/test_mockaudit.py`), avec les chefs de projet qu'une liste des contributeurs
+  inscrit, change ou retire (`wftools.mockauditmanagers`, US-2980) ; et les
   lectures des listes écrites à la main — les projets de l'accueil, les sous-projets et les
   contributeurs du témoin, les comptes et les rôles d'habilitation, les sauvegardes — et du
   lotissement du témoin, triées, cherchées et filtrées comme leurs écrans les demandent, avec la
@@ -3241,6 +3327,10 @@ commande.
 | `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | un seul fichier de tests, pendant le développement ; sans `TESTS`, tous, comme dans la chaîne                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `make service-install`                                                  | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et son référentiel minimal (EP-05) : les paramètres communs, avec la devise `WATERFALL_CURRENCY` (`EUR` par défaut) et le nom de l'entreprise `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` par défaut, ceux du témoin), et le fuseau horaire `WATERFALL_TIME_ZONE` (`UTC` si la variable est vide, à la première écriture seulement, un nom de la base IANA, refusé s'il est inconnu, dans lequel s'entend le jour courant, US-2200), les unités de durée, la correspondance des coûts réels, vide, le calendrier par défaut, la nature et la catégorie de provision pour risques ; écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, dit ignorés une autre devise, un autre nom ou un autre fuseau — relancée sans fuseau, rien n'est dit —, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite                                                                                                                                                                                              |
 | `make service-witness`                                                  | charge le témoin sur la plateforme de service démarrée et amorcée (`waterfall-api load-witness`, service `witness`, EP-05) : les exemples du contrat, `fixtures/api/`, montés en lecture seule, écrits par le rôle du service ; relancée, elle n'écrit rien ; une tranche par objet, dans l'ordre des dépendances, en une transaction (« Le back et les frontières du noyau »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `make service-reference`                                                | charge le jeu de référence (`waterfall-api load-reference`, EP-13, US-2950) sur la plateforme de service démarrée et amorcée : le témoin, trois cents projets, l'histoire de PRJ-001 à cent quatre-vingts révisions marquées et dix-huit mille lignes de coût ; reprise là où elle s'est arrêtée ; près d'une heure ; `REFERENCE_PROJECTS`, `REFERENCE_REVISIONS`, `REFERENCE_COST_LINES` en demandent moins |
+| `make service-reference-check`                                          | vérifie le jeu de référence que la plateforme de service porte (`waterfall-api check-reference`) : volumes, identifiants, sommes du portefeuille égales à celles de ses projets (budgets lus par l'estimation) ; échoue (1) sur un défaut ; mêmes `REFERENCE_*` |
+| `make service-reference-backup`                                         | garde en sauvegarde le jeu de référence que la plateforme de service porte (`waterfall-api backup-reference`, US-2950/L2b) : vérifié entier, sauvegardé par la plateforme comme sa planification le fait, son archive et son manifeste lus dans `REFERENCE_ARCHIVES` (`~/.local/share/waterfall/reference`), nommés par la version, la graine et les volumes ; mêmes `REFERENCE_*` |
+| `make service-reference-restore`                                        | retire les données de la plateforme de service du créneau, y restaure avant son démarrage le jeu gardé dans `REFERENCE_ARCHIVES` (`waterfall-api restore-reference`), puis la démarre ; `make service-reference-check` le vérifie ensuite ; mêmes `REFERENCE_*` |
 | `make service-purge`                                                    | dépose à la main la purge de ce qui a expiré sur la plateforme de service démarrée (`waterfall-worker schedule`, dans le conteneur du service `scheduler`, avec un intervalle de purge d'une seconde, qui ne règle que la purge : une lecture des comptes dont la dernière a plus d'un jour est déposée aussi) : le worker l'exécute — comptes rendus d'import échus, dépôts échus, exports de plus de vingt-quatre heures, historique des sessions de plus de `WATERFALL_UNDO_RETENTION_HOURS` heures (12 par défaut), tâches terminées depuis plus de `WATERFALL_BACKGROUND_TASK_RETENTION_DAYS` jours (30 par défaut), et les objets que plus aucune ligne ne désigne sous `uploads/` et `exports/` ; aucune purge n'est déposée tant qu'une autre est en file ou en cours |
 | `make measure-core`                                                     | lance la mesure du cœur dans le processus (`backend/measure/`, US-2210, EP-26), sans HTTP ni Keycloak, sur la base de la plateforme de service du créneau, qu'elle remet d'abord à zéro — arrêtée, ses données supprimées (`service-down WATERFALL_RESET_DATA=yes`), puis démarrée, amorcée et le témoin chargé (`service-up`, `service-install`, `service-witness`), les secrets de `service-up` attendus dans l'environnement — : une lecture entière de PRJ-001 seule, puis avec `kinds=task` ; la même sous profil, par étape (lecture, corps, sérialisation), avec la part de PostgreSQL ; par plusieurs fils et par plusieurs processus ; le rapport d'une saisie — un libellé, une durée qui redate — à une lecture ; l'ouverture d'une révision ; la dernière révision marquée lue entière depuis ses lignes, puis gardée et lue depuis ce qui est gardé, entière et projetée, la taille gardée et le volume qu'en garderait une plateforme aux volumes du §4.6.2, et le marquage de la révision en cours suivi de la garde de sa structure principale (US-2270) ; la comparaison de la révision en cours à la révision marquée qu'elle copie — ce qu'elle vérifie —, entière depuis les lignes des deux structures (avant l'option 1 de #3168, la quantité sur laquelle se lit son seuil), entière depuis la lecture gardée de la base (après l'option 1, comme la grille du devis la demande) et sur ses tâches depuis les lignes (`kinds=task`, comme la grille du planning la demande), découpée en la part de ses deux lectures, de l'union — par soustraction, les deux chronométrées dans un ordre qui alterne, leurs dispersions données et une union sous zéro signalée — et du corps, et le compte des nœuds qui diffèrent, par nature et par marque, sur ceux de l'union (US-2390, l'option 3 de #3168) ; ce que coûtent les entrées du cache des indicateurs du jour, une par maille, dans le Redis du créneau (`WATERFALL_REDIS_PASSWORD`, `WATERFALL_REDIS_PORT`) — leur taille, la lecture de la maille du projet contre celle de toutes les mailles, à froid et à chaud, celle de toutes extrapolée linéairement à 10, 50 et 100 sous-projets (US-2420, #3628) ; la fusion d'un différentiel que la mesure ouvre elle-même, une durée saisie dedans, dans la révision en cours, puis la survenance d'un risque identifié du projet, relevées sans objectif (US-2650/L2, EP-08). Les identifiants des structures se lisent dans la base ; chaque écriture est annulée, la mesure suivante part du même témoin. Le rapport s'écrit lisible, et en JSON avec `JSON=<fichier>` ; `RUNS=<n>` règle les passages identiques de la lecture entière, de la saisie et de l'ouverture de révision (cinq : leur dispersion dit ce qu'un écart doit dépasser pour être un gain), chacun après un passage d'échauffement qu'on ne compte pas ; le profil et les vagues de lectures par fils et par processus n'ont qu'un passage, ce que le rapport dit, et les vagues échauffent chaque fil et chaque processus et assurent une lecture à chacun ; `ONLY="read profile parallel write revision kept current indicators merge occurrence"` n'en joue qu'une part. Les saisies annulées laissent des tuples morts dans les tables du témoin, ce qu'une longue série peut montrer : la mesure suivante repart d'un témoin rechargé. Elle prend le poste pour elle seule (`$(exclusive)`, « Le poste pour une mesure seule ») : toutes les exécutions lourdes des autres livreurs attendent sa fin. Elle n'échoue jamais sur une durée et la chaîne ne la joue pas. Le paquet est typé et analysé comme `src/waterfall` (Ruff, Pyright), absent de l'image du back et de la couverture |
 | `make measure-reference`                                                | assemble `docs/measures/reference.json` depuis le JSON de `make measure-core` (`CORE=<fichier>`) et celui de `make measure` (`JOURNEY=<fichier>`), sans toucher une durée, avec la cible de l'API pour ouvrir une grille, le commit mesuré et la date de prise (« La référence, et le gain d'un lot ») ; refuse l'absence de `CORE` ou de `JOURNEY` |
@@ -3934,6 +4024,26 @@ le bouton « Merge when ready », ou par la mutation `enqueuePullRequest` de l'A
 `gh pr merge` ne sait pas le faire tant que la fusion automatique est désactivée sur le
 dépôt. Une branche sans file de fusion fait tourner le palier complet à la main sur la
 branche d'un lot, avant de le fusionner : `gh workflow run chain --ref <branche>`.
+
+**Les constructions périmées de la file.** La file construit une pull request sur une ref à elle,
+`gh-readonly-queue/<base>/pr-<N>-<sha>`, et la reconstruit sur un autre sha quand elle retire une
+entrée ou se reforme. Le groupe de concurrence de `chain` ne rattrape pas l'ancien passage (la ref
+change, et `cancel-in-progress` ne vaut que pour `pull_request`) : le 2026-11-27, des constructions
+périmées ont occupé les quelque vingt places du parc, les nouvelles ont attendu, expiré, et la file
+les a reconstruites (#5122). Sur un `merge_group` seulement, le job `cancel-stale` de `ci.yml`
+(`make queue-cancel`, `wftools.queuecancel`) annule les passages de `chain` en attente (`queued`,
+`waiting`, `pending`, `requested`) ou en cours dont la ref est celle d'une construction précédente
+de la même pull request dans la file de la même base (même base, même N, autre sha, et un passage
+plus ancien que le sien : un plus récent est la construction vivante), et ceux d'une
+pull request qui n'est plus dans la file (`mergeQueue(branch:)` de l'API GraphQL ; si la file ne se
+lit pas, ou si elle dépasse les cent entrées lues, seules les constructions précédentes de la même
+pull request sont annulées ; les passages sont lus avant la file). Il n'annule
+jamais un passage d'une autre base, d'un `pull_request`, d'un `workflow_dispatch` ou d'un `push`, ni
+le sien, écrit chaque annulation au journal (passage, pull request, ref), n'échoue jamais (un échec de
+lecture ou d'annulation devient une annotation `::warning::`), et aucun job ne
+l'attend ; il est le seul à porter `actions: write`. **Lire l'état des runners** : compter les jobs
+(`gh run view <passage> --json jobs`, ceux `in_progress` et `queued`), pas les passages, car un
+passage reste `queued` tant qu'un de ses jobs attend ; un palier complet compte environ 45 jobs.
 
 Les images tierces de Docker Hub — PostgreSQL, Redis, Caddy, Mailpit, Garage, curl, k6, Node, Python,
 Debian, Maven, Keycloak et son `keycloak-config-cli` — restent nommées, dans les fichiers Compose et

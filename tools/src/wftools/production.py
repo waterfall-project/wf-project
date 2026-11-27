@@ -33,7 +33,19 @@ come from the environment, as the chain gives them; no file holds them. Then it 
   the API, which the service of the restoration runs, followed by the liveness probe to its end
   (``wftools.restoration_trial``, US-0440, #948), and the test of a restoration under Compose
   (``deploy/compose/restore-test.sh``) on a backup the schedule took, which leaves nothing of its
-  ephemeral platform behind (``wftools.restoretest_trial``, US-2930).
+  ephemeral platform behind (``wftools.restoretest_trial``, US-2930);
+- no component, Keycloak and the supervision included, tried to reach a server outside the
+  platform: it runs on networks without a way out, its users let in by a door
+  (``compose.isolated.yaml``), and every name its services asked that is not the platform's, which
+  the sink of its names writes down, fails the trial, naming the service that asked
+  (``wftools.egress``, US-3010, WF-CMP-0030).
+
+Given ``WATERFALL_PRODUCTION_CGROUP_PARENT`` (a slice of the cgroups of the host, which the
+chain bounds to four cores and eight gigabytes before it starts the trial, ``production.yml``),
+every container of the platform, and of the ephemeral platform of the test of a restoration, runs
+under it, by the override ``wftools.bounded`` writes: the platform holds all of the above on a
+machine of those characteristics, data components and supervision included (WF-CMP-0020-A,
+US-2810).
 
 Every request reaches the platform at the loopback, under the name of the domain, which no resolver
 is asked for. The platform is removed at the end, its volumes with it, whatever the outcome; what
@@ -59,7 +71,7 @@ from pathlib import Path
 from typing import cast
 from urllib.parse import urlencode, urljoin, urlsplit
 
-from wftools import REPOSITORY, transport, trialregistry
+from wftools import REPOSITORY, bounded, egress, transport, trialregistry
 from wftools.images import DIGEST, IMAGES, digest_variable
 from wftools.restoration_trial import (
     API_REACHED,
@@ -77,7 +89,31 @@ from wftools.transport import SERVED, TransportError, check_clear_refused
 from wftools.trialregistry import RegistryError
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
-FILES = (COMPOSE / "compose.prod.yaml", COMPOSE / "compose.prod.local.yaml")
+FILES = (
+    COMPOSE / "compose.prod.yaml",
+    COMPOSE / "compose.prod.local.yaml",
+    COMPOSE / "compose.isolated.yaml",
+)
+SINK = "egress-sink"
+"""The service of ``compose.isolated.yaml`` that writes down every name asked from inside."""
+ENDED = (
+    "authority",
+    "door-authority",
+    "postgres-volume",
+    "waterfall-database",
+    "components",
+    "migrate",
+    "service-database-role",
+    "backup-database-role",
+    "keycloak-database",
+    "install",
+    "storage-buckets",
+)
+"""The services that run once and leave, by the order of their fixed address, from ``.0.101``.
+
+Docker no longer lists them when the trial reads the names asked, so ``compose.isolated.yaml``
+gives each an address of its own, and the request of a service that has ended is named by it."""
+FIRST_ENDED = 101
 DOMAIN = "waterfall.localhost"
 PROJECT = "waterfall-production-trial"
 ADMIN = "administrateur@waterfall.test"
@@ -100,6 +136,10 @@ OWNER_RIGHTS = (
 SESSION_COOKIE = "__Host-wf_session"
 HTTPS_PORT = 443
 HTTP_PORT = 80
+PARENT = "WATERFALL_PRODUCTION_CGROUP_PARENT"
+"""The slice of the cgroups the containers of the platform run under, when it is bounded."""
+OVERRIDE = "WATERFALL_PRODUCTION_OVERRIDE"
+"""The file of Compose that puts the production under that slice, which ``main`` writes."""
 REDIRECTIONS = frozenset({301, 302, 303, 307, 308})
 MOST_REDIRECTIONS = 20
 OK = 200
@@ -356,9 +396,16 @@ def check_signed_in(browser: Browser, platform: Platform, email: str) -> None:
         raise ProductionError(message)
 
 
-def compose_command(project: str) -> list[str]:
-    """Return the command of Compose on the production platform under a local name."""
-    files = [word for path in FILES for word in ("--file", str(path))]
+def compose_command(project: str, override: Path | None = None) -> list[str]:
+    """Return the command of Compose on the production platform under a local name.
+
+    ``override`` is a file added after the others: the bound of its resources.
+    """
+    files = [
+        word
+        for path in (*FILES, *([override] if override else []))
+        for word in ("--file", str(path))
+    ]
     return ["docker", "compose", "--project-name", project, *files]
 
 
@@ -369,6 +416,25 @@ def _output(read: Read, command: list[str]) -> str:
         message = f"{' '.join(command[:2])} … {' '.join(command[-3:])} failed ({code})"
         raise ProductionError(message)
     return output
+
+
+def check_bounded(compose: list[str], read: Read, parent: str) -> None:
+    """Fail unless the containers the platform started run under the slice ``parent``.
+
+    A file of Compose the platform did not read, or a runner that did not make the slice, would
+    leave it unbounded, and the trial would pass holding nothing of WF-CMP-0020-A.
+    """
+    names = _output(read, [*compose, "ps", "--all", "--quiet"]).split()
+    if not names:
+        message = f"no container of the platform to run under {parent}"
+        raise ProductionError(message)
+    inspect = ["docker", "inspect", "--format", "{{.Name}} {{.HostConfig.CgroupParent}}", *names]
+    out = [line.split() for line in _output(read, inspect).splitlines() if line.strip()]
+    loose = [line[0].lstrip("/") for line in out if line[1:] != [parent]]
+    if loose or len(out) != len(names):
+        message = f"containers outside the slice {parent}: {', '.join(loose) or 'unread'}"
+        raise ProductionError(message)
+    print(f"  the {len(names)} containers of the platform run under {parent}")
 
 
 def trial(
@@ -420,6 +486,49 @@ def trial(
         return again
 
     return signed_in, sent
+
+
+def check_no_egress(compose: list[str], read: Read, project: str, domain: str) -> None:
+    """Fail if a service asked a name outside the platform, naming it and the service."""
+    log = _output(read, [*compose, "logs", "--no-color", "--no-log-prefix", SINK])
+    found = egress.attempts(log, domain)
+    if not found:
+        print("  no component asked for a server outside the platform")
+        return
+    networks = [f"{project}_default", f"{project}_storage"]
+    inspected = _output(
+        read, ["docker", "network", "inspect", *networks, "--format", "{{json .Containers}}"]
+    )
+    named = containers_of(inspected)
+    said = "; ".join(f"{who(named, attempt.client)} asked for {attempt.name}" for attempt in found)
+    message = f"a component tried to leave the network of the platform: {said}"
+    raise ProductionError(message)
+
+
+def who(named: dict[str, str], client: str) -> str:
+    """Name the client of a request: a container still on the networks, or a service that ended."""
+    if client in named:
+        return named[client]
+    host = client.rsplit(".", 1)[-1]
+    if client.split(".")[2:3] == ["0"] and host.isdigit():
+        place = int(host) - FIRST_ENDED
+        if 0 <= place < len(ENDED):
+            return f"{ENDED[place]} (ended)"
+    return client
+
+
+def containers_of(inspected: str) -> dict[str, str]:
+    """Read the containers of the networks inspected, one JSON object a line, by their address."""
+    named: dict[str, str] = {}
+    for written in inspected.splitlines():
+        if not written.strip():
+            continue
+        containers = cast("dict[str, dict[str, str]]", json.loads(written) or {})
+        for container in containers.values():
+            address = container.get("IPv4Address", "").partition("/")[0]
+            if address:
+                named[address] = container.get("Name", address)
+    return named
 
 
 def liveness_command(compose: list[str]) -> list[str]:
@@ -598,8 +707,10 @@ def main(
         added, pushed = local_images(given, tag, run or runner(given), read or _reader(given))
         registry = list(added)
         started = environment_of({**given, **added}, platform, pushed)
-        commands = (run or runner(started), read or _reader(started))
-        return hold(started, tag, platform, commands, (send, ask))
+        with tempfile.TemporaryDirectory(prefix="waterfall-production-") as folder:
+            started = {**started, **bounded.environment(started.get(PARENT), Path(folder))}
+            commands = (run or runner(started), read or _reader(started))
+            return hold(started, tag, platform, commands, (send, ask))
     except (ProductionError, RegistryError, OSError, subprocess.CalledProcessError) as error:
         print(f"wftools.production: {error}", file=sys.stderr)
         return 1
@@ -623,13 +734,16 @@ def hold(
         secret = started.get("WATERFALL_FRONT_CLIENT_SECRET", "")
         restoration = Restoration(ask or _asker(started), secret)
     project = started.get("WATERFALL_PRODUCTION_PROJECT") or PROJECT
-    compose = compose_command(project)
+    given = started.get(OVERRIDE)
+    compose = compose_command(project, Path(given) if given else None)
     up = [*compose, "up", "--detach", "--wait", "--quiet-pull"]
     print(f"  the images {tag}, at {platform.address}", flush=True)
     failed = True
     try:
         if code := run(up):
             return code
+        if parent := started.get(PARENT):
+            check_bounded(compose, read, parent)
         email = started["WATERFALL_ADMIN_EMAIL"]
         signed = trial(compose, read, platform, email, send(platform))
         if restoration is None:
@@ -638,6 +752,7 @@ def hold(
             scheduled_backup(compose, read)
             back_up_and_restore(compose, read, platform, signed, restoration)
             restore_test(compose, run, read, project)
+        check_no_egress(compose, read, project, platform.domain)
         failed = False
     except (ProductionError, TrialError) as error:
         print(f"wftools.production: {error}", file=sys.stderr)

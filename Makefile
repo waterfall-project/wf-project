@@ -76,9 +76,9 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-logs-search service-logs-fields service-down measure-core migrate \
+	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-reference service-reference-check service-reference-backup service-reference-restore service-purge service-logs service-logs-search service-logs-fields service-down measure-core migrate \
 	build-keycloak save-keycloak load-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
-	production-trial check-production kube-tools lint-chart test-chart chart-trial chart-upgrade check-chart \
+	production-trial check-production kube-tools lint-chart test-chart chart-trial chart-trial-k3s chart-upgrade check-chart \
 	check-migrations migrations-tests migrations-backup \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens implementations readmes reuse lint-workflows \
@@ -87,7 +87,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap check-measures e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror mirror-sync lot-size measure-reference tracking merge-queue merge-queue-check queue-report \
+	coverage-back coverage-front roadmap check-roadmap check-measures e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror mirror-sync lot-size measure-reference tracking merge-queue merge-queue-check queue-cancel queue-report \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -189,7 +189,7 @@ SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPE
 	WATERFALL_POSTGRES_PORT WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT \
 	WATERFALL_MAILPIT_PORT WATERFALL_PROXY_PORT
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT E2E_METRICS_FRONT_PORT E2E_METRICS_PORT
-$(call slot-export,service-up service-install service-witness service-purge keycloak-authority service-logs service-logs-search service-logs-fields service-down service-api-processes \
+$(call slot-export,service-up service-install service-witness service-reference service-reference-check service-reference-backup service-reference-restore service-purge keycloak-authority service-logs service-logs-search service-logs-fields service-down service-api-processes \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
 # e2e-down is not tolerant of a worktree without a slot, on purpose: its first command, stop-servers,
 # already stops on "run make slot" (US-1300), because without a slot there are no ports to look at and
@@ -350,6 +350,14 @@ chart-trial: export WATERFALL_CHART_CLUSTER ?= waterfall-chart-s$(call slot-valu
 chart-trial: kube-tools ## Install the chart on a throwaway cluster of kind from the images of WATERFALL_IMAGE_TAG (the commit by default, make images first), bootstrap it, hold its liveness, the sign-in of its first administrator and its services without state (one token answered the same by each instance, a worker killed in a marking) and the test of a restoration the platform plans (closed while it runs, gone after), then delete the cluster
 	@$(heavy) $(WFTOOLS).charttrial
 
+# The same chart on the second distribution, k3s in a container, by the very same values: that the
+# chart installs on two distributions without modification (WF-CMP-0020-A, US-2810). It holds the
+# installation, the sign-in of the first administrator and the transport; the rest is held on kind.
+chart-trial-k3s: export WATERFALL_CHART_CLUSTER ?= waterfall-chart-k3s-s$(call slot-value,WATERFALL_SLOT)
+chart-trial-k3s: export WATERFALL_CHART_DISTRIBUTION = k3s
+chart-trial-k3s: kube-tools ## Install the chart on a throwaway cluster of k3s, by the values of kind, from the images of WATERFALL_IMAGE_TAG (make images first), bootstrap it, hold its liveness, the sign-in of its first administrator and its transport, then delete the cluster (WF-CMP-0020-A)
+	@$(heavy) $(WFTOOLS).charttrial
+
 # The upgrade of the chart under load (US-2850): the version N — the last published version that
 # carries the chart, or else the base, BASE, or its nearest first parent whose images are published —
 # installed on a cluster of kind of its own, upgraded to the images of WATERFALL_IMAGE_TAG (make images
@@ -386,6 +394,56 @@ service-install: ## Bootstrap the installation of the service platform, started,
 service-witness: ## Load the witness, the examples of the contract (fixtures/api and fixtures/witness), on the service platform, started and bootstrapped
 	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet witness
 	@$(COMPOSE_SERVICE) run --rm --no-TTY witness
+
+# The reference set of WF-QUA-0040 (US-2950), on the platform that holds the witness or not: the
+# service `witness` runs `waterfall-api load-reference` in place of `load-witness`, which the command
+# runs first itself. Taken up where it stopped, a project and a month of PRJ-001 each in a transaction
+# of their own; the full set — three hundred projects, a hundred and eighty revisions of PRJ-001,
+# eighteen thousand lines of cost — takes most of an hour. REFERENCE_PROJECTS, REFERENCE_REVISIONS and
+# REFERENCE_COST_LINES say less, for a trial.
+# `waterfall-api check-reference` counts what the platform holds and checks the sums of its portfolio:
+# the volumes of the set are verified there, on the platform, never against fixtures/api/volume/.
+REFERENCE_PROJECTS ?= 300
+REFERENCE_REVISIONS ?= 180
+REFERENCE_COST_LINES ?= 18000
+service-reference: ## Load the reference set (the witness, then the 300 projects and the 180 revisions of PRJ-001) on the service platform, started and bootstrapped; REFERENCE_PROJECTS, REFERENCE_REVISIONS, REFERENCE_COST_LINES for less; taken up where it stopped
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet witness
+	@$(COMPOSE_SERVICE) run --rm --no-TTY witness waterfall-api load-reference --projects $(REFERENCE_PROJECTS) --revisions $(REFERENCE_REVISIONS) --cost-lines $(REFERENCE_COST_LINES)
+
+service-reference-check: ## Check the reference set the service platform holds: its volumes, its identifiers, the sums of its portfolio (same REFERENCE_* variables); ends 1 on a fault
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet witness
+	@$(COMPOSE_SERVICE) run --rm --no-TTY witness waterfall-api check-reference --projects $(REFERENCE_PROJECTS) --revisions $(REFERENCE_REVISIONS) --cost-lines $(REFERENCE_COST_LINES)
+
+# The reference set kept as a backup (US-2950/L2b, #4114), engendered once per version: its archive and
+# its manifest out of the platform, in REFERENCE_ARCHIVES — a folder of the workstation, shared by its
+# worktrees, readable by its user alone —, named after the version, the seed and the volumes
+# (reference-<version>-<seed>-<projects>-<revisions>-<cost lines>.tar and .manifest.json).
+# service-reference-backup checks the set, has the platform back itself up as its schedule does, without
+# an account, and reads the archive out of the bucket: `waterfall-api backup-reference`, in a container
+# of the worker, under the user of the workstation, the description of the witness read-only.
+# service-reference-restore drops the data of the platform of the slot, makes its databases, restores
+# the archive in them before Keycloak, the API and the worker start (`waterfall-api restore-reference`,
+# in a container of the service of the restoration, as their owners), then starts the platform.
+REFERENCE_ARCHIVES ?= $(HOME)/.local/share/waterfall/reference
+REFERENCE_VOLUMES = --projects $(REFERENCE_PROJECTS) --revisions $(REFERENCE_REVISIONS) --cost-lines $(REFERENCE_COST_LINES)
+service-reference-backup: ## Keep the reference set the service platform holds as a backup, its archive and manifest in REFERENCE_ARCHIVES (~/.local/share/waterfall/reference), named after the version and the seed; same REFERENCE_* variables
+	@mkdir -p $(REFERENCE_ARCHIVES) && chmod 700 $(REFERENCE_ARCHIVES)
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet worker
+	@$(COMPOSE_SERVICE) run --rm --no-TTY --no-deps --user "$$(id -u):$$(id -g)" \
+		--env WATERFALL_WITNESS_PATH=/fixtures/api --volume "$(CURDIR)/fixtures/api:/fixtures/api:ro" \
+		--volume "$(CURDIR)/fixtures/witness:/fixtures/witness:ro" --volume "$(REFERENCE_ARCHIVES):/reference" \
+		worker waterfall-api backup-reference $(REFERENCE_VOLUMES) --into /reference
+
+service-reference-restore: ## Drop the data of the service platform, restore on it the reference set kept in REFERENCE_ARCHIVES (make service-reference-backup) before it starts, then start it; same REFERENCE_* variables
+	@echo 'The data of the service platform of this slot are dropped (service-down WATERFALL_RESET_DATA=yes).'
+	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
+	@$(RETRIED) $(COMPOSE_SERVICE) build --quiet migrate restore
+	@$(COMPOSE_SERVICE) run --rm --no-TTY keycloak-database > /dev/null
+	@$(COMPOSE_SERVICE) run --rm --no-TTY migrate
+	@$(COMPOSE_SERVICE) run --rm --no-TTY --no-deps --user "$$(id -u):$$(id -g)" \
+		--volume "$(REFERENCE_ARCHIVES):/reference:ro" \
+		restore waterfall-api restore-reference $(REFERENCE_VOLUMES) --from /reference
+	@$(MAKE) --no-print-directory service-up
 
 # The purge of what expired (EP-06, "La purge"), by hand: the schedule the scheduler calls every five
 # minutes, run in its container with a purge interval of one second, so that the purge is due now;
@@ -517,7 +575,7 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_INSTALLATION_CLIENT_SECRET=stand-in \
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
 		WATERFALL_GRAFANA_ADMIN_PASSWORD=stand-in \
-		$(COMPOSE_PRODUCTION) --profile install config --quiet
+		$(COMPOSE_PRODUCTION) -f deploy/compose/compose.isolated.yaml --profile install config --quiet
 	@WATERFALL_DOMAIN=waterfall.localhost $(STAND_IN_DIGESTS) WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_RESTORE_TEST_PASSWORD=stand-in \
 		docker compose -f deploy/compose/compose.restore-test.yaml --profile restore-test config --quiet
@@ -792,10 +850,16 @@ check-service: $(call full-only,e2e-service) ## The paths against the real servi
 # them (production-trial): in the full tier only, as images.yml does again on the images it published.
 check-production: $(call full-only,images production-trial) ## The production platform starts on the images built here, bootstraps and lets its first administrator in, in the full tier only (US-0430)
 
-# The chart linted and rendered in every tier; installed on a cluster of kind from the three images
-# built here, in the full tier only, as check-production starts the Compose (US-2800); then, on a
-# cluster of its own, the version N upgraded to them under load, from BASE (US-2850).
-check-chart: lint-chart test-chart $(call full-only,images chart-trial chart-upgrade) ## The chart lints and says what it must; in the full tier, it installs on a throwaway cluster, bootstraps and lets its first administrator in (US-2800), then upgrades from the version N under load, rolls back and upgrades again (US-2850)
+# The chart linted and rendered in every tier; installed on a cluster of kind, then of k3s, from the
+# three images built here, in the full tier only, as check-production starts the Compose (US-2800);
+# then, on a cluster of its own, the version N upgraded to them under load, from BASE (US-2850).
+# CHART_TRIALS names the clusters it is installed on and the upgrade, all by default: the chain gives
+# each its job, the upgrade to the one of kind.
+# CHART_CHECKS names the lint and the tests of the rendering: the job of the second cluster leaves
+# them to the first, which has run them (chart.yml).
+CHART_TRIALS ?= chart-trial chart-trial-k3s chart-upgrade
+CHART_CHECKS ?= lint-chart test-chart
+check-chart: $(CHART_CHECKS) $(call full-only,images $(CHART_TRIALS)) ## The chart lints and says what it must; in the full tier, it installs on throwaway clusters of kind and of k3s, bootstraps and lets its first administrator in (US-2800, US-2810), then upgrades from the version N under load, rolls back and upgrades again (US-2850)
 
 # The migrations of the branch against the last published version, without the chart (US-2850,
 # #4089), in the full tier only: the tests of the back of that version on the schema the branch
@@ -1146,6 +1210,9 @@ merge-queue: ## Create the merge queue ruleset of an epic's branch from .github/
 
 merge-queue-check: ## Check that an active ruleset with a merge queue targets an epic's branch (EPIC=EP-nn)
 	@$(WFTOOLS).mergequeue check "$(EPIC)"
+
+queue-cancel: ## Cancel the runs of the chain that the merge queue made stale, in the merge queue only (wftools.queuecancel, US-2800/L7)
+	@$(WFTOOLS).queuecancel
 
 # The runs of the merge queue of a branch, read by gh from a workstation, never in the chain: their
 # failures by job and step, the tests and paths that failed, classified against
