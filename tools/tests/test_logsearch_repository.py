@@ -153,7 +153,10 @@ def test_the_paths_of_the_chain_search_the_repository_with_the_secrets_of_their_
     # repository for them, and fails if it finds one, as it does for the logs.
     played = re.search(r"^e2e-service: install-front.*?\n((?:\t.*\n)+)", MAKEFILE, re.MULTILINE)
     assert played
-    recipe = played[1]
+    # The end of the recipe, which e2e-service and e2e-reference share, is a macro (US-2950/L3).
+    shared = re.search(r"^service-harness-play = (.*?)\n(?!\t)", MAKEFILE, re.MULTILINE | re.DOTALL)
+    assert shared
+    recipe = played[1] + shared[1]
     assert "$(repository-secrets); written=$$?;" in recipe
     assert "if [ $$written -ne 0 ]; then exit $$written; fi;" in recipe
     defined = re.search(r"^repository-secrets = (.*)$", MAKEFILE, re.MULTILINE)

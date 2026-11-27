@@ -100,7 +100,10 @@ def test_the_search_reads_the_logs_of_the_services_run_once_by_the_paths() -> No
     assert "for each in $(RUN_LOGS)" in variables["service-logs-text"]
     played = re.search(r"^e2e-service: install-front.*?\n((?:\t.*\n)+)", MAKEFILE, re.MULTILINE)
     assert played
-    recipe = played[1]
+    # The end of the recipe, which e2e-service and e2e-reference share, is a macro (US-2950/L3).
+    shared = re.search(r"^service-harness-play = (.*?)\n(?!\t)", MAKEFILE, re.MULTILINE | re.DOTALL)
+    assert shared
+    recipe = played[1] + shared[1]
     assert "$(call run-logged,install,$(INSTALL_LOG),2> $(INSTALL_LOG))" in recipe
     assert "$(call run-logged,witness,$(WITNESS_LOG),> $(WITNESS_LOG) 2>&1)" in recipe
     assert "run --rm --no-TTY install)" not in recipe

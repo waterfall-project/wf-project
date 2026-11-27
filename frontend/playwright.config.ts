@@ -58,6 +58,14 @@
  * play on theirs and which they then no longer wait for. Those parts play a test list of `service`
  * and `shared` alone (`wftools.e2eparts`).
  *
+ * `reference` plays the paths of `e2e/reference/` alone (`make e2e-reference`, US-2950/L3), which
+ * the other parts leave out: against the service platform that holds the reference set, restored by
+ * `make service-reference-restore` and neither installed nor loaded again, through the same proxy of
+ * the contract and the same front as `service`. Its project `reference-administrator` gives the
+ * administrator of the installation the password of the paths first, which no path of a restored set
+ * has set; the paths then sign in as the manager of their worker, as the shared ones do. They affirm
+ * of the set what holds whatever its values: no example of the contract stands in them.
+ *
  * `measure-service` plays the measure of the journey of the grids against the service alone
  * (`make measure`, US-2210), in its project of the same name, which no other part and no goal of
  * the chain plays: its file, `e2e/measure/grids.measure.ts`, is no path (`*.measure.ts`), and the
@@ -191,7 +199,14 @@ const FRONT_ENV = {
 // What the front of the measure against the service is told: the users' front, whose connections
 // to the API are kept alive, as in production — no proxy closes them there (US-2210).
 const USERS_FRONT_ENV = { WATERFALL_API_ADDRESS: API, ...AUTHENTICATION };
-const PARTS = ["paths", "measure", "service", "measure-service", "measure-version"] as const;
+const PARTS = [
+  "paths",
+  "measure",
+  "service",
+  "reference",
+  "measure-service",
+  "measure-version",
+] as const;
 type Part = (typeof PARTS)[number];
 
 /** The part of the harness the environment names, or the whole of it; anything else refused. */
@@ -209,6 +224,9 @@ function part(): Part | undefined {
 
 const PART = part();
 const PLAYS_SERVICE = PART === "service";
+// The paths of the reference set (`make e2e-reference`, US-2950/L3): the platform of the service,
+// restored from the set and not installed again, the front and the proxy as for the service.
+const PLAYS_REFERENCE = PART === "reference";
 // The measure of the journey of the grids against the service (`make measure`, US-2210), and the
 // report of a version under the load of fifty users (`make measure-version`, US-2300): the same
 // harness, each its file.
@@ -221,8 +239,8 @@ const PLAYS_PATHS = PART === undefined || PART === "paths";
 // measure out, and the measure asked alone plays against the built front.
 const DEVELOPMENT = DEVELOPMENT_ASKED && PART !== "measure" && !MEASURES_SERVICE;
 const PLAYS_MEASURE = (PART === undefined && !DEVELOPMENT) || PART === "measure";
-if (PLAYS_SERVICE && NAMED_API === undefined) {
-  throw new Error("E2E_PART=service plays against the service WATERFALL_API_ADDRESS names");
+if ((PLAYS_SERVICE || PLAYS_REFERENCE) && NAMED_API === undefined) {
+  throw new Error(`E2E_PART=${PART} plays against the service WATERFALL_API_ADDRESS names`);
 }
 // The paths against the service that play one at a time, alone on a platform of their own.
 const SERIAL_ALONE = switchedOn("E2E_SERVICE_SERIAL");
@@ -250,6 +268,9 @@ const MEASURES = /(opening|departure)\.spec\.ts$/;
 const SERVICE_MEASURE = /e2e\/measure\//;
 // The paths against the real service, which need its platform: `make e2e-service` alone plays them.
 const SERVICE_PATHS = /e2e\/service\/.+\.spec\.ts$/;
+// The paths of the reference set, which need the platform that holds it: `make e2e-reference` alone
+// plays them, the setup of its administrator with them.
+const REFERENCE_PATHS = /e2e\/reference\//;
 // The paths that change a setting of the realm for the time they run — a lifetime —, which every
 // account of the realm reads: tagged, played alone.
 const REALM_WIDE = /@realm-wide/;
@@ -268,7 +289,7 @@ const PLATFORM_WIDE = /@platform-wide/;
 // proxy from it (`e2e/service/contract.ts`). The last line the proxy wrote before the run, on the
 // clock of Docker that stamps its log, never the workstation's (`e2e/service/proxy-log.ts`). Kept
 // by a worker, which loads this file again.
-if (PLAYS_SERVICE) {
+if (PLAYS_SERVICE || PLAYS_REFERENCE) {
   process.env.E2E_SERVICE_STARTED ??= lastLogged();
 }
 
@@ -303,7 +324,7 @@ function pathProjects(): Project[] {
   return [
     {
       name: "chromium",
-      testIgnore: [MEASURES, SERVICE_PATHS, SERVICE_MEASURE],
+      testIgnore: [MEASURES, SERVICE_PATHS, SERVICE_MEASURE, REFERENCE_PATHS],
       use: { ...devices["Desktop Chrome"], locale: "fr-FR" },
     },
   ];
@@ -343,7 +364,7 @@ function serviceProjects(): Project[] {
       // (`e2e/mode.ts`): chosen by their tag in any file, the measure's and `e2e/service/`'s
       // left out (`service` plays those), beside the paths.
       name: "shared",
-      testIgnore: [MEASURES, SERVICE_PATHS, SERVICE_MEASURE],
+      testIgnore: [MEASURES, SERVICE_PATHS, SERVICE_MEASURE, REFERENCE_PATHS],
       grep: SHARED,
       grepInvert: [SERIAL],
       dependencies: ["installation"],
@@ -353,7 +374,7 @@ function serviceProjects(): Project[] {
       // The shared paths that write an object unique to the installation: one at a time, once the
       // others are done, so that no worker reads it as it changes (US-1330).
       name: "shared-serial",
-      testIgnore: [MEASURES, SERVICE_PATHS, SERVICE_MEASURE],
+      testIgnore: [MEASURES, SERVICE_PATHS, SERVICE_MEASURE, REFERENCE_PATHS],
       grep: SERIAL,
       // Waits for `shared` alone, not for `service`: the graph the full part has always drawn.
       dependencies: ["installation", ...beside("shared")],
@@ -392,6 +413,38 @@ function serviceProjects(): Project[] {
   );
 }
 
+/**
+ * The paths against the platform that holds the reference set, in a French browser — when they are
+ * the part played: the administrator of the installation is given the password of the paths first,
+ * then the paths of `e2e/reference/` play on several workers, each as the manager of its worker
+ * (`e2e/mode.ts`), and the guard of the run closes them (US-2950/L3).
+ */
+function referenceProjects(): Project[] {
+  if (!PLAYS_REFERENCE) {
+    return [];
+  }
+  const use = { ...devices["Desktop Chrome"], locale: "fr-FR", ignoreHTTPSErrors: true };
+  return [
+    {
+      name: "reference-administrator",
+      testMatch: /e2e\/reference\/administrator\.setup\.ts$/,
+      teardown: "contract",
+      use,
+    },
+    {
+      name: "reference",
+      testMatch: /e2e\/reference\/.+\.spec\.ts$/,
+      dependencies: ["reference-administrator"],
+      use,
+    },
+    {
+      name: "contract",
+      testMatch: /e2e\/service\/contract\.teardown\.ts$/,
+      use,
+    },
+  ];
+}
+
 /** The measure, against the front built for production — unless the paths are played alone. */
 function measureProjects(): Project[] {
   if (!PLAYS_MEASURE) {
@@ -423,13 +476,13 @@ function fronts(): WebServer[] {
   return Array.from({ length: FRONTS }, (_, index) => {
     // Against the service, on every interface: Keycloak posts to the back channel of the front
     // from its container, through the address of the workstation (`host.docker.internal`).
-    const listening = `--hostname ${PLAYS_SERVICE || MEASURES_SERVICE ? "0.0.0.0" : "127.0.0.1"} --port ${String(FRONT_PORT + index)}`;
+    const listening = `--hostname ${PLAYS_SERVICE || PLAYS_REFERENCE || MEASURES_SERVICE ? "0.0.0.0" : "127.0.0.1"} --port ${String(FRONT_PORT + index)}`;
     // Built as `make build-front` builds it: with no API to reach, which the address of the API
     // given to the server is not while it builds (#131). The build writes `.next`, the development
     // server `.next/dev`: the two live side by side.
     // Against the service, its output joins the log of the server, searched in the same way.
-    const kept = PLAYS_SERVICE ? " >> .e2e/front.log 2>&1" : "";
-    const keeping = PLAYS_SERVICE ? "mkdir -p .e2e && " : "";
+    const kept = PLAYS_SERVICE || PLAYS_REFERENCE ? " >> .e2e/front.log 2>&1" : "";
+    const keeping = PLAYS_SERVICE || PLAYS_REFERENCE ? "mkdir -p .e2e && " : "";
     const build =
       BUILT || index > 0 ? "" : `${keeping}WATERFALL_API_ADDRESS=${NOWHERE} pnpm build${kept} && `;
     // Against the service, the output of the server is kept in `.e2e/front.log`, which Compose does
@@ -500,6 +553,7 @@ export default defineConfig({
   projects: [
     ...pathProjects(),
     ...serviceProjects(),
+    ...referenceProjects(),
     ...measureProjects(),
     ...serviceMeasureProjects(),
   ],

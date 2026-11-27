@@ -77,7 +77,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
 	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-reference service-reference-check service-reference-backup service-reference-restore service-purge service-logs service-logs-search service-logs-fields service-down measure-core migrate \
-	build-keycloak save-keycloak load-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
+	build-keycloak save-keycloak load-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service e2e-reference check-service images \
 	production-trial check-production kube-tools lint-chart test-chart chart-trial chart-trial-k3s chart-upgrade check-chart \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens implementations readmes reuse lint-workflows \
@@ -189,7 +189,7 @@ SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPE
 	WATERFALL_MAILPIT_PORT WATERFALL_PROXY_PORT
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT E2E_METRICS_FRONT_PORT E2E_METRICS_PORT
 $(call slot-export,service-up service-install service-witness service-reference service-reference-check service-reference-backup service-reference-restore service-purge keycloak-authority service-logs service-logs-search service-logs-fields service-down service-api-processes \
-	test-keycloak e2e-service,$(SLOT_SERVICE))
+	test-keycloak e2e-service e2e-reference,$(SLOT_SERVICE))
 # e2e-down is not tolerant of a worktree without a slot, on purpose: its first command, stop-servers,
 # already stops on "run make slot" (US-1300), because without a slot there are no ports to look at and
 # no load container (named after the slot's project) to stop — nothing was started by this worktree.
@@ -198,7 +198,7 @@ $(call slot-export,e2e-down,WATERFALL_SERVICE_PROJECT)
 $(call slot-export,build-keycloak save-keycloak load-keycloak,WATERFALL_KEYCLOAK_IMAGE)
 $(call slot-export,test-services test-services-down,WATERFALL_TEST_PROJECT \
 	WATERFALL_TEST_POSTGRES_PORT WATERFALL_TEST_REDIS_PORT WATERFALL_TEST_STORAGE_PORT)
-$(call slot-export,e2e e2e-measure e2e-service,$(SLOT_PATHS))
+$(call slot-export,e2e e2e-measure e2e-service e2e-reference,$(SLOT_PATHS))
 $(call slot-export,check-front-image,WATERFALL_FRONT_CHECK_IMAGE)
 
 full-only = $(if $(filter full,$(TIER)),$(1))
@@ -982,7 +982,7 @@ E2E_SERVICE_WORKERS = $(shell workers=$$(($(E2E_SERVICE_PROCESSORS) * 3 / 4)); e
 # make of its own and only if the change touches it, is not covered: it would pay a $(shell) in
 # the fast tier, which does not play the paths. The target-specific override below keeps an empty
 # E2E_WORKERS= of the command line, which would win with its empty value, from reaching Playwright.
-$(if $(or $(filter e2e-service,$(MAKECMDGOALS)),$(and $(filter full,$(TIER)),$(filter check-service check-all,$(MAKECMDGOALS)))),$(if $(E2E_SERVICE_PROCESSORS),))
+$(if $(or $(filter e2e-service e2e-reference,$(MAKECMDGOALS)),$(and $(filter full,$(TIER)),$(filter check-service check-all,$(MAKECMDGOALS)))),$(if $(E2E_SERVICE_PROCESSORS),))
 # The workers the paths against the service take here, written in the log of the chain beside the
 # processors of its runner (service.yml, US-2290): four processors give three workers, beside the
 # four processes of the API.
@@ -999,6 +999,32 @@ e2e-service: export E2E_SERVICE_SERIAL =
 e2e-service: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_BUILT = 1
+# What the paths against the service are given, once the platform is up: the containers of the proxy, of
+# PostgreSQL, of Redis, of the directory and of the worker, the address of the API the front reaches
+# (the proxy), the address and the authority of Keycloak, the Redis of the sessions — and what runs
+# them, then searches the logs and the files for the secrets (WF-OBS-0020, US-2900, WF-SEC-0010,
+# US-2840): make e2e-service and make e2e-reference play the same harness, on a platform that is not the
+# same.
+service-harness-env = E2E_CONTRACT_PROXY=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
+	E2E_SERVICE_DATABASE=$$($(COMPOSE_SERVICE) ps --quiet postgres) && \
+	E2E_SERVICE_CACHE=$$($(COMPOSE_SERVICE) ps -a --quiet redis) && \
+	E2E_SERVICE_DIRECTORY=$$($(COMPOSE_SERVICE) ps -a --quiet openldap) && \
+	E2E_SERVICE_WORKER=$$($(COMPOSE_SERVICE) ps -a --quiet worker) && \
+	WATERFALL_API_ADDRESS=http://127.0.0.1:$(WATERFALL_PROXY_PORT) && \
+	WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
+	WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
+	NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
+	export E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE E2E_SERVICE_CACHE E2E_SERVICE_DIRECTORY E2E_SERVICE_WORKER WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS
+service-harness-play = mkdir -p $(FRONT)/.e2e && : > $(FRONT_LOG) && \
+	{ ( cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $$part $(TESTS); } ); played=$$?; \
+	echo 'Searching the logs of the platform and of the front for the secrets and tokens known (WF-OBS-0020, US-2900).'; \
+	$(service-logs-secrets); found=$$?; \
+	echo 'Checking the records of the services of Waterfall for their fields (WF-OBS-0020, US-2900).'; \
+	$(service-logs-check); fields=$$?; \
+	echo 'Searching the files of the repository for the secrets of the platform of service (WF-SEC-0010, US-2840).'; \
+	$(repository-secrets); written=$$?; \
+	if [ $$played -ne 0 ]; then exit $$played; fi; if [ $$found -ne 0 ]; then exit $$found; fi; \
+	if [ $$written -ne 0 ]; then exit $$written; fi; exit $$fields; }
 e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers); TESTS=<arguments of playwright test>: a file alone also plays installation and, with a @realm-wide or @platform-wide path, the projects its own depends on; TESTS="--no-deps --project=shared --project=realm <files>" plays only the files, on an installation already played; SHARD=i/N (N >= 2, not with TESTS) plays the i-th of N parts on a platform of its own, the last one the paths that play one at a time
 	@$(if $(SHARD),$(WFTOOLS).e2eparts service-part $(SHARD) > /dev/null)
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
@@ -1008,27 +1034,38 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 	@mkdir -p $(FRONT)/.e2e && \
 		E2E_INSTALLATION_LINK=$$($(call run-logged,install,$(INSTALL_LOG),2> $(INSTALL_LOG))) && \
 		$(call run-logged,witness,$(WITNESS_LOG),> $(WITNESS_LOG) 2>&1) && \
-		E2E_CONTRACT_PROXY=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
-		E2E_SERVICE_DATABASE=$$($(COMPOSE_SERVICE) ps --quiet postgres) && \
-		E2E_SERVICE_CACHE=$$($(COMPOSE_SERVICE) ps -a --quiet redis) && \
-		E2E_SERVICE_DIRECTORY=$$($(COMPOSE_SERVICE) ps -a --quiet openldap) && \
-		E2E_SERVICE_WORKER=$$($(COMPOSE_SERVICE) ps -a --quiet worker) && \
-		WATERFALL_API_ADDRESS=http://127.0.0.1:$(WATERFALL_PROXY_PORT) && \
-		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
-		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
-		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
-		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE E2E_SERVICE_CACHE E2E_SERVICE_DIRECTORY E2E_SERVICE_WORKER WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
+		$(service-harness-env) && export E2E_INSTALLATION_LINK && \
 		part= && $(e2e-service-part) \
-		mkdir -p $(FRONT)/.e2e && : > $(FRONT_LOG) && \
-		{ ( cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $$part $(TESTS); } ); played=$$?; \
-		echo 'Searching the logs of the platform and of the front for the secrets and tokens known (WF-OBS-0020, US-2900).'; \
-		$(service-logs-secrets); found=$$?; \
-		echo 'Checking the records of the services of Waterfall for their fields (WF-OBS-0020, US-2900).'; \
-		$(service-logs-check); fields=$$?; \
-		echo 'Searching the files of the repository for the secrets of the platform of service (WF-SEC-0010, US-2840).'; \
-		$(repository-secrets); written=$$?; \
-		if [ $$played -ne 0 ]; then exit $$played; fi; if [ $$found -ne 0 ]; then exit $$found; fi; \
-		if [ $$written -ne 0 ]; then exit $$written; fi; exit $$fields; }
+		$(service-harness-play)
+
+# The paths of the Playwright project `reference` (frontend/e2e/reference/), against the service
+# platform of the slot that holds the reference set of WF-QUA-0040 (US-2950/L3): the platform that
+# make service-reference-restore restores and starts — or any platform that holds the set and the
+# installation made by its administrator —, neither installed nor loaded again, where e2e-service
+# starts from a new one. It starts the platform as e2e-service does — its realm told the address of
+# the front of the harness —, Prism between the front and the API, and plays what concerns the set
+# alone: the paths that affirm its volumes without a value, the count, the pages, the filters, the
+# sort. The administrator of the installation, whose password the paths of the realm are the only
+# ones to set, is given the password of the paths by the administration of Keycloak, as a person of
+# the directory would be (frontend/e2e/reference/administrator.setup.ts). The platform stays up
+# afterwards: make service-down stops it. Another consumer of the set (US-2990) adds its files
+# under frontend/e2e/reference/.
+e2e-reference: override export E2E_WORKERS = $(or $(E2E_WORKERS_GIVEN),$(E2E_SERVICE_WORKERS))
+e2e-reference: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
+e2e-reference: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)
+e2e-reference: export E2E_PART = reference
+e2e-reference: export E2E_SERVICE_SERIAL =
+e2e-reference: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
+e2e-reference: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
+e2e-reference: export E2E_BUILT = 1
+e2e-reference: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `reference` (frontend/e2e/reference/) against the service platform that holds the reference set — make service-reference-restore first —, neither installed nor loaded again, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers); TESTS=<arguments of playwright test>, e.g. a file of frontend/e2e/reference/
+	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
+	@$(MAKE) --no-print-directory service-up
+	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
+	@mkdir -p $(FRONT)/.e2e && \
+		$(service-harness-env) && \
+		part= && \
+		$(service-harness-play)
 
 # The measure of the journey of the grids against the service (US-2210, frontend/e2e/measure/): the
 # platform started as e2e-service starts it — its realm told the address of the front of the

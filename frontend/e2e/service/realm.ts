@@ -277,6 +277,23 @@ async function realmUser(
 }
 
 /**
+ * Give an account of the realm a password that holds, as the administration of Keycloak does: the
+ * account of an installation whose link of the bootstrap served elsewhere — the administrator of a
+ * restored set, whose password the paths never set — signs in with it (US-2950/L3).
+ */
+export async function givePassword(
+  request: APIRequestContext,
+  email: string,
+  password: string,
+): Promise<void> {
+  const id = await realmUser(request, email);
+  const answer = await (
+    await administering(request)
+  ).put(`/users/${id}/reset-password`, { type: "password", value: password, temporary: false });
+  expect(answer.status()).toBe(204);
+}
+
+/**
  * A local account of the realm that Waterfall did not create — made in the console of Keycloak —,
  * with a password: the person Waterfall does not admit (#664). Its identifier in the realm.
  */
