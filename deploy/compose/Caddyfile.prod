@@ -12,7 +12,8 @@
 # Grafana. The host of a request goes to each as the browser gave it: Caddy would give the
 # upstream's to an upstream in HTTPS. A local name — localhost, *.localhost, *.internal, an
 # address — gets its certificate from Caddy's own authority instead, whose root is kept in its
-# volume (compose.prod.local.yaml).
+# volume (compose.prod.local.yaml). A certificate the operator gives, issued by their authority, is
+# served as it is, under any name, and Caddy then asks no one for one (WF-CMP-0030, below).
 {
 	# The account Let's Encrypt writes to before a certificate expires.
 	email {$WATERFALL_ACME_EMAIL}
@@ -36,6 +37,17 @@
 	}
 }
 
+# The certificate of the domain, as WATERFALL_DOOR_CERTIFICATE says (compose.prod.yaml). "given":
+# the one the operator gives in WATERFALL_DOOR_DIRECTORY, with its chain and its key, which Caddy
+# serves and never renews; no name is then left for it to obtain, and it reaches no server of
+# certificates, Let's Encrypt or other — the network may have no way out. Empty: none here, and Caddy
+# obtains it, as said above.
+(certificate-given) {
+	tls /door/tls.crt /door/tls.key
+}
+(certificate-) {
+}
+
 # The front, behind its proxy in TLS (Caddyfile.front).
 (front) {
 	reverse_proxy https://front-proxy:3443 {
@@ -50,6 +62,7 @@ http://{$WATERFALL_DOMAIN} {
 }
 
 {$WATERFALL_DOMAIN} {
+	import certificate-{$WATERFALL_DOOR_CERTIFICATE}
 	encode zstd gzip
 
 	# On every answer, whoever made it: the browser comes back in HTTPS alone for a year, takes no

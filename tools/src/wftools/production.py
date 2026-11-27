@@ -10,10 +10,13 @@ either just built (``make check-production``) or just published (``images.yml``)
 its digest, as the Compose designates them (#3726): the three ``WATERFALL_DIGEST_<NAME>`` the
 publication wrote — the images of ghcr.io —, or else, for images built here and never pushed, those
 the pushes of the three to a registry of the trial say, which the Compose reads them from
-(``wftools.trialregistry``, ``WATERFALL_REGISTRY``). The platform runs under a local
-name, ``WATERFALL_DOMAIN`` (``waterfall.localhost`` by default), with ``compose.prod.local.yaml``:
-Caddy makes its certificate from its own authority, whose root this tool alone trusts. Its secrets
-come from the environment, as the chain gives them; no file holds them. Then it holds that:
+(``wftools.trialregistry``, ``WATERFALL_REGISTRY``). The platform runs under ``WATERFALL_DOMAIN``,
+``waterfall.example.org`` by default: a public name, whose certificate the trial gives the door as
+an operator would (``WATERFALL_DOOR_DIRECTORY``), issued by an authority made for the trial, whose
+root the front trusts, and this tool alone (WF-CMP-0030); under a local name — ``localhost``,
+``*.localhost``, ``*.internal`` —, with ``compose.prod.local.yaml``, Caddy makes it from its own
+authority, whose root this tool reads from it. Its secrets come from the environment, as the chain
+gives them; no file holds them. Then it holds that:
 
 - the bootstrap, ``docker compose run --rm install``, writes the link of the first administrator;
 - the API answers its liveness probe, ``status`` ``ok``;
@@ -24,7 +27,7 @@ come from the environment, as the chain gives them; no file holds them. Then it 
   (``wftools.transport``, US-2840, WF-SEC-0010);
 - the platform answers in HTTP by sending to the same page in HTTPS, at its published address
   (WF-SEC-0010); in HTTPS, with the headers that keep the browser there and its pages to
-  themselves, HSTS first;
+  themselves, HSTS first, under the certificate given, if it was;
 - the console of Keycloak and its realm master are not served (404);
 - the first administrator sets their password by the link, signs in through the front, at the root
   of the domain, and Keycloak under ``/auth``, and the front opens the session: its cookie set, a
@@ -38,7 +41,8 @@ come from the environment, as the chain gives them; no file holds them. Then it 
   platform: it runs on networks without a way out, its users let in by a door
   (``compose.isolated.yaml``), and every name its services asked that is not the platform's, which
   the sink of its names writes down, fails the trial, naming the service that asked
-  (``wftools.egress``, US-3010, WF-CMP-0030).
+  (``wftools.egress``, US-3010, WF-CMP-0030) — Caddy's asking for a certificate under a public name
+  included.
 
 Given ``WATERFALL_PRODUCTION_CGROUP_PARENT`` (a slice of the cgroups of the host, which the
 chain bounds to four cores and eight gigabytes before it starts the trial, ``production.yml``),
@@ -65,7 +69,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from html import unescape
 from pathlib import Path
 from typing import cast
@@ -89,11 +93,9 @@ from wftools.transport import SERVED, TransportError, check_clear_refused
 from wftools.trialregistry import RegistryError
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
-FILES = (
-    COMPOSE / "compose.prod.yaml",
-    COMPOSE / "compose.prod.local.yaml",
-    COMPOSE / "compose.isolated.yaml",
-)
+LOCAL = COMPOSE / "compose.prod.local.yaml"
+"""The file that makes Caddy certify a local name from its own authority, the trial's alone."""
+FILES = (COMPOSE / "compose.prod.yaml", LOCAL, COMPOSE / "compose.isolated.yaml")
 SINK = "egress-sink"
 """The service of ``compose.isolated.yaml`` that writes down every name asked from inside."""
 ENDED = (
@@ -114,7 +116,31 @@ ENDED = (
 Docker no longer lists them when the trial reads the names asked, so ``compose.isolated.yaml``
 gives each an address of its own, and the request of a service that has ended is named by it."""
 FIRST_ENDED = 101
-DOMAIN = "waterfall.localhost"
+DOMAIN = "waterfall.example.org"
+"""The name of the trial unless told another: a public one, whose certificate the trial gives."""
+LOCAL_NAMES = (".localhost", ".internal")
+"""The names Caddy certifies from its own authority, ``localhost`` besides."""
+NAME = re.compile(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+")
+DOOR = "WATERFALL_DOOR_DIRECTORY"
+"""The setting that gives the certificate of the door: the folder of tls.crt, tls.key and ca.crt."""
+DOOR_ROOT = "ca.crt"
+AUTHORITY_SUBJECT = "/CN=Waterfall trial authority"
+EXTENSIONS = """[req]
+distinguished_name = name
+[name]
+[authority]
+basicConstraints = critical, CA:TRUE
+keyUsage = critical, keyCertSign, cRLSign
+subjectKeyIdentifier = hash
+[door]
+basicConstraints = critical, CA:FALSE
+keyUsage = critical, digitalSignature
+extendedKeyUsage = serverAuth
+subjectAltName = DNS:{domain}
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid
+"""
+"""What openssl writes in the root of the authority of test, and in the certificate of the door."""
 PROJECT = "waterfall-production-trial"
 ADMIN = "administrateur@waterfall.test"
 # The currency and the name of the company a local trial installs, unless the environment says
@@ -200,17 +226,26 @@ Send = Callable[[str, str, bytes | None, Mapping[str, str]], Answer]
 
 @dataclass(frozen=True, slots=True)
 class Platform:
-    """Where the trial reaches the platform: its domain and its two ports on the loopback."""
+    """Where the trial reaches the platform: its domain and its two ports on the loopback.
+
+    ``door`` is the folder of the certificate of the door the trial gives, under a public name.
+    """
 
     domain: str
     https_port: int
     http_port: int
+    door: Path | None = None
 
     @property
     def address(self) -> str:
         """Return the address the browser reaches the platform at."""
         port = "" if self.https_port == HTTPS_PORT else f":{self.https_port}"
         return f"https://{self.domain}{port}"
+
+    @property
+    def local(self) -> bool:
+        """Tell whether Caddy certifies the domain from its own authority (compose.prod.local)."""
+        return self.domain == "localhost" or self.domain.endswith(LOCAL_NAMES)
 
 
 @dataclass(slots=True)
@@ -396,14 +431,17 @@ def check_signed_in(browser: Browser, platform: Platform, email: str) -> None:
         raise ProductionError(message)
 
 
-def compose_command(project: str, override: Path | None = None) -> list[str]:
-    """Return the command of Compose on the production platform under a local name.
+def compose_command(project: str, override: Path | None = None, *, local: bool = True) -> list[str]:
+    """Return the command of Compose on the production platform, isolated.
 
-    ``override`` is a file added after the others: the bound of its resources.
+    Under a local name, with ``compose.prod.local.yaml``; under another, without: the door serves
+    the certificate given. ``override`` is a file added after the others: the bound of the
+    resources.
     """
+    given = FILES if local else tuple(path for path in FILES if path != LOCAL)
     files = [
         word
-        for path in (*FILES, *([override] if override else []))
+        for path in (*given, *([override] if override else []))
         for word in ("--file", str(path))
     ]
     return ["docker", "compose", "--project-name", project, *files]
@@ -462,12 +500,18 @@ def trial(
     print(f"  {', '.join(SERVED)} refuse a connection in the clear, and serve in TLS")
     with tempfile.TemporaryDirectory(prefix="waterfall-production-") as folder:
         authority = Path(folder) / "root.crt"
-        _output(read, [*compose, "cp", AUTHORITY, str(authority)])
+        if platform.door is None:
+            _output(read, [*compose, "cp", AUTHORITY, str(authority)])
+        else:
+            authority = platform.door / DOOR_ROOT
         sent = send(authority)
         check_https_alone(Browser(sent), platform)
         print(f"  HTTP sends to {platform.address}")
         check_security_headers(Browser(sent), platform)
         print(f"  HTTPS answers with {', '.join(SECURITY_HEADERS)}")
+        if platform.door is not None:
+            # Made for this trial, the authority signed nothing else, and its key is no more.
+            print(f"  the door presents the certificate given in {DOOR}, of an authority of test")
         check_console_answers_not_found(Browser(sent), platform)
         print(f"  {' and '.join(HIDDEN)} answer {NOT_FOUND}")
         check_metrics_hidden(Browser(sent), platform)
@@ -627,6 +671,57 @@ def platform_of(environment: Mapping[str, str]) -> Platform:
     return Platform(domain, https_port, http_port)
 
 
+def given_door(platform: Platform, folder: Path) -> tuple[Platform, dict[str, str]]:
+    """Give the door of a platform under a public name its certificate, in ``folder``.
+
+    Return the platform that knows it, and the setting that gives it to Compose; under a local
+    name, the platform as it is and no setting: Caddy makes it.
+    """
+    if platform.local:
+        return platform, {}
+    door = door_certificate(folder, platform.domain)
+    return replace(platform, door=door), {DOOR: str(door)}
+
+
+def door_certificate(folder: Path, domain: str) -> Path:
+    """Give the door the certificate of ``domain``, in ``folder``, as an operator gives it.
+
+    An authority made for the trial signs it, then its key is removed: the door can present no other
+    certificate its root holds. Return the folder of ``WATERFALL_DOOR_DIRECTORY``: ``tls.crt``,
+    ``tls.key`` and ``ca.crt``, the root, readable by Caddy and by ``door-authority``.
+    """
+    if not NAME.fullmatch(domain):
+        message = f"{domain!r} is no name a certificate is issued for"
+        raise ProductionError(message)
+    door = folder / "door"
+    door.mkdir(mode=0o755)
+    extensions = folder / "door.cnf"
+    extensions.write_text(EXTENSIONS.format(domain=domain), encoding="utf-8")
+    key = folder / "authority.key"
+    root = door / DOOR_ROOT
+    made = ["openssl", "req", "-x509", "-new", "-config", str(extensions), "-days", "1", "-noenc"]
+    made += ["-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256"]
+    signed = ["-CA", str(root), "-CAkey", str(key), "-subj", f"/CN={domain}"]
+    try:
+        for extension, keyed, written, more in (
+            ("authority", key, root, ["-subj", AUTHORITY_SUBJECT]),
+            ("door", door / "tls.key", door / "tls.crt", signed),
+        ):
+            files = ["-keyout", str(keyed), "-out", str(written)]
+            done = subprocess.run(
+                [*made, "-extensions", extension, *files, *more],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if done.returncode != 0:
+                message = f"openssl made no {extension} certificate: {done.stderr.strip()}"
+                raise ProductionError(message)
+    finally:
+        key.unlink(missing_ok=True)
+    return door
+
+
 def digests_of(environment: Mapping[str, str], pushed: Mapping[str, str]) -> dict[str, str]:
     """Return the variable that designates each image by its digest: the three given, or none.
 
@@ -709,6 +804,8 @@ def main(
         started = environment_of({**given, **added}, platform, pushed)
         with tempfile.TemporaryDirectory(prefix="waterfall-production-") as folder:
             started = {**started, **bounded.environment(started.get(PARENT), Path(folder))}
+            platform, door = given_door(platform, Path(folder))
+            started = {**started, **door}
             commands = (run or runner(started), read or _reader(started))
             return hold(started, tag, platform, commands, (send, ask))
     except (ProductionError, RegistryError, OSError, subprocess.CalledProcessError) as error:
@@ -735,7 +832,7 @@ def hold(
         restoration = Restoration(ask or _asker(started), secret)
     project = started.get("WATERFALL_PRODUCTION_PROJECT") or PROJECT
     given = started.get(OVERRIDE)
-    compose = compose_command(project, Path(given) if given else None)
+    compose = compose_command(project, Path(given) if given else None, local=platform.local)
     up = [*compose, "up", "--detach", "--wait", "--quiet-pull"]
     print(f"  the images {tag}, at {platform.address}", flush=True)
     failed = True

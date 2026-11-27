@@ -46,6 +46,9 @@ ADDRESS = re.compile(r"^(WATERFALL_\w+_(URL|ADDRESS|BACKCHANNEL)|STORAGE_ADDRESS
 WATERFALL_IMAGE = "${WATERFALL_REGISTRY:-ghcr.io/waterfall-project}/waterfall@"
 # Where a client outside the back reads the root from: the server of Next, the curl of the buckets.
 TRUSTING = {"front": "NODE_EXTRA_CA_CERTS", "storage-buckets": "STORAGE_AUTHORITY"}
+# The front reads the roots door-authority writes, the root of the platform first, then the door's.
+ROOTS = "/roots/roots.crt"
+TRUSTED = {"front": ROOTS}
 # An address a service is given and does not reach: Caddy's is its own, where it sends HTTP to; it
 # checks Keycloak, which it reaches, by its Caddyfile.
 PUBLISHED = {"caddy": {"WATERFALL_ADDRESS"}}
@@ -94,7 +97,8 @@ def untrusting(found: dict[str, Any]) -> list[str]:
     faults: list[str] = []
     for name, service in found.items():
         variable = TRUSTING.get(name, "WATERFALL_TLS_AUTHORITY")
-        if is_client(name, service) and service.get("environment", {}).get(variable) != ROOT:
+        trusted = service.get("environment", {}).get(variable)
+        if is_client(name, service) and trusted != TRUSTED.get(name, ROOT):
             faults.append(f"{name} lacks {variable}")
     return faults
 
@@ -365,7 +369,8 @@ def test_every_client_reaches_its_server_encrypted_and_checks_it_against_the_roo
         )
     front = environment("front")
     assert front["WATERFALL_API_ADDRESS"] == "https://api:8443"
-    assert front["NODE_EXTRA_CA_CERTS"] == ROOT
+    assert front["NODE_EXTRA_CA_CERTS"] == ROOTS
+    assert " ".join(services()["door-authority"]["command"]).startswith(f"sh -c cat {ROOT} ")
     assert environment("keycloak-realm")["KEYCLOAK_URL"] == "https://keycloak:8443/auth"
     door = (COMPOSE / "Caddyfile.prod").read_text(encoding="utf-8")
     # The door reaches Keycloak, the front and Grafana in TLS, each checked against the root.
@@ -412,8 +417,8 @@ def test_a_service_added_with_an_address_and_without_the_root_is_named() -> None
 
 def test_a_local_name_makes_the_front_trust_the_authority_of_caddy() -> None:
     # Besides the root of the platform, which the copy writes first.
-    front = compose("compose.prod.local.yaml")["services"]["front"]
-    assert front["environment"]["NODE_EXTRA_CA_CERTS"] == "/roots/roots.crt"
+    front = services()["front"]
+    assert front["environment"]["NODE_EXTRA_CA_CERTS"] == ROOTS
     assert "door-authority:/roots:ro" in front["volumes"]
     copy = " ".join(compose("compose.prod.local.yaml")["services"]["door-authority"]["command"])
     assert "cat /trust/root.crt /data/caddy/pki/authorities/local/root.crt > /roots/" in copy

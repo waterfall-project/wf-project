@@ -39,7 +39,8 @@ Il faut :
 - une machine Linux avec Docker Engine et son greffon Compose (`docker compose version`) ;
 - un nom pour elle, que le DNS fait pointer sur son adresse publique ;
 - les ports 80 et 443 ouverts depuis Internet : Let's Encrypt vérifie le nom par le port 80, et
-  Caddy y renvoie tout vers HTTPS ;
+  Caddy y renvoie tout vers HTTPS — sauf si l'exploitant donne lui-même le certificat
+  (« Le certificat de la porte ») ;
 - ce répertoire, `deploy/compose`, copié sur la machine — ou le dépôt cloné.
 
 Sur un réseau sans accès à Internet, les images viennent d'un registre interne, et les noms du
@@ -144,6 +145,20 @@ Pour changer d'autorité, déposer la nouvelle dans `authority`, puis arrêter l
 redémarrer (`down`, sans `--volumes`, puis `up --detach --wait`) : chaque serveur relit alors un
 certificat qu'elle signe, et chaque client la nouvelle racine. Pour que la plateforme en recrée une
 à elle, retirer le volume `authority` à l'arrêt.
+
+### Le certificat de la porte
+
+Caddy obtient de Let's Encrypt le certificat du nom de la plateforme. Celui qu'émet l'autorité de
+l'exploitant le remplace, sur un réseau sans accès à Internet notamment (WF-CMP-0030) : `tls.crt`,
+le certificat de `WATERFALL_DOMAIN` suivi de ceux des autorités intermédiaires, `tls.key`, sa clé,
+non chiffrée, lisible de root seul, et `ca.crt`, la racine qui les signe, dans le répertoire `door`
+voisin de ce fichier — git l'ignore —, que nomme `WATERFALL_DOOR_DIRECTORY=./door` dans `.env`.
+Caddy le sert tel quel et ne demande alors de certificat à personne ; le service `door-authority`
+écrit cette racine après celle de la plateforme, et le front, qui joint Keycloak par la porte, se
+fie aux deux. Rien ne le renouvelle : déposer le suivant avant son expiration, puis arrêter la
+plateforme et la redémarrer (`down`, sans `--volumes`, puis `up --detach --wait`).
+[`docs/exploitation/reseau-isole.md`](../../docs/exploitation/reseau-isole.md) dit comment le
+déposer. Sans ce réglage, rien ne change.
 
 ## Amorcer
 
@@ -523,8 +538,11 @@ de la publication), ce sont ceux-là, du registre de ghcr.io. Sinon l'image cons
 d'empreinte que Docker retrouve, et le commit d'une pull request n'est pas publié : l'essai démarre un
 registre qui ne vit que le temps de l'essai (`compose.registry.local.yaml`, sur 127.0.0.1), y pousse
 les trois images, lit l'empreinte que chaque envoi annonce et démarre la plateforme depuis ce
-registre (`WATERFALL_REGISTRY`) par ces empreintes, puis le retire. Sous le nom
-`waterfall.localhost`, il démarre la plateforme, l'amorce, vérifie la sonde de vie de l'API, que
+registre (`WATERFALL_REGISTRY`) par ces empreintes, puis le retire. Sous le nom public
+`waterfall.example.org`, dont il dépose le certificat, émis par une autorité de test faite pour lui
+(« Le certificat de la porte »), et sur des réseaux sans sortie (`compose.isolated.yaml`) — ou sous
+un nom local que donne `WATERFALL_DOMAIN`, avec `compose.prod.local.yaml` —, il démarre la
+plateforme, l'amorce, vérifie la sonde de vie de l'API, que
 HTTP renvoie à la même page sur l'adresse publiée, port compris, que HTTPS répond avec HSTS et les
 autres en-têtes de Caddy, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se
 connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`,

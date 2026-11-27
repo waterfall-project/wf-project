@@ -58,6 +58,11 @@ x-postgres-image: &postgres-image ${WATERFALL_MIRROR:-}postgres:18-trixie@sha256
 # the clients of Keycloak and of the storage, and makes a process of the back refuse to start on an
 # address in the clear, naming it (TFX-03, TFX-04, TFX-10).
 x-trust: &trust trust:/trust:ro
+# The certificate of the domain the operator gives, if any (WATERFALL_DOOR_DIRECTORY, beside
+# ./authority): tls.crt, followed by those of the authorities between it and its root, tls.key, its
+# key, unencrypted, readable by root alone, and ca.crt, that root, which the front trusts
+# (door-authority).
+x-door: &door ${WATERFALL_DOOR_DIRECTORY:-./door}:/door:ro
 x-back-environment: &back-environment
   WATERFALL_DATABASE_URL: postgresql://waterfall_service:${WATERFALL_SERVICE_DATABASE_PASSWORD:?set WATERFALL_SERVICE_DATABASE_PASSWORD in .env}@postgres:5432/waterfall?sslmode=verify-full&sslrootcert=/trust/root.crt
   WATERFALL_REDIS_URL: rediss://:${WATERFALL_REDIS_PASSWORD:?set WATERFALL_REDIS_PASSWORD in .env}@redis:6379/0?ssl_ca_certs=/trust/root.crt
@@ -162,12 +167,16 @@ services:
       # Where HTTP sends to: the published address, its port of HTTPS included.
       WATERFALL_ADDRESS: *address
       WATERFALL_ACME_EMAIL: ${WATERFALL_ACME_EMAIL:?set WATERFALL_ACME_EMAIL in .env}
+      # "given" when the operator gives the certificate of the domain, which Caddy then serves and
+      # asks no one for (WF-CMP-0030); empty, Caddy obtains it (Caddyfile.prod).
+      WATERFALL_DOOR_CERTIFICATE: ${WATERFALL_DOOR_DIRECTORY:+given}
     volumes:
       - ./Caddyfile.prod:/etc/caddy/Caddyfile.prod:ro
       # The certificates and the account of Let's Encrypt: kept, or every start would ask again.
       - caddy-data:/data
       - caddy-config:/config
       - *trust
+      - *door
     depends_on:
       authority: *done
     ports:
@@ -178,6 +187,23 @@ services:
         aliases:
           - ${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}
     restart: unless-stopped
+
+  # Writes the roots the front checks the door against, then stops: the root of the platform, and
+  # the root of the certificate of the domain when the operator gives it (WF-CMP-0030); under a
+  # local name, compose.prod.local.yaml writes Caddy's own instead.
+  door-authority:
+    image: ${WATERFALL_MIRROR:-}caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+    command:
+      - sh
+      - -c
+      - cat /trust/root.crt ${WATERFALL_DOOR_DIRECTORY:+/door/ca.crt} > /roots/roots.crt.new && chmod 0644 /roots/roots.crt.new && mv /roots/roots.crt.new /roots/roots.crt
+    volumes:
+      - *trust
+      - *door
+      - door-authority:/roots
+    restart: "no"
+    depends_on:
+      authority: *done
 
   # The front in TLS (#4508, Caddyfile.front): its proxy serves it at https://front-proxy:3443, with
   # the certificate the authority issues for that name, and reaches the server of Next on the network
@@ -217,9 +243,10 @@ services:
     environment:
       HOSTNAME: front-next
       # The API and Redis in TLS (TFX-02, TFX-04), their certificates checked against the root of
-      # the platform, which NODE_EXTRA_CA_CERTS adds to the authorities the server of Next knows.
+      # the platform, which NODE_EXTRA_CA_CERTS adds to the authorities the server of Next knows,
+      # first of the roots door-authority writes: the door's follows it.
       WATERFALL_API_ADDRESS: https://api:8443
-      NODE_EXTRA_CA_CERTS: /trust/root.crt
+      NODE_EXTRA_CA_CERTS: /roots/roots.crt
       WATERFALL_FRONT_ADDRESS: *address
       WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
       # The server of Next reaches Keycloak through Caddy, on its name in the network, in HTTPS: its
@@ -233,8 +260,9 @@ services:
       # The key of the server actions, the same for every start and every instance (#825).
       NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${WATERFALL_SERVER_ACTIONS_KEY:?set WATERFALL_SERVER_ACTIONS_KEY in .env}
     volumes:
-      - *trust
+      - door-authority:/roots:ro
     depends_on:
+      door-authority: *done
       api: *healthy
       redis: *healthy
       keycloak-realm: *healthy
@@ -867,6 +895,8 @@ volumes:
   authority:
   # The root every client trusts, at /trust/root.crt.
   trust:
+  # The roots the front checks the door against, at /roots/roots.crt.
+  door-authority:
   # The key and the certificate of each server in TLS, each mounted by its server alone.
   certificates-postgres:
   certificates-redis:
