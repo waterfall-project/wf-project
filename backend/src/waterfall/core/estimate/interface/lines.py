@@ -51,9 +51,9 @@ def update_line(
     return write_facet(session, place, change, writer)
 
 
-def revision_has_lines(session: Session, revision_id: UUID) -> bool:
+def revision_has_lines(session: Session, project_id: UUID, revision_id: UUID) -> bool:
     """Tell whether a revision bears a line of estimate (WF-CYC-0030)."""
-    return revision_bears(session, revision_id, LINE)
+    return revision_bears(session, project_id, revision_id, LINE)
 
 
 def load_lines(session: Session, place: Place, lines: tuple[LineLoad, ...], act: Act) -> None:

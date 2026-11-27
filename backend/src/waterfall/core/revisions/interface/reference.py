@@ -70,13 +70,15 @@ if TYPE_CHECKING:
 type RevisionPart = Literal["tasks", "lines"]
 REVISION_PARTS: frozenset[RevisionPart] = frozenset(("tasks", "lines"))
 # The questions a revision answers to bear tasks and lines, each under its part.
-_TASKS_AND_LINES: Registry[tuple[RevisionPart, Callable[[Session, UUID], bool]]] = Registry(
+_TASKS_AND_LINES: Registry[tuple[RevisionPart, Callable[[Session, UUID, UUID], bool]]] = Registry(
     "revisions.tasks_and_lines"
 )
 # What a module does once a reference is designated, in the order of registration: EP-07's.
 _DESIGNATIONS: Registry[Callable[[ReferenceDesignated], None]] = Registry("revisions.designation")
 # The questions on the main structure of a revision: does it bear a task, by the planning.
-_MAIN_TASK: Registry[Callable[[Session, Select[UUID]], bool]] = Registry("revisions.main_task")
+_MAIN_TASK: Registry[Callable[[Session, UUID, Select[UUID]], bool]] = Registry(
+    "revisions.main_task"
+)
 
 
 def reference_correctable(session: Session, project_id: UUID) -> bool:
@@ -197,7 +199,7 @@ def designate_reference(
     state = RevisionState(
         marked=target.status == "marked",
         no_task_running=no_background_task_running(session, project_id),
-        has_tasks_and_lines=revision_has_tasks_and_lines(session, revision_id),
+        has_tasks_and_lines=revision_has_tasks_and_lines(session, project_id, revision_id),
         reference_correctable=reference_correctable(session, project_id),
     )
     lacking = revision_conditions("designate_reference", state)
@@ -275,7 +277,7 @@ def register_designation(follow: Callable[[ReferenceDesignated], None]) -> Calla
 
 
 def register_tasks_and_lines(
-    part: RevisionPart, question: Callable[[Session, UUID], bool]
+    part: RevisionPart, question: Callable[[Session, UUID, UUID], bool]
 ) -> Callable[[], None]:
     """Add a question a revision must answer yes for one part it bears; give its withdrawal.
 
@@ -284,7 +286,7 @@ def register_tasks_and_lines(
     return _TASKS_AND_LINES.register((part, question))
 
 
-def revision_has_tasks_and_lines(session: Session, revision_id: UUID) -> bool:
+def revision_has_tasks_and_lines(session: Session, project_id: UUID, revision_id: UUID) -> bool:
     """Tell whether a revision bears tasks and lines of estimate (WF-CYC-0030).
 
     Each part — the tasks, the lines — must have a question registered, and every question
@@ -294,11 +296,11 @@ def revision_has_tasks_and_lines(session: Session, revision_id: UUID) -> bool:
     questions = _TASKS_AND_LINES.entries()
     if not {part for part, _ in questions} >= REVISION_PARTS:
         return False
-    return all(question(session, revision_id) for _, question in questions)
+    return all(question(session, project_id, revision_id) for _, question in questions)
 
 
 def register_main_task_question(
-    question: Callable[[Session, Select[UUID]], bool],
+    question: Callable[[Session, UUID, Select[UUID]], bool],
 ) -> Callable[[], None]:
     """Add a question on the main structure of a revision, given as a selection: has it a task.
 
@@ -321,4 +323,4 @@ def main_structure_has_task(session: Session, project_id: UUID, revision_id: UUI
         CostStructure.revision_id == revision_id,
         CostStructure.kind == MAIN,
     )
-    return bool(questions) and all(question(session, main) for question in questions)
+    return bool(questions) and all(question(session, project_id, main) for question in questions)
