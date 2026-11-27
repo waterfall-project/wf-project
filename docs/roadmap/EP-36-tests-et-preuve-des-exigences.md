@@ -290,6 +290,14 @@ lot d'EP-13 ne touche ces fichiers :
   qu'ils jouent ; un contrôle constate que chacune a son parcours (la moitié restante de #4699,
   dont FLX-07 est couvert par US-2990/L1).
 
+Reportés par EP-13 le 2026-11-27 (décision de l'auteur), rattachés à #4596, à placer :
+
+- #5060 — back : le déterminisme des identifiants d'une révision copiée n'a pas de test dans le
+  noyau ;
+- #5066 — front : aucun test ne vérifie que chaque valeur d'`AuditAction` et d'`AuditObjectKind` a
+  son libellé dans les deux catalogues ;
+- #5095 — back : le réessai de la seconde étape verrouillée de la migration 0056 n'est pas éprouvé.
+
 ## Conception
 
 Écrite le 2026-11-21, après la validation des US par l'auteur le même jour, contre `main`
