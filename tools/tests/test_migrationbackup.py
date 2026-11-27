@@ -173,3 +173,11 @@ def test_without_a_published_version_nothing_is_taken_and_no_archive_is_left(
     assert migrationbackup.main([str(stale)], {}) == 0
     assert not stale.exists()
     assert "not executed: no published version" in capsys.readouterr().out
+
+
+@pytest.mark.requirement("WF-DAT-0140-A")
+def test_the_branch_restores_the_archive_by_its_own_tests_whose_outcomes_are_written() -> None:
+    command = migrationbackup.restored_command()
+    assert command[:4] == ["uv", "run", "--frozen", "pytest"]
+    assert command[command.index("wftools.migrationreport") - 1] == "-p"
+    assert command[-1] == "tests/test_earlier_backup.py"

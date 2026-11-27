@@ -16,8 +16,11 @@ migrate — to the head of the branch.
 
 A test of N that fails says an incompatibility: the branch migrated the schema in a way the code
 that still runs during an update does not take. It is not mended here; it is a finding, to settle
-before the next version is published (US-2850). Without a published version, nothing is tried, and
-the tool says it is not executed.
+before the next version is published (US-2850). The outcome of each test is written
+(``wftools.migrationreport``) and judged against the known failures of N
+(``wftools.migrationknown``, ``tools/migrations-known.toml``): the tool fails on a new failure, and
+on a known one that no longer fails. Without a published version, nothing is tried, and the tool
+says it is not executed.
 """
 
 import io
@@ -33,6 +36,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from wftools import REPOSITORY
+from wftools.migrationknown import judged
+from wftools.migrationreport import REPORT
 
 TOOL = "wftools.migrationtests"
 REQUIREMENT = "WF-DAT-0140-A"
@@ -41,6 +46,11 @@ VERSIONS = Path("backend/src/waterfall/migrations/versions")
 """Where the migrations are, in the tree of a version as in the branch."""
 OWN_TESTS = "test_migration*.py"
 """The tests of the migrations of a version, which hold its own history."""
+TOOLS = REPOSITORY / "tools" / "src"
+"""Where the plugin that writes the outcomes is, put on the path of Python of the back of N."""
+PLUGIN = "wftools.migrationreport"
+OUTCOMES = "migrations-tests.jsonl"
+"""The outcomes of the last run, under ``.waterfall/``: kept, to be read after a failure."""
 MOST_PROCESSES = 8
 """As the Makefile of the back: each process of pytest takes a database of Redis of its own."""
 
@@ -112,6 +122,7 @@ def pytest_command(environment: Mapping[str, str], left_out: list[str]) -> list[
     """
     processes = environment.get("WATERFALL_PROCESSORS") or str(os.cpu_count() or 1)
     command = ["uv", "run", "--frozen", "--no-sync", "pytest", "-q", "-p", "no:cacheprovider"]
+    command += ["-p", PLUGIN, "--tb=short"]
     command += ["-n", processes, "--maxprocesses", str(MOST_PROCESSES)]
     command += [f"--ignore={name}" for name in left_out]
     if shard := environment.get("SHARD"):
@@ -119,9 +130,15 @@ def pytest_command(environment: Mapping[str, str], left_out: list[str]) -> list[
     return command
 
 
-def child_environment(environment: Mapping[str, str]) -> dict[str, str]:
-    """Return the environment of the back of N: the tools' own environment of Python left out."""
-    return {name: value for name, value in environment.items() if name != "VIRTUAL_ENV"}
+def child_environment(environment: Mapping[str, str], report: Path) -> dict[str, str]:
+    """Return the environment of the back of N, its tests' outcomes written.
+
+    The tools' own environment of Python is left out; the plugin of the outcomes is reachable, and
+    told the file it writes them to.
+    """
+    child = {name: value for name, value in environment.items() if name != "VIRTUAL_ENV"}
+    path = [str(TOOLS), *filter(None, [environment.get("PYTHONPATH")])]
+    return {**child, "PYTHONPATH": os.pathsep.join(path), REPORT: str(report)}
 
 
 def main(arguments: list[str] | None = None, environment: Mapping[str, str] | None = None) -> int:
@@ -153,19 +170,15 @@ def main(arguments: list[str] | None = None, environment: Mapping[str, str] | No
             f"branch (up to {laid[-1] if laid else '-'}), without {', '.join(taken) or '-'}",
             flush=True,
         )
-        child = child_environment(given)
+        report = scratch / OUTCOMES
+        report.unlink(missing_ok=True)
+        child = child_environment(given, report)
         synced = subprocess.run(["uv", "sync", "--frozen"], cwd=back, env=child, check=False)
         if synced.returncode:
             print(f"{TOOL}: the back of {version.name} does not install", file=sys.stderr)
             return 1
         ran = subprocess.run(pytest_command(given, taken), cwd=back, env=child, check=False)
-        if ran.returncode:
-            print(
-                f"{TOOL}: tests of {version.name} fail on the schema of the branch: "
-                "an incompatibility of the migrations with the code of the version N (US-2850)",
-                file=sys.stderr,
-            )
-        return ran.returncode
+        return 0 if judged(version.name, "tests", report, ran.returncode) else 1
 
 
 def _archive(name: str) -> bytes:

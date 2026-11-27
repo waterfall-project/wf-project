@@ -444,8 +444,14 @@ paths = [
     "tools/src/wftools/heavyturns.py",
     "tools/src/wftools/migrationtests.py",
     "tools/src/wftools/migrationbackup.py",
+    # The known failures of the version, which judge the outcomes the plugin writes.
+    "tools/src/wftools/migrationknown.py",
+    "tools/src/wftools/migrationreport.py",
+    "tools/migrations-known.toml",
     "tools/tests/test_migrationtests.py",
     "tools/tests/test_migrationbackup.py",
+    "tools/tests/test_migrationknown.py",
+    "tools/tests/test_migrationreport.py",
     ".github/workflows/migrations.yml",
 ]
 target = "check-migrations"

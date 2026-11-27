@@ -871,19 +871,20 @@ check-migrations: ## In the full tier, the tests of the back of the last publish
 		$(MAKE) --no-print-directory migrations-backup || status=1; \
 		exit $$status)
 
-# On the services of the tests of the back, as test-back; SHARD=i/N runs one part of them.
-migrations-tests: ## The tests of the back of the last published version, extracted from its tag, on the schema the migrations of the branch make, its own tests of its migrations left out
+# On the services of the tests of the back, as test-back; SHARD=i/N runs one part of them. Each part
+# fails on a failure the known failures of the version do not hold (tools/migrations-known.toml), or
+# on one of them that no longer fails; the outcomes stay in .waterfall/migrations-tests.jsonl.
+migrations-tests: ## The tests of the back of the last published version, extracted from its tag, on the schema the migrations of the branch make, its own tests of its migrations left out; judged against tools/migrations-known.toml (SHARD=i/N one part of them)
 	@$(TESTING_BACK) $(WFTOOLS).migrationtests
 
 # The platform of the last published version under a project of the slot, which publishes no port:
 # its backup written to EARLIER_BACKUP, then read, restored and migrated by the tests of the branch
-# that name it (backend/tests/test_earlier_backup.py), on the services of the tests of the back.
+# that name it (backend/tests/test_earlier_backup.py), on the services of the tests of the back, and
+# judged against the known failures; the outcomes stay in .waterfall/migrations-backup.jsonl.
 EARLIER_BACKUP ?= $(CURDIR)/.waterfall/earlier-backup.tar
 migrations-backup: export WATERFALL_MIGRATIONS_PROJECT ?= waterfall-migrations-s$(call slot-value,WATERFALL_SLOT)
-migrations-backup: ## A backup taken by the production platform of the last published version, its witness loaded, restored then migrated by the branch: no row lost, the rows of its marked revisions unchanged
-	@$(heavy) $(WFTOOLS).migrationbackup "$(EARLIER_BACKUP)"
-	@if [ -s "$(EARLIER_BACKUP)" ]; then cd $(BACK) && WATERFALL_TEST_EARLIER_BACKUP="$(EARLIER_BACKUP)" \
-		$(TESTING_BACK) uv run --frozen pytest -q -p no:cacheprovider tests/test_earlier_backup.py; fi
+migrations-backup: ## A backup taken by the production platform of the last published version, its witness loaded, restored then migrated by the branch: no row lost, the rows of its marked revisions unchanged; judged against tools/migrations-known.toml
+	@$(TESTING_BACK) $(WFTOOLS).migrationbackup "$(EARLIER_BACKUP)"
 
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap

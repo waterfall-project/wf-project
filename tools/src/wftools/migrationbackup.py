@@ -16,9 +16,13 @@ Then its worker takes a backup, as a task of the kind ``backup`` deposited by it
 container, and the archive it stored is copied out to ``<archive>``. The platform is removed, its
 volumes with it, whatever the outcome; what its services said is printed first when it fails.
 
-The branch reads that archive, restores it and migrates it:
-``backend/tests/test_earlier_backup.py``, which ``make migrations-backup`` runs next. Without a
-published version, nothing is taken, and the tool says it is not executed.
+The branch then reads that archive, restores it and migrates it:
+``backend/tests/test_earlier_backup.py``, which the tool runs next, on the services of the tests of
+the back (``make migrations-backup``). The outcome of each of its tests is written
+(``wftools.migrationreport``) and judged against the known failures of N
+(``wftools.migrationknown``, ``tools/migrations-known.toml``): the tool fails on a new failure, and
+on a known one that no longer fails. Without a published version, nothing is taken, and the tool
+says it is not executed.
 
 The front, Caddy and the supervision are not started: the backup reads the databases alone. The
 deposit of the task is the code of N, not its operation ``startBackup``, which would ask for a
@@ -42,7 +46,14 @@ from pathlib import Path
 from typing import Any
 
 from wftools import REPOSITORY
-from wftools.migrationtests import REQUIREMENT, MigrationTrialError, Version, last_published
+from wftools.migrationknown import judged
+from wftools.migrationtests import (
+    REQUIREMENT,
+    MigrationTrialError,
+    Version,
+    child_environment,
+    last_published,
+)
 
 TOOL = "wftools.migrationbackup"
 PROJECT = "waterfall-migrations"
@@ -52,6 +63,12 @@ PRODUCTION = "compose.prod.yaml"
 OVERRIDE = "compose.migrations.json"
 """The service of the witness the tool adds, written beside the files of N: JSON is YAML too."""
 WITNESS = Path("fixtures/api")
+ARCHIVE = "WATERFALL_TEST_EARLIER_BACKUP"
+"""What names the archive to the tests of the branch that restore and migrate it."""
+RESTORED = "tests/test_earlier_backup.py"
+"""The tests of the branch that restore the archive and migrate it, relative to its back."""
+OUTCOMES = "migrations-backup.jsonl"
+"""The outcomes of their last run, under ``.waterfall/``: kept, to be read after a failure."""
 STARTED = ("worker", "keycloak-realm")
 """What the bootstrap and the backup need: the databases, Redis, the storage, the worker, Keycloak
 and its realm, which the bootstrap writes the first administrator into."""
@@ -197,8 +214,18 @@ def take(run: Run, read: Ask, compose: list[str], target: Path, given: Mapping[s
         raise MigrationTrialError(message)
 
 
+def restored_command() -> list[str]:
+    """Return how the tests of the branch restore the archive and migrate it."""
+    command = ["uv", "run", "--frozen", "pytest", "-q", "-p", "no:cacheprovider"]
+    return [*command, "-p", "wftools.migrationreport", "--tb=short", RESTORED]
+
+
 def main(arguments: list[str] | None = None, environment: Mapping[str, str] | None = None) -> int:
-    """Find N, take a backup of its witness on its platform, and leave nothing of it behind."""
+    """Find N, take a backup of its witness on its platform, then have the branch restore it.
+
+    Nothing of the platform is left behind. The tests of the branch restore the archive and migrate
+    it, and what they say is judged against the known failures of N.
+    """
     words = sys.argv[1:] if arguments is None else arguments
     given = dict(os.environ if environment is None else environment)
     if len(words) != 1:
@@ -248,7 +275,13 @@ def main(arguments: list[str] | None = None, environment: Mapping[str, str] | No
             if failed:
                 _run([*compose, "logs", "--no-color", "--tail", "60"], running)
             _run([*compose, "down", "--volumes", "--remove-orphans"], running)
-    return 1 if failed else 0
+    if failed:
+        return 1
+    report = scratch / OUTCOMES
+    report.unlink(missing_ok=True)
+    child = {**child_environment(given, report), ARCHIVE: str(target)}
+    code = _run_in(restored_command(), REPOSITORY / "backend", child)
+    return 0 if judged(version.name, "backup", report, code) else 1
 
 
 def _archive(name: str) -> bytes:
@@ -262,6 +295,10 @@ def _archive(name: str) -> bytes:
 
 def _run(command: list[str], environment: Mapping[str, str]) -> int:
     return subprocess.run(command, cwd=REPOSITORY, env=dict(environment), check=False).returncode
+
+
+def _run_in(command: list[str], folder: Path, environment: Mapping[str, str]) -> int:
+    return subprocess.run(command, cwd=folder, env=dict(environment), check=False).returncode
 
 
 def _read(command: list[str], environment: Mapping[str, str] | None = None) -> tuple[int, str]:

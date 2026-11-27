@@ -9,13 +9,16 @@ what it leaves out, how its tests run — on a git and a tree played by fakes. T
 """
 
 import io
+import os
 import tarfile
 from typing import TYPE_CHECKING
 
 import pytest
 
 from wftools import migrationtests
+from wftools.migrationreport import REPORT
 from wftools.migrationtests import (
+    PLUGIN,
     VERSIONS,
     MigrationTrialError,
     Version,
@@ -129,10 +132,18 @@ def test_the_tests_of_n_run_on_the_share_of_the_slot_without_its_own_tests_of_mi
     assert not any(word.startswith("--shard") for word in pytest_command({}, []))
 
 
-def test_the_back_of_n_does_not_run_in_the_environment_of_the_tools() -> None:
-    assert migrationtests.child_environment({"VIRTUAL_ENV": "/tools", "PATH": "/bin"}) == {
-        "PATH": "/bin"
+def test_the_back_of_n_does_not_run_in_the_environment_of_the_tools_but_reaches_its_plugin(
+    tmp_path: Path,
+) -> None:
+    report = tmp_path / "outcomes.jsonl"
+    given = {"VIRTUAL_ENV": "/tools", "PATH": "/bin", "PYTHONPATH": "/mine"}
+    assert migrationtests.child_environment(given, report) == {
+        "PATH": "/bin",
+        "PYTHONPATH": f"{migrationtests.TOOLS}{os.pathsep}/mine",
+        REPORT: str(report),
     }
+    command = pytest_command({}, [])
+    assert command[command.index(PLUGIN) - 1] == "-p"
 
 
 def test_without_a_published_version_the_tool_says_it_is_not_executed(
