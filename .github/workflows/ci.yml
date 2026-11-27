@@ -83,6 +83,7 @@ jobs:
       service: ${{ steps.families.outputs.service }}
       production: ${{ steps.families.outputs.production }}
       chart: ${{ steps.families.outputs.chart }}
+      migrations: ${{ steps.families.outputs.migrations }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -135,7 +136,8 @@ jobs:
       needs.changes.outputs.back == 'true' || needs.changes.outputs.front == 'true' ||
       needs.changes.outputs.front-image == 'true' || needs.changes.outputs.keycloak == 'true' ||
       needs.changes.outputs.service == 'true' || needs.changes.outputs.chart == 'true' ||
-      (needs.changes.outputs.production == 'true' && needs.changes.outputs.tier == 'full')
+      (needs.changes.outputs.production == 'true' && needs.changes.outputs.tier == 'full') ||
+      (needs.changes.outputs.migrations == 'true' && needs.changes.outputs.tier == 'full')
     runs-on: ubuntu-26.04
     # About thirteen lookups; a copy, a few seconds each, on the first run after a digest changed.
     timeout-minutes: 15
@@ -432,6 +434,17 @@ jobs:
     with:
       tier: ${{ needs.changes.outputs.tier }}
 
+  # The migrations of the branch against the last published version, without the chart (US-2850,
+  # #4089): the tests of the back of that version on the schema the branch migrates, and a backup its
+  # production platform takes, restored then migrated; in the full tier only, on a runner of its own.
+  migrations:
+    needs: [changes, mirror]
+    permissions:
+      contents: read
+      packages: read
+    if: needs.changes.outputs.migrations == 'true' && needs.changes.outputs.tier == 'full'
+    uses: ./.github/workflows/migrations.yml
+
   gate:
     # Every job of the chain, each part of the end-to-end paths included: the result of e2e is
     # a failure as soon as one of its parts failed or was cancelled. A build of the front, or a
@@ -458,6 +471,7 @@ jobs:
       - service
       - production
       - chart
+      - migrations
     if: always()
     runs-on: ubuntu-26.04
     timeout-minutes: 5

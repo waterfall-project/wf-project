@@ -79,6 +79,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-reference service-reference-check service-reference-backup service-reference-restore service-purge service-logs service-logs-search service-logs-fields service-down measure-core migrate \
 	build-keycloak save-keycloak load-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production kube-tools lint-chart test-chart chart-trial chart-trial-k3s chart-upgrade check-chart \
+	check-migrations migrations-tests migrations-backup \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens implementations readmes reuse lint-workflows \
 	lint-shell check slot slot-release e2e-down slots test-services test-services-down \
@@ -860,6 +861,31 @@ check-production: $(call full-only,images production-trial) ## The production pl
 CHART_TRIALS ?= chart-trial chart-trial-k3s chart-upgrade
 CHART_CHECKS ?= lint-chart test-chart
 check-chart: $(CHART_CHECKS) $(call full-only,images $(CHART_TRIALS)) ## The chart lints and says what it must; in the full tier, it installs on throwaway clusters of kind and of k3s, bootstraps and lets its first administrator in (US-2800, US-2810), then upgrades from the version N under load, rolls back and upgrades again (US-2850)
+
+# The migrations of the branch against the last published version, without the chart (US-2850,
+# #4089), in the full tier only: the tests of the back of that version on the schema the branch
+# migrates, then a backup its production platform takes, restored and migrated by the branch. Both
+# run, the second whatever the first said, so that one run says every incompatibility.
+check-migrations: ## In the full tier, the tests of the back of the last published version run on the schema of the branch, and a backup of its production platform is restored then migrated by the branch, unchanged (WF-DAT-0140, US-2850)
+	$(if $(filter full,$(TIER)),@status=0; \
+		$(MAKE) --no-print-directory migrations-tests || status=1; \
+		$(MAKE) --no-print-directory migrations-backup || status=1; \
+		exit $$status)
+
+# On the services of the tests of the back, as test-back; SHARD=i/N runs one part of them. Each part
+# fails on a failure the known failures of the version do not hold (tools/migrations-known.toml), or
+# on one of them that no longer fails; the outcomes stay in .waterfall/migrations-tests.jsonl.
+migrations-tests: ## The tests of the back of the last published version, extracted from its tag, on the schema the migrations of the branch make, its own tests of its migrations left out; judged against tools/migrations-known.toml (SHARD=i/N one part of them)
+	@$(TESTING_BACK) $(WFTOOLS).migrationtests
+
+# The platform of the last published version under a project of the slot, which publishes no port:
+# its backup written to EARLIER_BACKUP, then read, restored and migrated by the tests of the branch
+# that name it (backend/tests/test_earlier_backup.py), on the services of the tests of the back, and
+# judged against the known failures; the outcomes stay in .waterfall/migrations-backup.jsonl.
+EARLIER_BACKUP ?= $(CURDIR)/.waterfall/earlier-backup.tar
+migrations-backup: export WATERFALL_MIGRATIONS_PROJECT ?= waterfall-migrations-s$(call slot-value,WATERFALL_SLOT)
+migrations-backup: ## A backup taken by the production platform of the last published version, its witness loaded, restored then migrated by the branch: no row lost, the rows of its marked revisions unchanged; judged against tools/migrations-known.toml
+	@$(TESTING_BACK) $(WFTOOLS).migrationbackup "$(EARLIER_BACKUP)"
 
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap
