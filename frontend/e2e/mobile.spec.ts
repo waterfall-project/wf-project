@@ -7,28 +7,110 @@
  * of the author of 2026-10-09). The project `mobile` plays these paths alone, in Chromium's engine
  * as a phone's (`playwright.config.ts`, tag `@mobile`): `make e2e-compat`.
  */
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
+import catalogue from "../messages/fr.json" with { type: "json" };
+import { WORKING } from "./bounds";
 import { openHydrated, untilHydrated } from "./hydration";
 import { test } from "./mode";
 
 const REVISION =
   "/projects/01926f3a-7c00-7000-8000-000000000001/revisions/01926f3a-7c00-7000-8000-000000000102";
 
-const VIEWS = [
-  { title: "Indicateurs projets", address: `${REVISION}/indicators` },
-  { title: "Portefeuille de projets", address: "/portfolio/projects" },
-  { title: "Performance du portefeuille", address: "/portfolio/performance" },
-  { title: "Courbe en S du portefeuille", address: "/portfolio/cost-curve" },
-  { title: "Structure des coûts du portefeuille", address: "/portfolio/cost-structure" },
-  { title: "Santé du pilotage", address: "/portfolio/pilot-health" },
-  { title: "Risques du portefeuille", address: "/portfolio/risks" },
-  { title: "Plan de charge agrégé", address: "/portfolio/workload" },
+interface View {
+  title: string;
+  address: string;
+  /** What the screen holds once it is read, not its skeleton: a described image, a card, a grid. */
+  witness: (page: Page) => Locator;
+  /** A grid: keys typed in a cell of it open no field. */
+  grid?: true;
+}
+
+const region = (name: string) => (page: Page) => page.getByRole("region", { name, exact: true });
+const image = (name: RegExp) => (page: Page) => page.getByRole("img", { name }).first();
+
+const VIEWS: View[] = [
+  {
+    title: "Indicateurs projets",
+    address: `${REVISION}/indicators`,
+    witness: image(/^Courbes de l’indice de coût du projet/),
+  },
+  {
+    title: "Portefeuille de projets",
+    address: "/portfolio/projects",
+    witness: (page) => page.getByRole("grid", { name: catalogue.grid.names.portfolioProjects }),
+    grid: true,
+  },
+  {
+    title: "Performance du portefeuille",
+    address: "/portfolio/performance",
+    witness: image(/^Courbes de l’indice de coût et de l’indice de délai agrégés/),
+  },
+  {
+    title: "Courbe en S du portefeuille",
+    address: "/portfolio/cost-curve",
+    witness: image(/^Courbes cumulées, mois par mois, du budget de référence/),
+  },
+  {
+    title: "Structure des coûts du portefeuille",
+    address: "/portfolio/cost-structure",
+    witness: region(catalogue.portfolio.costStructure.remaining),
+  },
+  {
+    title: "Santé du pilotage",
+    address: "/portfolio/pilot-health",
+    witness: region(catalogue.portfolio.pilotHealth.signals),
+  },
+  {
+    title: "Risques du portefeuille",
+    address: "/portfolio/risks",
+    witness: image(/^Nuage de bulles des risques/),
+  },
+  {
+    title: "Plan de charge agrégé",
+    address: "/portfolio/workload",
+    witness: image(/^Barres empilées de la charge/),
+  },
 ];
 
-// A command of writing, by the name its button bears.
-const WRITING =
-  /^(Enregistrer|Ajouter|Créer|Nouveau|Nouvelle|Supprimer|Importer|Modifier|Marquer|Abandonner|Restaurer|Valider|Copier|Dupliquer)/i;
+/**
+ * The commands of writing, by the verbs the French catalogue gives them: the texts at the keys that
+ * name a command of writing (`save`, `create`, `add`, `delete`…), cut before their first
+ * placeholder. A hand-written regular expression would drift from the catalogue; this one follows
+ * it, and the test below fails if it comes up empty.
+ */
+const WRITING_KEYS = new Set([
+  "save",
+  "create",
+  "add",
+  "delete",
+  "submit",
+  "import",
+  "modify",
+  "restore",
+  "abandon",
+  "designate",
+]);
+
+function writingVerbs(node: unknown, key = "", found = new Set<string>()): Set<string> {
+  if (typeof node === "string") {
+    const verb = node.split("{")[0]?.trim() ?? "";
+    if (WRITING_KEYS.has(key) && verb.length >= 4) {
+      found.add(verb);
+    }
+  } else if (typeof node === "object" && node !== null) {
+    for (const [name, child] of Object.entries(node)) {
+      writingVerbs(child, name, found);
+    }
+  }
+  return found;
+}
+
+const VERBS = [...writingVerbs(catalogue)];
+
+test("knows the commands of writing from the catalogue @mobile [WF-CMP-0010-A]", () => {
+  expect(VERBS).toEqual(expect.arrayContaining(["Enregistrer", "Supprimer", "Créer"]));
+});
 
 /** The fields of the page that are no filter of reading: a search, a date, a choice, a bound « du » or « au ». */
 async function fieldsOfWriting(page: Page): Promise<string[]> {
@@ -51,6 +133,25 @@ async function fieldsOfWriting(page: Page): Promise<string[]> {
     );
 }
 
+/** The names of the buttons, links and menu items of the page that bear a verb of writing. */
+async function commandsOfWriting(page: Page): Promise<string[]> {
+  const names: string[] = [];
+  for (const role of ["button", "link", "menuitem"] as const) {
+    const all = await page
+      .getByRole(role)
+      .evaluateAll((elements) =>
+        elements.map((element) =>
+          (element.getAttribute("aria-label") ?? element.textContent).trim(),
+        ),
+      );
+    names.push(...all.map((name) => `${role} ${name}`));
+  }
+  return names.filter((entry) => {
+    const name = entry.slice(entry.indexOf(" ") + 1);
+    return VERBS.some((verb) => name.startsWith(verb));
+  });
+}
+
 for (const view of VIEWS) {
   test(`reads ${view.title} on 360 points without scrolling sideways, and offers no input @mobile [WF-CMP-0010-A]`, async ({
     page,
@@ -61,6 +162,8 @@ for (const view of VIEWS) {
         sent.push(`${request.method()} ${request.url()}`);
       }
     });
+    // The shell writes the context of a project from an effect, which `openHydrated` awaits; the
+    // portfolio has none, its screens are awaited hydrated where they stand.
     if (view.address.startsWith("/portfolio")) {
       await page.goto(view.address);
       await untilHydrated(page);
@@ -69,23 +172,23 @@ for (const view of VIEWS) {
     }
     expect(page.viewportSize()?.width).toBe(360);
     await expect(page.getByRole("heading", { level: 1, name: view.title })).toBeVisible();
+    // The screen is read, not its skeleton: its content shows before anything is measured.
+    await expect(view.witness(page)).toBeVisible({ timeout: WORKING });
     // Read whole: the page is no wider than the screen.
-    const widths = await page.evaluate(() => ({
-      page: document.documentElement.scrollWidth,
-      screen: document.documentElement.clientWidth,
-    }));
-    expect(widths.page).toBeLessThanOrEqual(widths.screen);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        ),
+      )
+      .toBeLessThanOrEqual(0);
     // No field that writes, no command of writing, no cell that can be edited.
     expect(await fieldsOfWriting(page)).toEqual([]);
-    const buttons = await page
-      .getByRole("button")
-      .evaluateAll((all) =>
-        all.map((button) => (button.getAttribute("aria-label") ?? button.textContent).trim()),
-      );
-    expect(buttons.filter((name) => WRITING.test(name))).toEqual([]);
-    // Keys typed in a cell of a grid — focused, for the pinned label covers the others at 360 points — open no field.
-    const cells = page.getByRole("gridcell");
-    if ((await cells.count()) > 1) {
+    expect(await commandsOfWriting(page)).toEqual([]);
+    if (view.grid) {
+      // Keys typed in a cell of a grid — focused, for the pinned label covers the others at 360 points — open no field.
+      const cells = page.getByRole("gridcell");
+      await expect(cells.nth(1)).toBeVisible({ timeout: WORKING });
       await cells.nth(1).focus();
       for (const key of ["Enter", "F2", "5"]) {
         await page.keyboard.press(key);

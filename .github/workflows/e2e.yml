@@ -19,7 +19,9 @@
 # Each part runs in the work image of the paths (deploy/e2e, US-1900), which ci.yml finds or
 # publishes before them: Playwright's image, which carries Chromium and its system packages, with
 # make, the Python of the tools and pnpm. No apt, no mirror whose speed or whose answer is not ours
-# (#472, #2913). Its base is the image of the Playwright version frontend/pnpm-lock.yaml resolves,
+# (#472, #2913) — except in the job browsers, where playwright install goes through apt and the
+# repositories of Google and Microsoft to put Chrome and Edge in (the design of EP-14; to put them
+# in the work image instead is to settle, #5165). Its base is the image of the Playwright version frontend/pnpm-lock.yaml resolves,
 # pinned by digest: raising @playwright/test raises it too, or the paths stop at once on a browser
 # they cannot find.
 name: e2e

@@ -126,7 +126,7 @@ charge ne fait rien tant qu'il n'existe pas. Un nouveau terminal relit le `~/.ba
 npm install --global pnpm   # pnpm, une fois : il prend lui-même la version que le front épingle
 make check-tools            # tout doit être « ok »
 make install-front        # les dépendances du front, telles que pnpm-lock.yaml les fixe
-make e2e-browsers         # le navigateur des parcours de bout en bout (Chromium de Playwright)
+make e2e-chromium         # le navigateur des parcours de bout en bout (Chromium de Playwright) ; make e2e-browsers : tous ceux de la spécification
 ```
 
 Les environnements Python se créent à la première commande qui en a besoin : `make test-tools`,
