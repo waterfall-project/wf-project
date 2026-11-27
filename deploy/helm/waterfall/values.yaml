@@ -26,7 +26,9 @@ images:
   # The secrets of the registries the cluster pulls from, by their names.
   pullSecrets: []
   # Where the images of third parties are read from: empty, Docker Hub; the chain gives the
-  # registry of its mirror and a slash (WATERFALL_MIRROR, US-1900).
+  # registry of its mirror and a slash (WATERFALL_MIRROR, US-1900); an installation on a network
+  # without access to Internet, its internal registry and a slash (US-3010,
+  # docs/exploitation/reseau-isole.md).
   mirror: ""
 
 # The passwords and the secrets of the platform, under the names of production.env.example: a

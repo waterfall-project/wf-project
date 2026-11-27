@@ -632,15 +632,27 @@ runs = [45835940068]
 frequency = "1 passage, le 2026-11-26 (45835940068, file d'`epic/EP-13`, pr-5026)"
 cause = "hypothèse : sous la charge de la file, Entrée sur l'en-tête arrive avant que la grille du devis ait branché le tri au clavier, et l'URL ne change jamais"
 
-# Une image (keycloak, waterfall) chargée dans le cluster de kind de l'essai du chart, que la
-# recherche par empreinte ne trouve pas (#5065).
+# Une image de Waterfall chargée dans le cluster de l'essai du chart, de kind ou de k3s, que la
+# recherche par empreinte ne trouve pas (#5065) : keycloak puis waterfall sur kind, waterfall sur k3s.
 [[known]]
 class = "known flakiness"
-family = "chart-trial, une image absente du cluster de kind"
+family = "chart-trial, une image de Waterfall absente du cluster de kind ou de k3s"
 issue = "#5065"
-job = '^chart / check( \(kind\))?$'
+job = '^chart / check( \((kind|k3s)\))?$'
 step = 'chart-trial'
 message = 'wftools\.charttrial: find ghcr\.io/waterfall-project/[a-z-]+@sha256:[0-9a-f]+ in the cluster failed'
-runs = [45868657554, 45949402517]
-frequency = "2 passages : le 2026-11-26 (45868657554, file d'`epic/EP-13`, pr-5064, image keycloak) et le 2026-11-27 (45949402517, file d'`epic/EP-13`, pr-5117, image waterfall)"
+runs = [45868657554, 45923534175, 45949402517]
+frequency = "3 passages, file d'`epic/EP-13` : le 2026-11-26 (45868657554, pr-5064, keycloak sur kind), le 2026-11-27 (45923534175, pr-5082, waterfall sur k3s ; 45949402517, pr-5117, waterfall sur kind)"
 cause = "hypothèse : la recherche de l'image par son empreinte dans le nœud de kind suit de trop près son chargement, ou l'empreinte cherchée n'est pas celle que containerd garde"
+
+# L'essai du chart sur k3s, qui attend le nœud avant que le serveur d'API réponde (#5103).
+[[known]]
+class = "known flakiness"
+family = "chart-trial-k3s, l'attente du nœud avant le serveur d'API de k3s"
+issue = "#5103"
+job = '^chart / check \(k3s\)$'
+step = 'chart-trial-k3s'
+message = 'wftools\.charttrial: wait for the node failed'
+runs = [45913572822, 45933825076]
+frequency = "2 passages, le 2026-11-26 (45913572822) et le 2026-11-27 (45933825076), file d'`epic/EP-13`, pr-5082"
+cause = "hypothèse : l'essai attend le nœud avant que le serveur d'API de k3s soit prêt (`informer-sync failed`, `no matching resources found`)"

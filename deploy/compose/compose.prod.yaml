@@ -12,10 +12,12 @@
 # operator; the data in named volumes. How to install, bootstrap, update, back up and
 # stop it: README.md.
 #
-# The third-party images are Docker Hub's: only the chain poses WATERFALL_MIRROR (its mirror on
-# ghcr.io, US-1900), empty here. The three images are ghcr.io's unless WATERFALL_REGISTRY names
-# another registry that holds them (a copy of the operator's, or the throwaway one of the trial,
-# compose.registry.local.yaml): the digest designates the image in either, never a tag.
+# The third-party images are Docker Hub's unless WATERFALL_MIRROR names the registry and the path
+# that hold copies of them, a slash at its end: the chain's mirror on ghcr.io (US-1900), or the
+# internal registry of an installation on an isolated network (US-3010). The three images are
+# ghcr.io's unless WATERFALL_REGISTRY names another registry that holds them (a copy of the
+# operator's, or the throwaway one of the trial, compose.registry.local.yaml): the digest designates
+# the image in either, never a tag (docs/exploitation/reseau-isole.md).
 #
 # The settings and the secrets come from the file .env beside this one, which the operator fills
 # from production.env.example: a service that lacks one stops, naming it (WF-SEC-0010). A password
