@@ -41,8 +41,9 @@ async function retained(page: Page): Promise<number> {
 }
 
 /**
- * Waits for the grid to hold the rows `expected` for its page, as it says them (`aria-rowcount`, the header and the totals
- * row apart): the grid renders only the rows in view, so the rows read are fewer than the page.
+ * Waits for the grid to hold the rows `expected` for its page, as it says them (`aria-rowcount`,
+ * the header and the totals row apart): the grid renders only the rows in view, so the rows read
+ * are fewer than the page.
  */
 async function pageRows(page: Page, expected: number): Promise<void> {
   const grid = gridOf(page);
