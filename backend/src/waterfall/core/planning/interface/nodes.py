@@ -206,12 +206,12 @@ class Dependencies:
     rows: tuple[DependencyRow, ...]
 
 
-def revision_has_tasks(session: Session, revision_id: UUID) -> bool:
+def revision_has_tasks(session: Session, project_id: UUID, revision_id: UUID) -> bool:
     """Tell whether a revision bears a task: the planning's part of a designation (WF-CYC-0030).
 
     A task of the base of a differential is not one the revision bears (US-3050).
     """
-    return revision_bears(session, revision_id, TASK)
+    return revision_bears(session, project_id, revision_id, TASK)
 
 
 def _columns(row: Node | Task | TaskLink) -> dict[str, object]:

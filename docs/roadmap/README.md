@@ -185,6 +185,7 @@ closes. Four rules, which each slice follows:
 | [EP-38](EP-38-contrat-et-schema.md) | Contract and schema | à planifier | EP-13 |
 | [EP-40](EP-40-lectures-et-performance.md) | Reads and performance | à planifier | EP-13 |
 | [EP-31](EP-31-copier-et-coller-dans-les-grilles.md) | Functions after the MVP: copy and paste, « Heures » export | à planifier | EP-27 |
+| [EP-41](EP-41-recette-d-exploitation.md) | Operations acceptance: recovery exercise, restore test, isolated network, browsers | à planifier | EP-13 |
 
 The distribution of 2026-11-14, at the delivery of EP-24, spread what remains by theme — that of
 the code touched — and no longer by date of deferral: EP-25 keeps only the ergonomic redesign and

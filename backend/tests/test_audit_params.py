@@ -10,7 +10,6 @@ is read back through the model of the contract. A module of the core that inscri
 writer to come is tried as these are.
 """
 
-import ast
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -18,6 +17,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account
+from audit_writers import contract_actions, writers_of
 from sqlalchemy import select
 from task_handlers import deposit
 
@@ -63,6 +63,9 @@ WRITERS = {
     "waterfall.core.access_roles.attributions",
     "waterfall.core.access_roles.roles",
     "waterfall.core.backups.interface",
+    # The registration, the removal and the change of capacity of a project manager (US-2980/L1),
+    # tried in test_contributors.py, which writes each by the service.
+    "waterfall.core.projects.interface.contributors",
     # The exclusion and the reinstatement of a line of cost, tried in test_actual_costs_scope.py,
     # which excludes one by the service: their object says them in full, no parameter.
     "waterfall.core.costs.scoping",
@@ -75,6 +78,11 @@ WRITERS = {
     # test_revision_mark.py, which marks one by the worker, and test_revisions.py, which abandons
     # one by the service.
     "waterfall.core.revisions.interface.shared",
+    # The callers of that function: the marking, tried in test_revision_mark.py; the designation
+    # of the reference, tried in test_reference_designation.py; the abandonment of a revision.
+    "waterfall.core.revisions.interface.marking",
+    "waterfall.core.revisions.interface.reference",
+    "waterfall.core.revisions.interface.revisions",
     # The exit of a project, tried in test_projects_lifecycle.py, which exits one by the service.
     "waterfall.core.projects.interface.lifecycle",
     # The occurrence of a risk, tried in test_risk_occurrence.py, which has the worker apply one:
@@ -85,27 +93,17 @@ WRITERS = {
     "waterfall.core.users.provider",
     "waterfall.core.users.states",
 }
-# What a module imports to inscribe: the inscription of the journal, or that of the accounts.
-INSCRIPTIONS = {
-    ("waterfall.platform.audit", "record"),
-    ("waterfall.core.users.identity", "inscribe"),
-}
 
 
 def inscribing_modules() -> set[str]:
-    """Name the modules of the service that import an inscription (``INSCRIPTIONS``)."""
-    root = Path(waterfall.__file__).parent
-    found: set[str] = set()
-    for path in root.rglob("*.py"):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        if any(
-            isinstance(node, ast.ImportFrom)
-            and any((node.module, alias.name) in INSCRIPTIONS for alias in node.names)
-            for node in ast.walk(tree)
-        ):
-            parts = path.relative_to(root.parent).with_suffix("").parts
-            found.add(".".join(parts))
-    return found
+    """Name the modules of the service that name a writer of the journal, by any form (#932)."""
+    return set(writers_of(Path(waterfall.__file__).parent, contract_actions()))
+
+
+def inscribed_actions() -> frozenset[str]:
+    """Give the actions the modules of the service inscribe, read from their sources."""
+    written = writers_of(Path(waterfall.__file__).parent, contract_actions()).values()
+    return frozenset(action for each in written for action in each.actions)
 
 
 def write_every_action(database: Database, queue: TaskQueue) -> UUID:
@@ -179,6 +177,13 @@ def write_every_action(database: Database, queue: TaskQueue) -> UUID:
         named = AuditActor(author, "Camille Martin")
         inscribe_restoration(session, AuditObject("backup", uuid4(), None), named, utc_now())
     return author
+
+
+@pytest.mark.story("US-2980")
+def test_the_actions_the_service_inscribes_are_those_the_contract_enumerates() -> None:
+    # #932: the set is read from the sources of the writers, not written here, so that an action
+    # added to a writer already listed changes it; the enumeration is that of ``AuditAction``.
+    assert inscribed_actions() == contract_actions()
 
 
 @pytest.mark.requirement("WF-SEC-0030-A")

@@ -55,6 +55,9 @@ type AuditAction = Literal[
     "structure_abandon",
     "risk_occurrence",
     "project_exit",
+    "project_manager_add",
+    "project_manager_remove",
+    "project_manager_change",
     "cost_line_exclude",
     "cost_line_reinstate",
     "import_apply",
@@ -76,6 +79,7 @@ type AuditObjectKind = Literal[
     "revision",
     "cost_structure",
     "risk",
+    "contributor",
     "cost_line",
     "import",
     "user",
@@ -85,8 +89,11 @@ type AuditObjectKind = Literal[
 ]
 ACTIONS: tuple[str, ...] = get_args(AuditAction.__value__)
 # The natures of objects an inscription may name without a label: a backup, which has none, and an
-# account, whose name an anonymisation forgets (WF-ADM-0060).
-UNLABELED_KINDS = ("backup", "user")
+# account or a contributor, named by its account, whose name an anonymisation forgets (WF-ADM-0060).
+UNLABELED_KINDS = ("backup", "user", "contributor")
+# The natures of objects named by an account, its identifier the object's: an anonymisation forgets
+# their label (``forget_account``).
+ACCOUNT_KINDS = ("user", "contributor")
 # The one action whose object may lack its label whatever its nature: an abandoned revision is
 # deleted, and the contract carries its inscription with a null label (#2161).
 UNLABELED_ACTIONS = ("revision_abandon",)
@@ -114,6 +121,9 @@ OBJECT_KIND_RANK = _rank("object_kind", OBJECT_KINDS)
 # The order of the author, which its index holds: an account before the platform, then by its name,
 # an account anonymised, which has lost it, after the names.
 ACTOR_ORDER = ("(actor_user_id IS NULL)", "actor_display_name")
+# The order of the journal without sort, the latest first, which follows the author or the project
+# in their composite indexes.
+LATEST = (text("occurred_at DESC"), text("id DESC"))
 
 
 class AuditEntry(Base):
@@ -147,6 +157,10 @@ class AuditEntry(Base):
         Index("ix_audit_entry_action_rank", text(ACTION_RANK)),
         Index("ix_audit_entry_object_kind_rank", text(OBJECT_KIND_RANK)),
         Index("ix_audit_entry_actor_order", text(ACTOR_ORDER[0]), ACTOR_ORDER[1]),
+        # The latest inscription of each author and of each project, which the facets read, and
+        # the journal of one of them, in its own order (#934).
+        Index("ix_audit_entry_actor_latest", "actor_user_id", *LATEST),
+        Index("ix_audit_entry_project_latest", "project_id", *LATEST),
     )
 
     # The indexes serve the filters of the consultation (listAuditEvents) — period, author,
@@ -260,7 +274,8 @@ def record(session: Session, inscription: Inscription) -> UUID:
     The correlation identifier is the one bound to the logs of the request or of the task
     (WF-OBS-0020): an action done outside any is a defect, refused. A field of ``params`` whose
     name evokes a secret is refused too, at any depth, and an object without a label but a backup
-    or an account — an anonymised one has lost its name —, which the table refuses as well.
+    or an account or a contributor — an anonymised account has lost its name —, which the table
+    refuses as well.
     """
     entry = _entry(inscription)
     session.execute(insert(AuditEntry).values(**entry))
@@ -340,7 +355,8 @@ FORGETTING_LOCK = 1_200_060
 def forget_account(session: Session, user_id: UUID) -> None:
     """Make null, in the transaction of ``session``, the label of an account the journal names.
 
-    In every inscription that names it, as its author or as its object, and nothing else
+    In every inscription that names it, as its author or as its object — the account, or the
+    contributor of a project it is (#4127) —, and nothing else
     (WF-SEC-0030): its caller anonymises the account first, in the same transaction, and the
     database refuses to forget the name of an account that is not anonymised. Two anonymisations
     wait for each other: an inscription may name both accounts, and each would hold the row the
@@ -355,7 +371,7 @@ def forget_account(session: Session, user_id: UUID) -> None:
     session.execute(
         update(AuditEntry)
         .where(
-            AuditEntry.object_kind == "user",
+            AuditEntry.object_kind.in_(ACCOUNT_KINDS),
             AuditEntry.object_id == user_id,
             AuditEntry.object_label.is_not(None),
         )

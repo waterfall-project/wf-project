@@ -200,6 +200,8 @@ def test_alertmanager_is_a_service_of_the_platform_that_prometheus_sends_its_ale
     assert "https://localhost:9093" in " ".join(alertmanager["healthcheck"]["test"])
     variables = environment("alertmanager")
     assert variables == {
+        # The Go runtime collects before the limit of memory of the service kills it (US-2810).
+        "GOMEMLIMIT": "100MiB",
         "WATERFALL_ALERT_SMTP_HOST": "${WATERFALL_ALERT_SMTP_HOST:-}",
         "WATERFALL_ALERT_SMTP_FROM": "${WATERFALL_ALERT_SMTP_FROM:-}",
         "WATERFALL_ALERT_RECIPIENT": "${WATERFALL_ALERT_RECIPIENT:-}",

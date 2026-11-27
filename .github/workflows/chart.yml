@@ -6,8 +6,13 @@
 # never pushed, then the chart installed on a cluster of kind made for the job, bootstrapped, its
 # API's liveness and the sign-in of its first administrator held (make check-chart); then, on a
 # cluster of its own, the version N upgraded to them under load, rolled back, and upgraded again
-# (US-2850, make chart-upgrade). Helm, kind and kubectl are downloaded at the versions and digests
-# wftools.kubetools pins.
+# (US-2850, make chart-upgrade, in the job of kind only). Helm, kind and kubectl are downloaded at the
+# versions and digests wftools.kubetools pins.
+#
+# The chart installs on two distributions of Kubernetes, without modification (WF-CMP-0020-A,
+# US-2810): kind, where the whole of the trial is held, and k3s, a Kubernetes of another make, by the
+# same values. Each is a job of its own, in parallel: each builds the three images, or takes them
+# from the cache.
 name: chart
 
 on:
@@ -29,6 +34,11 @@ env:
 
 jobs:
   check:
+    name: check (${{ matrix.distribution }})
+    strategy:
+      fail-fast: false
+      matrix:
+        distribution: [kind, k3s]
     runs-on: ubuntu-26.04
     # The three images and the first start of Keycloak on the cluster are the longest of it.
     timeout-minutes: 40
@@ -36,7 +46,11 @@ jobs:
       # The whole history and its tags: the trial of an upgrade takes the version N from them — the
       # last published version that carries the chart, or the base and its first parents — and the
       # chart of N from its commit (US-2850).
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      #
+      # The fast tier only lints and renders, once: the job of k3s has nothing to install then, and
+      # its steps are left out (the context `matrix` is not allowed in the `if` of a job).
+      - if: inputs.tier == 'full' || matrix.distribution == 'kind'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -49,15 +63,21 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      - if: inputs.tier == 'full' || matrix.distribution == 'kind'
+        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           enable-cache: true
           save-cache: false
           cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
-      - run: make check-chart
+      - if: inputs.tier == 'full' || matrix.distribution == 'kind'
+        run: make check-chart
         env:
           TIER: ${{ inputs.tier }}
+          # The upgrade under load (US-2850) is run in the job of kind only, after its trial.
+          CHART_TRIALS: ${{ matrix.distribution == 'k3s' && 'chart-trial-k3s' || 'chart-trial chart-upgrade' }}
+          # The lint and the rendering tests run once, in the job of kind.
+          CHART_CHECKS: ${{ matrix.distribution == 'k3s' && ' ' || 'lint-chart test-chart' }}
           # The commit the pull request targets, or the queue merges onto, which the upgrade starts
           # from (make chart-upgrade); empty when run by hand, the upgrade then not executed, which
           # a notice of the job's summary says.

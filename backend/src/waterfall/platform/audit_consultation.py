@@ -17,8 +17,16 @@ the journal is read only.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
-from sqlalchemy import ColumnElement, Select, SQLColumnExpression, func, literal_column, select
-from sqlalchemy.dialects.postgresql import distinct_on
+from sqlalchemy import (
+    ColumnElement,
+    Select,
+    SQLColumnExpression,
+    func,
+    literal_column,
+    select,
+    true,
+)
+from sqlalchemy.orm import aliased
 
 from waterfall.platform.audit import (
     ACTION_RANK,
@@ -148,23 +156,64 @@ def journal_query(filters: AuditFilters, sort: AuditSort) -> Select[AuditEntry]:
     return select(AuditEntry).where(*_kept(filters)).order_by(*_order(sort))
 
 
+def page_statement(
+    filters: AuditFilters, sort: AuditSort, limit: int, offset: int
+) -> Select[Any, Any, AuditEntry]:
+    """Build the one statement that reads the total and the page, the page hung from the total."""
+    kept = select(func.count().label("total")).select_from(AuditEntry).where(*_kept(filters))
+    counted = kept.subquery()
+    ranked = journal_query(filters, sort).add_columns(
+        func.row_number().over(order_by=_order(sort)).label("rank")
+    )
+    page = ranked.limit(limit).offset(offset).subquery().lateral()
+    entry = aliased(AuditEntry, page)
+    read = select(counted.c.total, page.c.id, entry).select_from(counted).outerjoin(page, true())
+    return read.order_by(page.c.rank)
+
+
 def list_entries(
     session: Session, filters: AuditFilters, sort: AuditSort, limit: int, offset: int
 ) -> AuditPage:
-    """Give a page of the journal, filtered and sorted, and how many inscriptions it keeps."""
-    total = session.scalar(select(func.count()).select_from(AuditEntry).where(*_kept(filters)))
-    page = journal_query(filters, sort).limit(limit).offset(offset)
-    return AuditPage(list(session.scalars(page)), total or 0)
+    """Give a page of the journal, filtered and sorted, and how many inscriptions it keeps.
+
+    The total and the page are read by one statement, so on one snapshot (#928): in ``READ
+    COMMITTED``, two statements each see what was committed before it, and an inscription made
+    between them would be in the page and not in the total. The isolation of a transaction already
+    begun cannot be raised, and the one of the route has begun; ``count(*) OVER ()`` would give no
+    total to a page past the end, which holds no row to bear it — so the page hangs, by a lateral
+    join, from the one row that counts. A page past the end gives that row alone, its entry null.
+    """
+    rows = session.execute(page_statement(filters, sort, limit, offset)).all()
+    return AuditPage([row[2] for row in rows if row.id is not None], rows[0].total)
 
 
-def _latest_first(key: InstrumentedAttribute[UUID | None]) -> Select[AuditEntry]:
-    """Select, for each value of ``key`` the journal holds, the latest inscription that bears it."""
-    return (
-        select(AuditEntry)
+def latest_first(key: InstrumentedAttribute[UUID | None]) -> Select[AuditEntry]:
+    """Select, for each value of ``key`` the journal holds, the latest inscription that bears it.
+
+    The values are walked one after the other, each the next above the previous in the index of
+    ``key`` (a loose index scan, which PostgreSQL does not write by itself), and the latest
+    inscription of each is one probe of the composite index that follows ``key`` with the date and
+    the identifier, in descending order: the journal is not read whole, nor sorted, as a
+    ``DISTINCT ON`` would (#934).
+    """
+    keys = (
+        select(key.label("key"))
         .where(key.is_not(None))
-        .ext(distinct_on(key))
-        .order_by(key, AuditEntry.occurred_at.desc(), AuditEntry.id.desc())
+        .order_by(key)
+        .limit(1)
+        .cte("keys", recursive=True)
     )
+    after = select(key).where(key > keys.c.key).order_by(key).limit(1).scalar_subquery()
+    keys = keys.union_all(select(after).where(keys.c.key.is_not(None)))
+    probe = (
+        select(AuditEntry)
+        .where(key == keys.c.key)
+        .order_by(AuditEntry.occurred_at.desc(), AuditEntry.id.desc())
+        .limit(1)
+        .lateral()
+    )
+    latest = aliased(AuditEntry, probe)
+    return select(latest).select_from(keys).join(probe, true()).where(keys.c.key.is_not(None))
 
 
 def journal_actors(session: Session) -> list[ActorNamed]:
@@ -172,7 +221,7 @@ def journal_actors(session: Session) -> list[ActorNamed]:
 
     The platform is no account: ``actor_kind`` keeps it.
     """
-    latest = session.scalars(_latest_first(AuditEntry.actor_user_id))
+    latest = session.scalars(latest_first(AuditEntry.actor_user_id))
     return [
         ActorNamed(entry.actor_user_id, entry.actor_display_name)
         for entry in latest
@@ -196,7 +245,7 @@ def journal_projects(session: Session) -> list[AuditProject]:
     ``by_code``. The journal knows nothing of the projects: the API names the ones that still exist
     by their code and label of today, read through the module of the projects (#927).
     """
-    latest = session.scalars(_latest_first(AuditEntry.project_id))
+    latest = session.scalars(latest_first(AuditEntry.project_id))
     projects = [
         AuditProject(entry.project_id, entry.project_code, entry.project_label)
         for entry in latest
