@@ -202,6 +202,12 @@ def stepping(worker: Worker) -> Waiting:
     return Waiting(sleep=step)
 
 
+def impatient(pauses: list[float], patience: float = 3.0) -> Waiting:
+    """Wait without sleeping, a second of the clock for each look: the patience is spent fast."""
+    ticks = iter(range(10_000))
+    return Waiting(patience=patience, clock=lambda: float(next(ticks)), sleep=pauses.append)
+
+
 def restored_once(
     source: Source, archive: Path, history: History, task_id: UUID
 ) -> reference_check.Volumes:
@@ -383,8 +389,9 @@ def test_an_archive_cut_short_gone_or_read_while_a_backup_is_pending_keeps_nothi
     assert said["backup_id"] == str(gone)
     with logging_context(correlation_id=CORRELATION):
         assert isinstance(deposit_backup(database, queue), UUID)
-    patient = Waiting(sleep=lambda _: None)
-    assert not kept(database, backups_bucket, backup_id, into / "pending", patient)
+    pending: list[float] = []
+    assert not kept(database, backups_bucket, backup_id, into / "pending", impatient(pending))
+    assert len(pending) == 2
     (held,) = logs.named("reference.archive_not_read")
     assert held["missing_condition"] == NO_BACKUP_RUNNING
     assert list(into.iterdir()) == []
@@ -437,9 +444,10 @@ def test_a_deposit_between_the_end_of_the_backup_and_the_download_is_taken_once_
     tmp_path: Path,
     logs: Logs,
 ) -> None:
-    # A backup deposited after the one of the command ended holds its archive back: once the pause
-    # is spent, the deposit has ended, and the archive is read; one that has not ended is said,
-    # after the one retry, and nothing is kept.
+    # A backup deposited after the one of the command ended holds its archive back: it is looked for
+    # again every pause until the patience is spent — a backup lasts far more than one pause. Ended
+    # at the third pause, the archive is read; one that has not ended is said once the patience is
+    # spent, and nothing is kept.
     work, into = tmp_path / "work", tmp_path / "into"
     work.mkdir()
     into.mkdir()
@@ -453,23 +461,56 @@ def test_a_deposit_between_the_end_of_the_backup_and_the_download_is_taken_once_
 
     def ending(pause: float) -> None:
         pauses.append(pause)
-        if len(pauses) == 1:
+        if len(pauses) == 3:
             with database.transaction() as session:
                 end(session, deposited, result={})
 
-    assert not kept(database, backups_bucket, backup_id, into / "late", Waiting(sleep=ending))
-    assert len(pauses) == 1
-    (waited,) = logs.named("reference.archive_not_read_yet")
-    assert waited["missing_condition"] == NO_BACKUP_RUNNING
+    late = Waiting(patience=100.0, clock=lambda: float(len(pauses)), sleep=ending)
+    assert not kept(database, backups_bucket, backup_id, into / "late", late)
+    assert len(pauses) == 3
+    waited = logs.named("reference.archive_not_read_yet")
+    assert len(waited) == 3
+    assert waited[0]["missing_condition"] == NO_BACKUP_RUNNING
     assert logs.named("reference.archive_not_read") == []
     assert len(logs.named("reference.archive_unverified")) == 1
     with logging_context(correlation_id=CORRELATION):
         assert isinstance(deposit_backup(database, queue), UUID)
-    patient = Waiting(sleep=pauses.append)
-    assert not kept(database, backups_bucket, backup_id, into / "held", patient)
+    pauses.clear()
+    assert not kept(database, backups_bucket, backup_id, into / "held", impatient(pauses))
     assert len(pauses) == 2
     assert len(logs.named("reference.archive_not_read")) == 1
     assert list(into.iterdir()) == []
+
+
+@pytest.mark.story(STORY)
+def test_the_command_gives_its_waiting_to_the_download_of_the_archive(
+    source: Source, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The waiting of the command is the one of the download as well: a default one would sleep for
+    # real, and for its own patience.
+    given: list[Waiting | None] = []
+
+    def spy(*arguments: object) -> bool:
+        given.append(arguments[-1] if isinstance(arguments[-1], Waiting) else None)
+        return False
+
+    monkeypatch.setattr(reference_archive, "kept", spy)
+
+    def not_refused(*_arguments: object) -> bool:
+        return False
+
+    def deposited(*_arguments: object) -> UUID:
+        return new_id()
+
+    def ended_well(*_arguments: object) -> dict[str, str]:
+        return {"backup_id": str(new_id())}
+
+    monkeypatch.setattr(reference_archive, "refused", not_refused)
+    monkeypatch.setattr(reference_archive, "deposit_backup", deposited)
+    monkeypatch.setattr(reference_archive, "ended", ended_well)
+    waiting = Waiting(sleep=lambda _: None)
+    assert backup_reference(source.settings(), WANTED, History(0, 0), tmp_path, waiting) == 1
+    assert given == [waiting]
 
 
 @pytest.mark.story(STORY)

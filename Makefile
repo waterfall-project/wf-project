@@ -112,7 +112,7 @@ SHARD ?=
 # Refused as the Makefile is read, before the installation and the build of the front, which the
 # recipe would otherwise wait for to say so (#3026). Every goal that reaches the paths is named,
 # the families that run them included.
-E2E_PATH_GOALS := e2e e2e-service check-service check-front-e2e check-front check-all check
+E2E_PATH_GOALS := e2e e2e-service e2e-reference check-service check-front-e2e check-front check-all check
 ifneq ($(and $(SHARD),$(TESTS),$(filter $(E2E_PATH_GOALS),$(MAKECMDGOALS))),)
 $(error SHARD and TESTS do not combine for the end-to-end paths: the file may be in another part)
 endif
@@ -1058,10 +1058,16 @@ e2e-reference: export E2E_SERVICE_SERIAL =
 e2e-reference: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-reference: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-reference: export E2E_BUILT = 1
+# The platform holds the set: its projects counted in its database, a second's reading, before a
+# browser is started; a platform that is new, or loaded with less, says what to run first.
+reference-held = held=$$($(COMPOSE_SERVICE) exec --no-TTY postgres psql --username waterfall --dbname waterfall --tuples-only --no-align --command 'SELECT count(*) FROM project') && \
+	if [ "$${held:-0}" -lt $(REFERENCE_PROJECTS) ]; then \
+		echo "make e2e-reference: the platform holds $${held:-0} projects, the reference set $(REFERENCE_PROJECTS): run make service-reference-restore first." >&2; exit 1; fi
 e2e-reference: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `reference` (frontend/e2e/reference/) against the service platform that holds the reference set — make service-reference-restore first —, neither installed nor loaded again, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers); TESTS=<arguments of playwright test>, e.g. a file of frontend/e2e/reference/
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
+	@$(reference-held)
 	@mkdir -p $(FRONT)/.e2e && \
 		$(service-harness-env) && \
 		part= && \

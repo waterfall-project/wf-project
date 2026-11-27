@@ -125,11 +125,13 @@ def backup_reference(
             if isinstance(deposited, list):
                 logger.error("reference.backup_held_back", missing_condition=deposited[0])
                 return 1
-            result = ended(database, deposited, waiting or Waiting())
+            waiting = waiting or Waiting()
+            result = ended(database, deposited, waiting)
             if result is None:
                 return 1
             backup_id, name = UUID(str(result["backup_id"])), archive_name(wanted, history)
-            if not kept(database, Bucket.of_backups(settings), backup_id, into / name):
+            bucket = Bucket.of_backups(settings)
+            if not kept(database, bucket, backup_id, into / name, waiting):
                 return 1
             logger.info("reference.kept", backup_id=str(backup_id), archive=name)
             return 0
@@ -196,11 +198,12 @@ def kept(
     that holds them while the archive is verified would hold back a ``startBackup``, the scheduled
     backup and the deposit of a restoration for as long: the file is local, the rotation can no
     longer touch it. A backup deposited between its end and the download (``ended``, then here)
-    holds the archive back; it is taken once more after a pause (``waiting``), then said. Then the
-    archive is verified again, as the worker verified it (``verified``): an object cut short, or
-    unlike its manifest, keeps nothing. Each is written under a name of its own, then renamed, the
-    archive last: an archive present is whole, and its manifest is there. Gives whether they are
-    kept; why not is said in the logs.
+    holds the archive back; it is looked for again every pause of ``waiting`` until its patience is
+    spent, as the end of the backup is (``ended``): a backup takes minutes, not a pause. Said then.
+    Then the archive is verified again, as the worker verified it (``verified``): an object cut
+    short, or unlike its manifest, keeps nothing. Each is written under a name of its own, then
+    renamed, the archive last: an archive present is whole, and its manifest is there. Gives
+    whether they are kept; why not is said in the logs.
     """
     waiting = waiting or Waiting()
     into, name = named.parent, named.name
@@ -210,8 +213,9 @@ def kept(
     before = os.umask(PRIVATE)
     try:
         writing.unlink(missing_ok=True)
+        deadline = waiting.clock() + waiting.patience
         lacking = downloaded(database, bucket, backup_id, writing)
-        if lacking:
+        while lacking and waiting.clock() < deadline:
             logger.info("reference.archive_not_read_yet", missing_condition=lacking[0])
             waiting.sleep(waiting.pause)
             lacking = downloaded(database, bucket, backup_id, writing)
