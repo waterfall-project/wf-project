@@ -287,7 +287,8 @@ def test_a_marked_revision_is_designated_the_reference_and_the_designation_is_in
         "v1.0",
     )
     [entry] = journal(stage)
-    assert (entry.object_kind, entry.object_id, entry.object_label) == (
+    assert (entry.action, entry.object_kind, entry.object_id, entry.object_label) == (
+        "reference_designate",
         "revision",
         UUID(revision["revision_id"]),
         "v1.0",

@@ -235,12 +235,13 @@ def test_an_inscription_is_read_as_it_was_written_by_its_codes_and_its_data(
 
 
 @pytest.mark.requirement("WF-ADM-0190-A")
-def test_an_inscription_and_the_facet_name_a_project_the_service_does_not_open_yet(
+def test_an_inscription_and_the_facet_name_a_project_the_service_no_longer_holds_unopened(
     api: ContractClient, database: Database, reader: dict[str, str]
 ) -> None:
     # « Une inscription sur un projet que le lecteur ne peut pas consulter nomme ce projet sans
-    # l'ouvrir » : until EP-04 the service holds no project, so none can be opened (`can_open`
-    # false), in the inscriptions and in the facet, the code and the label named all the same.
+    # l'ouvrir » : the projects the journal cites are not in the base, so none can be opened
+    # (`can_open` false), in the inscriptions and in the facet, the code and the label named all
+    # the same; the projects that exist are tried in test_revision_mark.py.
     write(database)
     projects = [event["project"] for event in read(api, reader)["items"] if event["project"]]
     assert projects

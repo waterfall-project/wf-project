@@ -38,7 +38,7 @@ from installations import (
     written_task,
 )
 from project_rows import AT, MARKED, insert_project, insert_revision
-from projects_support import PROJECTS, Scene, create
+from projects_support import PROJECTS, Scene, create, person
 from projects_support import scene as make_scene
 from realm import KEY, TestRealm
 from sqlalchemy import func, insert, select, text, update
@@ -57,6 +57,7 @@ from waterfall.core.backups.interface import (
 )
 from waterfall.core.backups.tables import Backup
 from waterfall.core.indicators.tables import RevisionIndicator
+from waterfall.core.projects.interface import projects_present
 from waterfall.core.revisions.tables import Revision
 from waterfall.core.users.interface import anonymize_account
 from waterfall.core.users.tables import UserAccount
@@ -330,6 +331,43 @@ def test_a_backup_then_a_restoration_give_back_the_projects_the_revisions_and_th
         assert realms == ["waterfall"]
     finally:
         provider.dispose()
+
+
+@pytest.mark.requirement("WF-ADM-0190-A")
+def test_after_a_restoration_a_project_made_after_the_backup_is_named_by_its_inscription_not_led_to(
+    installation: Installation, take: Take, carrying: Carrying, realm: TestRealm, tmp_path: Path
+) -> None:
+    # « Après une restauration, une inscription qui cite un projet créé après la sauvegarde
+    # s'affiche avec le libellé et le code de ce projet, sans mener à lui. » : a project made
+    # through the service after the backup, the journal read by an account that holds the reading
+    # of every project and the consultation of the projects (``can_open`` follows ``GET
+    # /projects/{id}``, which asks for both); the restoration writes the inscription back, the
+    # project is gone, and the inscription names it by what it was — and still leads to the one
+    # the backup holds.
+    api, stage, database = carrying.api, carrying.stage, installation.database
+    reading = ("audit_log.read", "project_settings.read", "all_projects_read")
+    reader = person(database, realm, *reading)
+    kept = stage.project["project_id"]
+    backup_task = take()
+    later = create(api, stage.manager, label="Projet postérieur", code="PRJ-777")
+    restore(installation, backup_task, tmp_path)
+    with database.transaction() as session:
+        assert projects_present(session, [UUID(later["project_id"])]) == frozenset()
+    journal = api.get("/api/v1/audit-events?actions=project_create", headers=reader.headers)
+    facets = api.get("/api/v1/audit-events/facets", headers=reader.headers)
+    assert journal.status_code == 200, journal.text
+    assert facets.status_code == 200, facets.text
+    expected = {
+        later["project_id"]: ("PRJ-777", "Projet postérieur", False),
+        kept: (None, stage.project["label"], True),
+    }
+    seen = {each["project"]["project_id"]: each["project"] for each in journal.json()["items"]}
+    named = {each["project_id"]: each for each in facets.json()["projects"]}
+    for found in (seen, named):
+        assert set(found) == set(expected)
+        for project_id, (code, label, opens) in expected.items():
+            project = found[project_id]
+            assert (project["code"], project["label"], project["can_open"]) == (code, label, opens)
 
 
 @pytest.mark.requirement("WF-ADM-0160-A")

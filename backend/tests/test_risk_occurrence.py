@@ -354,7 +354,10 @@ def test_a_failing_occurrence_leaves_nothing(ready: Occurring, worker: Worker) -
 
 
 @pytest.mark.requirement("WF-RIS-0060-A")
+@pytest.mark.requirement("WF-SEC-0030-A")
 def test_the_occurrence_is_inscribed_in_the_journal(ready: Occurring, worker: Worker) -> None:
+    # « Chacune des actions énumérées produit une inscription datée et attribuée. » : the
+    # occurrence is inscribed, dated, attributed to its author, naming its object.
     assert occurred(ready, worker)["status"] == "succeeded"
     with ready.project.stage.database.transaction() as session:
         inscribed = session.scalars(
@@ -363,6 +366,8 @@ def test_the_occurrence_is_inscribed_in_the_journal(ready: Occurring, worker: Wo
     assert [(each.object_kind, each.object_label) for each in inscribed] == [
         ("risk", ready.risk["label"])
     ]
+    assert inscribed[0].actor_user_id == ready.risks.stage.manager.user_id
+    assert inscribed[0].occurred_at is not None
 
 
 @pytest.mark.requirement("WF-IHM-0110-A")
